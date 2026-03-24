@@ -71,6 +71,100 @@ pnpm lint
 pnpm build
 ```
 
+## Health Check
+
+The server provides health check endpoints for local development and production monitoring:
+
+### Simple Health Check
+
+**Endpoint:** `GET /api/v1/health`
+
+Returns a minimal response suitable for load balancers and uptime monitors:
+
+```json
+{
+   "success": true,
+   "message": "OK",
+   "timestamp": "2025-01-15T10:30:00.000Z"
+}
+```
+
+### Detailed Health Check
+
+**Endpoint:** `GET /api/v1/health/detailed`
+
+Returns comprehensive service status including database connectivity:
+
+```json
+{
+   "success": true,
+   "message": "Access Layer server is running",
+   "timestamp": "2025-01-15T10:30:00.000Z",
+   "version": "1.0.0",
+   "environment": "development",
+   "uptime": 12345.67,
+   "memory": {
+      "used": 45.23,
+      "total": 128.5
+   },
+   "system": {
+      "platform": "win32",
+      "nodeVersion": "v20.10.0"
+   },
+   "database": {
+      "status": "connected",
+      "responseTime": 12
+   },
+   "services": [
+      {
+         "name": "API Server",
+         "status": "healthy"
+      },
+      {
+         "name": "Database",
+         "status": "healthy"
+      }
+   ]
+}
+```
+
+**Response Codes:**
+
+- `200 OK` - All services healthy (or development mode)
+- `503 Service Unavailable` - Database disconnected in production
+
+### Usage Examples
+
+**Local Development:**
+
+```bash
+curl http://localhost:3000/api/v1/health/detailed
+```
+
+**Production Monitoring:**
+
+```bash
+curl https://your-domain.com/api/v1/health
+```
+
+**Docker/Kubernetes Health Probes:**
+
+```yaml
+livenessProbe:
+   httpGet:
+      path: /api/v1/health
+      port: 3000
+   initialDelaySeconds: 10
+   periodSeconds: 30
+
+readinessProbe:
+   httpGet:
+      path: /api/v1/health/detailed
+      port: 3000
+   initialDelaySeconds: 5
+   periodSeconds: 10
+```
+
 ## Open source workflow
 
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) before starting work.

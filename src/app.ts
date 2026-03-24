@@ -7,7 +7,6 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import tspecOptions from './tspec.config';
-import { envConfig } from './config';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
 
@@ -22,31 +21,7 @@ app.use(morgan('combined'));
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
 
-// Health check
-app.get('/health', (_, res: Response) => {
-   const healthData = {
-      success: true,
-      message: 'Access Layer server is running',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: envConfig.MODE || 'development',
-      uptime: process.uptime(),
-      memory: {
-         used:
-            Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) /
-            100,
-         total:
-            Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) /
-            100,
-      },
-      system: {
-         platform: process.platform,
-         nodeVersion: process.version,
-      },
-   };
-
-   res.status(200).json(healthData);
-});
+// Health check endpoints are now in /api/v1/health
 
 async function setupTspecDocs() {
    try {
