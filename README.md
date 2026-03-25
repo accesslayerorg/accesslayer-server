@@ -162,7 +162,7 @@ readinessProbe:
       path: /api/v1/health/detailed
       port: 3000
    initialDelaySeconds: 5
-   periodSeconds: 10
+   periodSeconds: 10.
 ```
 
 ## Open source workflow
