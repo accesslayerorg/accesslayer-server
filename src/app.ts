@@ -9,11 +9,13 @@ import morgan from 'morgan';
 import tspecOptions from './tspec.config';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
+import { requestIdMiddleware } from './middlewares/request-id.middleware';
 
 const app: Express = express();
 
 // Middleware setup
 app.set('trust proxy', 1);
+app.use(requestIdMiddleware);
 app.use(corsMiddleware());
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
