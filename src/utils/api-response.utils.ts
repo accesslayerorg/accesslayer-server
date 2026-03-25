@@ -37,6 +37,28 @@ interface ApiSuccessResponse<T = unknown> {
    message?: string;
 }
 
+/**
+ * Standard API pagination metadata.
+ */
+export interface PaginationMetadata {
+   page: number;
+   limit: number;
+   totalCount: number;
+   totalPages: number;
+   hasNextPage: boolean;
+   hasPrevPage: boolean;
+}
+
+/**
+ * Standard paginated API response shape.
+ */
+interface PaginatedResponse<T = unknown> {
+   success: true;
+   data: T[];
+   meta: PaginationMetadata;
+   message?: string;
+}
+
 // ── Error codes ──────────────────────────────────────────────
 
 export const ErrorCode = {
@@ -87,6 +109,25 @@ export function sendSuccess<T>(
    const body: ApiSuccessResponse<T> = {
       success: true,
       data,
+      ...(message ? { message } : {}),
+   };
+   res.status(statusCode).json(body);
+}
+
+/**
+ * Send a formatted paginated success response.
+ */
+export function sendPaginatedSuccess<T>(
+   res: Response,
+   data: T[],
+   meta: PaginationMetadata,
+   statusCode = 200,
+   message?: string
+): void {
+   const body: PaginatedResponse<T> = {
+      success: true,
+      data,
+      meta,
       ...(message ? { message } : {}),
    };
    res.status(statusCode).json(body);
