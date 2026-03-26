@@ -1,0 +1,16 @@
+// prisma/schema/creator.prisma
+
+model CreatorProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  handle      String   @unique
+  displayName String
+  bio         String?
+  avatarUrl   String?
+  perkSummary String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
