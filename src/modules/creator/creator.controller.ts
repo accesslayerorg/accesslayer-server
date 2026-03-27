@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { z } from 'zod';
 import {
    sendPaginatedSuccess,
+   sendSuccess,
    sendError,
    sendValidationError,
    ErrorCode,
@@ -11,6 +12,7 @@ import {
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
 import { safeIntParam } from '../../utils/query.utils';
+import { mapPublicCreatorStats } from '../creators/creators.stats';
 import {
    DEFAULT_PAGE,
    DEFAULT_PAGE_SIZE,
@@ -37,7 +39,9 @@ const LegacyCreatorQuerySchema = z.object({
 
 export async function listCreators(req: Request, res: Response) {
    try {
-      const { page, limit, sortBy, sortOrder } = LegacyCreatorQuerySchema.parse(req.query);
+      const { page, limit, sortBy, sortOrder } = LegacyCreatorQuerySchema.parse(
+         req.query
+      );
 
       const sort = parseCreatorSortOptions(sortBy, sortOrder);
 
@@ -70,4 +74,20 @@ export async function listCreators(req: Request, res: Response) {
          'Failed to retrieve creators'
       );
    }
+}
+
+export async function getCreatorStats(req: Request, res: Response) {
+   const { id } = req.params;
+
+   // TODO: Replace with real metrics lookup by creator ID
+   const placeholderMetrics = {
+      holderCount: 0,
+      totalSupply: 0,
+      totalVolume: 0,
+      lastActivityAt: undefined,
+   };
+
+   const stats = mapPublicCreatorStats(placeholderMetrics);
+
+   return sendSuccess(res, stats, 200, `Creator ${id} stats retrieved`);
 }
