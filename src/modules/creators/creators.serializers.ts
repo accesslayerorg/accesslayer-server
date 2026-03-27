@@ -1,4 +1,4 @@
-import { CreatorProfile } from '../../types/profile.types';
+import { PublicCreatorSummary } from './creators.fields';
 
 /**
  * Creator summary shape for list responses.
@@ -15,39 +15,35 @@ export interface CreatorSummary {
 }
 
 /**
- * Serializes a full CreatorProfile into a CreatorSummary for list responses.
+ * Serializes a public creator summary for list responses.
  *
- * Centralizes list serialization logic and keeps it reusable across endpoints.
+ * This is now mostly a pass-through as the data is already shaped by the database.
  *
- * @param profile - Full creator profile from database
+ * @param summary - Public creator summary from database
  * @returns Creator summary suitable for list responses
- *
- * @example
- * const summary = serializeCreatorSummary(creatorProfile);
- * // Returns: { id, handle, displayName, avatarUrl, isVerified }
  */
 export function serializeCreatorSummary(
-   profile: CreatorProfile
+   summary: PublicCreatorSummary
 ): CreatorSummary {
    return {
-      id: profile.id,
-      handle: profile.handle,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      isVerified: profile.isVerified,
+      id: summary.id,
+      handle: summary.handle,
+      displayName: summary.displayName,
+      avatarUrl: summary.avatarUrl ?? undefined,
+      isVerified: summary.isVerified,
    };
 }
 
 /**
- * Serializes multiple creator profiles for list responses.
+ * Serializes multiple creator summaries for list responses.
  *
- * @param profiles - Array of full creator profiles
+ * @param summaries - Array of public creator summaries
  * @returns Array of creator summaries
  */
 export function serializeCreatorList(
-   profiles: CreatorProfile[]
+   summaries: PublicCreatorSummary[]
 ): CreatorSummary[] {
-   return profiles.map(serializeCreatorSummary);
+   return summaries.map(serializeCreatorSummary);
 }
 
 /**
