@@ -5,6 +5,7 @@ import {
    serializeCreatorList,
    CreatorListResponse,
 } from './creators.serializers';
+import { mapPublicCreatorStats } from './creators.stats';
 import {
    sendSuccess,
    sendValidationError,
@@ -45,6 +46,41 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
          }));
          return sendValidationError(res, 'Invalid query parameters', details);
       }
+      next(error);
+   }
+};
+
+/**
+ * Controller for GET /api/v1/creators/:id/stats
+ *
+ * Returns public stats for a specific creator.
+ * Validates creator ID and applies caching via middleware.
+ */
+export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
+   try {
+      const { id } = req.params;
+
+      // Validate creator ID format (basic validation)
+      if (!id || typeof id !== 'string') {
+         return sendValidationError(res, 'Invalid creator ID', [
+            { field: 'id', message: 'Creator ID must be a valid string' },
+         ]);
+      }
+
+      // TODO: Fetch actual creator metrics from database/service
+      // For now, return placeholder data
+      const placeholderMetrics = {
+         holderCount: 0,
+         totalSupply: 0,
+         totalVolume: 0,
+         lastActivityAt: undefined,
+      };
+
+      // Serialize using the public stats mapper
+      const stats = mapPublicCreatorStats(placeholderMetrics);
+
+      sendSuccess(res, stats);
+   } catch (error) {
       next(error);
    }
 };
