@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import { httpListCreators } from './creators.controllers';
-import {
-   cacheControl,
-   CachePresets,
-} from '../../middlewares/cache-control.middleware';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import { PUBLIC_ENDPOINT_CACHE_PRESETS } from '../../constants/public-endpoint-cache.constants';
 
 const creatorsRouter = Router();
 
@@ -15,7 +13,7 @@ const creatorsRouter = Router();
  */
 creatorsRouter.get(
    '/',
-   cacheControl(CachePresets.publicShort),
+   cacheControl(PUBLIC_ENDPOINT_CACHE_PRESETS.short),
    httpListCreators
 );
 
