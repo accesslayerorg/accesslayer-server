@@ -33,16 +33,16 @@ export interface PublicCreatorStats {
  * Maps each public stats field to its corresponding internal CreatorMetrics key.
  * Currently 1:1, but the indirection lets internal field names change
  * without breaking the public API contract.
+ *
+ * Uses `as const satisfies` to retain literal types for type-safe indexing
+ * while enforcing that all public fields map to valid CreatorMetrics keys.
  */
-const CREATOR_STATS_FIELD_MAP: Record<
-    CreatorStatsField,
-    keyof CreatorMetrics
-> = {
+const CREATOR_STATS_FIELD_MAP = {
     holderCount: 'holderCount',
     totalSupply: 'totalSupply',
     totalVolume: 'totalVolume',
     lastActivityAt: 'lastActivityAt',
-};
+} as const satisfies Record<CreatorStatsField, keyof CreatorMetrics>;
 
 /**
  * Map a CreatorMetrics object into a public stats response.
@@ -60,16 +60,15 @@ const CREATOR_STATS_FIELD_MAP: Record<
 export function mapPublicCreatorStats(
     metrics: CreatorMetrics
 ): PublicCreatorStats {
-    const result: Record<string, unknown> = {};
-
-    for (const [publicKey, internalKey] of Object.entries(
-        CREATOR_STATS_FIELD_MAP
-    )) {
-        const value = metrics[internalKey];
-        if (value !== undefined) {
-            result[publicKey] = value;
-        }
-    }
-
-    return result as unknown as PublicCreatorStats;
+    return {
+        holderCount: metrics[CREATOR_STATS_FIELD_MAP.holderCount],
+        totalSupply: metrics[CREATOR_STATS_FIELD_MAP.totalSupply],
+        totalVolume: metrics[CREATOR_STATS_FIELD_MAP.totalVolume],
+        ...(metrics[CREATOR_STATS_FIELD_MAP.lastActivityAt] !== undefined
+            ? {
+                  lastActivityAt:
+                      metrics[CREATOR_STATS_FIELD_MAP.lastActivityAt],
+              }
+            : {}),
+    };
 }
