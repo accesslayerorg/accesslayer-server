@@ -1,5 +1,4 @@
 import { prisma } from '../../utils/prisma.utils';
-import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
 import { CreatorListResponse } from './creators.serializers';
