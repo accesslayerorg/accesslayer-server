@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { withCreatorSlugEmptyStringNormalization } from './creator-slug-input.utils';
 
 /**
  * Shared creator profile identifier schema for route params.
@@ -7,11 +8,13 @@ import { z } from 'zod';
  * and keep this centralized for future route extensions.
  */
 export const CreatorProfileParamsSchema = z.object({
-   creatorId: z
-      .string()
-      .trim()
-      .min(1, 'Creator ID is required')
-      .max(128, 'Creator ID is too long'),
+   creatorId: withCreatorSlugEmptyStringNormalization(
+      z
+         .string()
+         .trim()
+         .min(1, 'Creator ID is required')
+         .max(128, 'Creator ID is too long')
+   ),
 });
 
 /**
@@ -50,7 +53,11 @@ export const UpsertCreatorProfileBodySchema = z.object({
       .trim()
       .max(1000, 'Bio must be at most 1000 characters')
       .optional(),
-   avatarUrl: z.string().trim().url('Avatar URL must be a valid URL').optional(),
+   avatarUrl: z
+      .string()
+      .trim()
+      .url('Avatar URL must be a valid URL')
+      .optional(),
    links: z
       .array(
          z.object({

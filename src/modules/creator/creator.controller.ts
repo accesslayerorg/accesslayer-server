@@ -12,22 +12,24 @@ import { parseCreatorSortOptions } from './creator.utils';
 import { safeIntParam } from '../../utils/query.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
-import { resolveCreatorListLimit } from '../creators/creators.limit.utils';
+import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
+import { normalizeCreatorListPage } from './creator-list-page.guard';
 import {
    DEFAULT_PAGE,
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
 } from '../../constants/pagination.constants';
+import { PUBLIC_PAGE_PAGINATION_DEFAULTS } from '../../utils/public-list-query-defaults';
 
 const LegacyCreatorQuerySchema = z.object({
    page: safeIntParam({
-      defaultValue: DEFAULT_PAGE,
+      defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.page,
       min: MIN_PAGE_SIZE,
       max: Number.MAX_SAFE_INTEGER,
       label: 'Page',
    }),
    limit: safeIntParam({
-      defaultValue: resolveCreatorListLimit(),
+defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.limit,
       min: MIN_PAGE_SIZE,
       max: MAX_PAGE_SIZE,
       label: 'Limit',
@@ -38,11 +40,17 @@ const LegacyCreatorQuerySchema = z.object({
 
 export async function listCreators(req: Request, res: Response) {
    try {
-      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, req.query);
+      const ctx = buildCreatorListRequestContext(req);
+      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
       if (!parsed.ok) {
-         return sendValidationError(res, 'Invalid query parameters', parsed.details);
+         return sendValidationError(
+            res,
+            'Invalid query parameters',
+            parsed.details
+         );
       }
-      const { page, limit, sortBy, sortOrder } = parsed.data;
+      const { limit, sortBy, sortOrder } = parsed.data;
+      const page = normalizeCreatorListPage(parsed.data.page);
 
       const sort = parseCreatorSortOptions(sortBy, sortOrder);
 

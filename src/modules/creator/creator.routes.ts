@@ -12,11 +12,14 @@ import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-publ
 const router = Router();
 
 /**
- * Creator module route map (initial scaffold):
+ * Creator module route map:
  *
  * - GET /api/v1/creators
  * - GET /api/v1/creators/:creatorId/profile
  * - PUT /api/v1/creators/:creatorId/profile
+ *
+ * Note: The legacy creators list route is no longer mounted from `src/modules/index.ts` because
+ * `src/modules/creators/creators.routes.ts` is the active public endpoint.
  */
 
 /**

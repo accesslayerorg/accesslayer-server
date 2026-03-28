@@ -1,6 +1,14 @@
 import { CreatorProfile } from '../../types/profile.types';
+import type { CursorPaginationMeta } from '../../types/cursor.types';
 import type { OffsetPaginationMeta } from '../../utils/pagination.utils';
-import type { PublicCreatorListEnvelope } from './public-creator-list-envelope.utils';
+import {
+   type PublicCreatorListEnvelope,
+   wrapPublicCreatorListResponse,
+} from './public-creator-list-envelope.utils';
+import {
+   CreatorListItem,
+   mapCreatorListItem,
+} from './creator-list-item.mapper';
 
 /**
  * Creator summary shape for list responses.
@@ -48,14 +56,56 @@ export function serializeCreatorSummary(
  */
 export function serializeCreatorList(
    profiles: CreatorProfile[]
-): CreatorSummary[] {
-   return profiles.map(serializeCreatorSummary);
+): CreatorListItem[] {
+   return profiles.map(mapCreatorListItem);
+}
+
+/**
+ * Serializes cursor pagination metadata for creator list responses.
+ *
+ * Keeps cursor metadata shaping in one place so cursor-aware routes can
+ * return a consistent public response body without rebuilding metadata inline.
+ *
+ * @param meta - Raw cursor pagination metadata
+ * @returns Cursor pagination metadata normalized for public list responses
+ */
+export function serializeCreatorListCursorMeta(
+   meta: CursorPaginationMeta
+): CursorPaginationMeta {
+   return {
+      nextCursor: meta.nextCursor ?? null,
+      hasMore: Boolean(meta.hasMore),
+   };
 }
 
 /**
  * Paginated creator list response body (offset pagination metadata).
  */
 export type CreatorListResponse = PublicCreatorListEnvelope<
-   CreatorSummary,
+   CreatorListItem,
    OffsetPaginationMeta
 >;
+
+/**
+ * Cursor-aware creator list response body.
+ */
+export type CreatorCursorListResponse = PublicCreatorListEnvelope<
+   CreatorListItem,
+   CursorPaginationMeta
+>;
+
+/**
+ * Serializes a cursor-aware creator list response.
+ *
+ * This keeps cursor metadata and creator summary shaping out of route handlers
+ * while reusing the existing public list envelope shape.
+ */
+export function serializeCursorAwareCreatorListResponse(
+   profiles: CreatorProfile[],
+   meta: CursorPaginationMeta
+): CreatorCursorListResponse {
+   return wrapPublicCreatorListResponse(
+      serializeCreatorList(profiles),
+      serializeCreatorListCursorMeta(meta)
+   );
+}
