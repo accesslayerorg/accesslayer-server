@@ -13,6 +13,7 @@ import {
 } from '../../utils/api-response.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { buildCreatorListRequestContext } from './creator-list-context.utils';
 
 /**
  * Controller for GET /api/v1/creators
@@ -22,8 +23,10 @@ import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
  */
 export const httpListCreators: AsyncController = async (req, res, next) => {
    try {
+      const ctx = buildCreatorListRequestContext(req);
+
       // Validate query parameters
-      const parsed = parsePublicQuery(CreatorListQuerySchema, req.query);
+      const parsed = parsePublicQuery(CreatorListQuerySchema, ctx.query);
       if (!parsed.ok) {
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }
