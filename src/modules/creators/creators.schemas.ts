@@ -43,6 +43,15 @@ export const CreatorListQuerySchema = z.object({
    order: creatorListSortDirectionQueryParam(),
 
    // Filters
+   verified: z
+      .string()
+      .optional()
+      .transform(val => {
+         if (val === undefined) return undefined;
+         return val === 'true';
+      }),
+   search: z.string().optional(),
+}).strict();
    verified: withCreatorListQueryStringNormalization(
       z
          .string()
