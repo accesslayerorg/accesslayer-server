@@ -12,9 +12,9 @@ import { parseCreatorSortOptions } from './creator.utils';
 import { safeIntParam } from '../../utils/query.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
+import { resolveCreatorListLimit } from '../creators/creators.limit.utils';
 import {
    DEFAULT_PAGE,
-   DEFAULT_PAGE_SIZE,
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
 } from '../../constants/pagination.constants';
@@ -27,7 +27,7 @@ const LegacyCreatorQuerySchema = z.object({
       label: 'Page',
    }),
    limit: safeIntParam({
-      defaultValue: DEFAULT_PAGE_SIZE,
+      defaultValue: resolveCreatorListLimit(),
       min: MIN_PAGE_SIZE,
       max: MAX_PAGE_SIZE,
       label: 'Limit',

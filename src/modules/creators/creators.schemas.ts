@@ -4,12 +4,12 @@ import { creatorListSortDirectionQueryParam } from './creators.sort-direction.pa
 import { withCreatorListQueryStringNormalization } from './creators.query-string.utils';
 import { safeIntParam } from '../../utils/query.utils';
 import {
-   DEFAULT_PAGE_SIZE,
    DEFAULT_OFFSET,
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
 } from '../../constants/pagination.constants';
 import { DEFAULT_CREATOR_LIST_SORT } from '../../constants/creator-list-sort.constants';
+import { resolveCreatorListLimit } from './creators.limit.utils';
 
 /**
  * Validation schema for creator list query parameters.
@@ -23,7 +23,7 @@ import { DEFAULT_CREATOR_LIST_SORT } from '../../constants/creator-list-sort.con
 export const CreatorListQuerySchema = z.object({
    // Pagination
    limit: safeIntParam({
-      defaultValue: DEFAULT_PAGE_SIZE,
+      defaultValue: resolveCreatorListLimit(),
       min: MIN_PAGE_SIZE,
       max: MAX_PAGE_SIZE,
       label: 'Limit',
