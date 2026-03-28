@@ -5,7 +5,10 @@ import { withCreatorListQueryStringNormalization } from './creators.query-string
 import { safeIntParam } from '../../utils/query.utils';
 import {
   
-DEFAULT_OFFSET,
+import {
+  MIN_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+} from '../../constants/pagination.constants';
   
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
