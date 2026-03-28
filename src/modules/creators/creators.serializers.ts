@@ -5,6 +5,10 @@ import {
    type PublicCreatorListEnvelope,
    wrapPublicCreatorListResponse,
 } from './public-creator-list-envelope.utils';
+import {
+   CreatorListItem,
+   mapCreatorListItem,
+} from './creator-list-item.mapper';
 
 /**
  * Creator summary shape for list responses.
@@ -52,8 +56,8 @@ export function serializeCreatorSummary(
  */
 export function serializeCreatorList(
    profiles: CreatorProfile[]
-): CreatorSummary[] {
-   return profiles.map(serializeCreatorSummary);
+): CreatorListItem[] {
+   return profiles.map(mapCreatorListItem);
 }
 
 /**
@@ -78,7 +82,7 @@ export function serializeCreatorListCursorMeta(
  * Paginated creator list response body (offset pagination metadata).
  */
 export type CreatorListResponse = PublicCreatorListEnvelope<
-   CreatorSummary,
+   CreatorListItem,
    OffsetPaginationMeta
 >;
 
@@ -86,7 +90,7 @@ export type CreatorListResponse = PublicCreatorListEnvelope<
  * Cursor-aware creator list response body.
  */
 export type CreatorCursorListResponse = PublicCreatorListEnvelope<
-   CreatorSummary,
+   CreatorListItem,
    CursorPaginationMeta
 >;
 

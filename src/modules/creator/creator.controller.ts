@@ -12,6 +12,7 @@ import { parseCreatorSortOptions } from './creator.utils';
 import { safeIntParam } from '../../utils/query.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
+import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
 import {
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
@@ -37,7 +38,8 @@ const LegacyCreatorQuerySchema = z.object({
 
 export async function listCreators(req: Request, res: Response) {
    try {
-      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, req.query);
+      const ctx = buildCreatorListRequestContext(req);
+      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
       if (!parsed.ok) {
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }
