@@ -4,14 +4,22 @@ import { envConfig } from '../config';
 import { ErrorRequestHandler } from 'express';
 import chalk from 'chalk';
 import { z } from 'zod';
+import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 
 export class ApiError extends Error {
    statusCode: number;
    isOperational: boolean;
-
-   constructor(statusCode: number, message: string, isOperational = true) {
+   errorCode?: ErrorCodeType;
+ 
+   constructor(
+      statusCode: number,
+      message: string,
+      errorCode?: ErrorCodeType,
+      isOperational = true
+   ) {
       super(message);
       this.statusCode = statusCode;
+      this.errorCode = errorCode;
       this.isOperational = isOperational;
       Error.captureStackTrace(this, this.constructor);
    }
@@ -54,6 +62,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err instanceof z.ZodError || err.name === 'ZodError') {
       res.status(400).json({
          success: false,
+         code: ErrorCode.VALIDATION_ERROR,
          message: 'Validation failed',
          errors: err.errors || err.issues,
       });
@@ -64,6 +73,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err.name === 'JsonWebTokenError') {
       res.status(401).json({
          success: false,
+         code: ErrorCode.JWT_ERROR,
          message: 'Invalid or expired token',
       });
       return;
@@ -72,6 +82,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err.name === 'TokenExpiredError') {
       res.status(401).json({
          success: false,
+         code: ErrorCode.JWT_ERROR,
          message: 'Token has expired',
       });
       return;
@@ -96,6 +107,7 @@ export const errorHandler: ErrorRequestHandler = (
 
       res.status(400).json({
          success: false,
+         code: ErrorCode.PRISMA_ERROR,
          message,
          ...(envConfig.MODE === 'development' && { error: err.message }),
       });
@@ -106,6 +118,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err instanceof ApiError) {
       res.status(err.statusCode).json({
          success: false,
+         code: err.errorCode || ErrorCode.INTERNAL_ERROR,
          message: err.message,
       });
       return;
@@ -115,6 +128,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err instanceof SyntaxError && 'body' in err) {
       res.status(400).json({
          success: false,
+         code: ErrorCode.BAD_REQUEST,
          message: 'Invalid JSON format',
       });
       return;
@@ -143,6 +157,7 @@ export const errorHandler: ErrorRequestHandler = (
 
    res.status(statusCode).json({
       success: false,
+      code: err.errorCode || ErrorCode.INTERNAL_ERROR,
       message,
       ...(envConfig.MODE === 'development' && {
          stack: err.stack,
@@ -153,25 +168,25 @@ export const errorHandler: ErrorRequestHandler = (
 
 // Helper functions for common errors
 export const notFoundError = (resource: string) => {
-   return new ApiError(404, `${resource} not found`);
+   return new ApiError(404, `${resource} not found`, ErrorCode.NOT_FOUND);
 };
 
 export const badRequestError = (message: string) => {
-   return new ApiError(400, message);
+   return new ApiError(400, message, ErrorCode.BAD_REQUEST);
 };
 
 export const unauthorizedError = (message = 'Unauthorized access') => {
-   return new ApiError(401, message);
+   return new ApiError(401, message, ErrorCode.UNAUTHORIZED);
 };
 
 export const forbiddenError = (message = 'Access forbidden') => {
-   return new ApiError(403, message);
+   return new ApiError(403, message, ErrorCode.FORBIDDEN);
 };
 
 export const conflictError = (message: string) => {
-   return new ApiError(409, message);
+   return new ApiError(409, message, ErrorCode.CONFLICT);
 };
 
 export const validationError = (message: string) => {
-   return new ApiError(422, message);
+   return new ApiError(400, message, ErrorCode.VALIDATION_ERROR);
 };
