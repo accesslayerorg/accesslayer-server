@@ -6,6 +6,10 @@
       "allowJs": true,
       "outDir": "dist",
       "rootDir": "src",
+      "baseUrl": ".",
+      "paths": {
+         "@prisma/client": ["./node_modules/.prisma/client/index.d.ts"]
+      },
       "strict": true,
       "esModuleInterop": true,
       "skipLibCheck": true,

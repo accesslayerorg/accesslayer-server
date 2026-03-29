@@ -1,61 +1,63 @@
 // src/modules/creator/creator.controller.ts
-import { Request, Response } from 'express';
+import { RequestHandler } from 'express';
+
+// API response helpers
 import {
-   sendPaginatedSuccess,
-   sendError,
-   ErrorCode,
+  sendSuccess,
+  sendError,
+  sendValidationError,
+  ErrorCode,
 } from '../../utils/api-response.utils';
+
+// Creator service and utilities
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
-import {
-   validatePageSize,
-   PageSizeExceededError,
-} from '../../utils/pagination-guard.utils';
+import { parsePublicQuery } from '../../utils/public-query-parse.utils';
+import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
+import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
+import { normalizeCreatorListPage } from './creator-list-page.guard';
 
-export async function listCreators(req: Request, res: Response) {
-   try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limitInput = parseInt(req.query.limit as string) || 10;
-      const sortBy = req.query.sortBy as string;
-      const sortOrder = req.query.sortOrder as string;
+// Legacy query schema
+import { LegacyCreatorQuerySchema } from '../creators/creators.schemas';
 
-      if (page < 1) {
-         return sendError(
-            res,
-            400,
-            ErrorCode.VALIDATION_ERROR,
-            'Invalid pagination parameters'
-         );
-      }
+// Typed Express handler
+export const listCreators: RequestHandler = async (req, res) => {
+  try {
+    // Build request context
+    const ctx = buildCreatorListRequestContext(req);
 
-      // Validate page size using the reusable guard
-      const limit = validatePageSize(limitInput);
+    // Parse query using legacy schema
+    const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
 
-      const sort = parseCreatorSortOptions(sortBy, sortOrder);
+    if (!parsed.ok) {
+      return sendValidationError(res, 'Invalid query parameters', parsed.details);
+    }
 
-      const { creators, meta } = await getPaginatedCreators({
-         page,
-         limit,
-         sort,
-      });
+    // Destructure using schema fields
+    const { offset, limit, sort, order: sortOrder } = parsed.data;
 
-      return sendPaginatedSuccess(
-         res,
-         creators,
-         meta,
-         200,
-         'Creators retrieved successfully'
-      );
-   } catch (error) {
-      if (error instanceof PageSizeExceededError) {
-         return sendError(res, 400, ErrorCode.VALIDATION_ERROR, error.message);
-      }
-      console.error('Error listing creators:', error);
-      return sendError(
-         res,
-         500,
-         ErrorCode.INTERNAL_ERROR,
-         'Failed to retrieve creators'
-      );
-   }
-}
+    // Convert offset to page number
+    const page = normalizeCreatorListPage(offset);
+
+    // Build sort options
+    const sortOptions = parseCreatorSortOptions(sort, sortOrder);
+
+    // Fetch paginated creators
+    const { creators, meta } = await getPaginatedCreators({
+      page,
+      limit,
+      sort: sortOptions,
+    });
+
+    // Send success response
+    return sendSuccess(
+      res,
+      wrapPublicCreatorListResponse(creators, meta),
+      200,
+      'Creators retrieved successfully'
+    );
+  } catch (error) {
+    console.error('Error listing creators:', error);
+    return sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve creators');
+  }
+};

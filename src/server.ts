@@ -3,6 +3,11 @@ import app from './app';
 import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
+import dotenv from 'dotenv'
+
+
+dotenv.config()
+
 
 async function startServer() {
    try {

@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
 import { sendNotFound } from '../../utils/api-response.utils';
 
-export type CreatorSortField = 'createdAt' | 'handle' | 'displayName';
+export type CreatorSortField = CreatorListSortField;
 export type SortOrder = 'asc' | 'desc';
 
 export interface CreatorSortOptions {
@@ -20,16 +20,15 @@ export function parseCreatorSortOptions(
    sortBy?: string,
    sortOrder?: string
 ): CreatorSortOptions {
-   const validFields: CreatorSortField[] = ['createdAt', 'handle', 'displayName'];
    const validOrders: SortOrder[] = ['asc', 'desc'];
 
-   const field = validFields.includes(sortBy as CreatorSortField)
+   const field = CREATOR_LIST_SORT_FIELDS.includes(sortBy as CreatorSortField)
       ? (sortBy as CreatorSortField)
-      : 'createdAt';
+      : DEFAULT_CREATOR_LIST_SORT;
 
    const order = validOrders.includes(sortOrder as SortOrder)
       ? (sortOrder as SortOrder)
-      : 'desc';
+      : DEFAULT_CREATOR_LIST_ORDER;
 
    return { field, order };
 }

@@ -1,5 +1,6 @@
 // src/middlewares/cache-control.middleware.ts
 import { Request, Response, NextFunction } from 'express';
+import { PUBLIC_ENDPOINT_CACHE_PRESETS } from '../constants/public-endpoint-cache.constants';
 
 /**
  * Cache control options for different types of endpoints.
@@ -90,17 +91,17 @@ export const CachePresets = {
    /**
     * Short cache for frequently updated public data (5 minutes)
     */
-   publicShort: { maxAge: 300, type: 'public' as const },
+   publicShort: PUBLIC_ENDPOINT_CACHE_PRESETS.short,
 
    /**
     * Medium cache for moderately stable public data (1 hour)
     */
-   publicMedium: { maxAge: 3600, type: 'public' as const },
+   publicMedium: PUBLIC_ENDPOINT_CACHE_PRESETS.medium,
 
    /**
     * Long cache for stable public data (24 hours)
     */
-   publicLong: { maxAge: 86400, type: 'public' as const },
+   publicLong: PUBLIC_ENDPOINT_CACHE_PRESETS.long,
 
    /**
     * Private cache for user-specific data (5 minutes)
