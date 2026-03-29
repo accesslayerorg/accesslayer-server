@@ -7,6 +7,7 @@ import {
    sendValidationError,
    ErrorCode,
 } from '../../utils/api-response.utils';
+import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
 import { safeIntParam } from '../../utils/query.utils';
@@ -59,6 +60,7 @@ export async function listCreators(req: Request, res: Response) {
          sort,
       });
 
+      attachTimestampHeader(res);
       return sendSuccess(
          res,
          wrapPublicCreatorListResponse(creators, meta),
