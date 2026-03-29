@@ -4,6 +4,7 @@
  * Reuses shared TTLs from {@link PUBLIC_ENDPOINT_CACHE_SECONDS} where appropriate.
  */
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from './public-endpoint-cache.constants';
+import { CREATOR_PUBLIC_ROUTE_NAMES } from './creator-public-routes.constants';
 
 /**
  * Max-age (seconds) for public creator GET responses (list, profile, stats).
@@ -18,15 +19,15 @@ const publicReadSeconds = CREATOR_PUBLIC_ROUTE_CACHE_MAX_AGE_SECONDS.publicRead;
  * Options for {@link cacheControl} on creator public routes.
  */
 export const CREATOR_PUBLIC_ROUTE_CACHE_PRESETS = {
-   creatorList: {
+   [CREATOR_PUBLIC_ROUTE_NAMES.LIST]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
    },
-   creatorStats: {
+   [CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
    },
-   creatorProfile: {
+   [CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
    },
