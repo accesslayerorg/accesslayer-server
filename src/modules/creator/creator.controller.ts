@@ -15,7 +15,6 @@ import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-e
 import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
 import { normalizeCreatorListPage } from './creator-list-page.guard';
 import {
-   DEFAULT_PAGE,
    MIN_PAGE_SIZE,
    MAX_PAGE_SIZE,
 } from '../../constants/pagination.constants';
@@ -29,7 +28,7 @@ const LegacyCreatorQuerySchema = z.object({
       label: 'Page',
    }),
    limit: safeIntParam({
-defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.limit,
+      defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.limit,
       min: MIN_PAGE_SIZE,
       max: MAX_PAGE_SIZE,
       label: 'Limit',
