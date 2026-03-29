@@ -2,8 +2,7 @@ import { prisma } from '../../utils/prisma.utils';
 import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
-import { CreatorListResponse } from './creators.serializers';
-import { wrapPublicCreatorListResponse } from './public-creator-list-envelope.utils';
+import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 
 type CreatorListWhere = {
@@ -71,7 +70,7 @@ export async function fetchCreatorList(
 export function createEmptyCreatorListResponse(
    query: CreatorListQueryType
 ): CreatorListResponse {
-   return wrapPublicCreatorListResponse(
+   return serializeCreatorListResponse(
       [],
       buildOffsetPaginationMeta({
          limit: query.limit,
