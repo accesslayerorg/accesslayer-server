@@ -79,6 +79,25 @@ export function serializeCreatorListCursorMeta(
 }
 
 /**
+ * Serializes offset pagination metadata for creator list responses.
+ *
+ * Ensures consistency of metadata shape across offset-paginated endpoints.
+ *
+ * @param meta - Raw offset pagination metadata
+ * @returns Offset pagination metadata normalized for public list responses
+ */
+export function serializeCreatorListOffsetMeta(
+   meta: OffsetPaginationMeta
+): OffsetPaginationMeta {
+   return {
+      limit: meta.limit,
+      offset: meta.offset,
+      total: meta.total,
+      hasMore: meta.hasMore,
+   };
+}
+
+/**
  * Paginated creator list response body (offset pagination metadata).
  */
 export type CreatorListResponse = PublicCreatorListEnvelope<
@@ -93,6 +112,22 @@ export type CreatorCursorListResponse = PublicCreatorListEnvelope<
    CreatorListItem,
    CursorPaginationMeta
 >;
+
+/**
+ * Serializes a standard offset-paginated creator list response.
+ *
+ * This centralizes the wrapping of creators and metadata to ensure
+ * a consistent public response shape (envelope).
+ */
+export function serializeCreatorListResponse(
+   profiles: CreatorProfile[],
+   meta: OffsetPaginationMeta
+): CreatorListResponse {
+   return wrapPublicCreatorListResponse(
+      serializeCreatorList(profiles),
+      serializeCreatorListOffsetMeta(meta)
+   );
+}
 
 /**
  * Serializes a cursor-aware creator list response.

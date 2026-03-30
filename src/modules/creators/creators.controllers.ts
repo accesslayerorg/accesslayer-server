@@ -2,10 +2,9 @@ import { AsyncController } from '../../types/auth.types';
 import { CreatorListQuerySchema } from './creators.schemas';
 import { fetchCreatorList } from './creators.utils';
 import {
-   serializeCreatorList,
+   serializeCreatorListResponse,
    CreatorListResponse,
 } from './creators.serializers';
-import { wrapPublicCreatorListResponse } from './public-creator-list-envelope.utils';
 import { mapPublicCreatorStats } from './creators.stats';
 import {
    sendSuccess,
@@ -36,8 +35,8 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       // Fetch creators and total count
       const [creators, total] = await fetchCreatorList(validatedQuery);
 
-      const response: CreatorListResponse = wrapPublicCreatorListResponse(
-         serializeCreatorList(creators),
+      const response: CreatorListResponse = serializeCreatorListResponse(
+         creators,
          buildOffsetPaginationMeta({
             limit: validatedQuery.limit,
             offset: validatedQuery.offset,

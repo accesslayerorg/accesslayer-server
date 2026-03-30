@@ -2,9 +2,9 @@ import { prisma } from '../../utils/prisma.utils';
 import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
-import { CreatorListResponse } from './creators.serializers';
-import { wrapPublicCreatorListResponse } from './public-creator-list-envelope.utils';
+import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
 
 type CreatorListWhere = {
    isVerified?: boolean;
@@ -32,10 +32,12 @@ export async function fetchCreatorList(
       where.isVerified = verified;
    }
 
-   if (search) {
+   const normalizedSearch = normalizeCreatorListSearchTerm(search);
+
+   if (normalizedSearch) {
       where.OR = [
-         { handle: { contains: search, mode: 'insensitive' } },
-         { displayName: { contains: search, mode: 'insensitive' } },
+         { handle: { contains: normalizedSearch, mode: 'insensitive' } },
+         { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
       ];
    }
 
@@ -71,7 +73,7 @@ export async function fetchCreatorList(
 export function createEmptyCreatorListResponse(
    query: CreatorListQueryType
 ): CreatorListResponse {
-   return wrapPublicCreatorListResponse(
+   return serializeCreatorListResponse(
       [],
       buildOffsetPaginationMeta({
          limit: query.limit,

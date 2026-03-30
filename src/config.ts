@@ -45,6 +45,10 @@ export const envSchema = z.object({
       .string()
       .min(1, 'PAYSTACK_PUBLIC_KEY is required for payment processing')
       .optional(),
+   ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
+   API_VERSION: z.string().default('1.0.0'),
+   ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
+   ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
 });
 
 export const envConfig = envSchema.parse(process.env);

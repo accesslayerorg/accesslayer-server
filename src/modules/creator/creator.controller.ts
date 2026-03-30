@@ -1,64 +1,52 @@
 // src/modules/creator/creator.controller.ts
-import { Request, Response } from 'express';
-import { z } from 'zod';
+import { RequestHandler } from 'express';
+
+// API response helpers
 import {
-   sendSuccess,
-   sendError,
-   sendValidationError,
-   ErrorCode,
+  sendSuccess,
+  sendError,
+  sendValidationError,
+  ErrorCode,
 } from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
-import { safeIntParam } from '../../utils/query.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
 import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
 import { normalizeCreatorListPage } from './creator-list-page.guard';
-import {
-   MIN_PAGE_SIZE,
-   MAX_PAGE_SIZE,
-} from '../../constants/pagination.constants';
-import { PUBLIC_PAGE_PAGINATION_DEFAULTS } from '../../utils/public-list-query-defaults';
 
-const LegacyCreatorQuerySchema = z.object({
-   page: safeIntParam({
-      defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.page,
-      min: MIN_PAGE_SIZE,
-      max: Number.MAX_SAFE_INTEGER,
-      label: 'Page',
-   }),
-   limit: safeIntParam({
-      defaultValue: PUBLIC_PAGE_PAGINATION_DEFAULTS.limit,
-      min: MIN_PAGE_SIZE,
-      max: MAX_PAGE_SIZE,
-      label: 'Limit',
-   }),
-   sortBy: z.string().optional(),
-   sortOrder: z.string().optional(),
-});
+// Legacy query schema
+import { LegacyCreatorQuerySchema } from '../creators/creators.schemas';
 
-export async function listCreators(req: Request, res: Response) {
-   try {
-      const ctx = buildCreatorListRequestContext(req);
-      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
-      if (!parsed.ok) {
-         return sendValidationError(
-            res,
-            'Invalid query parameters',
-            parsed.details
-         );
-      }
-      const { limit, sortBy, sortOrder } = parsed.data;
-      const page = normalizeCreatorListPage(parsed.data.page);
+// Typed Express handler
+export const listCreators: RequestHandler = async (req, res) => {
+  try {
+    // Build request context
+    const ctx = buildCreatorListRequestContext(req);
 
-      const sort = parseCreatorSortOptions(sortBy, sortOrder);
+    // Parse query using legacy schema
+    const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
 
-      const { creators, meta } = await getPaginatedCreators({
-         page,
-         limit,
-         sort,
-      });
+    if (!parsed.ok) {
+      return sendValidationError(res, 'Invalid query parameters', parsed.details);
+    }
+
+    // Destructure using schema fields
+    const { offset, limit, sort, order: sortOrder } = parsed.data;
+
+    // Convert offset to page number
+    const page = normalizeCreatorListPage(offset);
+
+    // Build sort options
+    const sortOptions = parseCreatorSortOptions(sort, sortOrder);
+
+    // Fetch paginated creators
+    const { creators, meta } = await getPaginatedCreators({
+      page,
+      limit,
+      sort: sortOptions,
+    });
 
       attachTimestampHeader(res);
       return sendSuccess(
