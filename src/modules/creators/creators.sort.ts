@@ -1,19 +1,18 @@
 import { Prisma } from '@prisma/client';
+import {
+   CREATOR_LIST_SORT_FIELDS,
+   type CreatorListSortField,
+} from '../../constants/creator-list-sort.constants';
 
 /**
  * Public sort options accepted by creator list endpoints.
  * These remain stable even if the internal query implementation changes.
  */
-export const CREATOR_LIST_SORT_OPTIONS = [
-   'createdAt',
-   'updatedAt',
-   'displayName',
-   'handle',
-] as const;
+export const CREATOR_LIST_SORT_OPTIONS = CREATOR_LIST_SORT_FIELDS;
 
 export const CREATOR_LIST_SORT_ORDERS = ['asc', 'desc'] as const;
 
-export type CreatorListSortOption = (typeof CREATOR_LIST_SORT_OPTIONS)[number];
+export type CreatorListSortOption = CreatorListSortField;
 export type CreatorListSortOrder = (typeof CREATOR_LIST_SORT_ORDERS)[number];
 
 const CREATOR_LIST_SORT_FIELD_MAP: Record<

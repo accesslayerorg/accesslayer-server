@@ -1,70 +1,132 @@
 // src/modules/creator/creator.controller.ts
-import { Request, Response } from 'express';
-import { z } from 'zod';
+import { RequestHandler } from 'express';
+
+// API response helpers
 import {
-   sendPaginatedSuccess,
-   sendError,
-   sendValidationError,
-   ErrorCode,
+  sendSuccess,
+  sendError,
+  sendValidationError,
+  ErrorCode,
 } from '../../utils/api-response.utils';
+
+// Creator service and utilities
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
-import { safeIntParam } from '../../utils/query.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
-import {
-   DEFAULT_PAGE,
-   DEFAULT_PAGE_SIZE,
-   MIN_PAGE_SIZE,
-   MAX_PAGE_SIZE,
-} from '../../constants/pagination.constants';
+import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
+import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
+import { normalizeCreatorListPage } from './creator-list-page.guard';
 
-const LegacyCreatorQuerySchema = z.object({
-   page: safeIntParam({
-      defaultValue: DEFAULT_PAGE,
-      min: MIN_PAGE_SIZE,
-      max: Number.MAX_SAFE_INTEGER,
-      label: 'Page',
-   }),
-   limit: safeIntParam({
-      defaultValue: DEFAULT_PAGE_SIZE,
-      min: MIN_PAGE_SIZE,
-      max: MAX_PAGE_SIZE,
-      label: 'Limit',
-   }),
-   sortBy: z.string().optional(),
-   sortOrder: z.string().optional(),
-});
+// Legacy query schema
+import { LegacyCreatorQuerySchema } from '../creators/creators.schemas';
 
-export async function listCreators(req: Request, res: Response) {
-   try {
-      const parsed = parsePublicQuery(LegacyCreatorQuerySchema, req.query);
-      if (!parsed.ok) {
-         return sendValidationError(res, 'Invalid query parameters', parsed.details);
-      }
-      const { page, limit, sortBy, sortOrder } = parsed.data;
+const ALLOWED_CREATOR_SELECT_FIELDS = [
+  'id',
+  'handle',
+  'displayName',
+  'bio',
+  'avatarUrl',
+  'bannerUrl',
+  'isVerified',
+  'keysSupply',
+  'floorPrice',
+  'createdAt',
+  'updatedAt',
+] as const;
 
-      const sort = parseCreatorSortOptions(sortBy, sortOrder);
+type AllowedCreatorSelectField = (typeof ALLOWED_CREATOR_SELECT_FIELDS)[number];
 
-      const { creators, meta } = await getPaginatedCreators({
-         page,
-         limit,
-         sort,
-      });
+function parseSelectFields(raw: unknown): string[] {
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return [];
+  }
 
-      return sendPaginatedSuccess(
-         res,
-         creators,
-         meta,
-         200,
-         'Creators retrieved successfully'
-      );
-   } catch (error) {
-      console.error('Error listing creators:', error);
-      return sendError(
-         res,
-         500,
-         ErrorCode.INTERNAL_ERROR,
-         'Failed to retrieve creators'
-      );
-   }
+  return raw
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
 }
+
+function getInvalidSelectFields(fields: string[]): string[] {
+  return fields.filter(
+    (field) =>
+      !ALLOWED_CREATOR_SELECT_FIELDS.includes(field as AllowedCreatorSelectField)
+  );
+}
+
+function pickFields<T extends Record<string, unknown>>(
+  item: T,
+  fields: string[]
+): Partial<T> {
+  if (!fields.length) {
+    return item;
+  }
+
+  return Object.fromEntries(
+    Object.entries(item).filter(([key]) => fields.includes(key))
+  ) as Partial<T>;
+}
+
+// Typed Express handler
+export const listCreators: RequestHandler = async (req, res) => {
+  try {
+    // Build request context
+    const ctx = buildCreatorListRequestContext(req);
+
+    // Parse query using legacy schema
+    const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
+
+    if (!parsed.ok) {
+      return sendValidationError(res, 'Invalid query parameters', parsed.details);
+    }
+
+    const selectedFields = parseSelectFields(ctx.query['select-fields']);
+    const invalidFields = getInvalidSelectFields(selectedFields);
+
+    if (invalidFields.length > 0) {
+      return sendValidationError(res, 'Invalid query parameters', [
+        {
+          field: 'select-fields',
+          message: `Invalid select-fields: ${invalidFields.join(', ')}`,
+        },
+      ]);
+    }
+
+    // Destructure using schema fields
+    const { offset, limit, sort, order: sortOrder } = parsed.data;
+
+    // Convert offset to page number
+    const page = normalizeCreatorListPage(offset);
+
+    // Build sort options
+    const sortOptions = parseCreatorSortOptions(sort, sortOrder);
+
+    // Fetch paginated creators
+    const { creators, meta } = await getPaginatedCreators({
+      page,
+      limit,
+      sort: sortOptions,
+    });
+
+    const response = wrapPublicCreatorListResponse(creators, meta);
+
+    const filteredItems = Array.isArray(response.items)
+      ? response.items.map((item) =>
+          pickFields(item as Record<string, unknown>, selectedFields)
+        )
+      : response.items;
+
+    return sendSuccess(
+      res,
+      {
+        ...response,
+        items: filteredItems,
+      },
+      200,
+      'Creators retrieved successfully'
+    );
+  } catch (error) {
+    console.error('Error listing creators:', error);
+    return sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve creators');
+  }
+};

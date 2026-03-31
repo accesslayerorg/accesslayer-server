@@ -1,8 +1,9 @@
 import { prisma } from '../../utils/prisma.utils';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
-import { CreatorListResponse } from './creators.serializers';
+import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
 
 import { PUBLIC_CREATOR_LIST_SELECT, PublicCreatorSummary } from './creators.fields';
 
@@ -32,10 +33,12 @@ export async function fetchCreatorList(
       where.isVerified = verified;
    }
 
-   if (search) {
+   const normalizedSearch = normalizeCreatorListSearchTerm(search);
+
+   if (normalizedSearch) {
       where.OR = [
-         { handle: { contains: search, mode: 'insensitive' } },
-         { displayName: { contains: search, mode: 'insensitive' } },
+         { handle: { contains: normalizedSearch, mode: 'insensitive' } },
+         { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
       ];
    }
 
@@ -67,17 +70,17 @@ export async function fetchCreatorList(
  *
  * @example
  * const emptyResponse = createEmptyCreatorListResponse(validatedQuery);
- * // Returns: { creators: [], pagination: { limit, offset, total: 0, hasMore: false } }
+ * // Returns: { items: [], meta: { limit, offset, total: 0, hasMore: false } }
  */
 export function createEmptyCreatorListResponse(
    query: CreatorListQueryType
 ): CreatorListResponse {
-   return {
-      creators: [],
-      pagination: buildOffsetPaginationMeta({
+   return serializeCreatorListResponse(
+      [],
+      buildOffsetPaginationMeta({
          limit: query.limit,
          offset: query.offset,
          total: 0,
-      }),
-   };
+      })
+   );
 }
