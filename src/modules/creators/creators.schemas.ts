@@ -25,62 +25,55 @@ import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
  * @example
  * GET /api/v1/creators?limit=20&offset=0&sort=createdAt&order=desc&verified=true
  */
-export const CreatorListQuerySchema = z.object({
-  // Pagination
-  limit: safeIntParam({
-    defaultValue: resolveCreatorListLimit() ?? PUBLIC_OFFSET_PAGINATION_DEFAULTS.limit,
-    min: MIN_PAGE_SIZE,
-    max: MAX_PAGE_SIZE,
-    label: 'Limit',
-  }),
-  offset: safeIntParam({
-    defaultValue: PUBLIC_OFFSET_PAGINATION_DEFAULTS.offset,
-    min: 0,
-    max: Number.MAX_SAFE_INTEGER,
-    label: 'Offset',
-  }),
+export const CreatorListQuerySchema = z
+  .object({
+    // Pagination
+    limit: safeIntParam({
+      defaultValue:
+        resolveCreatorListLimit() ??
+        PUBLIC_OFFSET_PAGINATION_DEFAULTS.limit,
+      min: MIN_PAGE_SIZE,
+      max: MAX_PAGE_SIZE,
+      label: 'Limit',
+    }),
 
-  // Sorting
-  sort: withCreatorListQueryStringNormalization(
-    z.enum(CREATOR_LIST_SORT_FIELDS).optional().default(DEFAULT_CREATOR_LIST_SORT)
-  ),
-  order: creatorListSortDirectionQueryParam(),
-  include: creatorListIncludeQueryParam(),
+    offset: safeIntParam({
+      defaultValue: PUBLIC_OFFSET_PAGINATION_DEFAULTS.offset,
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+      label: 'Offset',
+    }),
 
-   // Filters
-   verified: z
-      .string()
-      .optional()
-      .transform(val => {
-         if (val === undefined) return undefined;
-         return val === 'true';
-      }),
-   search: z.string().optional(),
-}).strict();
-   verified: withCreatorListQueryStringNormalization(
+    // Sorting
+    sort: withCreatorListQueryStringNormalization(
       z
-         .string()
-         .optional()
-         .transform(val => {
-            if (val === undefined) return undefined;
-            return val === 'true';
-         })
-   ),
-   search: withCreatorListQueryStringNormalization(z.string().optional()),
-  // Filters
-  verified: withCreatorListQueryStringNormalization(
-    z
-      .string()
-      .optional()
-      .transform(val => (val === undefined ? undefined : val === 'true'))
-  ),
-  search: withCreatorListQueryStringNormalization(
-    z
-      .string()
-      .optional()
-      .transform(val => normalizeCreatorListSearchTerm(val))
-  ),
-});
+        .enum(CREATOR_LIST_SORT_FIELDS)
+        .optional()
+        .default(DEFAULT_CREATOR_LIST_SORT)
+    ),
+
+    order: creatorListSortDirectionQueryParam(),
+
+    include: creatorListIncludeQueryParam(),
+
+    // Filters
+    verified: withCreatorListQueryStringNormalization(
+      z
+        .string()
+        .optional()
+        .transform(val =>
+          val === undefined ? undefined : val === 'true'
+        )
+    ),
+
+    search: withCreatorListQueryStringNormalization(
+      z
+        .string()
+        .optional()
+        .transform(val => normalizeCreatorListSearchTerm(val))
+    ),
+  })
+  .strict();
 
 // Export as LegacyCreatorQuerySchema for backward compatibility
 export const LegacyCreatorQuerySchema = CreatorListQuerySchema;
