@@ -1,10 +1,11 @@
 import { prisma } from '../../utils/prisma.utils';
-import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
 import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
+
+import { PUBLIC_CREATOR_LIST_SELECT, PublicCreatorSummary } from './creators.fields';
 
 type CreatorListWhere = {
    isVerified?: boolean;
@@ -22,7 +23,7 @@ type CreatorListWhere = {
  */
 export async function fetchCreatorList(
    query: CreatorListQueryType
-): Promise<[CreatorProfile[], number]> {
+): Promise<[PublicCreatorSummary[], number]> {
    const { limit, offset, sort, order, verified, search } = query;
 
    // Build where clause for filters
@@ -50,11 +51,12 @@ export async function fetchCreatorList(
          orderBy,
          skip: offset,
          take: limit,
+         select: PUBLIC_CREATOR_LIST_SELECT,
       }),
       prisma.creatorProfile.count({ where }),
    ]);
 
-   return [creators as CreatorProfile[], total];
+   return [creators as PublicCreatorSummary[], total];
 }
 
 /**
