@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { httpListCreators } from './creators.controllers';
+import { httpListCreators, httpGetCreatorStats } from './creators.controllers';
 import {
    cacheControl,
    CachePresets,
 } from '../../middlewares/cache-control.middleware';
+import { validateCreatorIdParam } from '../creator/creator.middleware';
 
 const creatorsRouter = Router();
 
@@ -17,6 +18,18 @@ creatorsRouter.get(
    '/',
    cacheControl(CachePresets.publicShort),
    httpListCreators
+);
+
+/**
+ * GET /api/v1/creators/:id/stats
+ *
+ * Get public stats for a creator by ID.
+ * Param validation is handled by validateCreatorIdParam middleware.
+ */
+creatorsRouter.get(
+   '/:id/stats',
+   validateCreatorIdParam,
+   httpGetCreatorStats
 );
 
 export default creatorsRouter;
