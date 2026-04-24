@@ -1,9 +1,8 @@
 // src/utils/api-response.utils.ts
 // Shared API response formatters for consistent client-facing responses.
 
-import { Request, Response } from 'express';
-import { URL } from 'url';
-import { OffsetPaginationMeta } from './pagination.utils';
+import { Response } from 'express';
+import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 
 /**
  * Standard API error response shape.
@@ -61,20 +60,7 @@ interface PaginatedResponse<T = unknown> {
    message?: string;
 }
 
-// ── Error codes ──────────────────────────────────────────────
-
-export const ErrorCode = {
-   VALIDATION_ERROR: 'VALIDATION_ERROR',
-   NOT_FOUND: 'NOT_FOUND',
-   UNAUTHORIZED: 'UNAUTHORIZED',
-   FORBIDDEN: 'FORBIDDEN',
-   CONFLICT: 'CONFLICT',
-   BAD_REQUEST: 'BAD_REQUEST',
-   INTERNAL_ERROR: 'INTERNAL_ERROR',
-   RATE_LIMIT: 'RATE_LIMIT',
-} as const;
-
-export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+export { ErrorCode, ErrorCodeType };
 
 // ── Formatters ───────────────────────────────────────────────
 

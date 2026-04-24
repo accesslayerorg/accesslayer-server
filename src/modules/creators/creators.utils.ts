@@ -4,6 +4,7 @@ import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
 import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
 
 type CreatorListWhere = {
    isVerified?: boolean;
@@ -31,10 +32,12 @@ export async function fetchCreatorList(
       where.isVerified = verified;
    }
 
-   if (search) {
+   const normalizedSearch = normalizeCreatorListSearchTerm(search);
+
+   if (normalizedSearch) {
       where.OR = [
-         { handle: { contains: search, mode: 'insensitive' } },
-         { displayName: { contains: search, mode: 'insensitive' } },
+         { handle: { contains: normalizedSearch, mode: 'insensitive' } },
+         { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
       ];
    }
 

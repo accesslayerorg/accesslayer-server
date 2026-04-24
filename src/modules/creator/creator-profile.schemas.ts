@@ -10,7 +10,7 @@ import { withCreatorSlugEmptyStringNormalization } from './creator-slug-input.ut
 export const CreatorProfileParamsSchema = z.object({
    creatorId: withCreatorSlugEmptyStringNormalization(
       z
-         .string()
+         .string({ required_error: 'Creator ID is required' })
          .trim()
          .min(1, 'Creator ID is required')
          .max(128, 'Creator ID is too long')

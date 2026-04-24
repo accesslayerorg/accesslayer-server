@@ -10,6 +10,7 @@ import {
    sendSuccess,
    sendValidationError,
 } from '../../utils/api-response.utils';
+import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { buildCreatorListRequestContext } from './creator-list-context.utils';
@@ -43,6 +44,7 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
          })
       );
 
+      attachTimestampHeader(res);
       sendSuccess(res, response);
    } catch (error) {
       next(error);
@@ -78,6 +80,7 @@ export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
       // Serialize using the public stats mapper
       const stats = mapPublicCreatorStats(placeholderMetrics);
 
+      attachTimestampHeader(res);
       sendSuccess(res, stats);
    } catch (error) {
       next(error);

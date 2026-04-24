@@ -16,7 +16,7 @@ export function normalizeCreatorSlugEmptyString(value: unknown): unknown {
       return undefined;
    }
 
-   if (value === '') {
+   if (typeof value === 'string' && value.trim() === '') {
       return undefined;
    }
 
