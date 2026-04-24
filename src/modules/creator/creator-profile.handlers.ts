@@ -5,6 +5,7 @@ import {
    sendValidationError,
    ErrorCode,
 } from '../../utils/api-response.utils';
+import { sendCreatorNotFound } from './creator.utils';
 import {
    CreatorProfileParamsSchema,
    UpsertCreatorProfileBodySchema,
@@ -37,6 +38,9 @@ export async function getCreatorProfileHandler(req: Request, res: Response) {
       return sendSuccess(res, profile, 200, 'Creator profile retrieved');
    } catch (error) {
       console.error('Error retrieving creator profile:', error);
+      if (error instanceof Error && error.message === 'Creator not found') {
+         return sendCreatorNotFound(res);
+      }
       return sendError(
          res,
          500,

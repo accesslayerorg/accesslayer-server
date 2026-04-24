@@ -1,26 +1,35 @@
+import { prisma } from '../../utils/prisma.utils';
 import {
    CreatorProfileReadResponse,
    UpsertCreatorProfileBody,
 } from './creator-profile.schemas';
 
 /**
- * Placeholder profile read service.
- *
- * TODO(accesslayer): Replace this placeholder source with database/indexing-backed
- * reads in a follow-up issue.
+ * Get creator profile by handle.
+ * Throws an error if creator is not found.
  */
 export async function getCreatorProfile(
    creatorId: string
 ): Promise<CreatorProfileReadResponse> {
+   // Check if creator exists
+   const creator = await prisma.creatorProfile.findUnique({
+      where: { handle: creatorId },
+   });
+
+   if (!creator) {
+      throw new Error('Creator not found');
+   }
+
+   // TODO(accesslayer): Replace with actual profile data when ready
    return {
       creatorId,
-      displayName: null,
-      bio: null,
-      avatarUrl: null,
-      links: [],
+      displayName: creator.displayName,
+      bio: creator.bio,
+      avatarUrl: creator.avatarUrl,
+      links: [], // TODO: Add links when schema supports
       metadata: {
-         source: 'placeholder',
-         isProfileComplete: false,
+         source: 'database',
+         isProfileComplete: Boolean(creator.displayName && creator.bio),
       },
    };
 }
