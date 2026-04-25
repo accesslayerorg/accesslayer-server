@@ -49,6 +49,12 @@ export const envSchema = z.object({
    API_VERSION: z.string().default('1.0.0'),
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
+
+   // Indexer heartbeat
+   INDEXER_HEARTBEAT_STALE_THRESHOLD_MS: z.coerce
+      .number()
+      .positive()
+      .default(300_000), // 5 minutes
 });
 
 export const envConfig = envSchema.parse(process.env);

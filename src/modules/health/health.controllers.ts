@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
+import { indexerHeartbeat } from '../../utils/heartbeat.service';
+import { sendSuccess } from '../../utils/api-response.utils';
 
 interface HealthStatus {
   success: boolean;
@@ -105,3 +107,29 @@ export const simpleHealthCheck = (_: Request, res: Response): void => {
     timestamp: new Date().toISOString(),
   });
 };
+
+/**
+ * GET /health/indexer
+ * Returns the current heartbeat status of the indexer worker.
+ * Responds with 503 when the heartbeat is stale (degraded).
+ */
+export const indexerHeartbeatCheck = (_: Request, res: Response): void => {
+  const state = indexerHeartbeat.getStatus();
+  const statusCode = state.status === 'degraded' ? 503 : 200;
+  sendSuccess(res, state, statusCode);
+};
+
+/**
+ * POST /health/indexer/heartbeat
+ * Called by the indexer worker to record a successful run.
+ */
+export const recordIndexerHeartbeat = (_: Request, res: Response): void => {
+  const timestamp = indexerHeartbeat.recordHeartbeat();
+  sendSuccess(
+    res,
+    { recorded: true, timestamp: timestamp.toISOString() },
+    200,
+    'Heartbeat recorded'
+  );
+};
+
