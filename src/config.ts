@@ -49,6 +49,7 @@ export const envSchema = z.object({
    API_VERSION: z.string().default('1.0.0'),
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
+   DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
 });
 
 export const envConfig = envSchema.parse(process.env);

@@ -13,6 +13,7 @@ import { requestIdMiddleware } from './middlewares/request-id.middleware';
 import { responseTimingMiddleware } from './middlewares/response-timing.middleware';
 import { apiVersionMiddleware } from './middlewares/api-version.middleware';
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
+import { requestContextMiddleware } from './middlewares/request-context.middleware';
 import { envConfig } from './config';
 
 const app: Express = express();
@@ -20,6 +21,7 @@ const app: Express = express();
 // Middleware setup
 app.set('trust proxy', 1);
 app.use(responseTimingMiddleware);
+app.use(requestContextMiddleware);
 app.use(apiVersionMiddleware);
 app.use(requestIdMiddleware);
 app.use(corsMiddleware());
