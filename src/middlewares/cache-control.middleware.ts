@@ -30,6 +30,11 @@ export interface CacheControlOptions {
     * Default: false
     */
    noStore?: boolean;
+   /**
+    * Max stale window in seconds. When set, allows serving stale content
+    * if the origin is unreachable. Default: undefined (disabled)
+    */
+   staleIfError?: number;
 }
 
 /**
@@ -55,6 +60,7 @@ export function cacheControl(options: CacheControlOptions = {}) {
       mustRevalidate = false,
       noCache = false,
       noStore = false,
+      staleIfError,
    } = options;
 
    return (req: Request, res: Response, next: NextFunction): void => {
@@ -76,6 +82,9 @@ export function cacheControl(options: CacheControlOptions = {}) {
          directives.push(`max-age=${maxAge}`);
          if (mustRevalidate) {
             directives.push('must-revalidate');
+         }
+         if (staleIfError !== undefined) {
+            directives.push(`stale-if-error=${staleIfError}`);
          }
       }
 

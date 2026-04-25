@@ -22,14 +22,17 @@ export const CREATOR_PUBLIC_ROUTE_CACHE_PRESETS = {
    [CREATOR_PUBLIC_ROUTE_NAMES.LIST]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
+      staleIfError: 86400,
    },
    [CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
+      staleIfError: 86400,
    },
    [CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
+      staleIfError: 86400,
    },
 } as const;
 
