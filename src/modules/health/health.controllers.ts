@@ -1,6 +1,16 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
+import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
+
+type CheckStatus = 'ok' | 'fail';
+
+interface ReadinessCheck {
+  name: string;
+  status: CheckStatus;
+  latencyMs?: number;
+  error?: string;
+}
 
 interface HealthStatus {
   success: boolean;
@@ -103,5 +113,42 @@ export const simpleHealthCheck = (_: Request, res: Response): void => {
     success: true,
     message: 'OK',
     timestamp: new Date().toISOString(),
+  });
+};
+
+export const readinessCheck = async (_: Request, res: Response): Promise<void> => {
+  const checks: ReadinessCheck[] = [];
+
+  // DB check
+  const dbStart = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.push({ name: 'database', status: 'ok', latencyMs: Date.now() - dbStart });
+  } catch (err) {
+    checks.push({
+      name: 'database',
+      status: 'fail',
+      error: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+
+  // Cache config check — verifies the HTTP cache layer is configured
+  try {
+    const configured = typeof PUBLIC_ENDPOINT_CACHE_SECONDS.short === 'number';
+    if (!configured) throw new Error('Cache config unavailable');
+    checks.push({ name: 'cache', status: 'ok' });
+  } catch (err) {
+    checks.push({
+      name: 'cache',
+      status: 'fail',
+      error: err instanceof Error ? err.message : 'Unknown error',
+    });
+  }
+
+  const ready = checks.every(c => c.status === 'ok');
+  res.status(ready ? 200 : 503).json({
+    ready,
+    timestamp: new Date().toISOString(),
+    checks,
   });
 };
