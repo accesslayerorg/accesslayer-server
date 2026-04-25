@@ -171,3 +171,7 @@ readinessProbe:
 - Browse the maintainer issue inventory in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
+
+## Indexer and ownership operations
+
+- Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)

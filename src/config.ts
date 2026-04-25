@@ -50,6 +50,22 @@ export const envSchema = z.object({
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
+   OWNERSHIP_SNAPSHOT_CLEANUP_ENABLED: z.coerce.boolean().default(false),
+   OWNERSHIP_SNAPSHOT_CLEANUP_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(60),
+   OWNERSHIP_SNAPSHOT_RETENTION_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(30),
+   OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN: z.coerce.boolean().default(true),
+   OWNERSHIP_SNAPSHOT_TABLE_NAME: z
+      .string()
+      .min(1)
+      .default('creator_ownership_snapshots'),
 });
 
 export const envConfig = envSchema.parse(process.env);

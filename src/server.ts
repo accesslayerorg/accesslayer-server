@@ -5,6 +5,10 @@ import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
 import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
+import {
+   startOwnershipSnapshotCleanupJob,
+   stopOwnershipSnapshotCleanupJob,
+} from './jobs/ownership-snapshot-cleanup.job';
 
 
 async function startServer() {
@@ -14,6 +18,8 @@ async function startServer() {
 
       // Verify migrations on startup
       await verifyMigrationChecksums();
+
+      startOwnershipSnapshotCleanupJob();
 
       app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -37,6 +43,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('SIGINT', async () => {
+   stopOwnershipSnapshotCleanupJob();
    await prisma.$disconnect();
    console.log('💾 Database connection closed');
 
