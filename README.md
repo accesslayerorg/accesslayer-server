@@ -175,3 +175,8 @@ readinessProbe:
 ## Indexer and ownership operations
 
 - Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)
+
+## Metrics
+
+- Queue metrics: `GET /metrics/queues`
+- Creator read metrics: `GET /metrics/creators`
