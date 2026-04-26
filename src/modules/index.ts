@@ -18,5 +18,6 @@ router.use(CREATORS_BASE, creatorsRouter);
 router.use('/metrics', metricsRouter);
 router.use('/admin', adminRouter);
 router.use('/activity', activityRouter);
+router.use('/ownership', ownershipRouter);
 
 export default router;

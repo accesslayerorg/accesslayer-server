@@ -1,5 +1,4 @@
 import { fetchActivityFeed } from './activity.service';
-import { prisma } from '../../utils/prisma.utils';
 
 describe('Activity Service', () => {
     beforeAll(async () => {
@@ -8,7 +7,7 @@ describe('Activity Service', () => {
     });
 
     it('should return empty list when no activity exists', async () => {
-        const [items, total] = await fetchActivityFeed({ limit: 10, offset: 0 });
+        const [items] = await fetchActivityFeed({ limit: 10, offset: 0 });
         expect(Array.isArray(items)).toBe(true);
         // expect(total).toBe(0); // Depends on DB state
     });
