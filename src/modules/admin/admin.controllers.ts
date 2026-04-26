@@ -2,6 +2,8 @@ import { AsyncController } from '../../types/auth.types';
 import { sendSuccess, sendValidationError, sendNotFound } from '../../utils/api-response.utils';
 import { prisma } from '../../utils/prisma.utils';
 import { emitAuditEvent } from '../../utils/audit.utils';
+import { AdminRequest } from '../../middlewares/admin-guard.middleware';
+import { Response } from 'express';
 import { z } from 'zod';
 
 const UpdateCreatorMetadataSchema = z.object({
@@ -75,6 +77,38 @@ export const httpUpdateCreatorMetadata: AsyncController = async (req, res, next)
     }
 
     sendSuccess(res, updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest, res: Response, next) => {
+  try {
+    const { startLedger } = req.body as { startLedger?: number };
+    const adminId = req.adminId;
+
+    if (typeof startLedger !== 'number' || startLedger < 1) {
+      return sendValidationError(res, 'Invalid request body', [
+        { field: 'startLedger', message: 'startLedger must be a positive integer' },
+      ]);
+    }
+
+    const replayInitiated = {
+      type: 'INDEXER_REPLAY_INITIATED',
+      startLedger,
+      initiatedBy: adminId,
+      timestamp: new Date().toISOString(),
+    };
+
+    await emitAuditEvent({
+      actor: adminId || 'unknown',
+      action: 'replay_indexer_events',
+      target: 'IndexerQueue',
+      targetId: String(startLedger),
+      metadata: { startLedger },
+    });
+
+    sendSuccess(res, replayInitiated);
   } catch (error) {
     next(error);
   }

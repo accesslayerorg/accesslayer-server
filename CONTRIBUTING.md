@@ -31,6 +31,17 @@ pnpm exec prisma generate
 pnpm dev
 ```
 
+6. (Optional) Seed deterministic local data — three users with wallets and
+   creator profiles, sufficient to exercise list, read, and ownership-gated
+   write flows:
+
+```bash
+pnpm exec ts-node prisma/seed.ts
+```
+
+See [docs/contributor-seed.md](./docs/contributor-seed.md) for the full
+fixture catalogue, reset workflow, and example requests.
+
 ## Verification commands
 
 ```bash
