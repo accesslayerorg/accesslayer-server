@@ -15,12 +15,15 @@ async function startServer() {
       await verifyMigrationChecksums();
 
       const server = app.listen(envConfig.PORT, () => {
-         logger.info('Loaded runtime config summary', {
-            environment: envConfig.MODE,
-            port: envConfig.PORT,
-            featureFlags: {},
-            timestamp: new Date().toISOString(),
-         });
+        logger.info(
+   JSON.stringify({
+      message: 'Loaded runtime config summary',
+      environment: envConfig.MODE,
+      port: envConfig.PORT,
+      featureFlags: {},
+      timestamp: new Date().toISOString(),
+   })
+);
 
          logger.info(`Server running on port ${envConfig.PORT}`);
       });
