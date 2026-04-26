@@ -5,6 +5,9 @@ import { emitAuditEvent } from '../../utils/audit.utils';
 import { AdminRequest } from '../../middlewares/admin-guard.middleware';
 import { Response } from 'express';
 import { z } from 'zod';
+import { acquireJobLock } from '../../utils/background-job-lock.utils';
+import { logger } from '../../utils/logger.utils';
+import { ErrorCode } from '../../constants/error.constants';
 
 const UpdateCreatorMetadataSchema = z.object({
   isVerified: z.boolean().optional(),
@@ -86,6 +89,8 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
   try {
     const { startLedger } = req.body as { startLedger?: number };
     const adminId = req.adminId;
+    const lockName = 'indexer-replay';
+    const lockOwner = adminId || 'unknown';
 
     if (typeof startLedger !== 'number' || startLedger < 1) {
       return sendValidationError(res, 'Invalid request body', [
@@ -93,12 +98,46 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
       ]);
     }
 
+    const lock = acquireJobLock({
+      name: lockName,
+      owner: lockOwner,
+    });
+
+    if (!lock.acquired) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: ErrorCode.CONFLICT,
+          message: 'Indexer replay job is already running',
+          details: [
+            {
+              field: 'indexerReplayLock',
+              message: `Lock is held by ${lock.holder || 'another worker'} until ${lock.expiresAt || 'unknown time'}`,
+            },
+          ],
+        },
+      });
+    }
+
     const replayInitiated = {
       type: 'INDEXER_REPLAY_INITIATED',
       startLedger,
       initiatedBy: adminId,
+      lock: {
+        name: lockName,
+        expiresAt: lock.expiresAt,
+      },
       timestamp: new Date().toISOString(),
     };
+
+    logger.info(
+      {
+        lockName,
+        lockOwner,
+        lockExpiresAt: lock.expiresAt,
+      },
+      'Acquired background job lock for indexer replay'
+    );
 
     await emitAuditEvent({
       actor: adminId || 'unknown',
