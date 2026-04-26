@@ -9,6 +9,7 @@ import { ROOT as CREATORS_ROOT } from '../../constants/creator.constants';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
 import { CREATOR_PUBLIC_ROUTE_NAMES } from '../../constants/creator-public-routes.constants';
+import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
 
 const router = Router();
 
@@ -30,7 +31,9 @@ const router = Router();
  */
 router.get(
    CREATORS_ROOT,
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]
+   ),
    listCreators
 );
 
@@ -41,15 +44,22 @@ router.get(
  */
 router.get(
    '/:creatorId/profile',
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
+   ),
    getCreatorProfileHandler
 );
 
 /**
  * @route PUT /api/v1/creators/:creatorId/profile
  * @desc Upsert creator profile scaffold payload
- * @access Public for scaffold (auth follow-up required)
+ * @access Wallet ownership required — caller must send a `x-wallet-address`
+ *         header tied to the creator profile being updated.
  */
-router.put('/:creatorId/profile', upsertCreatorProfileHandler);
+router.put(
+   '/:creatorId/profile',
+   requireCreatorProfileOwnership('creatorId'),
+   upsertCreatorProfileHandler
+);
 
 export default router;
