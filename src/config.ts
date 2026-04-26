@@ -54,6 +54,11 @@ export const envSchema = z.object({
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
+
+   // Body size limits
+   MAX_BODY_SIZE_DEFAULT: z.string().default('1mb'),
+   MAX_BODY_SIZE_ADMIN: z.string().default('10mb'),
+   MAX_BODY_SIZE_CREATORS: z.string().default('5mb'),
 });
 
 export const envConfig = envSchema.parse(process.env);
