@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import dotenv from 'dotenv';
 
 export { envSchema } from './config.schema';
