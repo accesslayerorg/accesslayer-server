@@ -98,7 +98,7 @@ export const CREATOR_FEED_CACHE_INVALIDATION_TOUCHPOINTS = {
  * // Returns: ['creators:*:*:*:*:*:*:*'] (all creator feed entries)
  * ```
  */
-export function buildCreatorFeedInvalidationKeys(creatorId?: string): string[] {
+export function buildCreatorFeedInvalidationKeys(_creatorId?: string): string[] {
     // Since the creator feed includes all creators and supports various filters,
     // we invalidate all creator feed entries when any creator changes.
     // This is a conservative approach that ensures cache consistency.
