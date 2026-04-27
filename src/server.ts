@@ -6,7 +6,6 @@ import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
 import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
 
-
 async function startServer() {
    try {
       await prisma.$connect();
@@ -16,6 +15,16 @@ async function startServer() {
       await verifyMigrationChecksums();
 
       const server = app.listen(envConfig.PORT, () => {
+        logger.info(
+   JSON.stringify({
+      message: 'Loaded runtime config summary',
+      environment: envConfig.MODE,
+      port: envConfig.PORT,
+      featureFlags: {},
+      timestamp: new Date().toISOString(),
+   })
+);
+
          logger.info(`Server running on port ${envConfig.PORT}`);
       });
 
