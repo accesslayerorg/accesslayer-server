@@ -54,7 +54,7 @@ export async function fetchCreatorList(
       prisma.creatorProfile.count({ where }),
    ]);
 
-   return [creators as CreatorProfile[], total];
+   return [creators as unknown as CreatorProfile[], total];
 }
 
 /**

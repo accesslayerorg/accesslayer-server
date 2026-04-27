@@ -8,8 +8,7 @@ import {
   sendValidationError,
   ErrorCode,
 } from '../../utils/api-response.utils';
-
-// Creator service and utilities
+import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
@@ -19,6 +18,53 @@ import { normalizeCreatorListPage } from './creator-list-page.guard';
 
 // Legacy query schema
 import { LegacyCreatorQuerySchema } from '../creators/creators.schemas';
+
+const ALLOWED_CREATOR_SELECT_FIELDS = [
+  'id',
+  'handle',
+  'displayName',
+  'bio',
+  'avatarUrl',
+  'bannerUrl',
+  'isVerified',
+  'keysSupply',
+  'floorPrice',
+  'createdAt',
+  'updatedAt',
+] as const;
+
+type AllowedCreatorSelectField = (typeof ALLOWED_CREATOR_SELECT_FIELDS)[number];
+
+function parseSelectFields(raw: unknown): string[] {
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return [];
+  }
+
+  return raw
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
+}
+
+function getInvalidSelectFields(fields: string[]): string[] {
+  return fields.filter(
+    (field) =>
+      !ALLOWED_CREATOR_SELECT_FIELDS.includes(field as AllowedCreatorSelectField)
+  );
+}
+
+function pickFields<T extends Record<string, unknown>>(
+  item: T,
+  fields: string[]
+): Partial<T> {
+  if (!fields.length) {
+    return item;
+  }
+
+  return Object.fromEntries(
+    Object.entries(item).filter(([key]) => fields.includes(key))
+  ) as Partial<T>;
+}
 
 // Typed Express handler
 export const listCreators: RequestHandler = async (req, res) => {
@@ -31,6 +77,18 @@ export const listCreators: RequestHandler = async (req, res) => {
 
     if (!parsed.ok) {
       return sendValidationError(res, 'Invalid query parameters', parsed.details);
+    }
+
+    const selectedFields = parseSelectFields(ctx.query['select-fields']);
+    const invalidFields = getInvalidSelectFields(selectedFields);
+
+    if (invalidFields.length > 0) {
+      return sendValidationError(res, 'Invalid query parameters', [
+        {
+          field: 'select-fields',
+          message: `Invalid select-fields: ${invalidFields.join(', ')}`,
+        },
+      ]);
     }
 
     // Destructure using schema fields
@@ -49,10 +107,20 @@ export const listCreators: RequestHandler = async (req, res) => {
       sort: sortOptions,
     });
 
-    // Send success response
+    const response = wrapPublicCreatorListResponse(creators, meta);
+    attachTimestampHeader(res);
+    const filteredItems = Array.isArray(response.items)
+      ? response.items.map((item) =>
+          pickFields(item as Record<string, unknown>, selectedFields)
+        )
+      : response.items;
+
     return sendSuccess(
       res,
-      wrapPublicCreatorListResponse(creators, meta),
+      {
+        ...response,
+        items: filteredItems,
+      },
       200,
       'Creators retrieved successfully'
     );

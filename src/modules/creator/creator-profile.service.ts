@@ -1,35 +1,57 @@
+import { prisma } from '../../utils/prisma.utils';
 import {
    CreatorProfileReadResponse,
    UpsertCreatorProfileBody,
 } from './creator-profile.schemas';
 
 /**
- * Placeholder profile read service.
+ * Reads a creator profile from the database.
  *
- * TODO(accesslayer): Replace this placeholder source with database/indexing-backed
- * reads in a follow-up issue.
+ * Checks both ID and handle to provide flexible lookup.
  */
 export async function getCreatorProfile(
    creatorId: string
 ): Promise<CreatorProfileReadResponse> {
+   const profile = await prisma.creatorProfile.findFirst({
+      where: {
+         OR: [{ id: creatorId }, { handle: creatorId }],
+      },
+   });
+
+   if (!profile) {
+      // Fallback for placeholder behavior if profile not found
+      return {
+         creatorId,
+         displayName: null,
+         bio: null,
+         avatarUrl: null,
+         perks: [],
+         links: [],
+         metadata: {
+            source: 'placeholder',
+            isProfileComplete: false,
+         },
+      };
+   }
+
    return {
-      creatorId,
-      displayName: null,
-      bio: null,
-      avatarUrl: null,
-      links: [],
+      creatorId: profile.id,
+      displayName: profile.displayName,
+      bio: profile.bio,
+      avatarUrl: profile.avatarUrl,
+      perks: (profile.perks as any) || [],
+      links: [], // Links are not yet in the Prisma model, keeping as part of contract
       metadata: {
-         source: 'placeholder',
-         isProfileComplete: false,
+         source: 'database',
+         isProfileComplete: !!profile.displayName && !!profile.bio,
       },
    };
 }
 
 /**
- * Placeholder profile upsert service.
+ * Upserts a creator profile in the database.
  *
- * TODO(accesslayer): Wire this to authenticated profile persistence when
- * creator identity and ownership rules are finalized.
+ * This implementation persists validated payload fields including perks.
  */
 export async function upsertCreatorProfile(
    creatorId: string,
@@ -37,14 +59,26 @@ export async function upsertCreatorProfile(
 ): Promise<{
    creatorId: string;
    acceptedProfile: UpsertCreatorProfileBody;
-   metadata: { source: 'placeholder'; persisted: false };
+   metadata: { source: 'database'; persisted: boolean };
 }> {
+   const profile = await prisma.creatorProfile.update({
+      where: {
+         id: creatorId,
+      },
+      data: {
+         displayName: payload.displayName,
+         bio: payload.bio,
+         avatarUrl: payload.avatarUrl,
+         perks: payload.perks as any,
+      },
+   });
+
    return {
-      creatorId,
+      creatorId: profile.id,
       acceptedProfile: payload,
       metadata: {
-         source: 'placeholder',
-         persisted: false,
+         source: 'database',
+         persisted: true,
       },
    };
 }

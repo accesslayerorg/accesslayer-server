@@ -15,6 +15,8 @@ The server is responsible for:
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
 
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview.
+
 ## Tech
 
 - Node.js
@@ -167,7 +169,8 @@ readinessProbe:
 
 ## Open source workflow
 
-- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before starting work.
-- Browse the maintainer issue inventory in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
+- Read the [README](./README.md) for context.
+- Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
+- Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.

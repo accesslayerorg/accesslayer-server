@@ -44,3 +44,42 @@ export function generateSlugWithSuffix(
    const base = generateSlug(input);
    return suffix > 0 ? `${base}-${suffix}` : base;
 }
+
+/**
+ * Resolves a slug collision by appending a numeric suffix until a unique slug is found.
+ *
+ * This implementation is deterministic: it starts with the base slug, then tries
+ * suffixes 1, 2, 3... in order until the provided `isUnique` check passes.
+ *
+ * @param input - The raw string to generate a slug from (e.g. a display name).
+ * @param isUnique - A callback that checks if a candidate slug is already in use.
+ * @returns The first unique slug found.
+ */
+export async function resolveSlugCollision(
+   input: string,
+   isUnique: (slug: string) => Promise<boolean>
+): Promise<string> {
+   const baseSlug = generateSlug(input);
+
+   // 1. Try the base slug first
+   if (await isUnique(baseSlug)) {
+      return baseSlug;
+   }
+
+   // 2. Incrementally add suffixes until unique
+   let suffix = 1;
+   while (true) {
+      const candidate = `${baseSlug}-${suffix}`;
+      if (await isUnique(candidate)) {
+         return candidate;
+      }
+      suffix++;
+
+      // Safety break to prevent infinite loops in pathological cases
+      if (suffix > 1000) {
+         throw new Error(
+            `Failed to resolve slug collision for "${input}" after 1000 attempts.`
+         );
+      }
+   }
+}
