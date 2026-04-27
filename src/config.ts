@@ -52,6 +52,7 @@ export const envSchema = z.object({
    ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
    API_VERSION: z.string().default('1.0.0'),
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
+   ENABLE_SCHEMA_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
 });
