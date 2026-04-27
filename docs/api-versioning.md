@@ -5,14 +5,17 @@ The Access Layer Server uses versioning headers to inform clients about the curr
 ## Response Headers
 
 ### `X-API-Version`
+
 Indicates the current overall version of the API. This is typically used for tracking feature sets and major API releases.
 
 ### `X-Schema-Version`
+
 Indicates the active version of the request body schema. This version should be checked by consumers to ensure they are sending request bodies in the format expected by the server.
 
 ## Versioning Strategy
 
 Both headers follow [Semantic Versioning (SemVer)](https://semver.org/):
+
 - **MAJOR** version: Breaking changes to the API or schema.
 - **MINOR** version: Backwards-compatible new features or additions.
 - **PATCH** version: Backwards-compatible bug fixes.

@@ -3,6 +3,13 @@ import { emitAuditEvent } from '../../utils/audit.utils';
 import { AdminRequest } from '../../middlewares/admin-guard.middleware';
 import { Response } from 'express';
 
+jest.mock('../../utils/background-job-lock.utils', () => ({
+  acquireJobLock: jest.fn(() => ({
+    acquired: true,
+    expiresAt: '2026-01-01T00:00:00.000Z',
+  })),
+}));
+
 jest.mock('../../utils/prisma.utils', () => ({
   prisma: {
     creatorProfile: {
