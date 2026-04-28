@@ -1,6 +1,7 @@
 import { getPaginatedCreators } from './creator.service';
 import { prisma } from '../../utils/prisma.utils';
 import { CreatorSortOptions } from './creator.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
@@ -19,16 +20,10 @@ const baseSort: CreatorSortOptions = { field: 'createdAt', order: 'desc' };
 function makeCreator(overrides: Record<string, unknown> = {}) {
    return {
       id: 'creator-1',
-      userId: 'user-1',
       handle: 'alice',
       displayName: 'Alice',
-      bio: null,
       avatarUrl: null,
-      perkSummary: null,
       isVerified: false,
-      createdAt: new Date('2026-01-01'),
-      updatedAt: new Date('2026-01-01'),
-      user: { avatar: null, firstName: 'Alice', lastName: 'A' },
       ...overrides,
    };
 }
@@ -50,6 +45,7 @@ describe('getPaginatedCreators', () => {
             skip: 40, // (3 - 1) * 20
             take: 20,
             orderBy: { createdAt: 'desc' },
+            select: CREATOR_LIST_DEFAULT_SELECT,
          })
       );
    });
@@ -150,7 +146,10 @@ describe('getPaginatedCreators', () => {
       });
 
       expect(findMany).toHaveBeenCalledWith(
-         expect.objectContaining({ orderBy: { displayName: 'asc' } })
+         expect.objectContaining({ 
+            orderBy: { displayName: 'asc' },
+            select: CREATOR_LIST_DEFAULT_SELECT,
+         })
       );
    });
 });

@@ -42,6 +42,8 @@ pnpm exec prisma db push
 pnpm dev
 ```
 
+**Configuration:** See [Configuration Guide](./docs/configuration.md) for detailed information about environment variables, source precedence, and validation rules.
+
 ## Database
 
 This repo includes a local PostgreSQL container for development.

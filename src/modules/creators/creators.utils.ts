@@ -7,6 +7,7 @@ import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
 import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -30,6 +31,7 @@ export async function fetchCreatorList(
          orderBy,
          skip: offset,
          take: limit,
+         select: CREATOR_LIST_DEFAULT_SELECT,
       }),
       prisma.creatorProfile.count({ where }),
    ]);
