@@ -18,7 +18,7 @@ function assertThrows(fn: () => void, message: string) {
    try {
       fn();
       throw new Error(`${message}: expected function to throw`);
-   } catch (error) {
+   } catch (_error) {
       // Expected to throw
    }
 }
