@@ -83,6 +83,13 @@ export const envSchema = z.object({
    BACKGROUND_JOB_LOCK_TTL_MS: z.coerce.number().int().positive().default(300000),
    CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
    INDEXER_CURSOR_STALE_AGE_WARNING_MS: z.coerce.number().int().positive().default(300000),
+
+   // Indexer feature flags — toggle individual indexer behaviors. The startup
+   // check in src/utils/indexer-flags-startup-check.utils.ts enforces the
+   // cross-field invariants between these flags and their threshold values.
+   ENABLE_INDEXER_DEDUPE: z.coerce.boolean().default(true),
+   ENABLE_INDEXER_DLQ: z.coerce.boolean().default(true),
+   ENABLE_INDEXER_CURSOR_STALENESS_WARNING: z.coerce.boolean().default(true),
 });
 
 /**
