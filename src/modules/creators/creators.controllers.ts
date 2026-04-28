@@ -14,6 +14,10 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { buildCreatorListRequestContext } from './creator-list-context.utils';
+import {
+   incrementFilterParseError,
+   type FilterParseErrorCategory,
+} from '../../utils/filter-parse-metrics.utils';
 
 /**
  * Controller for GET /api/v1/creators
@@ -28,6 +32,9 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       // Validate query parameters
       const parsed = parsePublicQuery(CreatorListQuerySchema, ctx.query);
       if (!parsed.ok) {
+         // Increment filter parse error counter
+         const category = categorizeParseError(parsed.details);
+         incrementFilterParseError('/api/v1/creators', category);
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }
       const validatedQuery = parsed.data;
@@ -50,6 +57,23 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       next(error);
    }
 };
+
+/**
+ * Categorize a parse error based on the validation details.
+ *
+ * @param details - Validation error details from parsePublicQuery
+ * @returns The error category for metrics labeling
+ */
+function categorizeParseError(
+   details: Array<{ field: string; message: string }>
+): FilterParseErrorCategory {
+   // Check for unknown key errors (strict mode violations)
+   if (details.some(d => d.message.includes('unrecognized') || d.message.includes('unknown'))) {
+      return 'unknown_key';
+   }
+   // Default to invalid_value for type/range errors
+   return 'invalid_value';
+}
 
 /**
  * Controller for GET /api/v1/creators/:id/stats
