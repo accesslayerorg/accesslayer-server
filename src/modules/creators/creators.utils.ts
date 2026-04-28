@@ -4,17 +4,9 @@ import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
 import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
-import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
-
-type CreatorListWhere = {
-   isVerified?: boolean;
-   OR?: Array<{
-      handle?: { contains: string; mode: 'insensitive' };
-      displayName?: { contains: string; mode: 'insensitive' };
-   }>;
-};
+import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -27,22 +19,7 @@ export async function fetchCreatorList(
 ): Promise<[CreatorProfile[], number]> {
    const { limit, offset, sort, order, verified, search } = query;
 
-   // Build where clause for filters
-   const where: CreatorListWhere = {};
-
-   if (verified !== undefined) {
-      where.isVerified = verified;
-   }
-
-   const normalizedSearch = normalizeCreatorListSearchTerm(search);
-
-   if (normalizedSearch) {
-      where.OR = [
-         { handle: { contains: normalizedSearch, mode: 'insensitive' } },
-         { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
-      ];
-   }
-
+   const where = buildCreatorFeedWhere({ verified, search });
    const orderBy = mapCreatorListSort(sort, order);
 
    // Fetch creators and total count in parallel
@@ -65,7 +42,7 @@ export async function fetchCreatorList(
          thresholdMs: envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS,
          sort,
          order,
-         hasSearch: !!normalizedSearch,
+         hasSearch: !!search,
          hasVerifiedFilter: verified !== undefined,
          limit,
          offset,
