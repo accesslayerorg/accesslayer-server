@@ -137,16 +137,18 @@ export function sendNotFound(res: Response, resource: string): void {
 
 export function sendUnauthorized(
    res: Response,
-   message = 'Unauthorized access'
+   message = 'Unauthorized access',
+   details?: Array<{ field?: string; message: string }>
 ): void {
-   sendError(res, 401, ErrorCode.UNAUTHORIZED, message);
+   sendError(res, 401, ErrorCode.UNAUTHORIZED, message, details);
 }
 
 export function sendForbidden(
    res: Response,
-   message = 'Access forbidden'
+   message = 'Access forbidden',
+   details?: Array<{ field?: string; message: string }>
 ): void {
-   sendError(res, 403, ErrorCode.FORBIDDEN, message);
+   sendError(res, 403, ErrorCode.FORBIDDEN, message, details);
 }
 
 export function sendConflict(res: Response, message: string): void {

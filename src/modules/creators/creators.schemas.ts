@@ -61,7 +61,7 @@ export const CreatorListQuerySchema = z
       z
         .string()
         .optional()
-        .transform(val =>
+        .transform((val: string | undefined) =>
           val === undefined ? undefined : val === 'true'
         )
     ),
@@ -70,7 +70,7 @@ export const CreatorListQuerySchema = z
       z
         .string()
         .optional()
-        .transform(val => normalizeCreatorListSearchTerm(val))
+        .transform((val: string | undefined) => normalizeCreatorListSearchTerm(val))
     ),
   })
   .strict();
@@ -79,3 +79,26 @@ export const CreatorListQuerySchema = z
 export const LegacyCreatorQuerySchema = CreatorListQuerySchema;
 
 export type CreatorListQueryType = z.infer<typeof CreatorListQuerySchema>;
+
+/**
+ * Validation schema for individual creator perks.
+ */
+export const CreatorPerkSchema = z.object({
+  id: z.string().cuid().optional().or(z.string().uuid()),
+  title: z.string().min(1, 'Title is required').max(100),
+  description: z.string().min(1, 'Description is required').max(500),
+  icon: z.string().optional(),
+});
+
+/**
+ * Validation schema for updating a creator profile.
+ */
+export const UpdateCreatorProfileSchema = z.object({
+  displayName: z.string().min(1).max(100).optional(),
+  bio: z.string().max(1000).optional(),
+  avatarUrl: z.string().url().optional().or(z.literal('')),
+  perkSummary: z.string().max(200).optional(),
+  perks: z.array(CreatorPerkSchema).optional(),
+}).strict();
+
+export type UpdateCreatorProfileType = z.infer<typeof UpdateCreatorProfileSchema>;

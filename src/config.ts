@@ -9,6 +9,10 @@ export const envSchema = z.object({
    DATABASE_URL: z
       .string()
       .min(1, 'DATABASE_URL is required in the environment variables'),
+   APP_SECRET: z
+      .string()
+      .min(32, 'APP_SECRET should be at least 32 characters')
+      .default('accesslayer_default_development_secret_key_32_bytes_long'),
 
    GMAIL_USER: z.string(),
    GMAIL_APP_PASSWORD: z.string(),
@@ -48,6 +52,7 @@ export const envSchema = z.object({
    ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
    API_VERSION: z.string().default('1.0.0'),
    ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
+   ENABLE_SCHEMA_VERSION_HEADER: z.coerce.boolean().default(true),
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
    OWNERSHIP_SNAPSHOT_CLEANUP_ENABLED: z.coerce.boolean().default(false),
