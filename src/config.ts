@@ -56,6 +56,7 @@ export const envSchema = z.object({
    ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
    BACKGROUND_JOB_LOCK_TTL_MS: z.coerce.number().int().positive().default(300000),
+   CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
 });
 
 export const envConfig = envSchema.parse(process.env);

@@ -50,9 +50,9 @@ export function parseCreatorFilters(
     }
 
     if (typeof raw.search === 'string') {
-        const trimmed = raw.search.trim();
-        if (trimmed.length > 0) {
-            result.search = trimmed;
+        const normalized = raw.search.trim().replace(/\s+/g, ' ');
+        if (normalized.length > 0) {
+            result.search = normalized;
         }
     }
 
