@@ -5,7 +5,7 @@ import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
 import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
-
+import { checkOptionalDependencies } from './utils/startup.utils';
 
 async function startServer() {
    try {
@@ -14,6 +14,9 @@ async function startServer() {
 
       // Verify migrations on startup
       await verifyMigrationChecksums();
+
+      // Check and warn about disabled optional dependencies (non-blocking)
+      checkOptionalDependencies();
 
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -58,7 +61,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
          clearTimeout(shutdownTimer);
          console.log('✅ HTTP server closed, draining requests');
 
-         await new Promise((resolve) => setTimeout(resolve, DRAIN_WINDOW_MS));
+         await new Promise(resolve => setTimeout(resolve, DRAIN_WINDOW_MS));
 
          await prisma.$disconnect();
          console.log('💾 Database connection closed');
@@ -69,7 +72,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
    };
 }
 
-startServer().then((server) => {
+startServer().then(server => {
    const shutdownHandler = createGracefulShutdownHandler(server);
    process.on('SIGINT', shutdownHandler);
    process.on('SIGTERM', shutdownHandler);
