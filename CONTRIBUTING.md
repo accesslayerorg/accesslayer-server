@@ -5,6 +5,7 @@ Thanks for contributing to the backend for Access Layer, a Stellar-native creato
 ## Before you start
 
 - Read the [README](./README.md) for context.
+- Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
 - Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
 - Keep pull requests limited to one backend issue or one documentation improvement.
 - Open a discussion before changing core API shape or background processing architecture.
