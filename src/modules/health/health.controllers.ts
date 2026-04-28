@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
+import { DEFAULT_RPC_TIMEOUT_MS } from '../../utils/rpc-timeout.utils';
 
 const SYNC_LAG_DEGRADATION_THRESHOLD = 100;
 
@@ -68,6 +69,12 @@ interface HealthStatus {
     name: string;
     status: 'healthy' | 'unhealthy';
   }[];
+  timeouts?: {
+    rpc: number;
+    backgroundJob: number;
+    slowQueryThreshold: number;
+    shutdown: number;
+  };
 }
 
 export const healthCheck = async (_: Request, res: Response): Promise<void> => {
@@ -94,6 +101,31 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
     }
 
     const syncStatus = await getChainSyncStatus();
+
+    // Sanitize timeout values for public-safe responses
+    const getSanitizedTimeouts = () => {
+      const rpcTimeout = DEFAULT_RPC_TIMEOUT_MS;
+      const backgroundJobTimeout = envConfig.BACKGROUND_JOB_LOCK_TTL_MS;
+      const slowQueryThreshold = envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS;
+      const shutdownTimeout = 30000; // SHUTDOWN_TIMEOUT_MS from server.ts
+
+      // In production, round values to avoid exposing exact configurations
+      if (envConfig.MODE === 'production') {
+        return {
+          rpc: Math.round(rpcTimeout / 1000) * 1000, // Round to nearest second
+          backgroundJob: Math.round(backgroundJobTimeout / 60000) * 60000, // Round to nearest minute
+          slowQueryThreshold: Math.round(slowQueryThreshold / 100) * 100, // Round to nearest 100ms
+          shutdown: Math.round(shutdownTimeout / 5000) * 5000, // Round to nearest 5 seconds
+        };
+      }
+
+      return {
+        rpc: rpcTimeout,
+        backgroundJob: backgroundJobTimeout,
+        slowQueryThreshold: slowQueryThreshold,
+        shutdown: shutdownTimeout,
+      };
+    };
 
     const healthData: HealthStatus = {
       success: true,
@@ -130,6 +162,7 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
           status: syncStatus?.status === 'degraded' ? 'unhealthy' : 'healthy',
         },
       ],
+      timeouts: getSanitizedTimeouts(),
     };
 
     // Return 503 if database is disconnected in production
