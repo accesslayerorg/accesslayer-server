@@ -5,10 +5,30 @@ import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
 import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
+import {
+   IndexerFlagsConfigError,
+   runIndexerFeatureFlagsStartupCheck,
+} from './utils/indexer-flags-startup-check.utils';
 
 
 async function startServer() {
    try {
+      // Validate indexer feature flags before any code paths read them. We
+      // fail fast here so operators see every misconfiguration at once
+      // instead of cryptic runtime errors later in the boot sequence.
+      try {
+         runIndexerFeatureFlagsStartupCheck();
+      } catch (err) {
+         if (err instanceof IndexerFlagsConfigError) {
+            logger.error(
+               { issues: err.issues },
+               'Refusing to start: indexer feature flags are misconfigured'
+            );
+            process.exit(1);
+         }
+         throw err;
+      }
+
       await prisma.$connect();
       logger.info('Connected to database');
 
