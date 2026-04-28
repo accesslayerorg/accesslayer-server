@@ -4,15 +4,10 @@ import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
 import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
-import { normalizeCreatorListSearchTerm } from './creators.search-term.utils';
-
-type CreatorListWhere = {
-   isVerified?: boolean;
-   OR?: Array<{
-      handle?: { contains: string; mode: 'insensitive' };
-      displayName?: { contains: string; mode: 'insensitive' };
-   }>;
-};
+import { logger } from '../../utils/logger.utils';
+import { envConfig } from '../../config';
+import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -25,34 +20,36 @@ export async function fetchCreatorList(
 ): Promise<[CreatorProfile[], number]> {
    const { limit, offset, sort, order, verified, search } = query;
 
-   // Build where clause for filters
-   const where: CreatorListWhere = {};
-
-   if (verified !== undefined) {
-      where.isVerified = verified;
-   }
-
-   const normalizedSearch = normalizeCreatorListSearchTerm(search);
-
-   if (normalizedSearch) {
-      where.OR = [
-         { handle: { contains: normalizedSearch, mode: 'insensitive' } },
-         { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
-      ];
-   }
-
+   const where = buildCreatorFeedWhere({ verified, search });
    const orderBy = mapCreatorListSort(sort, order);
 
    // Fetch creators and total count in parallel
+   const start = Date.now();
    const [creators, total] = await Promise.all([
       prisma.creatorProfile.findMany({
          where,
          orderBy,
          skip: offset,
          take: limit,
+         select: CREATOR_LIST_DEFAULT_SELECT,
       }),
       prisma.creatorProfile.count({ where }),
    ]);
+
+   const durationMs = Date.now() - start;
+   if (durationMs > envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS) {
+      logger.warn({
+         msg: 'Slow creator list query',
+         durationMs,
+         thresholdMs: envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS,
+         sort,
+         order,
+         hasSearch: !!search,
+         hasVerifiedFilter: verified !== undefined,
+         limit,
+         offset,
+      });
+   }
 
    return [creators as unknown as CreatorProfile[], total];
 }
