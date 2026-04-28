@@ -5,6 +5,7 @@ import { ErrorRequestHandler } from 'express';
 import chalk from 'chalk';
 import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
+import { logger } from '../utils/logger.utils';
 
 export class ApiError extends Error {
    statusCode: number;
@@ -120,6 +121,22 @@ export const errorHandler: ErrorRequestHandler = (
          success: false,
          code: err.errorCode || ErrorCode.INTERNAL_ERROR,
          message: err.message,
+      });
+      return;
+   }
+
+   // Handle oversized request payload (413)
+   if (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413) {
+      logger.warn({
+         msg: 'Request payload too large',
+         route: `${req.method} ${req.originalUrl}`,
+         contentLength: req.headers['content-length'],
+         limitBytes: err.limit,
+      });
+      res.status(413).json({
+         success: false,
+         code: ErrorCode.BAD_REQUEST,
+         message: 'Request payload too large',
       });
       return;
    }

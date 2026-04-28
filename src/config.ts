@@ -57,6 +57,7 @@ export const envSchema = z.object({
    INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
    BACKGROUND_JOB_LOCK_TTL_MS: z.coerce.number().int().positive().default(300000),
    CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
+   INDEXER_CURSOR_STALE_AGE_WARNING_MS: z.coerce.number().int().positive().default(300000),
 });
 
 export const envConfig = envSchema.parse(process.env);
