@@ -15,7 +15,7 @@ The server is responsible for:
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
 
-See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview.
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview and [API Versioning](./docs/api-versioning.md) for details on schema versioning.
 
 ## Tech
 
@@ -41,6 +41,8 @@ pnpm exec prisma generate
 pnpm exec prisma db push
 pnpm dev
 ```
+
+**Configuration:** See [Configuration Guide](./docs/configuration.md) for detailed information about environment variables, source precedence, and validation rules.
 
 ## Database
 

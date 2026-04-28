@@ -46,6 +46,7 @@ Source of truth (events / primary tables)
 1. **Pause or fence the live indexer** that writes to the read model, or ensure it is idempotent enough to run concurrently with the rebuild.
 
 2. **Truncate or soft-delete** the stale read-model rows:
+
    ```sql
    TRUNCATE TABLE creator_ownership_reads;
    -- or, for an incremental rebuild without full downtime:
@@ -53,30 +54,51 @@ Source of truth (events / primary tables)
    ```
 
 3. **Run the rebuild script** (location: `scripts/rebuild-read-model.sh` once implemented):
+
    ```bash
    pnpm ts-node src/scripts/rebuild-read-model.ts --model=creator_ownership_reads
    ```
+
    The script must process records in batches (recommended batch size: 500) and log progress at each checkpoint.
 
 4. **Verify output:**
+
    ```sql
    SELECT COUNT(*) FROM creator_ownership_reads;
    -- Compare to expected count derived from source tables
    ```
+
    Spot-check a sample of records against the source of truth.
 
 5. **Resume the live indexer.** If fenced, lift the fence. If the indexer was paused, restart it and confirm it picks up from the correct cursor position.
 
 ## Expected duration
 
-| Table size | Estimated rebuild time |
-|---|---|
-| < 10k rows | < 1 minute |
-| 10k – 100k rows | 2–10 minutes |
-| 100k – 1M rows | 15–60 minutes |
-| > 1M rows | Plan for multi-hour window; use batched pagination |
+| Table size      | Estimated rebuild time                             |
+| --------------- | -------------------------------------------------- |
+| < 10k rows      | < 1 minute                                         |
+| 10k – 100k rows | 2–10 minutes                                       |
+| 100k – 1M rows  | 15–60 minutes                                      |
+| > 1M rows       | Plan for multi-hour window; use batched pagination |
 
 Duration depends on DB instance size, network, and whether indexes are rebuilt inline or deferred.
+
+## Indexer replay dry-run
+
+Use the admin replay endpoint in dry-run mode to validate replay inputs without producing audit-write side effects.
+
+```bash
+curl -X POST "$API_BASE_URL/admin/indexer/replay" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-id: <admin-id>" \
+  -d '{"startLedger": 123456, "dryRun": true}'
+```
+
+Notes:
+
+- `dryRun` defaults to `false`; omit it to run a normal replay initiation.
+- In dry-run mode, the response includes `dryRun: true` and no audit event is written.
+- `startLedger` must be a positive integer in both dry-run and normal mode.
 
 ## Rollback guidance
 
