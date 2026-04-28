@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
    CREATOR_LIST_SORT_FIELDS,
    type CreatorListSortField,
+   type CreatorListSortOrder,
 } from '../../constants/creator-list-sort.constants';
 
 /**
@@ -10,10 +11,8 @@ import {
  */
 export const CREATOR_LIST_SORT_OPTIONS = CREATOR_LIST_SORT_FIELDS;
 
-export const CREATOR_LIST_SORT_ORDERS = ['asc', 'desc'] as const;
-
 export type CreatorListSortOption = CreatorListSortField;
-export type CreatorListSortOrder = (typeof CREATOR_LIST_SORT_ORDERS)[number];
+export { type CreatorListSortOrder };
 
 const CREATOR_LIST_SORT_FIELD_MAP: Record<
    CreatorListSortOption,
