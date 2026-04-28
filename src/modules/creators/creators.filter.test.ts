@@ -34,7 +34,15 @@ function run() {
 
   assert.deepEqual(parseCreatorFilters({ verified: 'true' }), { verified: true });
   assert.deepEqual(parseCreatorFilters({ verified: 'false' }), { verified: false });
+  assert.deepEqual(parseCreatorFilters({ verified: '1' }), { verified: true });
+  assert.deepEqual(parseCreatorFilters({ verified: '0' }), { verified: false });
   assert.deepEqual(parseCreatorFilters({ verified: true }), { verified: true });
+  assert.deepEqual(parseCreatorFilters({ verified: false }), { verified: false });
+
+  assert.throws(
+    () => parseCreatorFilters({ verified: 'yes' }),
+    /Accepted values: "true", "false", "1", "0"\./
+  );
 
   // --- combined ---
 
