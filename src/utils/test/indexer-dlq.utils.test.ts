@@ -1,6 +1,7 @@
 import { moveToDLQ, getDLQDepth, syncDLQMetrics } from '../indexer-dlq.utils';
 import { prisma } from '../prisma.utils';
 import { setQueueDepth } from '../queue-metrics.utils';
+import { logRetryExhaustion } from '../indexer-log.utils';
 
 jest.mock('../prisma.utils', () => ({
   prisma: {
@@ -13,6 +14,10 @@ jest.mock('../prisma.utils', () => ({
 
 jest.mock('../queue-metrics.utils', () => ({
   setQueueDepth: jest.fn(),
+}));
+
+jest.mock('../indexer-log.utils', () => ({
+  logRetryExhaustion: jest.fn(),
 }));
 
 describe('indexer-dlq.utils', () => {
@@ -29,6 +34,14 @@ describe('indexer-dlq.utils', () => {
       (prisma.indexerDLQ.create as jest.Mock).mockResolvedValue({ id: '1', ...params });
 
       await moveToDLQ(params);
+
+      expect(logRetryExhaustion).toHaveBeenCalledWith(
+        params.jobType,
+        { retryCount: params.retryCount },
+        params.payload,
+        params.failureReason,
+        params.errorDetails
+      );
 
       expect(prisma.indexerDLQ.create).toHaveBeenCalledWith({
         data: params,

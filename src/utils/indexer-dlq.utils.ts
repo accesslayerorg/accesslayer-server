@@ -1,5 +1,6 @@
 import { prisma } from './prisma.utils';
 import { setQueueDepth } from './queue-metrics.utils';
+import { logRetryExhaustion } from './indexer-log.utils';
 
 export interface MoveToDLQParams {
   jobType: string;
@@ -16,6 +17,15 @@ export interface MoveToDLQParams {
  * a terminal error that requires manual intervention.
  */
 export async function moveToDLQ(params: MoveToDLQParams) {
+  // Log retry exhaustion before moving to DLQ
+  logRetryExhaustion(
+    params.jobType, // Use jobType as jobId
+    { retryCount: params.retryCount },
+    params.payload,
+    params.failureReason,
+    params.errorDetails
+  );
+
   return await prisma.indexerDLQ.create({
     data: {
       jobType: params.jobType,

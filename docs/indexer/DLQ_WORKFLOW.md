@@ -5,10 +5,12 @@ The Indexer DLQ stores jobs that have failed all retry attempts. This document o
 ## 1. Detection
 
 Failures are moved to the `IndexerDLQ` table when the retry budget is exhausted.
+A warning log is emitted via `logRetryExhaustion` helper, including job ID, context metadata, sanitized payload, failure reason, and error details.
 Monitoring systems should alert when:
 
 - `IndexerDLQ` count > 0.
 - High frequency of specific `jobType` failures.
+- Warning logs for retry exhaustion.
 
 ## 2. Investigation
 
