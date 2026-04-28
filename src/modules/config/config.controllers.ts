@@ -26,6 +26,32 @@ interface ProtocolConfig {
       appName: string;
       supportEmail: string;
    };
+   /**
+    * Protocol fee parameters expressed in basis points (bps).
+    *
+    * 1 bps = 0.01%. All values are integers in the range [0, 10000].
+    * Clients must treat these as read-only; they are set by the protocol
+    * and change only via a contract governance action.
+    */
+   fees: {
+      /**
+       * Platform fee charged on each key purchase.
+       * 250 = 2.50%. Valid range: 0–10000.
+       */
+      platformFeeBps: number;
+      /**
+       * Maximum creator royalty a creator may configure on secondary sales.
+       * Creators may set any value up to this ceiling.
+       * 1000 = 10.00%. Valid range: 0–10000.
+       */
+      maxCreatorRoyaltyBps: number;
+      /**
+       * Denominator used to convert a bps integer to a decimal fraction.
+       * Always 10000. Included so clients can derive percentages without
+       * hardcoding the divisor: `fee% = feeBps / bpsDenominator * 100`.
+       */
+      bpsDenominator: number;
+   };
 }
 
 export const httpGetProtocolConfig = (
@@ -44,6 +70,11 @@ export const httpGetProtocolConfig = (
       display: {
          appName: 'AccessLayer',
          supportEmail: 'support@accesslayer.org',
+      },
+      fees: {
+         platformFeeBps: 250,
+         maxCreatorRoyaltyBps: 1000,
+         bpsDenominator: 10000,
       },
    };
 
