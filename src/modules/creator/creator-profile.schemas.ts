@@ -18,6 +18,16 @@ export const CreatorProfileParamsSchema = z.object({
 });
 
 /**
+ * Validation schema for individual creator perks.
+ */
+export const CreatorPerkSchema = z.object({
+   id: z.string().cuid().optional().or(z.string().uuid()),
+   title: z.string().min(1, 'Title is required').max(100),
+   description: z.string().min(1, 'Description is required').max(500),
+   icon: z.string().optional(),
+});
+
+/**
  * Placeholder read response shape for GET /api/v1/creators/:creatorId/profile.
  *
  * The shape is explicit now so future indexing-backed values can be dropped in
@@ -28,9 +38,10 @@ export const CreatorProfileReadResponseSchema = z.object({
    displayName: z.string().nullable(),
    bio: z.string().nullable(),
    avatarUrl: z.string().url().nullable(),
+   perks: z.array(CreatorPerkSchema).optional(),
    links: z.array(z.object({ label: z.string(), url: z.string().url() })),
    metadata: z.object({
-      source: z.enum(['placeholder']),
+      source: z.enum(['placeholder', 'database']),
       isProfileComplete: z.boolean(),
    }),
 });
@@ -70,6 +81,10 @@ export const UpsertCreatorProfileBodySchema = z.object({
          })
       )
       .max(8, 'At most 8 profile links are allowed')
+      .optional(),
+   perks: z
+      .array(CreatorPerkSchema)
+      .max(10, 'At most 10 perks are allowed')
       .optional(),
 });
 

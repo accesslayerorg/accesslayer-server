@@ -1,6 +1,7 @@
 import { CreatorSortOptions, toPrismaOrderBy } from './creator.utils';
 import { PaginationMetadata } from '../../utils/api-response.utils';
 import { prisma } from '../../utils/prisma.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 
 export interface GetCreatorsParams {
    page: number;
@@ -17,15 +18,7 @@ export async function getPaginatedCreators(params: GetCreatorsParams) {
          skip,
          take: limit,
          orderBy: toPrismaOrderBy(sort),
-         include: {
-            user: {
-               select: {
-                  avatar: true,
-                  firstName: true,
-                  lastName: true,
-               },
-            },
-         },
+         select: CREATOR_LIST_DEFAULT_SELECT,
       }),
       prisma.creatorProfile.count(),
    ]);

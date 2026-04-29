@@ -28,6 +28,7 @@ const CREATOR_LIST_SORT_FIELD_MAP: Record<
 /**
  * Map a public sort option into an internal Prisma orderBy object.
  * Throws for unsupported values so invalid sort input is never passed through silently.
+ * Handles null values deterministically by sorting nulls last.
  */
 export function mapCreatorListSort(
    sort: string,
@@ -40,6 +41,6 @@ export function mapCreatorListSort(
    }
 
    return {
-      [field]: order,
+      [field]: { sort: order, nulls: 'last' },
    } as Prisma.CreatorProfileOrderByWithRelationInput;
 }

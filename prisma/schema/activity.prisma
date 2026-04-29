@@ -1,0 +1,31 @@
+// prisma/schema/activity.prisma
+
+enum ActivityType {
+  CREATOR_REGISTERED
+  KEY_BOUGHT
+  KEY_SOLD
+  PROFILE_UPDATED
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  
+  // Actor who performed the action (wallet address or user ID)
+  actor       String
+  
+  // Optional creator associated with this activity
+  creatorId   String?
+  
+  // Optional target of the activity (e.g., target wallet address)
+  target      String?
+  
+  // Payload for event-specific data (e.g., price, amount, previous values)
+  payload     Json
+  
+  createdAt   DateTime     @default(now())
+
+  @@index([creatorId])
+  @@index([actor])
+  @@index([type])
+}

@@ -15,6 +15,8 @@ The server is responsible for:
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
 
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview and [API Versioning](./docs/api-versioning.md) for details on schema versioning.
+
 ## Tech
 
 - Node.js
@@ -39,6 +41,8 @@ pnpm exec prisma generate
 pnpm exec prisma db push
 pnpm dev
 ```
+
+**Configuration:** See [Configuration Guide](./docs/configuration.md) for detailed information about environment variables, source precedence, and validation rules.
 
 ## Database
 
@@ -185,8 +189,10 @@ Returns the latest indexed ledger number, its opaque cursor, and the timestamp o
 
 ## Open source workflow
 
-- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before starting work.
-- Browse the maintainer issue inventory in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
+- Read the [README](./README.md) for context.
+- Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
+- Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
+- View the [API Route Inventory](./docs/api-inventory.md) for a current list of available endpoints.
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
 ```

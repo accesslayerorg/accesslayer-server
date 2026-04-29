@@ -1,12 +1,13 @@
 // src/middlewares/response-timing.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import { envConfig } from '../config';
+import { startTimer, elapsedMsFormatted } from '../utils/monotonic-clock.utils';
 
 /**
  * Middleware that adds an `X-Response-Time` header to the response.
  *
- * It calculates the time elapsed from the beginning of the request
- * until the response is sent to the client.
+ * Uses a monotonic clock (`process.hrtime`) so the measurement is not
+ * affected by system clock adjustments.
  *
  * Can be enabled/disabled via the `ENABLE_RESPONSE_TIMING` environment variable.
  */
@@ -19,7 +20,7 @@ export const responseTimingMiddleware = (
       return next();
    }
 
-   const start = process.hrtime();
+   const timer = startTimer();
 
    // Intercept the response headers being sent
    const originalWriteHead = res.writeHead;
@@ -29,11 +30,7 @@ export const responseTimingMiddleware = (
       reasonOrHeaders?: string | any,
       headers?: any
    ) {
-      const diff = process.hrtime(start);
-      const timeInMs = (diff[0] * 1e3 + diff[1] * 1e-6).toFixed(3);
-
-      // Set the header before the original writeHead is called
-      res.setHeader('X-Response-Time', `${timeInMs}ms`);
+      res.setHeader('X-Response-Time', elapsedMsFormatted(timer));
 
       return originalWriteHead.apply(this, [
          statusCode,

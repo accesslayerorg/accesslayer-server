@@ -14,6 +14,13 @@ export interface WalletIdentity {
    verifiedAt?: Date;
 }
 
+export interface CreatorPerk {
+   id: string;
+   title: string;
+   description: string;
+   icon?: string;
+}
+
 export interface CreatorProfile {
    id: string;
    userId: string;
@@ -22,6 +29,7 @@ export interface CreatorProfile {
    bio?: string;
    avatarUrl?: string;
    perkSummary?: string;
+   perks?: CreatorPerk[];
    isVerified: boolean;
    createdAt: Date;
    updatedAt: Date;
@@ -90,6 +98,7 @@ export interface CreateCreatorProfileDto {
    bio?: string;
    avatarUrl?: string;
    perkSummary?: string;
+   perks?: CreatorPerk[];
 }
 
 export interface UpdateCreatorProfileDto {
@@ -97,6 +106,7 @@ export interface UpdateCreatorProfileDto {
    bio?: string;
    avatarUrl?: string;
    perkSummary?: string;
+   perks?: CreatorPerk[];
 }
 
 export interface UpdateUserSettingsDto {
