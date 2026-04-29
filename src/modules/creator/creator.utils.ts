@@ -1,13 +1,8 @@
 // src/modules/creator/creator.utils.ts
 import { Prisma } from '@prisma/client';
-import { resolveSlugCollision } from '../../utils/slug.utils';
+import { Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
-import {
-   CREATOR_LIST_SORT_FIELDS,
-   DEFAULT_CREATOR_LIST_ORDER,
-   DEFAULT_CREATOR_LIST_SORT,
-   type CreatorListSortField,
-} from '../../constants/creator-list-sort.constants';
+import { sendNotFound } from '../../utils/api-response.utils';
 
 export type CreatorSortField = CreatorListSortField;
 export type SortOrder = 'asc' | 'desc';
@@ -50,19 +45,63 @@ export function toPrismaOrderBy(
 }
 
 /**
- * Resolves a creator handle (slug) collision using the database.
+ * Shortcut helper for returning a not-found response when a creator param is missing.
  *
- * @param displayName - The display name to generate a handle from.
- * @returns A unique handle for the creator.
+ * This reduces repeated route-level boilerplate by centralizing the creator
+ * not-found check. If the creator exists, it returns the creator object.
+ * If not found, it sends a 404 response and returns null.
+ *
+ * @param res - Express response object
+ * @param creatorId - Creator ID to look up
+ * @returns Creator profile if found, null otherwise (with 404 response already sent)
+ *
+ * @example
+ * const creator = await getCreatorOrNotFound(res, creatorId);
+ * if (!creator) return; // 404 already sent
+ * // Continue with creator...
  */
-export async function resolveCreatorSlugCollision(
-   displayName: string
-): Promise<string> {
-   return resolveSlugCollision(displayName, async (handle) => {
-      const existing = await prisma.creatorProfile.findUnique({
-         where: { handle },
-         select: { id: true },
-      });
-      return !existing;
+export async function getCreatorOrNotFound(
+   res: Response,
+   creatorId: string
+): Promise<Prisma.CreatorProfileGetPayload<{}> | null> {
+   const creator = await prisma.creatorProfile.findUnique({
+      where: { id: creatorId },
    });
+
+   if (!creator) {
+      sendNotFound(res, 'Creator');
+      return null;
+   }
+
+   return creator;
+}
+
+/**
+ * Shortcut helper for returning a not-found response when a creator handle param is missing.
+ *
+ * Similar to getCreatorOrNotFound, but looks up creators by handle instead of ID.
+ *
+ * @param res - Express response object
+ * @param handle - Creator handle to look up
+ * @returns Creator profile if found, null otherwise (with 404 response already sent)
+ *
+ * @example
+ * const creator = await getCreatorByHandleOrNotFound(res, handle);
+ * if (!creator) return; // 404 already sent
+ * // Continue with creator...
+ */
+export async function getCreatorByHandleOrNotFound(
+   res: Response,
+   handle: string
+): Promise<Prisma.CreatorProfileGetPayload<{}> | null> {
+   const creator = await prisma.creatorProfile.findUnique({
+      where: { handle },
+   });
+
+   if (!creator) {
+      sendNotFound(res, 'Creator');
+      return null;
+   }
+
+   return creator;
 }
