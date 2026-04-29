@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { creatorListSortDirectionQueryParam } from './creators.sort-direction.parse';
 import { creatorListIncludeQueryParam } from './creators.include.parse';
 import { withCreatorListQueryStringNormalization } from './creators.query-string.utils';
-import { safeIntParam } from '../../utils/query.utils';
+import { safeBooleanQueryParam, safeIntParam } from '../../utils/query.utils';
 import {
   MIN_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -57,20 +57,15 @@ export const CreatorListQuerySchema = z
     include: creatorListIncludeQueryParam(),
 
     // Filters
-    verified: withCreatorListQueryStringNormalization(
-      z
-        .string()
-        .optional()
-        .transform(val =>
-          val === undefined ? undefined : val === 'true'
-        )
-    ),
+    verified: safeBooleanQueryParam({
+      paramName: 'verified',
+    }),
 
     search: withCreatorListQueryStringNormalization(
       z
         .string()
         .optional()
-        .transform(val => normalizeCreatorListSearchTerm(val))
+        .transform((val: string | undefined) => normalizeCreatorListSearchTerm(val))
     ),
   })
   .strict();
@@ -79,3 +74,26 @@ export const CreatorListQuerySchema = z
 export const LegacyCreatorQuerySchema = CreatorListQuerySchema;
 
 export type CreatorListQueryType = z.infer<typeof CreatorListQuerySchema>;
+
+/**
+ * Validation schema for individual creator perks.
+ */
+export const CreatorPerkSchema = z.object({
+  id: z.string().cuid().optional().or(z.string().uuid()),
+  title: z.string().min(1, 'Title is required').max(100),
+  description: z.string().min(1, 'Description is required').max(500),
+  icon: z.string().optional(),
+});
+
+/**
+ * Validation schema for updating a creator profile.
+ */
+export const UpdateCreatorProfileSchema = z.object({
+  displayName: z.string().min(1).max(100).optional(),
+  bio: z.string().max(1000).optional(),
+  avatarUrl: z.string().url().optional().or(z.literal('')),
+  perkSummary: z.string().max(200).optional(),
+  perks: z.array(CreatorPerkSchema).optional(),
+}).strict();
+
+export type UpdateCreatorProfileType = z.infer<typeof UpdateCreatorProfileSchema>;

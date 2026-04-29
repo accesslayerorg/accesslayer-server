@@ -1,0 +1,9 @@
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actor       String
+  action      String
+  target      String
+  targetId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}

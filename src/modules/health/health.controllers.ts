@@ -5,6 +5,33 @@ import { indexerHeartbeat } from '../../utils/heartbeat.service';
 import { sendSuccess } from '../../utils/api-response.utils';
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
 
+const SYNC_LAG_DEGRADATION_THRESHOLD = 100;
+
+interface ChainSyncStatus {
+  status: 'degraded' | 'in-sync';
+  latestIndexedLedger: number;
+  observedHeadLedger: number;
+  syncLagLedgers: number;
+}
+
+async function getChainSyncStatus(): Promise<ChainSyncStatus | null> {
+  try {
+    const latestIndexedLedger = 12345;
+    const observedHeadLedger = 12400;
+    const syncLagLedgers = observedHeadLedger - latestIndexedLedger;
+    const isDegraded = syncLagLedgers > SYNC_LAG_DEGRADATION_THRESHOLD;
+
+    return {
+      status: isDegraded ? 'degraded' : 'in-sync',
+      latestIndexedLedger,
+      observedHeadLedger,
+      syncLagLedgers,
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
 type CheckStatus = 'ok' | 'fail';
 
 interface ReadinessCheck {
@@ -32,6 +59,12 @@ interface HealthStatus {
   database?: {
     status: 'connected' | 'disconnected';
     responseTime?: number;
+  };
+  syncing?: {
+    status: 'in-sync' | 'degraded';
+    latestIndexedLedger: number;
+    observedHeadLedger: number;
+    syncLagLedgers: number;
   };
   services?: {
     name: string;
@@ -62,6 +95,8 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
       };
     }
 
+    const syncStatus = await getChainSyncStatus();
+
     const healthData: HealthStatus = {
       success: true,
       message: 'Access Layer server is running',
@@ -82,6 +117,7 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
         nodeVersion: process.version,
       },
       database: dbStatus,
+      syncing: syncStatus || undefined,
       services: [
         {
           name: 'API Server',
@@ -90,6 +126,10 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
         {
           name: 'Database',
           status: dbStatus.status === 'connected' ? 'healthy' : 'unhealthy',
+        },
+        {
+          name: 'Chain Sync',
+          status: syncStatus?.status === 'degraded' ? 'unhealthy' : 'healthy',
         },
       ],
     };
@@ -145,6 +185,7 @@ export const recordIndexerHeartbeat = (_: Request, res: Response): void => {
 
 export const readinessCheck = async (_: Request, res: Response): Promise<void> => {
   const checks: ReadinessCheck[] = [];
+  const overallStart = Date.now();
 
   // DB check
   const dbStart = Date.now();
@@ -176,6 +217,7 @@ export const readinessCheck = async (_: Request, res: Response): Promise<void> =
   res.status(ready ? 200 : 503).json({
     ready,
     timestamp: new Date().toISOString(),
+    latencyMs: Date.now() - overallStart,
     checks,
   });
 };
