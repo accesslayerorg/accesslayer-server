@@ -158,6 +158,7 @@ export const simpleHealthCheck = (_: Request, res: Response): void => {
 
 export const readinessCheck = async (_: Request, res: Response): Promise<void> => {
   const checks: ReadinessCheck[] = [];
+  const overallStart = Date.now();
 
   // DB check
   const dbStart = Date.now();
@@ -189,6 +190,7 @@ export const readinessCheck = async (_: Request, res: Response): Promise<void> =
   res.status(ready ? 200 : 503).json({
     ready,
     timestamp: new Date().toISOString(),
+    latencyMs: Date.now() - overallStart,
     checks,
   });
 };

@@ -3,6 +3,7 @@ import {
    CreatorProfileReadResponse,
    UpsertCreatorProfileBody,
 } from './creator-profile.schemas';
+import { CREATOR_DETAIL_DEFAULT_SELECT } from '../../constants/creator-detail-include.constants';
 
 /**
  * Reads a creator profile from the database.
@@ -16,6 +17,7 @@ export async function getCreatorProfile(
       where: {
          OR: [{ id: creatorId }, { handle: creatorId }],
       },
+      select: CREATOR_DETAIL_DEFAULT_SELECT,
    });
 
    if (!profile) {

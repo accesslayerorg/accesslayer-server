@@ -3,9 +3,17 @@ import { z } from 'zod';
 /**
  * Centralized Zod schema for all environment variables.
  *
+ * Configuration Source Precedence (highest to lowest):
+ * 1. Environment Variables (.env file or system environment)
+ * 2. Schema Defaults (defined below with .default())
+ * 3. Validation Failure (startup fails if required field missing)
+ *
  * Extracted into its own module so tests can validate the schema
  * in isolation (via `.safeParse()`) without triggering the eager
  * `envSchema.parse(process.env)` side-effect in `config.ts`.
+ *
+ * See docs/configuration.md for complete documentation.
+ * See docs/CONFIG_SOURCE_PRECEDENCE.md for visual reference.
  */
 export const envSchema = z
    .object({
@@ -55,6 +63,7 @@ export const envSchema = z
       ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
       API_VERSION: z.string().default('1.0.0'),
       ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
+      ENABLE_SCHEMA_VERSION_HEADER: z.coerce.boolean().default(true),
       ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
 
       APP_SECRET: z
@@ -63,6 +72,14 @@ export const envSchema = z
          .default('accesslayer_default_development_secret_key_32_bytes_long'),
 
       INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
+      BACKGROUND_JOB_LOCK_TTL_MS: z.coerce.number().int().positive().default(300000),
+      CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
+      INDEXER_CURSOR_STALE_AGE_WARNING_MS: z.coerce.number().int().positive().default(300000),
+
+      // Indexer feature flags
+      ENABLE_INDEXER_DEDUPE: z.coerce.boolean().default(true),
+      ENABLE_INDEXER_DLQ: z.coerce.boolean().default(true),
+      ENABLE_INDEXER_CURSOR_STALENESS_WARNING: z.coerce.boolean().default(true),
 
       // Stellar network
       STELLAR_NETWORK: z
