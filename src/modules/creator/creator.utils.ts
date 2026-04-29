@@ -1,5 +1,7 @@
 // src/modules/creator/creator.utils.ts
 import { Prisma } from '@prisma/client';
+import { resolveSlugCollision } from '../../utils/slug.utils';
+import { prisma } from '../../utils/prisma.utils';
 import {
    CREATOR_LIST_SORT_FIELDS,
    DEFAULT_CREATOR_LIST_ORDER,
@@ -45,4 +47,22 @@ export function toPrismaOrderBy(
    return {
       [options.field]: options.order,
    };
+}
+
+/**
+ * Resolves a creator handle (slug) collision using the database.
+ *
+ * @param displayName - The display name to generate a handle from.
+ * @returns A unique handle for the creator.
+ */
+export async function resolveCreatorSlugCollision(
+   displayName: string
+): Promise<string> {
+   return resolveSlugCollision(displayName, async (handle) => {
+      const existing = await prisma.creatorProfile.findUnique({
+         where: { handle },
+         select: { id: true },
+      });
+      return !existing;
+   });
 }
