@@ -1,121 +1,21 @@
-import { z } from 'zod';
 import dotenv from 'dotenv';
+import { envSchema } from './config.schema';
+
+export { envSchema };
 
 // Load environment variables from .env file
 // Note: Does not override existing environment variables
 dotenv.config();
 
 /**
- * Environment configuration schema with validation and defaults.
- * 
- * Configuration Source Precedence (highest to lowest):
- * 1. Environment Variables (.env file or system environment)
- * 2. Schema Defaults (defined below with .default())
- * 3. Validation Failure (startup fails if required field missing)
- * 
- * See docs/configuration.md for complete documentation.
- * See docs/CONFIG_SOURCE_PRECEDENCE.md for visual reference.
- */
-/**
- * Helper to correctly coerce boolean strings from environment variables.
- * Zod's default z.coerce.boolean() returns true for any non-empty string,
- * including "false" and "0", which is usually not what we want for .env files.
- */
-const booleanCoerce = z.preprocess((val) => {
-   if (typeof val === 'string') {
-      const lower = val.toLowerCase();
-      if (lower === 'true' || lower === '1') return true;
-      if (lower === 'false' || lower === '0') return false;
-   }
-   return val;
-}, z.coerce.boolean());
-
-export const envSchema = z.object({
-   // Server Configuration
-   PORT: z.coerce.number().default(3000),
-   MODE: z.enum(['development', 'production', 'test']).default('development'),
-   
-   // Database (Required)
-   DATABASE_URL: z
-      .string()
-      .min(1, 'DATABASE_URL is required in the environment variables'),
-   
-   // Security (Optional with dev default - MUST override in production)
-   APP_SECRET: z
-      .string()
-      .min(32, 'APP_SECRET should be at least 32 characters')
-      .default('accesslayer_default_development_secret_key_32_bytes_long'),
-
-   // Email Configuration (Required)
-   GMAIL_USER: z.string(),
-   GMAIL_APP_PASSWORD: z.string(),
-   
-   // Google OAuth (Required)
-   GOOGLE_CLIENT_ID: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_ID is required for Google OAuth'),
-   GOOGLE_CLIENT_SECRET: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_SECRET is required for Google OAuth'),
-
-   // URLs (Required)
-   BACKEND_URL: z.string().url(),
-   FRONTEND_URL: z
-      .string()
-      .url('FRONTEND_URL must be a valid URL')
-      .min(1, 'FRONTEND_URL is required'),
-
-   // Cloudinary (Required)
-   CLOUDINARY_CLOUD_NAME: z
-      .string()
-      .min(1, 'CLOUDINARY_CLOUD_NAME is required for image uploads'),
-   CLOUDINARY_API_KEY: z
-      .string()
-      .min(1, 'CLOUDINARY_API_KEY is required for image uploads'),
-   CLOUDINARY_API_SECRET: z
-      .string()
-      .min(1, 'CLOUDINARY_API_SECRET is required for image uploads'),
-
-   // Payment Processing (Required)
-   PAYSTACK_SECRET_KEY: z
-      .string()
-      .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
-   PAYSTACK_PUBLIC_KEY: z
-      .string()
-      .min(1, 'PAYSTACK_PUBLIC_KEY is required for payment processing')
-      .optional(),
-   
-   // API Configuration (Optional with defaults)
-   ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
-   API_VERSION: z.string().default('1.0.0'),
-   ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
-   ENABLE_SCHEMA_VERSION_HEADER: booleanCoerce.default(true),
-   ENABLE_REQUEST_LOGGING: booleanCoerce.default(true),
-   DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
-   
-   // Indexer Configuration (Optional with defaults)
-   INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
-   BACKGROUND_JOB_LOCK_TTL_MS: z.coerce.number().int().positive().default(300000),
-   CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
-   INDEXER_CURSOR_STALE_AGE_WARNING_MS: z.coerce.number().int().positive().default(300000),
-
-   // Indexer feature flags — toggle individual indexer behaviors. The startup
-   // check in src/utils/indexer-flags-startup-check.utils.ts enforces the
-   // cross-field invariants between these flags and their threshold values.
-   ENABLE_INDEXER_DEDUPE: booleanCoerce.default(true),
-   ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
-   ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
-});
-
-/**
  * Validated and typed environment configuration.
- * 
+ *
  * This object is immutable and available for import throughout the application.
  * Configuration values are resolved at startup and do not change at runtime.
- * 
+ *
  * @example
  * import { envConfig } from './config';
- * 
+ *
  * const port = envConfig.PORT;
  * const isProduction = envConfig.MODE === 'production';
  */
@@ -123,7 +23,7 @@ export const envConfig = envSchema.parse(process.env);
 
 /**
  * Derived application configuration.
- * 
+ *
  * These values are computed from envConfig at startup.
  */
 export const appConfig = {

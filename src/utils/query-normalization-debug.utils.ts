@@ -1,8 +1,5 @@
-// src/utils/query-normalization-debug.utils.ts
-// Debug helper for emitting normalized query snapshots for diagnostics.
-// Only active when logger is set to debug level to avoid performance impact.
-
 import { logger } from './logger.utils';
+import { buildQuerySignature } from './querySignature';
 
 /**
  * Fields that should be sanitized to avoid leaking sensitive data in debug logs.
@@ -82,6 +79,8 @@ export interface QueryNormalizationSnapshot {
    timestamp: string;
    /** Optional context label for identifying the query source */
    context?: string;
+   /** Query signature for cache diagnostics */
+   querySignature?: string;
 }
 
 /**
@@ -107,11 +106,17 @@ export interface QueryNormalizationSnapshot {
  * });
  */
 export function emitQueryNormalizationDebug(
-   snapshot: Omit<QueryNormalizationSnapshot, 'timestamp'>
+   snapshot: Omit<QueryNormalizationSnapshot, 'timestamp' | 'querySignature'>
 ): void {
    // Only emit debug logs if logger is at debug level
    if (!logger.isLevelEnabled('debug')) {
       return;
+   }
+
+   // Build query signature if raw query is an object
+   let querySignature: string | undefined;
+   if (typeof snapshot.raw === 'object' && snapshot.raw !== null && !Array.isArray(snapshot.raw)) {
+      querySignature = buildQuerySignature(snapshot.raw as Record<string, unknown>);
    }
 
    const sanitizedSnapshot: QueryNormalizationSnapshot = {
@@ -121,6 +126,7 @@ export function emitQueryNormalizationDebug(
       errors: snapshot.errors,
       timestamp: new Date().toISOString(),
       context: snapshot.context,
+      querySignature,
    };
 
    logger.debug({
@@ -149,7 +155,7 @@ export function emitQueryNormalizationDebug(
  * });
  */
 export function createQueryDebugEmitter(context: string) {
-   return (snapshot: Omit<QueryNormalizationSnapshot, 'timestamp' | 'context'>) => {
+   return (snapshot: Omit<QueryNormalizationSnapshot, 'timestamp' | 'context' | 'querySignature'>) => {
       emitQueryNormalizationDebug({ ...snapshot, context });
    };
 }
