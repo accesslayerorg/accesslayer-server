@@ -26,7 +26,11 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       const ctx = buildCreatorListRequestContext(req);
 
       // Validate query parameters
-      const parsed = parsePublicQuery(CreatorListQuerySchema, ctx.query);
+      const parsed = parsePublicQuery(
+         CreatorListQuerySchema, 
+         ctx.query,
+         { debugContext: 'creator-list-query' }
+      );
       if (!parsed.ok) {
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }

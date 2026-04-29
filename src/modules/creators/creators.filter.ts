@@ -2,6 +2,7 @@
 // Parser for creator list filter input. Reusable across list handlers.
 
 import { rejectUnknownKeys } from '../../utils/filter-whitelist.utils';
+import { parseBoolean } from '../../utils/parseBoolean.utils';
 
 /**
  * Supported filter keys for creator list requests.
@@ -22,7 +23,7 @@ export interface CreatorFilterInput {
  * Parse and validate raw query filter input for creator list requests.
  *
  * - Accepts only supported filter keys; rejects unknown ones with an error
- * - Coerces `verified` string to boolean
+ * - Parses `verified` using the shared boolean query flag helper
  * - Trims `search` string
  * - Repeated calls with the same input return the same result
  *
@@ -46,7 +47,14 @@ export function parseCreatorFilters(
     const result: CreatorFilterInput = {};
 
     if (raw.verified !== undefined) {
-        result.verified = raw.verified === 'true' || raw.verified === true;
+        const verified = parseBoolean(
+            'verified',
+            raw.verified as string | string[] | boolean | null | undefined
+        );
+
+        if (verified !== null) {
+            result.verified = verified;
+        }
     }
 
     if (typeof raw.search === 'string') {

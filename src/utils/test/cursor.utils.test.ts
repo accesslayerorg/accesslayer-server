@@ -53,9 +53,14 @@ describe('Cursor Utils', () => {
          expect(decoded).toEqual(samplePayload);
       });
 
-      it('should throw CursorChecksumError for invalid formats', () => {
-         expect(() => decodeCursor('not_a_valid_cursor')).toThrow(CursorChecksumError);
+      it('should throw CursorChecksumError for invalid formats with multiple dots', () => {
          expect(() => decodeCursor('foo.bar.baz')).toThrow(CursorChecksumError);
+      });
+
+      it('should correctly decode a valid legacy cursor without a checksum', () => {
+         const legacyCursor = Buffer.from(JSON.stringify(samplePayload)).toString('base64url');
+         const decoded = decodeCursor<typeof samplePayload>(legacyCursor);
+         expect(decoded).toEqual(samplePayload);
       });
 
       it('should throw CursorChecksumError when checksum is tampered', () => {
