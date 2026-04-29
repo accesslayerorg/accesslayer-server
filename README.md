@@ -174,5 +174,6 @@ readinessProbe:
 - Read the [README](./README.md) for context.
 - Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
 - Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
+- View the [API Route Inventory](./docs/api-inventory.md) for a current list of available endpoints.
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
