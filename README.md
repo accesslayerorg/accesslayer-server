@@ -151,6 +151,46 @@ curl http://localhost:3000/api/v1/health/detailed
 curl https://your-domain.com/api/v1/health
 ```
 
+### Indexer Heartbeat
+
+The server also tracks the health of the background indexing worker.
+
+**Status Check Endpoint:** `GET /api/v1/health/indexer`
+
+Returns the current status of the indexer worker:
+
+```json
+{
+   "success": true,
+   "data": {
+      "service": "indexer",
+      "status": "healthy",
+      "lastSuccessfulRun": "2025-01-15T10:30:00.000Z",
+      "staleSinceMs": null
+   }
+}
+```
+
+**Response Codes:**
+
+- `200 OK` - Indexer is healthy (or unknown if never run)
+- `503 Service Unavailable` - Indexer is degraded (heartbeat is stale)
+
+**Record Heartbeat Endpoint:** `POST /api/v1/health/indexer/heartbeat`
+
+Called by the indexer worker to record a successful run:
+
+```json
+{
+   "success": true,
+   "data": {
+      "recorded": true,
+      "timestamp": "2025-01-15T10:30:00.000Z"
+   },
+   "message": "Heartbeat recorded"
+}
+```
+
 **Docker/Kubernetes Health Probes:**
 
 ```yaml
