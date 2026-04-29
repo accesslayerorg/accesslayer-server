@@ -193,7 +193,7 @@ Called by the indexer worker to record a successful run:
 
 **Docker/Kubernetes Health Probes:**
 
-```yaml
+````yaml
 livenessProbe:
    httpGet:
       path: /api/v1/health
@@ -203,10 +203,28 @@ livenessProbe:
 
 readinessProbe:
    httpGet:
-      path: /api/v1/health/detailed
+      path: /api/v1/health/ready
       port: 3000
    initialDelaySeconds: 5
    periodSeconds: 10
+
+## Ledger Sync Status
+
+**Endpoint:** `GET /api/v1/ledger/status`
+
+Returns the latest indexed ledger number, its opaque cursor, and the timestamp of the last successful sync. Used by clients to verify that the off-chain data is current.
+
+```json
+{
+   "success": true,
+   "data": {
+      "ledger": 1234567,
+      "cursor": "1234567-000",
+      "updatedAt": "2025-01-15T10:30:00.000Z"
+   }
+}
+````
+
 ```
 
 ## Open source workflow
@@ -217,3 +235,4 @@ readinessProbe:
 - View the [API Route Inventory](./docs/api-inventory.md) for a current list of available endpoints.
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
+```
