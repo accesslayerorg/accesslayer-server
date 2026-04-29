@@ -334,6 +334,38 @@ function run() {
       restoreLogger();
    }
 
+   // Test 11: Query signature is included for object queries
+   {
+      mockLogger(true);
+      emitQueryNormalizationDebug({
+         raw: { limit: 10, offset: 0, search: 'test' },
+         normalized: { limit: 10, offset: 0, search: 'test' },
+         valid: true,
+         context: 'test-query',
+      });
+
+      const snapshot = debugCalls[0].queryNormalization;
+      assertOk(snapshot.querySignature, 'Should include querySignature');
+      assertEqual(typeof snapshot.querySignature, 'string', 'Signature should be a string');
+      assertEqual(snapshot.querySignature.length, 64, 'Signature should be 64 characters (SHA-256 hex)');
+      restoreLogger();
+   }
+
+   // Test 12: Query signature is not included for non-object queries
+   {
+      mockLogger(true);
+      emitQueryNormalizationDebug({
+         raw: 'not an object',
+         normalized: null,
+         valid: false,
+         errors: [{ field: 'query', message: 'Invalid' }],
+      });
+
+      const snapshot = debugCalls[0].queryNormalization;
+      assertEqual(snapshot.querySignature, undefined, 'Should not include signature for non-object raw query');
+      restoreLogger();
+   }
+
    console.log('✓ All query-normalization-debug.utils tests passed');
 }
 
