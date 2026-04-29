@@ -16,6 +16,20 @@ dotenv.config();
  * See docs/configuration.md for complete documentation.
  * See docs/CONFIG_SOURCE_PRECEDENCE.md for visual reference.
  */
+/**
+ * Helper to correctly coerce boolean strings from environment variables.
+ * Zod's default z.coerce.boolean() returns true for any non-empty string,
+ * including "false" and "0", which is usually not what we want for .env files.
+ */
+const booleanCoerce = z.preprocess((val) => {
+   if (typeof val === 'string') {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+   }
+   return val;
+}, z.coerce.boolean());
+
 export const envSchema = z.object({
    // Server Configuration
    PORT: z.coerce.number().default(3000),
@@ -72,11 +86,11 @@ export const envSchema = z.object({
       .optional(),
    
    // API Configuration (Optional with defaults)
-   ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
+   ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
    API_VERSION: z.string().default('1.0.0'),
-   ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
-   ENABLE_SCHEMA_VERSION_HEADER: z.coerce.boolean().default(true),
-   ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
+   ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
+   ENABLE_SCHEMA_VERSION_HEADER: booleanCoerce.default(true),
+   ENABLE_REQUEST_LOGGING: booleanCoerce.default(true),
    DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
    
    // Indexer Configuration (Optional with defaults)
@@ -88,9 +102,9 @@ export const envSchema = z.object({
    // Indexer feature flags — toggle individual indexer behaviors. The startup
    // check in src/utils/indexer-flags-startup-check.utils.ts enforces the
    // cross-field invariants between these flags and their threshold values.
-   ENABLE_INDEXER_DEDUPE: z.coerce.boolean().default(true),
-   ENABLE_INDEXER_DLQ: z.coerce.boolean().default(true),
-   ENABLE_INDEXER_CURSOR_STALENESS_WARNING: z.coerce.boolean().default(true),
+   ENABLE_INDEXER_DEDUPE: booleanCoerce.default(true),
+   ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
+   ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
 });
 
 /**

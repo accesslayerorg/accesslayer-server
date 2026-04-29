@@ -8,214 +8,133 @@ import { z } from 'zod';
  * These tests validate the documented source precedence rules.
  */
 
-function assertEqual(actual: any, expected: any, message: string) {
-   if (actual !== expected) {
-      throw new Error(`${message}: expected ${expected}, got ${actual}`);
+const booleanCoerce = z.preprocess((val) => {
+   if (typeof val === 'string') {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
    }
-}
+   return val;
+}, z.coerce.boolean());
 
-function assertThrows(fn: () => void, message: string) {
-   try {
-      fn();
-      throw new Error(`${message}: expected function to throw`);
-   } catch (_error) {
-      // Expected to throw
-   }
-}
-
-function run() {
-   console.log('Running config source precedence tests...');
-
-   // Test 1: Environment variable takes precedence over default
-   {
+describe('Config Source Precedence', () => {
+   it('Environment variable takes precedence over default', () => {
       const schema = z.object({
          PORT: z.coerce.number().default(3000),
       });
 
       const result = schema.parse({ PORT: '4000' });
-      assertEqual(result.PORT, 4000, 'Environment value should override default');
-   }
+      expect(result.PORT).toBe(4000);
+   });
 
-   // Test 2: Default used when environment variable not provided
-   {
+   it('Default used when environment variable not provided', () => {
       const schema = z.object({
          PORT: z.coerce.number().default(3000),
       });
 
       const result = schema.parse({});
-      assertEqual(result.PORT, 3000, 'Should use default when env var missing');
-   }
+      expect(result.PORT).toBe(3000);
+   });
 
-   // Test 3: Required field fails when not provided
-   {
+   it('Required field fails when not provided', () => {
       const schema = z.object({
          DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
       });
 
-      assertThrows(
-         () => schema.parse({}),
-         'Should throw when required field missing'
-      );
-   }
+      expect(() => schema.parse({})).toThrow();
+   });
 
-   // Test 4: Required field succeeds when provided
-   {
+   it('Required field succeeds when provided', () => {
       const schema = z.object({
          DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
       });
 
       const result = schema.parse({ DATABASE_URL: 'postgresql://...' });
-      assertEqual(
-         result.DATABASE_URL,
-         'postgresql://...',
-         'Should use provided required value'
-      );
-   }
+      expect(result.DATABASE_URL).toBe('postgresql://...');
+   });
 
-   // Test 5: Type coercion for numbers
-   {
+   it('Type coercion for numbers', () => {
       const schema = z.object({
          PORT: z.coerce.number(),
       });
 
       const result = schema.parse({ PORT: '4000' });
-      assertEqual(result.PORT, 4000, 'Should coerce string to number');
-      assertEqual(typeof result.PORT, 'number', 'Result should be number type');
-   }
+      expect(result.PORT).toBe(4000);
+      expect(typeof result.PORT).toBe('number');
+   });
 
-   // Test 6: Type coercion for booleans
-   {
+   it('Type coercion for booleans', () => {
       const schema = z.object({
-         ENABLED: z.coerce.boolean(),
+         ENABLED: booleanCoerce,
       });
 
-      const result1 = schema.parse({ ENABLED: 'true' });
-      assertEqual(result1.ENABLED, true, 'Should coerce "true" to boolean');
+      expect(schema.parse({ ENABLED: 'true' }).ENABLED).toBe(true);
+      expect(schema.parse({ ENABLED: 'false' }).ENABLED).toBe(false);
+      expect(schema.parse({ ENABLED: '1' }).ENABLED).toBe(true);
+      expect(schema.parse({ ENABLED: '0' }).ENABLED).toBe(false);
+   });
 
-      const result2 = schema.parse({ ENABLED: 'false' });
-      assertEqual(result2.ENABLED, false, 'Should coerce "false" to boolean');
-
-      const result3 = schema.parse({ ENABLED: '1' });
-      assertEqual(result3.ENABLED, true, 'Should coerce "1" to true');
-
-      const result4 = schema.parse({ ENABLED: '0' });
-      assertEqual(result4.ENABLED, false, 'Should coerce "0" to false');
-   }
-
-   // Test 7: Enum validation with default
-   {
+   it('Enum validation with default', () => {
       const schema = z.object({
          MODE: z.enum(['development', 'production', 'test']).default('development'),
       });
 
-      const result1 = schema.parse({ MODE: 'production' });
-      assertEqual(result1.MODE, 'production', 'Should use valid enum value');
+      expect(schema.parse({ MODE: 'production' }).MODE).toBe('production');
+      expect(schema.parse({}).MODE).toBe('development');
+      expect(() => schema.parse({ MODE: 'invalid' })).toThrow();
+   });
 
-      const result2 = schema.parse({});
-      assertEqual(result2.MODE, 'development', 'Should use default enum value');
-
-      assertThrows(
-         () => schema.parse({ MODE: 'invalid' }),
-         'Should throw for invalid enum value'
-      );
-   }
-
-   // Test 8: Optional field without default
-   {
+   it('Optional field without default', () => {
       const schema = z.object({
          OPTIONAL_KEY: z.string().optional(),
       });
 
-      const result1 = schema.parse({ OPTIONAL_KEY: 'value' });
-      assertEqual(result1.OPTIONAL_KEY, 'value', 'Should use provided optional value');
+      expect(schema.parse({ OPTIONAL_KEY: 'value' }).OPTIONAL_KEY).toBe('value');
+      expect(schema.parse({}).OPTIONAL_KEY).toBeUndefined();
+   });
 
-      const result2 = schema.parse({});
-      assertEqual(
-         result2.OPTIONAL_KEY,
-         undefined,
-         'Should be undefined when optional not provided'
-      );
-   }
-
-   // Test 9: URL validation
-   {
+   it('URL validation', () => {
       const schema = z.object({
          FRONTEND_URL: z.string().url('Must be valid URL'),
       });
 
-      const result = schema.parse({ FRONTEND_URL: 'https://example.com' });
-      assertEqual(
-         result.FRONTEND_URL,
-         'https://example.com',
-         'Should accept valid URL'
+      expect(schema.parse({ FRONTEND_URL: 'https://example.com' }).FRONTEND_URL).toBe(
+         'https://example.com'
       );
+      expect(() => schema.parse({ FRONTEND_URL: 'not-a-url' })).toThrow();
+   });
 
-      assertThrows(
-         () => schema.parse({ FRONTEND_URL: 'not-a-url' }),
-         'Should throw for invalid URL'
-      );
-   }
-
-   // Test 10: Number range validation
-   {
+   it('Number range validation', () => {
       const schema = z.object({
          JITTER: z.coerce.number().min(0).max(1).default(0.1),
       });
 
-      const result1 = schema.parse({ JITTER: '0.5' });
-      assertEqual(result1.JITTER, 0.5, 'Should accept value in range');
+      expect(schema.parse({ JITTER: '0.5' }).JITTER).toBe(0.5);
+      expect(schema.parse({}).JITTER).toBe(0.1);
+      expect(() => schema.parse({ JITTER: '2' })).toThrow();
+      expect(() => schema.parse({ JITTER: '-1' })).toThrow();
+   });
 
-      const result2 = schema.parse({});
-      assertEqual(result2.JITTER, 0.1, 'Should use default');
-
-      assertThrows(
-         () => schema.parse({ JITTER: '2' }),
-         'Should throw for value above max'
-      );
-
-      assertThrows(
-         () => schema.parse({ JITTER: '-1' }),
-         'Should throw for value below min'
-      );
-   }
-
-   // Test 11: Positive integer validation
-   {
+   it('Positive integer validation', () => {
       const schema = z.object({
          TTL_MS: z.coerce.number().int().positive().default(300000),
       });
 
-      const result1 = schema.parse({ TTL_MS: '500000' });
-      assertEqual(result1.TTL_MS, 500000, 'Should accept positive integer');
+      expect(schema.parse({ TTL_MS: '500000' }).TTL_MS).toBe(500000);
+      expect(schema.parse({}).TTL_MS).toBe(300000);
+      expect(() => schema.parse({ TTL_MS: '-100' })).toThrow();
+      expect(() => schema.parse({ TTL_MS: '100.5' })).toThrow();
+   });
 
-      const result2 = schema.parse({});
-      assertEqual(result2.TTL_MS, 300000, 'Should use default');
-
-      assertThrows(
-         () => schema.parse({ TTL_MS: '-100' }),
-         'Should throw for negative value'
-      );
-
-      assertThrows(
-         () => schema.parse({ TTL_MS: '100.5' }),
-         'Should throw for non-integer'
-      );
-   }
-
-   // Test 12: Empty string handling
-   {
+   it('Empty string handling', () => {
       const schema = z.object({
          VALUE: z.string().min(1, 'Must not be empty'),
       });
 
-      assertThrows(
-         () => schema.parse({ VALUE: '' }),
-         'Should throw for empty string when min(1)'
-      );
-   }
+      expect(() => schema.parse({ VALUE: '' })).toThrow();
+   });
 
-   // Test 13: Precedence - environment over default
-   {
+   it('Precedence - environment over default', () => {
       const schema = z.object({
          PORT: z.coerce.number().default(3000),
          MODE: z.enum(['development', 'production']).default('development'),
@@ -226,15 +145,7 @@ function run() {
          MODE: 'production',
       });
 
-      assertEqual(result.PORT, 5000, 'Environment PORT should override default');
-      assertEqual(
-         result.MODE,
-         'production',
-         'Environment MODE should override default'
-      );
-   }
-
-   console.log('✓ All config source precedence tests passed');
-}
-
-run();
+      expect(result.PORT).toBe(5000);
+      expect(result.MODE).toBe('production');
+   });
+});
