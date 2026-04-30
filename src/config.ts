@@ -19,12 +19,11 @@ dotenv.config();
  * const port = envConfig.PORT;
  * const isProduction = envConfig.MODE === 'production';
  */
-
 export const envConfig = envSchema.parse(process.env);
 
 /**
  * Derived application configuration.
- * 
+ *
  * These values are computed from envConfig at startup.
  */
 export const appConfig = {

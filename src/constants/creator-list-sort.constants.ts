@@ -11,8 +11,15 @@ export const CREATOR_LIST_SORT_FIELDS = [
 
 export type CreatorListSortField = (typeof CREATOR_LIST_SORT_FIELDS)[number];
 
+/**
+ * Allowed sort orders for creator list endpoints.
+ */
+export const CREATOR_LIST_SORT_ORDERS = ['asc', 'desc'] as const;
+
+export type CreatorListSortOrder = (typeof CREATOR_LIST_SORT_ORDERS)[number];
+
 /** Default sort field used by creator list handlers. */
 export const DEFAULT_CREATOR_LIST_SORT: CreatorListSortField = 'createdAt';
 
 /** Default sort order used by creator list handlers. */
-export const DEFAULT_CREATOR_LIST_ORDER = 'desc' as const;
+export const DEFAULT_CREATOR_LIST_ORDER: CreatorListSortOrder = 'desc';
