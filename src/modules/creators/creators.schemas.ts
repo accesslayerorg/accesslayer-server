@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { creatorListSortDirectionQueryParam } from './creators.sort-direction.parse';
 import { creatorListIncludeQueryParam } from './creators.include.parse';
 import { withCreatorListQueryStringNormalization } from './creators.query-string.utils';
-import { safeIntParam } from '../../utils/query.utils';
+import { safeBooleanQueryParam, safeIntParam } from '../../utils/query.utils';
 import {
   MIN_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -57,14 +57,9 @@ export const CreatorListQuerySchema = z
     include: creatorListIncludeQueryParam(),
 
     // Filters
-    verified: withCreatorListQueryStringNormalization(
-      z
-        .string()
-        .optional()
-        .transform((val: string | undefined) =>
-          val === undefined ? undefined : val === 'true'
-        )
-    ),
+    verified: safeBooleanQueryParam({
+      paramName: 'verified',
+    }),
 
     search: withCreatorListQueryStringNormalization(
       z

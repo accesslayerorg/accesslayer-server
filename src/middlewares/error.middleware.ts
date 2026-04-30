@@ -5,6 +5,8 @@ import { ErrorRequestHandler } from 'express';
 import chalk from 'chalk';
 import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
+import { logger } from '../utils/logger.utils';
+import { mapUnknownRouteError } from '../utils/route-error.utils';
 
 export class ApiError extends Error {
    statusCode: number;
@@ -124,6 +126,22 @@ export const errorHandler: ErrorRequestHandler = (
       return;
    }
 
+   // Handle oversized request payload (413)
+   if (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413) {
+      logger.warn({
+         msg: 'Request payload too large',
+         route: `${req.method} ${req.originalUrl}`,
+         contentLength: req.headers['content-length'],
+         limitBytes: err.limit,
+      });
+      res.status(413).json({
+         success: false,
+         code: ErrorCode.BAD_REQUEST,
+         message: 'Request payload too large',
+      });
+      return;
+   }
+
    // Handle syntax errors (malformed JSON)
    if (err instanceof SyntaxError && 'body' in err) {
       res.status(400).json({
@@ -148,22 +166,14 @@ export const errorHandler: ErrorRequestHandler = (
       `${method === 'GET' ? chalkColor.getReq(method) : chalkColor.postReq(method)} ${protocol}://${hostname}:${envConfig.PORT || 3000}${originalUrl}`
    );
 
-   // Default error response
-   const statusCode = err.statusCode || err.status || 500;
-   const message =
-      envConfig.MODE === 'production'
-         ? 'Internal server error'
-         : err.message || 'Something went wrong!';
-
-   res.status(statusCode).json({
-      success: false,
-      code: err.errorCode || ErrorCode.INTERNAL_ERROR,
-      message,
-      ...(envConfig.MODE === 'development' && {
-         stack: err.stack,
-         error: err,
-      }),
+   // Default fallback for unknown errors — delegated to a shared helper so
+   // route-safe envelopes stay consistent and include the request id for
+   // correlation. Known-error branches above handle their own mappings.
+   const { statusCode, body } = mapUnknownRouteError(err, {
+      requestId: req.requestId,
+      includeDebug: envConfig.MODE === 'development',
    });
+   res.status(statusCode).json(body);
 };
 
 // Helper functions for common errors
