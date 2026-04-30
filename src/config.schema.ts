@@ -15,6 +15,20 @@ import { z } from 'zod';
  * See docs/configuration.md for complete documentation.
  * See docs/CONFIG_SOURCE_PRECEDENCE.md for visual reference.
  */
+/**
+ * Helper to correctly coerce boolean strings from environment variables.
+ * Zod's default z.coerce.boolean() returns true for any non-empty string,
+ * including "false" and "0", which is usually not what we want for .env files.
+ */
+const booleanCoerce = z.preprocess((val) => {
+   if (typeof val === 'string') {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+   }
+   return val;
+}, z.coerce.boolean());
+
 export const envSchema = z
    .object({
       PORT: z.coerce.number().default(3000),
@@ -60,11 +74,12 @@ export const envSchema = z
          .string()
          .min(1, 'PAYSTACK_PUBLIC_KEY is required for payment processing')
          .optional(),
-      ENABLE_RESPONSE_TIMING: z.coerce.boolean().default(true),
+      ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
       API_VERSION: z.string().default('1.0.0'),
-      ENABLE_API_VERSION_HEADER: z.coerce.boolean().default(true),
-      ENABLE_SCHEMA_VERSION_HEADER: z.coerce.boolean().default(true),
-      ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
+      ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
+      ENABLE_SCHEMA_VERSION_HEADER: booleanCoerce.default(true),
+      ENABLE_REQUEST_LOGGING: booleanCoerce.default(true),
+      DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
 
       APP_SECRET: z
          .string()
@@ -78,9 +93,9 @@ export const envSchema = z
       INDEXER_HEARTBEAT_STALE_THRESHOLD_MS: z.coerce.number().positive().default(300000),
 
       // Indexer feature flags
-      ENABLE_INDEXER_DEDUPE: z.coerce.boolean().default(true),
-      ENABLE_INDEXER_DLQ: z.coerce.boolean().default(true),
-      ENABLE_INDEXER_CURSOR_STALENESS_WARNING: z.coerce.boolean().default(true),
+      ENABLE_INDEXER_DEDUPE: booleanCoerce.default(true),
+      ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
+      ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
 
       // Stellar network
       STELLAR_NETWORK: z
