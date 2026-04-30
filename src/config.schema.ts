@@ -101,6 +101,16 @@ export const envSchema = z
             'STELLAR_SOROBAN_RPC_URL must be a valid URL (e.g. https://soroban-testnet.stellar.org)'
          )
          .default('https://soroban-testnet.stellar.org'),
+
+      // Ownership snapshot cleanup job
+      OWNERSHIP_SNAPSHOT_TABLE_NAME: z
+         .string()
+         .min(1)
+         .default('creator_ownership_snapshots'),
+      OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN: z.coerce.boolean().default(true),
+      OWNERSHIP_SNAPSHOT_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+      OWNERSHIP_SNAPSHOT_CLEANUP_ENABLED: z.coerce.boolean().default(false),
+      OWNERSHIP_SNAPSHOT_CLEANUP_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
    })
    .superRefine((data, ctx) => {
       if (

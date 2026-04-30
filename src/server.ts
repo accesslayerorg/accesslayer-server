@@ -10,6 +10,7 @@ import {
    runIndexerFeatureFlagsStartupCheck,
 } from './utils/indexer-flags-startup-check.utils';
 import { checkOptionalDependencies } from './utils/startup.utils';
+import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
 
 
 async function startServer() {
@@ -62,10 +63,11 @@ process.on('unhandledRejection', (reason, promise) => {
    process.exit(1);
 });
 
-process.on('SIGINT', async () => {
-   stopOwnershipSnapshotCleanupJob();
-   await prisma.$disconnect();
-   console.log('💾 Database connection closed');
+function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
+   return async () => {
+      stopOwnershipSnapshotCleanupJob();
+      await prisma.$disconnect();
+      console.log('💾 Database connection closed');
 
       const DRAIN_WINDOW_MS = 5000;
       const SHUTDOWN_TIMEOUT_MS = 30000;
