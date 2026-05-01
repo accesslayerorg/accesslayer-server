@@ -15,7 +15,7 @@ The server is responsible for:
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
 
-See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview and [API Versioning](./docs/api-versioning.md) for details on schema versioning.
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview, [API Versioning](./docs/api-versioning.md) for details on schema versioning, and [API Timeout Configuration](./docs/api-timeouts.md) for timeout defaults and override guidance.
 
 ## Tech
 
