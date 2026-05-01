@@ -235,4 +235,13 @@ Returns the latest indexed ledger number, its opaque cursor, and the timestamp o
 - View the [API Route Inventory](./docs/api-inventory.md) for a current list of available endpoints.
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
+
+## Indexer and ownership operations
+
+- Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)
+
+## Metrics
+
+- Queue metrics: `GET /metrics/queues`
+- Creator read metrics: `GET /metrics/creators`
 ```

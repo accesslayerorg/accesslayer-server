@@ -12,7 +12,6 @@ import {
 import { checkOptionalDependencies } from './utils/startup.utils';
 import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
 
-
 async function startServer() {
    try {
       // Validate indexer feature flags before any code paths read them. We
