@@ -13,6 +13,7 @@ export const ErrorCode = {
    RATE_LIMIT: 'RATE_LIMIT',
    PRISMA_ERROR: 'DATABASE_ERROR',
    JWT_ERROR: 'TOKEN_ERROR',
+   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -152,6 +152,16 @@ export const errorHandler: ErrorRequestHandler = (
       return;
    }
 
+   // Handle request body too large
+   if (err.type === 'entity.too.large') {
+      res.status(413).json({
+         success: false,
+         code: ErrorCode.PAYLOAD_TOO_LARGE,
+         message: 'Request body exceeds configured size limit',
+      });
+      return;
+   }
+
    // Log request details for debugging
    const chalkColor = {
       error: chalk.red,
