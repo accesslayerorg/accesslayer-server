@@ -4,17 +4,17 @@ The API uses a consistent boolean query parser across all endpoints that accept 
 
 ## Accepted values
 
-| Input    | Parsed as |
-|----------|-----------|
-| `true`   | `true`    |
-| `1`      | `true`    |
-| `yes`    | `true`    |
-| `on`     | `true`    |
-| `false`  | `false`   |
-| `0`      | `false`   |
-| `no`     | `false`   |
-| `off`    | `false`   |
-| *(absent)* | `null` — caller applies its own default |
+| Input      | Parsed as                               |
+| ---------- | --------------------------------------- |
+| `true`     | `true`                                  |
+| `1`        | `true`                                  |
+| `yes`      | `true`                                  |
+| `on`       | `true`                                  |
+| `false`    | `false`                                 |
+| `0`        | `false`                                 |
+| `no`       | `false`                                 |
+| `off`      | `false`                                 |
+| _(absent)_ | `null` — caller applies its own default |
 
 Values are **case-insensitive** (`True`, `TRUE`, `On` all parse correctly).  
 Leading and trailing whitespace is stripped before comparison.
@@ -39,9 +39,9 @@ Any value not in the accepted list produces a `400 Bad Request`:
 
 ```json
 {
-  "success": false,
-  "code": "VALIDATION_ERROR",
-  "message": "Invalid boolean value for query parameter \"verified\": received \"maybe\". Accepted values: \"true\", \"false\", \"1\", \"0\", \"yes\", \"no\", \"on\", \"off\"."
+   "success": false,
+   "code": "VALIDATION_ERROR",
+   "message": "Invalid boolean value for query parameter \"verified\": received \"maybe\". Accepted values: \"true\", \"false\", \"1\", \"0\", \"yes\", \"no\", \"on\", \"off\"."
 }
 ```
 
@@ -54,7 +54,10 @@ See the query validation schemas in `src/modules/creators/creators.schemas.ts` f
 ## Implementation reference
 
 ```typescript
-import { parseBoolean, parseBooleanWithDefault } from '../utils/parseBoolean.utils';
+import {
+   parseBoolean,
+   parseBooleanWithDefault,
+} from '../utils/parseBoolean.utils';
 
 // Returns true | false | null (null when param absent)
 const verified = parseBoolean('verified', req.query.verified);

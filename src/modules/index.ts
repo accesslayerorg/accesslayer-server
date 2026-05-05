@@ -4,6 +4,7 @@ import healthRouter from './health/health.routes';
 import configRouter from './config/config.routes';
 import creatorsRouter from './creators/creators.routes';
 import metricsRouter from './metrics/metrics.routes';
+import ledgerRouter from './ledger/ledger.routes';
 import adminRouter from './admin/admin.routes';
 import activityRouter from './activity/activity.routes';
 import ownershipRouter from './ownership/ownership.routes';

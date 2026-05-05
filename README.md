@@ -15,7 +15,7 @@ The server is responsible for:
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
 
-See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview and [API Versioning](./docs/api-versioning.md) for details on schema versioning.
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview, [API Versioning](./docs/api-versioning.md) for details on schema versioning, and [API Timeout Configuration](./docs/api-timeouts.md) for timeout defaults and override guidance.
 
 ## Tech
 
@@ -41,6 +41,8 @@ pnpm exec prisma generate
 pnpm exec prisma db push
 pnpm dev
 ```
+
+**Configuration:** See [Configuration Guide](./docs/configuration.md) for detailed information about environment variables, source precedence, and validation rules.
 
 ## Database
 
@@ -149,9 +151,49 @@ curl http://localhost:3000/api/v1/health/detailed
 curl https://your-domain.com/api/v1/health
 ```
 
+### Indexer Heartbeat
+
+The server also tracks the health of the background indexing worker.
+
+**Status Check Endpoint:** `GET /api/v1/health/indexer`
+
+Returns the current status of the indexer worker:
+
+```json
+{
+   "success": true,
+   "data": {
+      "service": "indexer",
+      "status": "healthy",
+      "lastSuccessfulRun": "2025-01-15T10:30:00.000Z",
+      "staleSinceMs": null
+   }
+}
+```
+
+**Response Codes:**
+
+- `200 OK` - Indexer is healthy (or unknown if never run)
+- `503 Service Unavailable` - Indexer is degraded (heartbeat is stale)
+
+**Record Heartbeat Endpoint:** `POST /api/v1/health/indexer/heartbeat`
+
+Called by the indexer worker to record a successful run:
+
+```json
+{
+   "success": true,
+   "data": {
+      "recorded": true,
+      "timestamp": "2025-01-15T10:30:00.000Z"
+   },
+   "message": "Heartbeat recorded"
+}
+```
+
 **Docker/Kubernetes Health Probes:**
 
-```yaml
+````yaml
 livenessProbe:
    httpGet:
       path: /api/v1/health
@@ -161,10 +203,28 @@ livenessProbe:
 
 readinessProbe:
    httpGet:
-      path: /api/v1/health/detailed
+      path: /api/v1/health/ready
       port: 3000
    initialDelaySeconds: 5
    periodSeconds: 10
+
+## Ledger Sync Status
+
+**Endpoint:** `GET /api/v1/ledger/status`
+
+Returns the latest indexed ledger number, its opaque cursor, and the timestamp of the last successful sync. Used by clients to verify that the off-chain data is current.
+
+```json
+{
+   "success": true,
+   "data": {
+      "ledger": 1234567,
+      "cursor": "1234567-000",
+      "updatedAt": "2025-01-15T10:30:00.000Z"
+   }
+}
+````
+
 ```
 
 ## Open source workflow
@@ -172,5 +232,16 @@ readinessProbe:
 - Read the [README](./README.md) for context.
 - Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
 - Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
+- View the [API Route Inventory](./docs/api-inventory.md) for a current list of available endpoints.
 - Review [SECURITY.md](./SECURITY.md) before reporting vulnerabilities.
 - Use the issue templates in [`.github/ISSUE_TEMPLATE`](./.github/ISSUE_TEMPLATE) for new scoped work.
+
+## Indexer and ownership operations
+
+- Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)
+
+## Metrics
+
+- Queue metrics: `GET /metrics/queues`
+- Creator read metrics: `GET /metrics/creators`
+```

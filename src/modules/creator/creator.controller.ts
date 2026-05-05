@@ -73,7 +73,11 @@ export const listCreators: RequestHandler = async (req, res) => {
     const ctx = buildCreatorListRequestContext(req);
 
     // Parse query using legacy schema
-    const parsed = parsePublicQuery(LegacyCreatorQuerySchema, ctx.query);
+    const parsed = parsePublicQuery(
+      LegacyCreatorQuerySchema, 
+      ctx.query,
+      { debugContext: 'legacy-creator-list-query' }
+    );
 
     if (!parsed.ok) {
       return sendValidationError(res, 'Invalid query parameters', parsed.details);

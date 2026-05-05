@@ -1,0 +1,8 @@
+model IndexedLedger {
+  id        Int      @id @default(1)
+  ledger    Int
+  cursor    String
+  updatedAt DateTime @updatedAt
+
+  @@map("indexed_ledgers")
+}

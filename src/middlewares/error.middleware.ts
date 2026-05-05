@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
+import { mapUnknownRouteError } from '../utils/route-error.utils';
 
 export class ApiError extends Error {
    statusCode: number;
@@ -175,22 +176,14 @@ export const errorHandler: ErrorRequestHandler = (
       `${method === 'GET' ? chalkColor.getReq(method) : chalkColor.postReq(method)} ${protocol}://${hostname}:${envConfig.PORT || 3000}${originalUrl}`
    );
 
-   // Default error response
-   const statusCode = err.statusCode || err.status || 500;
-   const message =
-      envConfig.MODE === 'production'
-         ? 'Internal server error'
-         : err.message || 'Something went wrong!';
-
-   res.status(statusCode).json({
-      success: false,
-      code: err.errorCode || ErrorCode.INTERNAL_ERROR,
-      message,
-      ...(envConfig.MODE === 'development' && {
-         stack: err.stack,
-         error: err,
-      }),
+   // Default fallback for unknown errors — delegated to a shared helper so
+   // route-safe envelopes stay consistent and include the request id for
+   // correlation. Known-error branches above handle their own mappings.
+   const { statusCode, body } = mapUnknownRouteError(err, {
+      requestId: req.requestId,
+      includeDebug: envConfig.MODE === 'development',
    });
+   res.status(statusCode).json(body);
 };
 
 // Helper functions for common errors

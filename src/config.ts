@@ -1,28 +1,7 @@
-import { z } from 'zod';
 import dotenv from 'dotenv';
+import { envSchema } from './config.schema';
 
-dotenv.config();
-
-export const envSchema = z.object({
-   PORT: z.coerce.number().default(3000),
-   MODE: z.enum(['development', 'production', 'test']).default('development'),
-   DATABASE_URL: z
-      .string()
-      .min(1, 'DATABASE_URL is required in the environment variables'),
-   APP_SECRET: z
-      .string()
-      .min(32, 'APP_SECRET should be at least 32 characters')
-      .default('accesslayer_default_development_secret_key_32_bytes_long'),
-
-   GMAIL_USER: z.string(),
-   GMAIL_APP_PASSWORD: z.string(),
-   // Google OAuth
-   GOOGLE_CLIENT_ID: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_ID is required for Google OAuth'),
-   GOOGLE_CLIENT_SECRET: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_SECRET is required for Google OAuth'),
+export { envSchema };
 
    // URLs
    BACKEND_URL: z.string().url(),
@@ -62,8 +41,25 @@ export const envSchema = z.object({
    MAX_BODY_SIZE_CREATORS: z.string().default('5mb'),
 });
 
+/**
+ * Validated and typed environment configuration.
+ *
+ * This object is immutable and available for import throughout the application.
+ * Configuration values are resolved at startup and do not change at runtime.
+ *
+ * @example
+ * import { envConfig } from './config';
+ *
+ * const port = envConfig.PORT;
+ * const isProduction = envConfig.MODE === 'production';
+ */
 export const envConfig = envSchema.parse(process.env);
 
+/**
+ * Derived application configuration.
+ *
+ * These values are computed from envConfig at startup.
+ */
 export const appConfig = {
    allowedOrigins: [
       'http://localhost:5173',

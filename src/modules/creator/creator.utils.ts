@@ -4,13 +4,15 @@ import { resolveSlugCollision } from '../../utils/slug.utils';
 import { prisma } from '../../utils/prisma.utils';
 import {
    CREATOR_LIST_SORT_FIELDS,
+   CREATOR_LIST_SORT_ORDERS,
    DEFAULT_CREATOR_LIST_ORDER,
    DEFAULT_CREATOR_LIST_SORT,
    type CreatorListSortField,
+   type CreatorListSortOrder,
 } from '../../constants/creator-list-sort.constants';
 
 export type CreatorSortField = CreatorListSortField;
-export type SortOrder = 'asc' | 'desc';
+export type SortOrder = CreatorListSortOrder;
 
 export interface CreatorSortOptions {
    field: CreatorSortField;
@@ -25,13 +27,11 @@ export function parseCreatorSortOptions(
    sortBy?: string,
    sortOrder?: string
 ): CreatorSortOptions {
-   const validOrders: SortOrder[] = ['asc', 'desc'];
-
    const field = CREATOR_LIST_SORT_FIELDS.includes(sortBy as CreatorSortField)
       ? (sortBy as CreatorSortField)
       : DEFAULT_CREATOR_LIST_SORT;
 
-   const order = validOrders.includes(sortOrder as SortOrder)
+   const order = CREATOR_LIST_SORT_ORDERS.includes(sortOrder as SortOrder)
       ? (sortOrder as SortOrder)
       : DEFAULT_CREATOR_LIST_ORDER;
 
