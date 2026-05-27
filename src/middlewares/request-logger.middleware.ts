@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { envConfig } from '../config';
 import { logger } from '../utils/logger.utils';
 import { computeRequestContextHash } from '../utils/request-context-hash.utils';
+import { getClientIp } from '../utils/client-ip.utils';
 
 /**
  * Lightweight request logging middleware.
@@ -39,6 +40,7 @@ export const requestLoggerMiddleware = (
          status: res.statusCode,
          duration: `${durationMs}ms`,
          requestId: req.requestId,
+         clientIp: getClientIp(req),
          contextHash,
       });
    });

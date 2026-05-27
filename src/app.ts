@@ -15,6 +15,7 @@ import { apiVersionMiddleware } from './middlewares/api-version.middleware';
 import { schemaVersionMiddleware } from './middlewares/schema-version.middleware';
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
 import { requestContextMiddleware } from './middlewares/request-context.middleware';
+import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { envConfig } from './config';
 
 const app: Express = express();
@@ -29,6 +30,7 @@ app.use(requestIdMiddleware);
 app.use(corsMiddleware());
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
+app.use(bodyParseErrorMiddleware);
 
 if (!envConfig.ENABLE_REQUEST_LOGGING) {
    app.use(morgan('combined'));
