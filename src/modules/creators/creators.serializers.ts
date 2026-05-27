@@ -49,15 +49,30 @@ export function serializeCreatorSummary(
 }
 
 /**
- * Serializes multiple creator profiles for list responses.
+ * Normalizes a potentially-null or undefined profile list to a safe empty array.
+ * Guards serialization against edge cases where the data layer returns null.
  *
- * @param profiles - Array of full creator profiles
- * @returns Array of creator summaries
+ * @param profiles - Raw profiles array that may be null or undefined
+ * @returns A guaranteed non-null array
+ */
+export function normalizeCreatorListItems(
+   profiles: CreatorProfile[] | null | undefined
+): CreatorProfile[] {
+   return profiles ?? [];
+}
+
+/**
+ * Serializes multiple creator profiles for list responses.
+ * Accepts null/undefined and coerces it to an empty array before mapping,
+ * so the items field in the response envelope is always an array.
+ *
+ * @param profiles - Array of full creator profiles (null/undefined treated as empty)
+ * @returns Array of creator list items
  */
 export function serializeCreatorList(
-   profiles: CreatorProfile[]
+   profiles: CreatorProfile[] | null | undefined
 ): CreatorListItem[] {
-   return profiles.map(mapCreatorListItem);
+   return normalizeCreatorListItems(profiles).map(mapCreatorListItem);
 }
 
 /**
