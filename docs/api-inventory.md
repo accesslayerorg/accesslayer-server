@@ -35,6 +35,8 @@ Public bootstrap configuration.
 
 Public creator discovery and stats endpoints.
 
+- Request lifecycle reference: [`docs/creator-request-lifecycle.md`](./creator-request-lifecycle.md).
+
 | Method | Path                  | Description                                  |
 | :----- | :-------------------- | :------------------------------------------- |
 | `GET`  | `/creators`           | List creators with pagination and filtering. |

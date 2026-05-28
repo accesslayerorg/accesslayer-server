@@ -2,12 +2,16 @@ import { prisma } from '../../utils/prisma.utils';
 import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
-import { serializeCreatorListResponse, CreatorListResponse } from './creators.serializers';
+import {
+   serializeCreatorListResponse,
+   CreatorListResponse,
+} from './creators.serializers';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
 import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
 import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
+import { getCachedCreatorList, setCachedCreatorList } from './creators.cache';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -18,6 +22,11 @@ import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projec
 export async function fetchCreatorList(
    query: CreatorListQueryType
 ): Promise<[CreatorProfile[], number]> {
+   const cached = getCachedCreatorList(query);
+   if (cached) {
+      return [cached.creators, cached.total];
+   }
+
    const { limit, offset, sort, order, verified, search } = query;
 
    const where = buildCreatorFeedWhere({ verified, search });
@@ -50,6 +59,8 @@ export async function fetchCreatorList(
          offset,
       });
    }
+
+   setCachedCreatorList(query, creators as unknown as CreatorProfile[], total);
 
    return [creators as unknown as CreatorProfile[], total];
 }

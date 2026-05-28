@@ -3,7 +3,10 @@ import {
    CREATOR_LIST_SORT_FIELDS,
    type CreatorListSortField,
 } from '../../constants/creator-list-sort.constants';
-import { normalizeCreatorListQueryStringValue } from './creators.query-string.utils';
+import {
+   encodeCreatorListQueryStringValue,
+   normalizeCreatorListQueryStringValue,
+} from './creators.query-string.utils';
 import { logger } from '../../utils/logger.utils';
 
 /**
@@ -45,13 +48,16 @@ export function warnIfUnrecognizedCreatorListSort(
    }
 
    const normalized = normalizeCreatorListQueryStringValue(rawSort);
-   if (typeof normalized !== 'string' || isRecognizedCreatorListSortField(normalized)) {
+   if (
+      typeof normalized !== 'string' ||
+      isRecognizedCreatorListSortField(normalized)
+   ) {
       return;
    }
 
    logger.warn({
       msg: 'Unrecognized creator list sort field',
-      sort: normalized,
+      sort: encodeCreatorListQueryStringValue(normalized) ?? normalized,
       ...(requestId ? { requestId } : {}),
    });
 }
