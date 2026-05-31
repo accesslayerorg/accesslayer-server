@@ -8,7 +8,7 @@
 // Uses Jest mocks with a minimal fixture set — no database required.
 // Follows the same conventions as creator-detail-empty-social-links.integration.test.ts
 
-import { httpGetCreatorStats } from './creators.controllers';
+import { httpGetCreatorStats } from '../creators/creators.controllers';
 
 // ── Lightweight request/response mocks ────────────────────────────────────────
 

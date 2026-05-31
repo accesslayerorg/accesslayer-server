@@ -8,8 +8,8 @@
 // Uses Jest mocks with a minimal fixture set — no database required.
 // Follows the same conventions as creator-list-page-size-boundary.integration.test.ts
 
-import { httpListCreators } from './creators.controllers';
-import * as creatorsUtils from './creators.utils';
+import { httpListCreators } from '../creators/creators.controllers';
+import * as creatorsUtils from '../creators/creators.utils';
 
 // ── Lightweight request/response mocks ────────────────────────────────────────
 
