@@ -60,13 +60,6 @@ export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
    try {
       const { id } = req.params;
 
-      // Validate creator ID format (basic validation)
-      if (!id || typeof id !== 'string') {
-         return sendValidationError(res, 'Invalid creator ID', [
-            { field: 'id', message: 'Creator ID must be a valid string' },
-         ]);
-      }
-
       // TODO: Fetch actual creator metrics from database/service
       // For now, return placeholder data
       const placeholderMetrics = {
@@ -79,7 +72,7 @@ export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
       // Serialize using the public stats mapper
       const stats = mapPublicCreatorStats(placeholderMetrics);
 
-      sendSuccess(res, stats);
+      sendSuccess(res, stats, 200, `Creator ${id} stats retrieved`);
    } catch (error) {
       next(error);
    }
