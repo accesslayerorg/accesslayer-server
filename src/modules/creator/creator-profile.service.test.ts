@@ -17,6 +17,8 @@ describe('getCreatorProfile', () => {
          displayName: null,
          bio: null,
          avatarUrl: null,
+         createdAt: null,
+         updatedAt: null,
          links: [],
          metadata: {
             source: 'placeholder',

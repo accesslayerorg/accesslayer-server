@@ -67,6 +67,10 @@ export const CreatorListQuerySchema = z
         .optional()
         .transform((val: string | undefined) => normalizeCreatorListSearchTerm(val))
     ),
+
+    cursor: withCreatorListQueryStringNormalization(
+      z.string().optional()
+    ),
   })
   .strict();
 

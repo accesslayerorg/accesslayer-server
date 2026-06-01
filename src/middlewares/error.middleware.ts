@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
+import { RpcTimeoutError } from '../utils/rpc-timeout.utils';
 import { mapUnknownRouteError } from '../utils/route-error.utils';
 import { buildErrorContext } from '../utils/error-context.utils';
 import { sanitizeLogFieldValue } from '../utils/log-field-sanitizer.utils';
@@ -50,6 +51,17 @@ export const temporarilyDisabled = (
    next(error);
 };
 
+const isCreatorListTimeout = (
+   err: unknown,
+   req: Request
+): err is RpcTimeoutError => {
+   return (
+      err instanceof RpcTimeoutError &&
+      req.method === 'GET' &&
+      req.path === '/api/v1/creators'
+   );
+};
+
 // Improved global error handling middleware
 export const errorHandler: ErrorRequestHandler = (
    err: any,
@@ -71,6 +83,17 @@ export const errorHandler: ErrorRequestHandler = (
       'Error caught by global handler'
    );
 
+   if (isCreatorListTimeout(err, req)) {
+      logger.warn({
+         msg: 'Creator list request timed out',
+         requestId: req.requestId,
+         route: `${req.method} ${req.originalUrl}`,
+         queryParams: req.query,
+         elapsedMs: err.timeoutMs,
+         timeoutMs: err.timeoutMs,
+      });
+   }
+
    // Handle Zod validation errors
    if (err instanceof z.ZodError || err.name === 'ZodError') {
       const issues: z.ZodIssue[] = err.errors ?? err.issues ?? [];
@@ -86,6 +109,12 @@ export const errorHandler: ErrorRequestHandler = (
 
    // Handle JWT errors
    if (err.name === 'JsonWebTokenError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: err.message,
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
          code: ErrorCode.JWT_ERROR,
@@ -95,6 +124,12 @@ export const errorHandler: ErrorRequestHandler = (
    }
 
    if (err.name === 'TokenExpiredError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: 'Token has expired',
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
          code: ErrorCode.JWT_ERROR,

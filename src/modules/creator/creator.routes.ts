@@ -36,6 +36,10 @@ router.get(
    ),
    listCreators
 );
+// 405 handler for CREATORS_ROOT
+router.all(CREATORS_ROOT, (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 
 /**
  * @route GET /api/v1/creators/:creatorId/profile
@@ -61,5 +65,9 @@ router.put(
    requireCreatorProfileOwnership('creatorId'),
    upsertCreatorProfileHandler
 );
+// 405 handler for /:creatorId/profile
+router.all('/:creatorId/profile', (_req, res) => {
+   res.set('Allow', 'GET, PUT').sendStatus(405);
+});
 
 export default router;

@@ -5,6 +5,7 @@ import {
    UpsertCreatorProfileBody,
 } from './creator-profile.schemas';
 import { CREATOR_DETAIL_DEFAULT_SELECT } from '../../constants/creator-detail-include.constants';
+import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
 import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
 
 function normalizeProfileLinks(
@@ -72,6 +73,7 @@ export async function getCreatorProfile(
          displayName: null,
          bio: null,
          avatarUrl: null,
+
          links: [],
          metadata: {
             source: 'placeholder',
@@ -85,6 +87,8 @@ export async function getCreatorProfile(
       displayName: profile.displayName,
       bio: profile.bio,
       avatarUrl: profile.avatarUrl,
+      createdAt: formatIsoTimestamp(profile.createdAt),
+      updatedAt: formatIsoTimestamp(profile.updatedAt),
       perks: (profile.perks as any) || [],
       links: [], // Links are not yet in the Prisma model, keeping as part of contract
       metadata: {

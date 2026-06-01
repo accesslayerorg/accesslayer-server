@@ -33,15 +33,12 @@ function makeNext(): jest.Mock {
 
 describe('GET /api/v1/creators — empty feed with filter combinations', () => {
    beforeEach(() => {
-      // Mock fetchCreatorList to return empty results
       jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([[], 0]);
    });
 
    afterEach(() => {
       jest.restoreAllMocks();
    });
-
-   // ── Response Envelope Structure ────────────────────────────────────────────
 
    it('returns stable response envelope with items array', async () => {
       const req = makeReq();
@@ -77,8 +74,6 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
 
       expect(res.status).toHaveBeenCalledWith(200);
    });
-
-   // ── Default Values ──────────────────────────────────────────────────────────
 
    it('applies default limit when not specified', async () => {
       const req = makeReq();
@@ -146,29 +141,28 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
 
       const explicitCallArgs = (creatorsUtils.fetchCreatorList as jest.Mock).mock
          .calls[1][0];
-      expect(explicitCallArgs).not.toHaveProperty('search');
-      expect(explicitCallArgs).not.toHaveProperty('include');
+
+      expect(explicitCallArgs.search).toBeUndefined();
+      expect(explicitCallArgs.include).toBeUndefined();
 
       expect(explicitDefaultsRes.json.mock.calls[0][0]).toEqual(
          omittedRes.json.mock.calls[0][0]
       );
    });
 
-   // ── Empty Filter Combinations ───────────────────────────────────────────────
-
    it('handles empty query (no filters)', async () => {
       const req = makeReq({});
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
-      // Optional filter keys are absent from the Zod output when not supplied;
-      // asserting absence is more accurate than asserting `undefined` equality.
       const callArgs = (creatorsUtils.fetchCreatorList as jest.Mock).mock.calls[0][0];
+
       expect(callArgs).not.toHaveProperty('verified', true);
       expect(callArgs).not.toHaveProperty('verified', false);
       expect(callArgs).not.toHaveProperty('search');
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta.total).toBe(0);
       expect(body.data.meta.hasMore).toBe(false);
@@ -186,6 +180,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       );
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta.total).toBe(0);
    });
@@ -202,6 +197,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       );
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta.total).toBe(0);
    });
@@ -218,8 +214,41 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       );
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta.total).toBe(0);
+   });
+
+   it('returns a valid empty response when search term matches no creators', async () => {
+      const req = makeReq({ search: 'definitely-no-matching-creator' });
+      const res = makeRes();
+
+      await httpListCreators(req, res, makeNext());
+
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      expect(creatorsUtils.fetchCreatorList).toHaveBeenCalledWith(
+         expect.objectContaining({
+            search: 'definitely-no-matching-creator',
+         })
+      );
+
+      const body = res.json.mock.calls[0][0];
+
+      expect(body.success).toBe(true);
+      expect(body).toHaveProperty('data');
+      expect(body.data).toHaveProperty('items');
+      expect(body.data).toHaveProperty('meta');
+
+      expect(Array.isArray(body.data.items)).toBe(true);
+      expect(body.data.items).toEqual([]);
+
+      expect(body.data.meta).toMatchObject({
+         total: 0,
+         hasMore: false,
+      });
+      expect(body.data.meta).toHaveProperty('limit');
+      expect(body.data.meta).toHaveProperty('offset');
    });
 
    it('handles whitespace-only search (normalized to undefined)', async () => {
@@ -265,11 +294,10 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       );
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta.total).toBe(0);
    });
-
-   // ── Pagination Metadata Consistency ─────────────────────────────────────────
 
    it('meta.total is 0 for empty results', async () => {
       const req = makeReq();
@@ -306,8 +334,6 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       const body = res.json.mock.calls[0][0];
       expect(body.data.meta.limit).toBe(10);
    });
-
-   // ── Sort and Order Parameters ───────────────────────────────────────────────
 
    it('handles sort parameter with empty results', async () => {
       const req = makeReq({ sort: 'displayName' });
@@ -355,8 +381,6 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       expect(body.data.items).toHaveLength(0);
    });
 
-   // ── Complex Filter Combinations ─────────────────────────────────────────────
-
    it('handles all filters combined with empty results', async () => {
       const req = makeReq({
          limit: '15',
@@ -381,6 +405,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       );
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(0);
       expect(body.data.meta).toMatchObject({
          limit: 15,
@@ -389,8 +414,6 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
          hasMore: false,
       });
    });
-
-   // ── Response Envelope Stability ─────────────────────────────────────────────
 
    it('maintains consistent envelope shape across different filter combinations', async () => {
       const testCases: Array<Record<string, string>> = [
@@ -407,8 +430,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
          await httpListCreators(req, res, makeNext());
 
          const body = res.json.mock.calls[0][0];
-         
-         // Verify consistent structure
+
          expect(body).toHaveProperty('success', true);
          expect(body).toHaveProperty('data');
          expect(body.data).toHaveProperty('items');
@@ -420,40 +442,48 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
          expect(body.data.meta).toHaveProperty('total', 0);
          expect(body.data.meta).toHaveProperty('hasMore', false);
 
-         // Reset mocks for next iteration
          jest.clearAllMocks();
          jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([[], 0]);
       }
    });
 
-   // ── Null Items Normalization (issue #281) ──────────────────────────────────
-
    it('coerces null items from fetchCreatorList to an empty array', async () => {
-      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([null as unknown as any[], 0]);
+      jest
+         .spyOn(creatorsUtils, 'fetchCreatorList')
+         .mockResolvedValue([null as unknown as any[], 0]);
+
       const req = makeReq();
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.success).toBe(true);
       expect(Array.isArray(body.data.items)).toBe(true);
       expect(body.data.items).toHaveLength(0);
    });
 
    it('coerces undefined items from fetchCreatorList to an empty array', async () => {
-      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([undefined as unknown as any[], 0]);
+      jest
+         .spyOn(creatorsUtils, 'fetchCreatorList')
+         .mockResolvedValue([undefined as unknown as any[], 0]);
+
       const req = makeReq();
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
       const body = res.json.mock.calls[0][0];
+
       expect(body.success).toBe(true);
       expect(Array.isArray(body.data.items)).toBe(true);
       expect(body.data.items).toHaveLength(0);
    });
 
    it('items is always an array regardless of filter combination when data layer returns null', async () => {
-      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([null as unknown as any[], 0]);
+      jest
+         .spyOn(creatorsUtils, 'fetchCreatorList')
+         .mockResolvedValue([null as unknown as any[], 0]);
+
       const filterCombinations: Array<Record<string, string>> = [
          { verified: 'true' },
          { search: 'artist' },
@@ -467,23 +497,24 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
          await httpListCreators(req, res, makeNext());
 
          const body = res.json.mock.calls[0][0];
+
          expect(Array.isArray(body.data.items)).toBe(true);
          expect(body.data.items).toHaveLength(0);
 
          jest.clearAllMocks();
-         jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([null as unknown as any[], 0]);
+         jest
+            .spyOn(creatorsUtils, 'fetchCreatorList')
+            .mockResolvedValue([null as unknown as any[], 0]);
       }
    });
-
-   // ── Validation Error Handling ───────────────────────────────────────────────
 
    it('returns 400 for invalid limit parameter', async () => {
       const req = makeReq({ limit: 'invalid' });
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
-      // Should call sendValidationError which sets status 400
       expect(res.status).toHaveBeenCalledWith(400);
+
       const body = res.json.mock.calls[0][0];
       expect(body.success).toBe(false);
    });
@@ -494,6 +525,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       await httpListCreators(req, res, makeNext());
 
       expect(res.status).toHaveBeenCalledWith(400);
+
       const body = res.json.mock.calls[0][0];
       expect(body.success).toBe(false);
    });
@@ -504,6 +536,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       await httpListCreators(req, res, makeNext());
 
       expect(res.status).toHaveBeenCalledWith(400);
+
       const body = res.json.mock.calls[0][0];
       expect(body.success).toBe(false);
    });
@@ -514,6 +547,7 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       await httpListCreators(req, res, makeNext());
 
       expect(res.status).toHaveBeenCalledWith(400);
+
       const body = res.json.mock.calls[0][0];
       expect(body.success).toBe(false);
    });
@@ -534,6 +568,7 @@ describe('GET /api/v1/creators — unrecognized sort logging', () => {
    it('logs unrecognized sort fields at warn level without changing the 400 response', async () => {
       const req = makeReq({ sort: 'invalidField' });
       req.requestId = 'req-invalid-sort';
+
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
@@ -550,12 +585,14 @@ describe('GET /api/v1/creators — unrecognized sort logging', () => {
    it('does not log for recognized sort fields', async () => {
       const req = makeReq({ sort: 'displayName' });
       req.requestId = 'req-valid-sort';
+
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
       const sortWarnings = warnSpy.mock.calls.filter(
          ([payload]) => payload?.msg === 'Unrecognized creator list sort field'
       );
+
       expect(sortWarnings).toHaveLength(0);
    });
 });

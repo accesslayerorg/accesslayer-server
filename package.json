@@ -13,6 +13,7 @@
       "dev": "nodemon",
       "start": "node dist/server.js",
       "build": "tsc",
+      "test": "jest",
       "format": "prettier --write .",
       "format:check": "prettier --check .",
       "lint": "eslint . --ext .js,.ts,.jsx,.tsx",

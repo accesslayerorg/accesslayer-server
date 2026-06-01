@@ -3,7 +3,7 @@
 // Exercises the full cursor encode → decode → page-two fetch cycle:
 //   1. Fetch page one via httpListCreators (offset=0, limit=3) from a 6-item fixture set.
 //   2. Build a cursor from the last item on page one using encodeCursor.
-//   3. Decode the cursor and use its payload to request page two (offset=3).
+//   3. Decode the cursor and use its payload to request page two.
 //   4. Assert page-two items are correct and non-overlapping with page one.
 //
 // Uses Jest mocks — no database required.
@@ -70,7 +70,9 @@ describe('cursor pagination round-trip', () => {
       await httpListCreators(req, res, makeNext());
 
       expect(res.status).toHaveBeenCalledWith(200);
+
       const body = res.json.mock.calls[0][0];
+
       expect(body.data.items).toHaveLength(3);
       expect(body.data.meta.hasMore).toBe(true);
       expect(body.data.meta.total).toBe(6);
@@ -84,39 +86,47 @@ describe('cursor pagination round-trip', () => {
       };
 
       const encoded = encodeCursor(cursorPayload);
+
       expect(typeof encoded).toBe('string');
       expect(encoded.length).toBeGreaterThan(0);
 
       const decoded = decodeCursor<CreatorFeedCursorPayload>(encoded);
+
       expect(decoded.id).toBe(lastOnPageOne.id);
       expect(decoded.createdAt).toBe(lastOnPageOne.createdAt.toISOString());
    });
 
    it('page two items are non-overlapping with page one', async () => {
-      // Page one
       jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([
          PAGE_ONE_FIXTURES,
          ALL_FIXTURES.length,
       ]);
+
       const reqOne = makeReq({ limit: '3', offset: '0' });
       const resOne = makeRes();
       await httpListCreators(reqOne, resOne, makeNext());
-      const pageOneIds = resOne.json.mock.calls[0][0].data.items.map((i: any) => i.id);
+
+      const pageOneIds = resOne.json.mock.calls[0][0].data.items.map(
+         (i: any) => i.id
+      );
 
       jest.restoreAllMocks();
 
-      // Page two — offset derived from page one limit
       jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([
          PAGE_TWO_FIXTURES,
          ALL_FIXTURES.length,
       ]);
+
       const reqTwo = makeReq({ limit: '3', offset: '3' });
       const resTwo = makeRes();
       await httpListCreators(reqTwo, resTwo, makeNext());
-      const pageTwoIds = resTwo.json.mock.calls[0][0].data.items.map((i: any) => i.id);
 
-      // No overlap between pages
+      const pageTwoIds = resTwo.json.mock.calls[0][0].data.items.map(
+         (i: any) => i.id
+      );
+
       const overlap = pageOneIds.filter((id: string) => pageTwoIds.includes(id));
+
       expect(overlap).toHaveLength(0);
    });
 
@@ -132,6 +142,7 @@ describe('cursor pagination round-trip', () => {
 
       const body = res.json.mock.calls[0][0];
       const ids = body.data.items.map((i: any) => i.id);
+
       expect(ids).toEqual(PAGE_TWO_FIXTURES.map(f => f.id));
    });
 
@@ -146,20 +157,58 @@ describe('cursor pagination round-trip', () => {
       await httpListCreators(req, res, makeNext());
 
       const { meta } = res.json.mock.calls[0][0].data;
+
       expect(meta.offset).toBe(3);
       expect(meta.limit).toBe(3);
       expect(meta.total).toBe(6);
       expect(meta.hasMore).toBe(false);
    });
 
+   it('returns next available creators when the item at the cursor position was deleted', async () => {
+      const deletedCursorCreator = PAGE_ONE_FIXTURES[PAGE_ONE_FIXTURES.length - 1];
+
+      const encoded = encodeCursor<CreatorFeedCursorPayload>({
+         createdAt: deletedCursorCreator.createdAt.toISOString(),
+         id: deletedCursorCreator.id,
+      });
+
+      const decoded = decodeCursor<CreatorFeedCursorPayload>(encoded);
+
+      expect(decoded.id).toBe(deletedCursorCreator.id);
+      expect(decoded.createdAt).toBe(deletedCursorCreator.createdAt.toISOString());
+
+      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([
+         PAGE_TWO_FIXTURES,
+         ALL_FIXTURES.length - 1,
+      ]);
+
+      const req = makeReq({ limit: '3', offset: '3' });
+      const res = makeRes();
+      const next = makeNext();
+
+      await httpListCreators(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+
+      const body = res.json.mock.calls[0][0];
+      const ids = body.data.items.map((i: any) => i.id);
+
+      expect(ids).toEqual(PAGE_TWO_FIXTURES.map(f => f.id));
+      expect(ids).not.toContain(deletedCursorCreator.id);
+      expect(body.data.meta.total).toBe(ALL_FIXTURES.length - 1);
+   });
+
    it('a tampered cursor is rejected by decodeCursor', () => {
       const lastOnPageOne = PAGE_ONE_FIXTURES[PAGE_ONE_FIXTURES.length - 1];
+
       const encoded = encodeCursor<CreatorFeedCursorPayload>({
          createdAt: lastOnPageOne.createdAt.toISOString(),
          id: lastOnPageOne.id,
       });
 
       const tampered = encoded.slice(0, -4) + 'xxxx';
+
       expect(() => decodeCursor(tampered)).toThrow();
    });
 });

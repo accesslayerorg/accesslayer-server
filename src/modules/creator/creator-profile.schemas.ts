@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { withCreatorSlugEmptyStringNormalization } from './creator-slug-input.utils';
 import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
+import { sanitizeBio } from './creator-bio-sanitize.utils';
 
 /**
  * Shared creator profile identifier schema for route params.
@@ -42,6 +43,8 @@ export const CreatorProfileReadResponseSchema = z.object({
    displayName: z.string().nullable(),
    bio: z.string().nullable(),
    avatarUrl: z.string().url().nullable(),
+   createdAt: z.string().datetime().nullable(),
+   updatedAt: z.string().datetime().nullable(),
    perks: z.array(CreatorPerkSchema).optional(),
    links: z.array(z.object({ label: z.string(), url: z.string().url() })),
    metadata: z.object({
@@ -67,6 +70,7 @@ export const UpsertCreatorProfileBodySchema = z.object({
       .string()
       .trim()
       .max(1000, 'Bio must be at most 1000 characters')
+      .transform(sanitizeBio)
       .optional(),
    avatarUrl: z
       .string()

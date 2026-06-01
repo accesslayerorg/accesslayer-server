@@ -17,7 +17,7 @@
  *
  * | Field | When empty / unknown |
  * |-------|----------------------|
- * | `id`, `followers` | Always present (`followers` is a number, currently `0`). |
+ * | `id`, `followers`, `createdAt`, `updatedAt` | Always present (`followers` is a number, currently `0`; timestamps use ISO 8601 UTC strings). |
  * | `name`, `avatar` | **Always present**; use JSON **`null`** when display name or avatar URL is missing (`?? null` in the mapper). |
  *
  * List envelope (`items`, `meta`) always includes both keys. Offset `meta` always
@@ -39,6 +39,7 @@
  * | Field | When empty / unknown |
  * |-------|----------------------|
  * | `creatorId`, `metadata` | Always present. |
+ * | `createdAt`, `updatedAt` | Always present; ISO 8601 UTC strings for database records, JSON **`null`** for placeholder responses. |
  * | `displayName`, `bio`, `avatarUrl` | **Always present**; JSON **`null`** when unset (Zod `.nullable()`; placeholder fallback uses explicit `null`). |
  * | `links` | **Always present** as an array; use **`[]`** when there are no links (never `null`, never omitted). |
  * | `perks` | **Always present** as an array in current handlers (`[]` when none). The read schema marks `perks` optional, but the service always includes the key. |

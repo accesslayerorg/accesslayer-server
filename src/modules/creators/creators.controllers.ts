@@ -15,6 +15,7 @@ import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { buildCreatorListRequestContext } from './creator-list-context.utils';
 import { warnIfUnrecognizedCreatorListSort } from './creators.sort-field.utils';
+import { warnIfOutOfRangeCursor } from './creators.cursor-warning.utils';
 import {
    incrementFilterParseError,
    type FilterParseErrorCategory,
@@ -45,6 +46,16 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }
       const validatedQuery = parsed.data;
+
+      // Check for out-of-range pagination cursor
+      if (validatedQuery.cursor) {
+         await warnIfOutOfRangeCursor({
+            cursor: validatedQuery.cursor,
+            route: req.path,
+            requestId: req.requestId,
+            query: validatedQuery,
+         });
+      }
 
       // Fetch creators and total count
       const [creators, total] = await fetchCreatorList(validatedQuery);

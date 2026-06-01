@@ -1,5 +1,6 @@
 import { z, ZodError, ZodTypeAny } from 'zod';
 import { emitQueryNormalizationDebug } from './query-normalization-debug.utils';
+import { coerceEmptyStringQueryParamsToUndefined } from './empty-query-param.utils';
 
 export type PublicQueryValidationDetail = {
    field: string;
@@ -24,7 +25,7 @@ export interface ParsePublicQueryOptions {
  *
  * This helper is intentionally small and focused:
  * - maps `ZodError` into `{ field, message }[]` for API validation responses
- * - does not add runtime behavior beyond schema parsing and error shaping
+ * - coerces empty-string query params to omitted values before validation
  * - optionally emits debug snapshots when debugContext is provided (debug level only)
  */
 export function parsePublicQuery<S extends ZodTypeAny>(
@@ -32,9 +33,11 @@ export function parsePublicQuery<S extends ZodTypeAny>(
    rawQuery: unknown,
    options?: ParsePublicQueryOptions
 ): PublicQueryParseResult<z.infer<S>> {
+   const normalizedQuery = coerceEmptyStringQueryParamsToUndefined(rawQuery);
+
    try {
-      const data = schema.parse(rawQuery);
-      
+      const data = schema.parse(normalizedQuery);
+
       // Emit debug snapshot if context is provided
       if (options?.debugContext) {
          emitQueryNormalizationDebug({
@@ -44,15 +47,17 @@ export function parsePublicQuery<S extends ZodTypeAny>(
             context: options.debugContext,
          });
       }
-      
+
       return { ok: true, data };
    } catch (error) {
       if (error instanceof ZodError) {
-         const details: PublicQueryValidationDetail[] = error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-         }));
-         
+         const details: PublicQueryValidationDetail[] = error.errors.map(
+            err => ({
+               field: err.path.join('.'),
+               message: err.message,
+            })
+         );
+
          // Emit debug snapshot if context is provided
          if (options?.debugContext) {
             emitQueryNormalizationDebug({
@@ -63,10 +68,9 @@ export function parsePublicQuery<S extends ZodTypeAny>(
                context: options.debugContext,
             });
          }
-         
+
          return { ok: false, details };
       }
       throw error;
    }
 }
-

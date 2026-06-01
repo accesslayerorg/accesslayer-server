@@ -17,6 +17,8 @@
  * - displayName: Creator's display name
  * - avatarUrl: URL to creator's avatar image
  * - isVerified: Verification status badge
+ * - createdAt: Creator registration timestamp
+ * - updatedAt: Creator profile update timestamp
  */
 export const CREATOR_LIST_DEFAULT_SELECT = {
   id: true,
@@ -24,6 +26,8 @@ export const CREATOR_LIST_DEFAULT_SELECT = {
   displayName: true,
   avatarUrl: true,
   isVerified: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
 export type CreatorListSelectKeys = keyof typeof CREATOR_LIST_DEFAULT_SELECT;

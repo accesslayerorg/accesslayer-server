@@ -36,6 +36,8 @@ const FIXTURE_PROFILE = {
    displayName: 'Test Creator',
    bio: 'A bio',
    avatarUrl: 'https://example.com/avatar.png',
+   createdAt: '2024-01-01T00:00:00.000Z',
+   updatedAt: '2024-01-02T00:00:00.000Z',
    perks: [],
    links: [],
    metadata: { source: 'database' as const, isProfileComplete: true },

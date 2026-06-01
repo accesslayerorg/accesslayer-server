@@ -25,6 +25,10 @@ creatorsRouter.get(
    cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]),
    httpListCreators
 );
+// 405 handler for /
+creatorsRouter.all('/', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 
 /**
  * GET /api/v1/creators/:id/stats
@@ -38,5 +42,9 @@ creatorsRouter.get(
    cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]),
    httpGetCreatorStats
 );
+// 405 handler for /:id/stats
+creatorsRouter.all('/:id/stats', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 
 export default creatorsRouter;
