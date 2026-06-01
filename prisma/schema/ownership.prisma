@@ -1,0 +1,21 @@
+// prisma/schema/ownership.prisma
+
+model KeyOwnership {
+  id            String   @id @default(cuid())
+  
+  // The wallet address of the owner
+  ownerAddress  String
+  
+  // The ID or handle of the creator whose keys are owned
+  creatorId     String
+  
+  // The amount of keys owned
+  balance       Decimal  @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ownerAddress, creatorId])
+  @@index([ownerAddress])
+  @@index([creatorId])
+}

@@ -1,54 +1,31 @@
-import { z } from 'zod';
 import dotenv from 'dotenv';
+import { envSchema } from './config.schema';
 
+export { envSchema };
+
+// Load environment variables from .env file
+// Note: Does not override existing environment variables
 dotenv.config();
 
-export const envSchema = z.object({
-   PORT: z.coerce.number().default(3000),
-   MODE: z.enum(['development', 'production', 'test']).default('development'),
-   DATABASE_URL: z
-      .string()
-      .min(1, 'DATABASE_URL is required in the environment variables'),
-
-   GMAIL_USER: z.string(),
-   GMAIL_APP_PASSWORD: z.string(),
-   // Google OAuth
-   GOOGLE_CLIENT_ID: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_ID is required for Google OAuth'),
-   GOOGLE_CLIENT_SECRET: z
-      .string()
-      .min(1, 'GOOGLE_CLIENT_SECRET is required for Google OAuth'),
-
-   // URLs
-   BACKEND_URL: z.string().url(),
-   FRONTEND_URL: z
-      .string()
-      .url('FRONTEND_URL must be a valid URL')
-      .min(1, 'FRONTEND_URL is required'),
-
-   // Cloudinary
-   CLOUDINARY_CLOUD_NAME: z
-      .string()
-      .min(1, 'CLOUDINARY_CLOUD_NAME is required for image uploads'),
-   CLOUDINARY_API_KEY: z
-      .string()
-      .min(1, 'CLOUDINARY_API_KEY is required for image uploads'),
-   CLOUDINARY_API_SECRET: z
-      .string()
-      .min(1, 'CLOUDINARY_API_SECRET is required for image uploads'),
-
-   PAYSTACK_SECRET_KEY: z
-      .string()
-      .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
-   PAYSTACK_PUBLIC_KEY: z
-      .string()
-      .min(1, 'PAYSTACK_PUBLIC_KEY is required for payment processing')
-      .optional(),
-});
-
+/**
+ * Validated and typed environment configuration.
+ *
+ * This object is immutable and available for import throughout the application.
+ * Configuration values are resolved at startup and do not change at runtime.
+ *
+ * @example
+ * import { envConfig } from './config';
+ *
+ * const port = envConfig.PORT;
+ * const isProduction = envConfig.MODE === 'production';
+ */
 export const envConfig = envSchema.parse(process.env);
 
+/**
+ * Derived application configuration.
+ *
+ * These values are computed from envConfig at startup.
+ */
 export const appConfig = {
    allowedOrigins: [
       'http://localhost:5173',

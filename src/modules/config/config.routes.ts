@@ -1,6 +1,7 @@
 // src/modules/config/config.routes.ts
 import { Router } from 'express';
 import { httpGetProtocolConfig } from './config.controllers';
+import { setPublicHeaders } from '../../utils/public-headers.utils';
 
 const configRouter = Router();
 
@@ -9,6 +10,6 @@ const configRouter = Router();
  * Public endpoint returning protocol bootstrap configuration.
  * Safe for unauthenticated use - no sensitive data exposed.
  */
-configRouter.get('/', httpGetProtocolConfig);
+configRouter.get('/', setPublicHeaders, httpGetProtocolConfig);
 
 export default configRouter;

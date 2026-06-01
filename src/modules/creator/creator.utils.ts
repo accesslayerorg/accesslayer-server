@@ -1,8 +1,21 @@
 // src/modules/creator/creator.utils.ts
 import { Prisma } from '@prisma/client';
+import { resolveSlugCollision } from '../../utils/slug.utils';
+import { prisma } from '../../utils/prisma.utils';
+import {
+   CREATOR_LIST_SORT_ORDERS,
+   DEFAULT_CREATOR_LIST_ORDER,
+   DEFAULT_CREATOR_LIST_SORT,
+   type CreatorListSortField,
+   type CreatorListSortOrder,
+} from '../../constants/creator-list-sort.constants';
+import {
+   isRecognizedCreatorListSortField,
+   warnIfUnrecognizedCreatorListSort,
+} from '../creators/creators.sort-field.utils';
 
-export type CreatorSortField = 'createdAt' | 'handle' | 'displayName';
-export type SortOrder = 'asc' | 'desc';
+export type CreatorSortField = CreatorListSortField;
+export type SortOrder = CreatorListSortOrder;
 
 export interface CreatorSortOptions {
    field: CreatorSortField;
@@ -15,18 +28,21 @@ export interface CreatorSortOptions {
  */
 export function parseCreatorSortOptions(
    sortBy?: string,
-   sortOrder?: string
+   sortOrder?: string,
+   requestId?: string
 ): CreatorSortOptions {
-   const validFields: CreatorSortField[] = ['createdAt', 'handle', 'displayName'];
-   const validOrders: SortOrder[] = ['asc', 'desc'];
+   if (sortBy !== undefined && sortBy !== '') {
+      warnIfUnrecognizedCreatorListSort({ sort: sortBy }, requestId);
+   }
 
-   const field = validFields.includes(sortBy as CreatorSortField)
-      ? (sortBy as CreatorSortField)
-      : 'createdAt';
+   const field =
+      sortBy && isRecognizedCreatorListSortField(sortBy)
+         ? sortBy
+         : DEFAULT_CREATOR_LIST_SORT;
 
-   const order = validOrders.includes(sortOrder as SortOrder)
+   const order = CREATOR_LIST_SORT_ORDERS.includes(sortOrder as SortOrder)
       ? (sortOrder as SortOrder)
-      : 'desc';
+      : DEFAULT_CREATOR_LIST_ORDER;
 
    return { field, order };
 }
@@ -40,4 +56,22 @@ export function toPrismaOrderBy(
    return {
       [options.field]: options.order,
    };
+}
+
+/**
+ * Resolves a creator handle (slug) collision using the database.
+ *
+ * @param displayName - The display name to generate a handle from.
+ * @returns A unique handle for the creator.
+ */
+export async function resolveCreatorSlugCollision(
+   displayName: string
+): Promise<string> {
+   return resolveSlugCollision(displayName, async (handle) => {
+      const existing = await prisma.creatorProfile.findUnique({
+         where: { handle },
+         select: { id: true },
+      });
+      return !existing;
+   });
 }

@@ -2,15 +2,16 @@ import { prisma } from '../../utils/prisma.utils';
 import { CreatorProfile } from '../../types/profile.types';
 import { CreatorListQueryType } from './creators.schemas';
 import { mapCreatorListSort } from './creators.sort';
-import { CreatorListResponse } from './creators.serializers';
-
-type CreatorListWhere = {
-   isVerified?: boolean;
-   OR?: Array<{
-      handle?: { contains: string; mode: 'insensitive' };
-      displayName?: { contains: string; mode: 'insensitive' };
-   }>;
-};
+import {
+   serializeCreatorListResponse,
+   CreatorListResponse,
+} from './creators.serializers';
+import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { logger } from '../../utils/logger.utils';
+import { envConfig } from '../../config';
+import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
+import { getCachedCreatorList, setCachedCreatorList } from './creators.cache';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -21,36 +22,47 @@ type CreatorListWhere = {
 export async function fetchCreatorList(
    query: CreatorListQueryType
 ): Promise<[CreatorProfile[], number]> {
+   const cached = getCachedCreatorList(query);
+   if (cached) {
+      return [cached.creators, cached.total];
+   }
+
    const { limit, offset, sort, order, verified, search } = query;
 
-   // Build where clause for filters
-   const where: CreatorListWhere = {};
-
-   if (verified !== undefined) {
-      where.isVerified = verified;
-   }
-
-   if (search) {
-      where.OR = [
-         { handle: { contains: search, mode: 'insensitive' } },
-         { displayName: { contains: search, mode: 'insensitive' } },
-      ];
-   }
-
+   const where = buildCreatorFeedWhere({ verified, search });
    const orderBy = mapCreatorListSort(sort, order);
 
    // Fetch creators and total count in parallel
+   const start = Date.now();
    const [creators, total] = await Promise.all([
       prisma.creatorProfile.findMany({
          where,
          orderBy,
          skip: offset,
          take: limit,
+         select: CREATOR_LIST_DEFAULT_SELECT,
       }),
       prisma.creatorProfile.count({ where }),
    ]);
 
-   return [creators as CreatorProfile[], total];
+   const durationMs = Date.now() - start;
+   if (durationMs > envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS) {
+      logger.warn({
+         msg: 'Slow creator list query',
+         durationMs,
+         thresholdMs: envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS,
+         sort,
+         order,
+         hasSearch: !!search,
+         hasVerifiedFilter: verified !== undefined,
+         limit,
+         offset,
+      });
+   }
+
+   setCachedCreatorList(query, creators as unknown as CreatorProfile[], total);
+
+   return [creators as unknown as CreatorProfile[], total];
 }
 
 /**
@@ -64,18 +76,17 @@ export async function fetchCreatorList(
  *
  * @example
  * const emptyResponse = createEmptyCreatorListResponse(validatedQuery);
- * // Returns: { creators: [], pagination: { limit, offset, total: 0, hasMore: false } }
+ * // Returns: { items: [], meta: { limit, offset, total: 0, hasMore: false } }
  */
 export function createEmptyCreatorListResponse(
    query: CreatorListQueryType
 ): CreatorListResponse {
-   return {
-      creators: [],
-      pagination: {
+   return serializeCreatorListResponse(
+      [],
+      buildOffsetPaginationMeta({
          limit: query.limit,
          offset: query.offset,
          total: 0,
-         hasMore: false,
-      },
-   };
+      })
+   );
 }

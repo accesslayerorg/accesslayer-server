@@ -1,4 +1,33 @@
 import { z } from 'zod';
+import { parseBoolean, ParseBooleanError } from './parseBoolean.utils';
+
+/**
+ * Normalize an optional integer query param.
+ *
+ * - `undefined`, `null`, or blank strings return `defaultValue`
+ * - numeric strings are trimmed then parsed as base-10 integers
+ * - non-integer strings return `null` (callers can map to validation errors)
+ */
+export function normalizeOptionalIntegerQueryParam(
+   raw: unknown,
+   defaultValue: number
+): number | null {
+   if (raw === undefined || raw === null) {
+      return defaultValue;
+   }
+
+   const candidate = String(raw).trim();
+   if (!candidate) {
+      return defaultValue;
+   }
+
+   if (!/^-?\d+$/.test(candidate)) {
+      return null;
+   }
+
+   const parsed = Number.parseInt(candidate, 10);
+   return Number.isNaN(parsed) ? null : parsed;
+}
 
 /**
  * Creates a Zod schema for safely parsing an integer query parameter.
@@ -18,9 +47,52 @@ export function safeIntParam(options: {
    return z
       .string()
       .optional()
-      .default(String(defaultValue))
-      .transform(val => parseInt(val, 10))
+      .transform((raw, ctx) => {
+         const normalized = normalizeOptionalIntegerQueryParam(
+            raw,
+            defaultValue
+         );
+         if (normalized === null) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               message: `${label} must be an integer between ${min} and ${max}`,
+            });
+            return z.NEVER;
+         }
+
+         return normalized;
+      })
       .refine(val => !Number.isNaN(val) && val >= min && val <= max, {
          message: `${label} must be an integer between ${min} and ${max}`,
       });
+}
+
+/**
+ * Creates a Zod schema for safely parsing a boolean-like query parameter.
+ *
+ * Accepts the common string flag forms supported by `parseBoolean` and maps
+ * invalid values into a stable validation error message.
+ */
+export function safeBooleanQueryParam(options: {
+   paramName: string;
+   defaultValue?: boolean;
+}) {
+   const { paramName, defaultValue } = options;
+
+   return z.any().optional().transform((raw, ctx) => {
+      try {
+         const parsed = parseBoolean(paramName, raw);
+         return parsed === null ? defaultValue : parsed;
+      } catch (error) {
+         if (error instanceof ParseBooleanError) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               message: error.message,
+            });
+            return z.NEVER;
+         }
+
+         throw error;
+      }
+   });
 }

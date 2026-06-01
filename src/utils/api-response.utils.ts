@@ -2,6 +2,9 @@
 // Shared API response formatters for consistent client-facing responses.
 
 import { Response } from 'express';
+import { ZodIssue } from 'zod';
+import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
+import { requestContextStorage } from './als.utils';
 
 /**
  * Standard API error response shape.
@@ -21,11 +24,48 @@ import { Response } from 'express';
  */
 interface ApiErrorResponse {
    success: false;
+   requestId?: string;
    error: {
       code: string;
       message: string;
       details?: Array<{ field?: string; message: string }>;
    };
+}
+
+/**
+ * Builds a structured error response body, embedding the request ID from the
+ * current async-local-storage context when available. The `requestId` field is
+ * omitted entirely when no context is active, keeping the shape clean for
+ * callers that run outside a request lifecycle (e.g. tests, scripts).
+ *
+ * Use this instead of constructing `ApiErrorResponse` literals directly so
+ * that request IDs are consistently included and can be correlated with server
+ * log entries.
+ *
+ * @param code    - Machine-readable error code
+ * @param message - Human-readable error message
+ * @param details - Optional per-field validation details
+ * @returns       Structured error response body ready to pass to `res.json()`
+ *
+ * @example
+ * res.status(400).json(buildErrorResponse(ErrorCode.VALIDATION_ERROR, 'Bad input'));
+ */
+export function buildErrorResponse(
+   code: ErrorCodeType,
+   message: string,
+   details?: Array<{ field?: string; message: string }>
+): ApiErrorResponse {
+   const requestId = requestContextStorage.getStore()?.requestId;
+   const body: ApiErrorResponse = {
+      success: false,
+      ...(requestId ? { requestId } : {}),
+      error: {
+         code,
+         message,
+         ...(details && details.length > 0 ? { details } : {}),
+      },
+   };
+   return body;
 }
 
 /**
@@ -59,20 +99,7 @@ interface PaginatedResponse<T = unknown> {
    message?: string;
 }
 
-// ── Error codes ──────────────────────────────────────────────
-
-export const ErrorCode = {
-   VALIDATION_ERROR: 'VALIDATION_ERROR',
-   NOT_FOUND: 'NOT_FOUND',
-   UNAUTHORIZED: 'UNAUTHORIZED',
-   FORBIDDEN: 'FORBIDDEN',
-   CONFLICT: 'CONFLICT',
-   BAD_REQUEST: 'BAD_REQUEST',
-   INTERNAL_ERROR: 'INTERNAL_ERROR',
-   RATE_LIMIT: 'RATE_LIMIT',
-} as const;
-
-export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+export { ErrorCode, ErrorCodeType };
 
 // ── Formatters ───────────────────────────────────────────────
 
@@ -86,15 +113,8 @@ export function sendError(
    message: string,
    details?: Array<{ field?: string; message: string }>
 ): void {
-   const body: ApiErrorResponse = {
-      success: false,
-      error: {
-         code,
-         message,
-         ...(details && details.length > 0 ? { details } : {}),
-      },
-   };
-   res.status(statusCode).json(body);
+   res.setHeader('Content-Type', 'application/json');
+   res.status(statusCode).json(buildErrorResponse(code, message, details));
 }
 
 /**
@@ -111,6 +131,7 @@ export function sendSuccess<T>(
       data,
       ...(message ? { message } : {}),
    };
+   res.setHeader('Content-Type', 'application/json');
    res.status(statusCode).json(body);
 }
 
@@ -130,10 +151,29 @@ export function sendPaginatedSuccess<T>(
       meta,
       ...(message ? { message } : {}),
    };
+   res.setHeader('Content-Type', 'application/json');
    res.status(statusCode).json(body);
 }
 
 // ── Convenience helpers ──────────────────────────────────────
+
+/**
+ * Maps Zod issues to the standard `details` array used in error responses.
+ *
+ * @example
+ * const result = schema.safeParse(input);
+ * if (!result.success) {
+ *   return sendValidationError(res, 'Invalid input', zodIssuesToDetails(result.error.issues));
+ * }
+ */
+export function zodIssuesToDetails(
+   issues: ZodIssue[]
+): Array<{ field: string; message: string }> {
+   return issues.map(issue => ({
+      field: issue.path.join('.'),
+      message: issue.message,
+   }));
+}
 
 export function sendValidationError(
    res: Response,
@@ -149,16 +189,18 @@ export function sendNotFound(res: Response, resource: string): void {
 
 export function sendUnauthorized(
    res: Response,
-   message = 'Unauthorized access'
+   message = 'Unauthorized access',
+   details?: Array<{ field?: string; message: string }>
 ): void {
-   sendError(res, 401, ErrorCode.UNAUTHORIZED, message);
+   sendError(res, 401, ErrorCode.UNAUTHORIZED, message, details);
 }
 
 export function sendForbidden(
    res: Response,
-   message = 'Access forbidden'
+   message = 'Access forbidden',
+   details?: Array<{ field?: string; message: string }>
 ): void {
-   sendError(res, 403, ErrorCode.FORBIDDEN, message);
+   sendError(res, 403, ErrorCode.FORBIDDEN, message, details);
 }
 
 export function sendConflict(res: Response, message: string): void {

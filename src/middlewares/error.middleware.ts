@@ -1,17 +1,30 @@
-// src/middlewares/error.middleware.ts
 import { NextFunction, Request, Response } from 'express';
 import { envConfig } from '../config';
 import { ErrorRequestHandler } from 'express';
 import chalk from 'chalk';
 import { z } from 'zod';
+import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
+import { logger } from '../utils/logger.utils';
+import { RpcTimeoutError } from '../utils/rpc-timeout.utils';
+import { mapUnknownRouteError } from '../utils/route-error.utils';
+import { buildErrorContext } from '../utils/error-context.utils';
+import { sanitizeLogFieldValue } from '../utils/log-field-sanitizer.utils';
+import { buildErrorResponse, zodIssuesToDetails } from '../utils/api-response.utils';
 
 export class ApiError extends Error {
    statusCode: number;
    isOperational: boolean;
+   errorCode?: ErrorCodeType;
 
-   constructor(statusCode: number, message: string, isOperational = true) {
+   constructor(
+      statusCode: number,
+      message: string,
+      errorCode?: ErrorCodeType,
+      isOperational = true
+   ) {
       super(message);
       this.statusCode = statusCode;
+      this.errorCode = errorCode;
       this.isOperational = isOperational;
       Error.captureStackTrace(this, this.constructor);
    }
@@ -38,6 +51,17 @@ export const temporarilyDisabled = (
    next(error);
 };
 
+const isCreatorListTimeout = (
+   err: unknown,
+   req: Request
+): err is RpcTimeoutError => {
+   return (
+      err instanceof RpcTimeoutError &&
+      req.method === 'GET' &&
+      req.path === '/api/v1/creators'
+   );
+};
+
 // Improved global error handling middleware
 export const errorHandler: ErrorRequestHandler = (
    err: any,
@@ -45,33 +69,70 @@ export const errorHandler: ErrorRequestHandler = (
    res: Response,
    _next: NextFunction
 ): void => {
-   // Log error details
-   console.error('🚨 Error caught by global handler:');
-   console.error('URL:', req.method, req.originalUrl);
-   console.error('Error:', err);
+   // Log a consistent, structured error context (request id + normalized code
+   // together) so failures can be correlated with the response envelope. Stack
+   // traces are only attached in development builds.
+   logger.error(
+      {
+         ...buildErrorContext(err, {
+            requestId: req.requestId,
+            includeStack: envConfig.MODE === 'development',
+         }),
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+      },
+      'Error caught by global handler'
+   );
+
+   if (isCreatorListTimeout(err, req)) {
+      logger.warn({
+         msg: 'Creator list request timed out',
+         requestId: req.requestId,
+         route: `${req.method} ${req.originalUrl}`,
+         queryParams: req.query,
+         elapsedMs: err.timeoutMs,
+         timeoutMs: err.timeoutMs,
+      });
+   }
 
    // Handle Zod validation errors
    if (err instanceof z.ZodError || err.name === 'ZodError') {
-      res.status(400).json({
-         success: false,
-         message: 'Validation failed',
-         errors: err.errors || err.issues,
-      });
+      const issues: z.ZodIssue[] = err.errors ?? err.issues ?? [];
+      res.status(400).json(
+         buildErrorResponse(
+            ErrorCode.VALIDATION_ERROR,
+            'Validation failed',
+            zodIssuesToDetails(issues)
+         )
+      );
       return;
    }
 
    // Handle JWT errors
    if (err.name === 'JsonWebTokenError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: err.message,
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
+         code: ErrorCode.JWT_ERROR,
          message: 'Invalid or expired token',
       });
       return;
    }
 
    if (err.name === 'TokenExpiredError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: 'Token has expired',
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
+         code: ErrorCode.JWT_ERROR,
          message: 'Token has expired',
       });
       return;
@@ -96,6 +157,7 @@ export const errorHandler: ErrorRequestHandler = (
 
       res.status(400).json({
          success: false,
+         code: ErrorCode.PRISMA_ERROR,
          message,
          ...(envConfig.MODE === 'development' && { error: err.message }),
       });
@@ -106,7 +168,28 @@ export const errorHandler: ErrorRequestHandler = (
    if (err instanceof ApiError) {
       res.status(err.statusCode).json({
          success: false,
+         code: err.errorCode || ErrorCode.INTERNAL_ERROR,
          message: err.message,
+      });
+      return;
+   }
+
+   // Handle oversized request payload (413)
+   if (
+      err.type === 'entity.too.large' ||
+      err.status === 413 ||
+      err.statusCode === 413
+   ) {
+      logger.warn({
+         msg: 'Request payload too large',
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         contentLength: req.headers['content-length'],
+         limitBytes: err.limit,
+      });
+      res.status(413).json({
+         success: false,
+         code: ErrorCode.BAD_REQUEST,
+         message: 'Request payload too large',
       });
       return;
    }
@@ -115,6 +198,7 @@ export const errorHandler: ErrorRequestHandler = (
    if (err instanceof SyntaxError && 'body' in err) {
       res.status(400).json({
          success: false,
+         code: ErrorCode.BAD_REQUEST,
          message: 'Invalid JSON format',
       });
       return;
@@ -134,44 +218,37 @@ export const errorHandler: ErrorRequestHandler = (
       `${method === 'GET' ? chalkColor.getReq(method) : chalkColor.postReq(method)} ${protocol}://${hostname}:${envConfig.PORT || 3000}${originalUrl}`
    );
 
-   // Default error response
-   const statusCode = err.statusCode || err.status || 500;
-   const message =
-      envConfig.MODE === 'production'
-         ? 'Internal server error'
-         : err.message || 'Something went wrong!';
-
-   res.status(statusCode).json({
-      success: false,
-      message,
-      ...(envConfig.MODE === 'development' && {
-         stack: err.stack,
-         error: err,
-      }),
+   // Default fallback for unknown errors — delegated to a shared helper so
+   // route-safe envelopes stay consistent and include the request id for
+   // correlation. Known-error branches above handle their own mappings.
+   const { statusCode, body } = mapUnknownRouteError(err, {
+      requestId: req.requestId,
+      includeDebug: envConfig.MODE === 'development',
    });
+   res.status(statusCode).json(body);
 };
 
 // Helper functions for common errors
 export const notFoundError = (resource: string) => {
-   return new ApiError(404, `${resource} not found`);
+   return new ApiError(404, `${resource} not found`, ErrorCode.NOT_FOUND);
 };
 
 export const badRequestError = (message: string) => {
-   return new ApiError(400, message);
+   return new ApiError(400, message, ErrorCode.BAD_REQUEST);
 };
 
 export const unauthorizedError = (message = 'Unauthorized access') => {
-   return new ApiError(401, message);
+   return new ApiError(401, message, ErrorCode.UNAUTHORIZED);
 };
 
 export const forbiddenError = (message = 'Access forbidden') => {
-   return new ApiError(403, message);
+   return new ApiError(403, message, ErrorCode.FORBIDDEN);
 };
 
 export const conflictError = (message: string) => {
-   return new ApiError(409, message);
+   return new ApiError(409, message, ErrorCode.CONFLICT);
 };
 
 export const validationError = (message: string) => {
-   return new ApiError(422, message);
+   return new ApiError(400, message, ErrorCode.VALIDATION_ERROR);
 };

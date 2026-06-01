@@ -9,6 +9,7 @@ model CreatorProfile {
   avatarUrl   String?
   perkSummary String?
   isVerified  Boolean  @default(false)
+  perks       Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

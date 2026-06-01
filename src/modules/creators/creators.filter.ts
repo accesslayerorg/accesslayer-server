@@ -1,6 +1,9 @@
 // src/modules/creators/creators.filter.ts
 // Parser for creator list filter input. Reusable across list handlers.
 
+import { rejectUnknownKeys } from '../../utils/filter-whitelist.utils';
+import { parseBoolean } from '../../utils/parseBoolean.utils';
+
 /**
  * Supported filter keys for creator list requests.
  */
@@ -20,7 +23,7 @@ export interface CreatorFilterInput {
  * Parse and validate raw query filter input for creator list requests.
  *
  * - Accepts only supported filter keys; rejects unknown ones with an error
- * - Coerces `verified` string to boolean
+ * - Parses `verified` using the shared boolean query flag helper
  * - Trims `search` string
  * - Repeated calls with the same input return the same result
  *
@@ -34,33 +37,30 @@ export interface CreatorFilterInput {
  *
  * @example
  * parseCreatorFilters({ unknown: 'value' })
- * // throws Error: Unsupported filter key(s): unknown
+ * // throws Error: Unsupported creator filter key(s): unknown
  */
 export function parseCreatorFilters(
     raw: Record<string, unknown>
 ): CreatorFilterInput {
-    const filterKeys = Object.keys(raw).filter(key =>
-        SUPPORTED_CREATOR_FILTERS.includes(key as CreatorFilterKey)
-    );
-
-    const unsupported = Object.keys(raw).filter(
-        key => !SUPPORTED_CREATOR_FILTERS.includes(key as CreatorFilterKey)
-    );
-
-    if (unsupported.length > 0) {
-        throw new Error(`Unsupported filter key(s): ${unsupported.join(', ')}`);
-    }
+    rejectUnknownKeys(SUPPORTED_CREATOR_FILTERS, raw, 'creator filter');
 
     const result: CreatorFilterInput = {};
 
-    if (filterKeys.includes('verified') && raw.verified !== undefined) {
-        result.verified = raw.verified === 'true' || raw.verified === true;
+    if (raw.verified !== undefined) {
+        const verified = parseBoolean(
+            'verified',
+            raw.verified as string | string[] | boolean | null | undefined
+        );
+
+        if (verified !== null) {
+            result.verified = verified;
+        }
     }
 
-    if (filterKeys.includes('search') && typeof raw.search === 'string') {
-        const trimmed = raw.search.trim();
-        if (trimmed.length > 0) {
-            result.search = trimmed;
+    if (typeof raw.search === 'string') {
+        const normalized = raw.search.trim().replace(/\s+/g, ' ');
+        if (normalized.length > 0) {
+            result.search = normalized;
         }
     }
 

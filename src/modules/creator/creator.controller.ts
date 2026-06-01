@@ -1,93 +1,154 @@
 // src/modules/creator/creator.controller.ts
-import { Request, Response } from 'express';
-import { ZodError } from 'zod';
-import { z } from 'zod';
+import { RequestHandler } from 'express';
+
+// API response helpers
 import {
-   sendPaginatedSuccess,
-   sendSuccess,
-   sendError,
-   sendValidationError,
-   ErrorCode,
+  sendSuccess,
+  sendError,
+  sendValidationError,
+  ErrorCode,
 } from '../../utils/api-response.utils';
+import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { getPaginatedCreators } from './creator.service';
 import { parseCreatorSortOptions } from './creator.utils';
-import { safeIntParam } from '../../utils/query.utils';
-import { mapPublicCreatorStats } from '../creators/creators.stats';
-import {
-   DEFAULT_PAGE,
-   DEFAULT_PAGE_SIZE,
-   MIN_PAGE_SIZE,
-   MAX_PAGE_SIZE,
-} from '../../constants/pagination.constants';
+import { parsePublicQuery } from '../../utils/public-query-parse.utils';
+import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
+import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
+import { warnIfUnrecognizedCreatorListSort } from '../creators/creators.sort-field.utils';
+import { normalizeCreatorListPage } from './creator-list-page.guard';
+import { logCreatorRouteColdStart } from './creator-observability.utils';
+import { logger } from '../../utils/logger.utils';
 
-const LegacyCreatorQuerySchema = z.object({
-   page: safeIntParam({
-      defaultValue: DEFAULT_PAGE,
-      min: MIN_PAGE_SIZE,
-      max: Number.MAX_SAFE_INTEGER,
-      label: 'Page',
-   }),
-   limit: safeIntParam({
-      defaultValue: DEFAULT_PAGE_SIZE,
-      min: MIN_PAGE_SIZE,
-      max: MAX_PAGE_SIZE,
-      label: 'Limit',
-   }),
-   sortBy: z.string().optional(),
-   sortOrder: z.string().optional(),
-});
+// Legacy query schema
+import { LegacyCreatorQuerySchema } from '../creators/creators.schemas';
 
-export async function listCreators(req: Request, res: Response) {
+const ALLOWED_CREATOR_SELECT_FIELDS = [
+  'id',
+  'handle',
+  'displayName',
+  'bio',
+  'avatarUrl',
+  'bannerUrl',
+  'isVerified',
+  'keysSupply',
+  'floorPrice',
+  'createdAt',
+  'updatedAt',
+] as const;
+
+type AllowedCreatorSelectField = (typeof ALLOWED_CREATOR_SELECT_FIELDS)[number];
+
+function parseSelectFields(raw: unknown): string[] {
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return [];
+  }
+
+  return raw
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
+}
+
+function getInvalidSelectFields(fields: string[]): string[] {
+  return fields.filter(
+    (field) =>
+      !ALLOWED_CREATOR_SELECT_FIELDS.includes(field as AllowedCreatorSelectField)
+  );
+}
+
+function pickFields<T extends Record<string, unknown>>(
+  item: T,
+  fields: string[]
+): Partial<T> {
+  if (!fields.length) {
+    return item;
+  }
+
+  return Object.fromEntries(
+    Object.entries(item).filter(([key]) => fields.includes(key))
+  ) as Partial<T>;
+}
+
+// Typed Express handler
+export const listCreators: RequestHandler = async (req, res) => {
    try {
-      const { page, limit, sortBy, sortOrder } = LegacyCreatorQuerySchema.parse(
-         req.query
+      logCreatorRouteColdStart('listCreators', req.requestId);
+
+      // Build request context
+      const ctx = buildCreatorListRequestContext(req);
+
+      warnIfUnrecognizedCreatorListSort(ctx.query, req.requestId);
+
+      // Parse query using legacy schema
+      const parsed = parsePublicQuery(
+         LegacyCreatorQuerySchema,
+         ctx.query,
+         { debugContext: 'legacy-creator-list-query' }
       );
 
-      const sort = parseCreatorSortOptions(sortBy, sortOrder);
+      if (!parsed.ok) {
+         return sendValidationError(
+            res,
+            'Invalid query parameters',
+            parsed.details
+         );
+      }
 
+      const selectedFields = parseSelectFields(ctx.query['select-fields']);
+      const invalidFields = getInvalidSelectFields(selectedFields);
+
+      if (invalidFields.length > 0) {
+         return sendValidationError(res, 'Invalid query parameters', [
+            {
+               field: 'select-fields',
+               message: `Invalid select-fields: ${invalidFields.join(', ')}`,
+            },
+         ]);
+      }
+
+      // Destructure using schema fields
+      const { offset, limit, sort, order: sortOrder } = parsed.data;
+
+      // Convert offset to page number
+      const page = normalizeCreatorListPage(offset);
+
+      // Build sort options
+      const sortOptions = parseCreatorSortOptions(sort, sortOrder);
+
+      // Fetch paginated creators
       const { creators, meta } = await getPaginatedCreators({
          page,
          limit,
-         sort,
+         sort: sortOptions,
       });
 
-      return sendPaginatedSuccess(
+      const response = wrapPublicCreatorListResponse(creators, meta);
+      attachTimestampHeader(res);
+      const filteredItems = Array.isArray(response.items)
+         ? response.items.map((item) =>
+              pickFields(item as Record<string, unknown>, selectedFields)
+           )
+         : response.items;
+
+      return sendSuccess(
          res,
-         creators,
-         meta,
+         {
+            ...response,
+            items: filteredItems,
+         },
          200,
          'Creators retrieved successfully'
       );
    } catch (error) {
-      if (error instanceof ZodError) {
-         const details = error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-         }));
-         return sendValidationError(res, 'Invalid query parameters', details);
-      }
-      console.error('Error listing creators:', error);
-      return sendError(
-         res,
-         500,
-         ErrorCode.INTERNAL_ERROR,
-         'Failed to retrieve creators'
+      logger.error(
+         {
+            type: 'creator_list_handler_error',
+            handler: 'listCreators',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            error,
+         },
+         'Error listing creators'
       );
+      return sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve creators');
    }
-}
-
-export async function getCreatorStats(req: Request, res: Response) {
-   const { id } = req.params;
-
-   // TODO: Replace with real metrics lookup by creator ID
-   const placeholderMetrics = {
-      holderCount: 0,
-      totalSupply: 0,
-      totalVolume: 0,
-      lastActivityAt: undefined,
-   };
-
-   const stats = mapPublicCreatorStats(placeholderMetrics);
-
-   return sendSuccess(res, stats, 200, `Creator ${id} stats retrieved`);
-}
+};

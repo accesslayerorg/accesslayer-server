@@ -1,20 +1,18 @@
 import { Prisma } from '@prisma/client';
+import {
+   CREATOR_LIST_SORT_FIELDS,
+   type CreatorListSortField,
+   type CreatorListSortOrder,
+} from '../../constants/creator-list-sort.constants';
 
 /**
  * Public sort options accepted by creator list endpoints.
  * These remain stable even if the internal query implementation changes.
  */
-export const CREATOR_LIST_SORT_OPTIONS = [
-   'createdAt',
-   'updatedAt',
-   'displayName',
-   'handle',
-] as const;
+export const CREATOR_LIST_SORT_OPTIONS = CREATOR_LIST_SORT_FIELDS;
 
-export const CREATOR_LIST_SORT_ORDERS = ['asc', 'desc'] as const;
-
-export type CreatorListSortOption = (typeof CREATOR_LIST_SORT_OPTIONS)[number];
-export type CreatorListSortOrder = (typeof CREATOR_LIST_SORT_ORDERS)[number];
+export type CreatorListSortOption = CreatorListSortField;
+export { type CreatorListSortOrder };
 
 const CREATOR_LIST_SORT_FIELD_MAP: Record<
    CreatorListSortOption,
@@ -29,6 +27,7 @@ const CREATOR_LIST_SORT_FIELD_MAP: Record<
 /**
  * Map a public sort option into an internal Prisma orderBy object.
  * Throws for unsupported values so invalid sort input is never passed through silently.
+ * Handles null values deterministically by sorting nulls last.
  */
 export function mapCreatorListSort(
    sort: string,
@@ -41,6 +40,6 @@ export function mapCreatorListSort(
    }
 
    return {
-      [field]: order,
+      [field]: { sort: order, nulls: 'last' },
    } as Prisma.CreatorProfileOrderByWithRelationInput;
 }

@@ -10,16 +10,33 @@ import tspecOptions from './tspec.config';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
 import { requestIdMiddleware } from './middlewares/request-id.middleware';
+import { responseTimingMiddleware } from './middlewares/response-timing.middleware';
+import { apiVersionMiddleware } from './middlewares/api-version.middleware';
+import { schemaVersionMiddleware } from './middlewares/schema-version.middleware';
+import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
+import { requestContextMiddleware } from './middlewares/request-context.middleware';
+import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
+import { envConfig } from './config';
 
 const app: Express = express();
 
 // Middleware setup
 app.set('trust proxy', 1);
+app.use(responseTimingMiddleware);
+app.use(requestContextMiddleware);
+app.use(apiVersionMiddleware);
+app.use(schemaVersionMiddleware);
 app.use(requestIdMiddleware);
 app.use(corsMiddleware());
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
-app.use(morgan('combined'));
+app.use(bodyParseErrorMiddleware);
+
+if (!envConfig.ENABLE_REQUEST_LOGGING) {
+   app.use(morgan('combined'));
+}
+
+app.use(requestLoggerMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
 

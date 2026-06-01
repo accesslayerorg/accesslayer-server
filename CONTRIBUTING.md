@@ -5,6 +5,8 @@ Thanks for contributing to the backend for Access Layer, a Stellar-native creato
 ## Before you start
 
 - Read the [README](./README.md) for context.
+- Review the [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md).
+- Review the [Creator Data Model Reference](./docs/architecture/creator-data-model.md) for field types and constraints.
 - Review the scoped backlog in [docs/open-source/issue-backlog.md](./docs/open-source/issue-backlog.md).
 - Keep pull requests limited to one backend issue or one documentation improvement.
 - Open a discussion before changing core API shape or background processing architecture.
@@ -30,6 +32,17 @@ pnpm exec prisma generate
 ```bash
 pnpm dev
 ```
+
+6. (Optional) Seed deterministic local data — three users with wallets and
+   creator profiles, sufficient to exercise list, read, and ownership-gated
+   write flows:
+
+```bash
+pnpm exec ts-node prisma/seed.ts
+```
+
+See [docs/contributor-seed.md](./docs/contributor-seed.md) for the full
+fixture catalogue, reset workflow, and example requests.
 
 ## Verification commands
 

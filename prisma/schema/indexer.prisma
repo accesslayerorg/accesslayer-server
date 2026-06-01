@@ -1,0 +1,33 @@
+// prisma/schema/indexer.prisma
+
+/**
+ * Dead-letter queue (DLQ) for failed indexing jobs.
+ * 
+ * Jobs are moved here after exhausting all retry attempts in the live indexer.
+ * This provides a persistent record of failures that require manual intervention
+ * or architectural fixes before reprocessing.
+ */
+model IndexerDLQ {
+  id            String   @id @default(cuid())
+  
+  // The type of event or job that failed (e.g. "CREATOR_REGISTERED")
+  jobType       String
+  
+  // Original payload or event data that caused the failure
+  payload       Json
+  
+  // Total number of retry attempts before being moved to DLQ
+  retryCount    Int      @default(0)
+  
+  // Human-readable reason for the final failure
+  failureReason String
+  
+  // Optional stack trace or detailed error log
+  errorDetails  String?
+  
+  // When the job was moved to DLQ
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([jobType])
+}

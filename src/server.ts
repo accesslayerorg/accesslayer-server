@@ -1,17 +1,57 @@
+/// <reference types="node" />
 import app from './app';
 
 import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
+import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
+import {
+   IndexerFlagsConfigError,
+   runIndexerFeatureFlagsStartupCheck,
+} from './utils/indexer-flags-startup-check.utils';
+import { checkOptionalDependencies } from './utils/startup.utils';
+import { describeDatabasePoolConfig } from './utils/db-pool-config.utils';
+import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
 
 async function startServer() {
    try {
+      // Validate indexer feature flags before any code paths read them. We
+      // fail fast here so operators see every misconfiguration at once
+      // instead of cryptic runtime errors later in the boot sequence.
+      try {
+         runIndexerFeatureFlagsStartupCheck();
+      } catch (err) {
+         if (err instanceof IndexerFlagsConfigError) {
+            logger.error(
+               { issues: err.issues },
+               'Refusing to start: indexer feature flags are misconfigured'
+            );
+            process.exit(1);
+         }
+         throw err;
+      }
+
       await prisma.$connect();
       logger.info('Connected to database');
 
-      app.listen(envConfig.PORT, () => {
+      // Surface connection-pool settings (no credentials) so connection
+      // exhaustion is diagnosable. Logged before the server accepts requests.
+      logger.info(
+         describeDatabasePoolConfig(),
+         'Database connection pool configured'
+      );
+
+      // Verify migrations on startup
+      await verifyMigrationChecksums();
+
+      // Check and warn about disabled optional dependencies (non-blocking)
+      checkOptionalDependencies();
+
+      const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
       });
+
+      return server;
    } catch (error) {
       console.error('Failed to start server:', error);
       await prisma.$disconnect();
@@ -30,12 +70,41 @@ process.on('unhandledRejection', (reason, promise) => {
    process.exit(1);
 });
 
-process.on('SIGINT', async () => {
-   await prisma.$disconnect();
-   console.log('💾 Database connection closed');
+function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
+   return async () => {
+      stopOwnershipSnapshotCleanupJob();
+      await prisma.$disconnect();
+      console.log('💾 Database connection closed');
 
-   console.log('👋 Shutdown complete');
-   process.exit(0);
+      const DRAIN_WINDOW_MS = 5000;
+      const SHUTDOWN_TIMEOUT_MS = 30000;
+
+      app.use((_req, res, _next) => {
+         res.status(503).json({ error: 'Server is shutting down' });
+      });
+
+      const shutdownTimer = setTimeout(() => {
+         console.error('❌ Shutdown timeout reached, forcing exit');
+         process.exit(1);
+      }, SHUTDOWN_TIMEOUT_MS);
+
+      server.close(async () => {
+         clearTimeout(shutdownTimer);
+         console.log('✅ HTTP server closed, draining requests');
+
+         await new Promise(resolve => setTimeout(resolve, DRAIN_WINDOW_MS));
+
+         await prisma.$disconnect();
+         console.log('💾 Database connection closed');
+
+         console.log('👋 Shutdown complete');
+         process.exit(0);
+      });
+   };
+}
+
+startServer().then(server => {
+   const shutdownHandler = createGracefulShutdownHandler(server);
+   process.on('SIGINT', shutdownHandler);
+   process.on('SIGTERM', shutdownHandler);
 });
-
-startServer();
