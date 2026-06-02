@@ -2,6 +2,7 @@ import { Response } from 'express';
 import {
    sendForbidden,
    sendUnauthorized,
+   sendCreatorParamNotFound,
    buildErrorResponse,
    zodIssuesToDetails,
    ErrorCode,
@@ -17,6 +18,7 @@ describe('api-response.utils', () => {
       jsonMock = jest.fn();
       statusMock = jest.fn().mockReturnValue({ json: jsonMock });
       mockResponse = {
+         setHeader: jest.fn(),
          status: statusMock,
       };
    });
@@ -61,6 +63,21 @@ describe('api-response.utils', () => {
             error: {
                code: ErrorCode.UNAUTHORIZED,
                message: 'Unauthorized access',
+            },
+         });
+      });
+   });
+
+   describe('sendCreatorParamNotFound', () => {
+      it('should send the shared creator parameter not-found response', () => {
+         sendCreatorParamNotFound(mockResponse as Response);
+
+         expect(statusMock).toHaveBeenCalledWith(404);
+         expect(jsonMock).toHaveBeenCalledWith({
+            success: false,
+            error: {
+               code: ErrorCode.NOT_FOUND,
+               message: 'Creator not found',
             },
          });
       });
