@@ -2,7 +2,7 @@ import { AsyncController } from '../../types/auth.types';
 import {
    sendSuccess,
    sendValidationError,
-   sendNotFound,
+   sendCreatorParamNotFound,
    sendForbidden,
 } from '../../utils/api-response.utils';
 import { prisma } from '../../utils/prisma.utils';
@@ -61,7 +61,7 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
       });
 
       if (!creator) {
-         return sendNotFound(res, 'Creator');
+         return sendCreatorParamNotFound(res);
       }
 
       const previousValues = {

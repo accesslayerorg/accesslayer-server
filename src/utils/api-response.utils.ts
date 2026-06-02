@@ -187,6 +187,10 @@ export function sendNotFound(res: Response, resource: string): void {
    sendError(res, 404, ErrorCode.NOT_FOUND, `${resource} not found`);
 }
 
+export function sendCreatorParamNotFound(res: Response): void {
+   sendNotFound(res, 'Creator');
+}
+
 export function sendUnauthorized(
    res: Response,
    message = 'Unauthorized access',
