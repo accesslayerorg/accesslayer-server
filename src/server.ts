@@ -12,7 +12,7 @@ import {
 import { checkOptionalDependencies } from './utils/startup.utils';
 import { describeDatabasePoolConfig } from './utils/db-pool-config.utils';
 import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
-import { maskSensitiveConfigValues } from './utils/config-mask.utils';
+import { buildStartupConfigSummary } from './utils/config-summary.utils';
 
 async function startServer() {
    try {
@@ -42,12 +42,13 @@ async function startServer() {
          'Database connection pool configured'
       );
 
-      // Log startup config summary with sensitive values masked.
-      // See `maskSensitiveConfigValues` in utils/config-mask.utils.ts for
-      // the list of patterns considered sensitive.
+      // Emit a structured summary of the loaded runtime config: environment
+      // context and key feature flags. Values flow through the masking helper,
+      // so no secrets or credentials are logged. See
+      // utils/config-summary.utils.ts for the curated field selection.
       logger.info(
-         maskSensitiveConfigValues(),
-         'Startup configuration summary'
+         buildStartupConfigSummary(),
+         'Loaded runtime configuration summary'
       );
 
       // Verify migrations on startup
