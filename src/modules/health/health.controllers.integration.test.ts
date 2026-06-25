@@ -6,6 +6,7 @@ jest.mock('../../config', () => ({
         MODE: 'production',
         PORT: 3000,
         INDEXER_HEARTBEAT_STALE_THRESHOLD_MS: 300000,
+        DB_QUERY_TIMEOUT_MS: 5000,
     },
     appConfig: {
         allowedOrigins: [],
@@ -163,5 +164,20 @@ describe('healthCheck() — simulated database failure in production mode', () =
         const dbService = res.body.services?.find((s: any) => s.name === 'Database');
         expect(dbService).toBeDefined();
         expect(dbService.status).toBe('unhealthy');
+    });
+
+    it('includes public-safe timeout metadata in detailed health output', async () => {
+        queryRawMock.mockResolvedValue([{ '?column?': 1 }]);
+
+        const res = mockResponse();
+        await healthCheck(mockRequest(), res);
+
+        expect(res.body).toHaveProperty('timeouts');
+        expect(res.body.timeouts).toEqual({
+            database_timeout_ms: 5000,
+            cache_timeout_ms: 300000,
+        });
+        expect(typeof res.body.timeouts.database_timeout_ms).toBe('number');
+        expect(typeof res.body.timeouts.cache_timeout_ms).toBe('number');
     });
 });

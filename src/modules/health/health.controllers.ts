@@ -42,6 +42,11 @@ interface ReadinessCheck {
   error?: string;
 }
 
+interface HealthTimeouts {
+  database_timeout_ms: number;
+  cache_timeout_ms: number;
+}
+
 interface HealthStatus {
   success: boolean;
   message: string;
@@ -57,6 +62,7 @@ interface HealthStatus {
     platform: string;
     nodeVersion: string;
   };
+  timeouts: HealthTimeouts;
   database?: {
     status: 'connected' | 'disconnected';
     responseTime?: number;
@@ -98,6 +104,11 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
 
     const syncStatus = await getChainSyncStatus();
 
+    const healthTimeouts: HealthTimeouts = {
+      database_timeout_ms: envConfig.DB_QUERY_TIMEOUT_MS,
+      cache_timeout_ms: PUBLIC_ENDPOINT_CACHE_SECONDS.short * 1000,
+    };
+
     const healthData: HealthStatus = {
       success: true,
       message: 'Access Layer server is running',
@@ -117,6 +128,7 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
         platform: process.platform,
         nodeVersion: process.version,
       },
+      timeouts: healthTimeouts,
       database: dbStatus,
       syncing: syncStatus || undefined,
       services: [

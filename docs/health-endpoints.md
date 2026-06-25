@@ -70,3 +70,13 @@ Nested grouping follows the same convention:
 - `database`: `status`, `responseTime` (when connected)
 - `syncing`: `status`, `latestIndexedLedger`, `observedHeadLedger`, `syncLagLedgers`
 - `services`: ordered as `API Server`, `Database`, `Chain Sync`
+- `timeouts`: `database_timeout_ms`, `cache_timeout_ms`
+
+### Detailed health fields
+
+The `/api/v1/health/detailed` response also includes an explicit `timeouts` object with public-safe dependency timeout values:
+
+- `database_timeout_ms` (number) — configured database query timeout in milliseconds.
+- `cache_timeout_ms` (number) — configured public cache timeout in milliseconds.
+
+These values are intentionally numeric-only and do not include connection strings, hostnames, credentials, or other internal topology details.
