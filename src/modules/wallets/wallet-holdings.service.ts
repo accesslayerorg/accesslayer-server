@@ -49,33 +49,30 @@ export async function fetchWalletHoldings(
         creatorProfiles.map((c: { id: string; handle: string }) => [c.id, c.handle])
     );
 
-    // Resolve latest price per creator from Activity in one query
-    const recentActivities = await prisma.activity.findMany({
-        where: {
-            creatorId: { in: creatorIds },
-            type: { in: ['KEY_BOUGHT', 'KEY_SOLD'] },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { creatorId: true, payload: true },
+    // Resolve latest price per creator from the price snapshot read model
+    const priceSnapshots = await prisma.creatorPriceSnapshot.findMany({
+        where: { creatorId: { in: creatorIds } },
+        select: { creatorId: true, currentPrice: true },
     });
 
-    // Build a map of creatorId → most recent price_at_trade
-    const priceMap = new Map<string, unknown>();
-    for (const act of recentActivities) {
-        if (!priceMap.has(act.creatorId as string)) {
-            const payload = (act.payload ?? {}) as Record<string, unknown>;
-            priceMap.set(act.creatorId as string, payload.price_at_trade ?? null);
-        }
+    const priceMap = new Map<string, bigint>();
+    for (const snap of priceSnapshots) {
+        priceMap.set(snap.creatorId as string, snap.currentPrice as bigint);
     }
 
     const items: HoldingEntry[] = rows.map((row: { creatorId: string; balance: unknown }) => {
-        const currentPrice = priceMap.get(row.creatorId) ?? null;
+        const rawPrice = priceMap.get(row.creatorId) ?? null;
+        const currentPrice = rawPrice !== null ? rawPrice.toString() : null;
+        const totalValue =
+            rawPrice !== null && row.balance !== null
+                ? (Number(row.balance) * Number(rawPrice)).toString()
+                : null;
         return {
             creator_id: row.creatorId,
             creator_handle: handleMap.get(row.creatorId) ?? null,
             key_count: row.balance,
             current_price: currentPrice,
-            total_value: null,
+            total_value: totalValue,
         };
     });
 

@@ -9,7 +9,7 @@ jest.mock('../../utils/prisma.utils', () => ({
         creatorProfile: {
             findMany: jest.fn(),
         },
-        activity: {
+        creatorPriceSnapshot: {
             findMany: jest.fn(),
         },
     },
@@ -22,7 +22,7 @@ const mockPrisma = prisma as unknown as {
     creatorProfile: {
         findMany: jest.Mock;
     };
-    activity: {
+    creatorPriceSnapshot: {
         findMany: jest.Mock;
     };
 };
@@ -51,15 +51,9 @@ describe('fetchWalletHoldings ownership read model integration', () => {
             { id: 'creator-alpha', handle: 'alpha' },
             { id: 'creator-beta', handle: 'beta' },
         ]);
-        mockPrisma.activity.findMany.mockResolvedValue([
-            {
-                creatorId: 'creator-alpha',
-                payload: { price_at_trade: '10' },
-            },
-            {
-                creatorId: 'creator-beta',
-                payload: { price_at_trade: '4' },
-            },
+        mockPrisma.creatorPriceSnapshot.findMany.mockResolvedValue([
+            { creatorId: 'creator-alpha', currentPrice: BigInt(10) },
+            { creatorId: 'creator-beta', currentPrice: BigInt(4) },
         ]);
     });
 
@@ -80,14 +74,14 @@ describe('fetchWalletHoldings ownership read model integration', () => {
                 creator_handle: 'alpha',
                 key_count: '5',
                 current_price: '10',
-                total_value: null,
+                total_value: '50',
             },
             {
                 creator_id: 'creator-beta',
                 creator_handle: 'beta',
                 key_count: '2.5',
                 current_price: '4',
-                total_value: null,
+                total_value: '10',
             },
         ]);
         expect(items.map((item) => item.creator_id)).not.toContain('creator-zero');
