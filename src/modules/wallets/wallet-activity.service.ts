@@ -76,7 +76,7 @@ export async function fetchWalletActivity(
     });
     const handleMap = new Map(creatorProfiles.map((c: { id: string; handle: string }) => [c.id, c.handle]));
 
-    const items: WalletActivityItem[] = rows.map((row: { type: string; creatorId: string | null; payload: unknown; createdAt: Date }) => {
+    const items: WalletActivityItem[] = rows.map((row: { id: string; type: string; creatorId: string | null; payload: unknown; createdAt: Date }) => {
         const payload = (row.payload ?? {}) as Record<string, any>;
         return {
             id: row.id,
