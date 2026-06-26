@@ -53,6 +53,62 @@ pnpm build
 
 Run `pnpm exec prisma generate` again whenever Prisma schema changes.
 
+## Writing Integration Tests
+
+When adding new endpoints, you must include an integration test that exercises the full request lifecycle against a database.
+
+### Folder Structure and Naming
+Integration tests belong in the `src/__tests__/integration/` directory (for cross-module tests) or adjacent to the controller they test (e.g., `src/modules/creators/creators.integration.test.ts`). They must be suffixed with `.test.ts` or `.integration.test.ts`.
+
+### Seeding the Database
+Use Prisma to seed test fixtures in a `beforeAll` block, and ensure you clean them up in an `afterAll` block to maintain a pristine test environment. Do not rely on external seed scripts for unit or integration tests.
+
+### Minimal Worked Example
+
+```typescript
+import supertest from 'supertest';
+import app from '../../app';
+import { prisma } from '../../utils/prisma.utils';
+
+describe('GET /api/v1/example', () => {
+  beforeAll(async () => {
+    // 1. Seed database with test fixtures
+    await prisma.user.create({
+      data: {
+        id: 'test-user',
+        email: 'test@example.com',
+        passwordHash: 'hash',
+        firstName: 'Test',
+        lastName: 'User'
+      }
+    });
+  });
+
+  afterAll(async () => {
+    // 2. Clean up fixtures
+    await prisma.user.delete({ where: { id: 'test-user' } });
+    await prisma.$disconnect();
+  });
+
+  it('returns 200 and data for an existing record', async () => {
+    // 3. Execute the request
+    const res = await supertest(app).get('/api/v1/example/test-user');
+    
+    // 4. Assert response
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+});
+```
+
+### Running Integration Tests Locally
+To run only the integration tests, you can use jest with a path or name filter:
+```bash
+pnpm test -- src/__tests__/integration
+# or run a specific file
+pnpm test -- creator-holders-404.test.ts
+```
+
 ## Backend contribution rules
 
 - Do not commit secrets, service accounts, or live credentials.

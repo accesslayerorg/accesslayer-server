@@ -65,3 +65,49 @@ export const buildOffsetPaginationMeta = ({
       hasMore: safeOffset + safeLimit < safeTotal,
    };
 };
+
+export type CursorPaginationOptions = {
+   cursor?: any;
+   limit: number;
+};
+
+export type CursorPaginationResult<T> = {
+   data: T[];
+   nextCursor?: any;
+   hasMore: boolean;
+};
+
+/**
+ * Helper for cursor-based pagination.
+ * Appends cursor filtering and limit to a query function.
+ * 
+ * @param query A function that accepts pagination args and executes the DB query
+ * @param options Pagination options containing cursor and limit
+ * @param getCursor Optional function to extract the cursor from the last item. Defaults to extracting the `id` property.
+ */
+export async function paginateQuery<T>(
+   query: (args: { take: number; skip?: number; cursor?: any }) => Promise<T[]>,
+   { cursor, limit }: CursorPaginationOptions,
+   getCursor?: (item: T) => any
+): Promise<CursorPaginationResult<T>> {
+   const take = limit + 1;
+   const args: { take: number; skip?: number; cursor?: any } = { take };
+   
+   if (cursor) {
+      args.cursor = cursor;
+      args.skip = 1;
+   }
+   
+   const results = await query(args);
+   
+   const hasMore = results.length > limit;
+   const data = hasMore ? results.slice(0, limit) : results;
+   
+   let nextCursor = undefined;
+   if (data.length > 0 && hasMore) {
+      const lastItem = data[data.length - 1];
+      nextCursor = getCursor ? getCursor(lastItem) : (lastItem as any).id;
+   }
+   
+   return { data, nextCursor, hasMore };
+}
