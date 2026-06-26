@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
 import * as webhookService from './webhook.service';
+import { logger } from '../../utils/logger.utils';
 
 jest.mock('../../utils/prisma.utils', () => ({
   prisma: {
@@ -272,6 +273,28 @@ describe('dispatchWebhookEvent', () => {
       expect.objectContaining({
         data: expect.objectContaining({ status: 'FAILED' }),
       })
+    );
+
+    expect(logger.warn).toHaveBeenCalledTimes(envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS - 1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        webhook_id: 'wh-1',
+        creator_id: 'creator-1',
+        attempt_number: 2,
+        backoff_delay_ms: 2000,
+        last_error_code: 'Network error',
+      }),
+      'Webhook delivery failed, retrying'
+    );
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        webhook_id: 'wh-1',
+        creator_id: 'creator-1',
+        attempt_number: envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS,
+        last_error_code: 'Network error',
+      }),
+      'Webhook delivery exhausted all retries, flagged as failing'
     );
   });
 });
