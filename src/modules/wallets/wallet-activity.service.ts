@@ -48,7 +48,7 @@ export async function fetchWalletActivity(
             if (decoded && decoded.id) {
                 prismaCursor = { id: decoded.id };
             }
-        } catch (e) {
+        } catch (_e) {
             // Ignore tampered cursor and fall back
         }
     }

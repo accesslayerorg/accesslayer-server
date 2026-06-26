@@ -1,6 +1,6 @@
 import { httpGetWalletActivity } from '../wallet-activity.controllers';
 import * as walletActivityService from '../wallet-activity.service';
-import { encodeCursor, decodeCursor } from '../../../utils/cursor.utils';
+import { encodeCursor } from '../../../utils/cursor.utils';
 import type { ActivityFeedCursorPayload } from '../wallet-activity.service';
 
 function makeReq(params: Record<string, string> = {}, query: Record<string, string> = {}): any {
