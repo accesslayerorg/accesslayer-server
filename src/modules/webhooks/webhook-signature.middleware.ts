@@ -6,6 +6,7 @@ import { ErrorCode } from '../../constants/error.constants';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { createHash } from 'crypto';
+import { parseCreatorId } from '../../utils/creator-id.utils';
 
 export interface WalletSignedRequest extends Request {
   walletAddress?: string;
@@ -72,10 +73,11 @@ export function requireWalletSignature() {
       return;
     }
 
-    const rawCreatorId = req.params.id;
-    const creatorId = Array.isArray(rawCreatorId) ? rawCreatorId[0] : rawCreatorId;
-    if (!creatorId) {
-      sendError(res, 400, ErrorCode.BAD_REQUEST, 'Missing creator ID in path');
+    let creatorId: string;
+    try {
+      creatorId = String(parseCreatorId(req.params.id));
+    } catch {
+      sendError(res, 400, ErrorCode.BAD_REQUEST, 'Creator ID must be a positive integer');
       return;
     }
 

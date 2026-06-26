@@ -12,6 +12,7 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { handleCreatorParamNotFound } from '../creator/creator.utils';
+import { parseCreatorId } from '../../utils/creator-id.utils';
 
 /**
  * Controller for GET /api/v1/creators/:id/holders
@@ -26,8 +27,7 @@ import { handleCreatorParamNotFound } from '../creator/creator.utils';
  */
 export const httpGetCreatorHolders: AsyncController = async (req, res, next) => {
    try {
-      const rawId = req.params['id'];
-      const id = typeof rawId === 'string' ? rawId : String(rawId ?? '');
+      const creatorId = parseCreatorId(req.params.id);
 
       const parsed = parsePublicQuery(CreatorHoldersQuerySchema, req.query, {
          debugContext: 'creator-holders-query',
@@ -37,7 +37,7 @@ export const httpGetCreatorHolders: AsyncController = async (req, res, next) => 
          return sendValidationError(res, 'Invalid query parameters', parsed.details);
       }
 
-      const creator = await findCreatorByIdOrHandle(id);
+      const creator = await findCreatorByIdOrHandle(String(creatorId));
       if (!handleCreatorParamNotFound(res, creator)) return;
 
       const [holders, total] = await fetchCreatorHolders(creator.id, parsed.data);
