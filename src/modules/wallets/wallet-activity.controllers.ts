@@ -36,18 +36,21 @@ export async function httpGetWalletActivity(
             return;
         }
 
-        const [items, total] = await fetchWalletActivity(
+        const [items, total, nextCursor] = await fetchWalletActivity(
             parsedParams.data.address,
             parsedQuery.data
         );
 
         sendSuccess(res, {
             items,
-            meta: buildOffsetPaginationMeta({
-                limit: parsedQuery.data.limit,
-                offset: parsedQuery.data.offset,
-                total,
-            }),
+            meta: {
+                ...buildOffsetPaginationMeta({
+                    limit: parsedQuery.data.limit,
+                    offset: parsedQuery.data.offset,
+                    total,
+                }),
+                nextCursor,
+            },
         });
     } catch (error) {
         next(error);
