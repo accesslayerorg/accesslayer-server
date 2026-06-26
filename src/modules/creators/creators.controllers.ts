@@ -102,7 +102,8 @@ function categorizeParseError(
  */
 export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
    try {
-      const _creatorId = parseCreatorId(req.params.id);
+      const rawId = req.params.id;
+      const _creatorId = parseCreatorId(Array.isArray(rawId) ? rawId[0] : rawId);
 
       // TODO: Fetch actual creator metrics from database/service using _creatorId
       // For now, return placeholder data

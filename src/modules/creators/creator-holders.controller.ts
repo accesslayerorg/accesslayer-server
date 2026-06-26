@@ -27,7 +27,8 @@ import { parseCreatorId } from '../../utils/creator-id.utils';
  */
 export const httpGetCreatorHolders: AsyncController = async (req, res, next) => {
    try {
-      const creatorId = parseCreatorId(req.params.id);
+      const rawId = req.params.id;
+      const creatorId = parseCreatorId(Array.isArray(rawId) ? rawId[0] : rawId);
 
       const parsed = parsePublicQuery(CreatorHoldersQuerySchema, req.query, {
          debugContext: 'creator-holders-query',

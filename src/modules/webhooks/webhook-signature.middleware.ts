@@ -75,7 +75,8 @@ export function requireWalletSignature() {
 
     let creatorId: string;
     try {
-      creatorId = String(parseCreatorId(req.params.id));
+      const rawId = req.params.id;
+      creatorId = String(parseCreatorId(Array.isArray(rawId) ? rawId[0] : rawId));
     } catch {
       sendError(res, 400, ErrorCode.BAD_REQUEST, 'Creator ID must be a positive integer');
       return;
