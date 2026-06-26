@@ -28,6 +28,16 @@ function makeNext(): jest.Mock {
     return jest.fn();
 }
 
+function assertInvalidAddress(res: any, serviceSpy: jest.SpyInstance): void {
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = res.json.mock.calls[0][0];
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    const details: Array<{ field?: string; message: string }> = body.error.details ?? [];
+    expect(details.some(d => d.field === 'address')).toBe(true);
+    expect(serviceSpy).not.toHaveBeenCalled();
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('GET /wallets/:address/holdings', () => {
@@ -37,115 +47,40 @@ describe('GET /wallets/:address/holdings', () => {
 
     // ── Malformed address: too short ──────────────────────────────────────────
 
-    it('returns 400 for an address that is too short', async () => {
+    it('returns 400, identifies address field, and skips DB for an address that is too short', async () => {
         const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
 
         const req = makeReq({ address: 'GSHORT' });
         const res = makeRes();
         await httpGetWalletHoldings(req, res, makeNext());
 
-        expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    it('identifies the address field in the error body when address is too short', async () => {
-        const req = makeReq({ address: 'GSHORT' });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        const body = res.json.mock.calls[0][0];
-        expect(body.success).toBe(false);
-        expect(body.error.code).toBe('VALIDATION_ERROR');
-        const details: Array<{ field?: string; message: string }> = body.error.details ?? [];
-        expect(details.some(d => d.field === 'address')).toBe(true);
-    });
-
-    it('does not query the database when address is too short', async () => {
-        const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
-
-        const req = makeReq({ address: 'GSHORT' });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        expect(serviceSpy).not.toHaveBeenCalled();
+        assertInvalidAddress(res, serviceSpy);
     });
 
     // ── Malformed address: wrong prefix ───────────────────────────────────────
 
-    it('returns 400 for an address with the wrong prefix', async () => {
+    it('returns 400, identifies address field, and skips DB for an address with the wrong prefix', async () => {
         // Valid length and Base32 chars but starts with 'A' instead of 'G'
-        const wrongPrefix = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
         const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
 
-        const req = makeReq({ address: wrongPrefix });
+        const req = makeReq({ address: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
         const res = makeRes();
         await httpGetWalletHoldings(req, res, makeNext());
 
-        expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    it('identifies the address field in the error body for a wrong-prefix address', async () => {
-        const wrongPrefix = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-
-        const req = makeReq({ address: wrongPrefix });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        const body = res.json.mock.calls[0][0];
-        expect(body.success).toBe(false);
-        expect(body.error.code).toBe('VALIDATION_ERROR');
-        const details: Array<{ field?: string; message: string }> = body.error.details ?? [];
-        expect(details.some(d => d.field === 'address')).toBe(true);
-    });
-
-    it('does not query the database when address has the wrong prefix', async () => {
-        const wrongPrefix = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-        const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
-
-        const req = makeReq({ address: wrongPrefix });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        expect(serviceSpy).not.toHaveBeenCalled();
+        assertInvalidAddress(res, serviceSpy);
     });
 
     // ── Malformed address: invalid characters ─────────────────────────────────
 
-    it('returns 400 for an address containing invalid characters', async () => {
-        // Stellar Base32 allows only A-Z and 2-7; digits 0, 1, 8, 9 and
-        // lowercase letters are all illegal
-        const invalidChars = 'G000000000000000000000000000000000000000000000000000000';
+    it('returns 400, identifies address field, and skips DB for an address with invalid characters', async () => {
+        // Stellar Base32 allows only A-Z and 2-7; digit '0' is illegal
         const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
 
-        const req = makeReq({ address: invalidChars });
+        const req = makeReq({ address: 'G000000000000000000000000000000000000000000000000000000' });
         const res = makeRes();
         await httpGetWalletHoldings(req, res, makeNext());
 
-        expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    it('identifies the address field in the error body for an address with invalid characters', async () => {
-        const invalidChars = 'G000000000000000000000000000000000000000000000000000000';
-
-        const req = makeReq({ address: invalidChars });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        const body = res.json.mock.calls[0][0];
-        expect(body.success).toBe(false);
-        expect(body.error.code).toBe('VALIDATION_ERROR');
-        const details: Array<{ field?: string; message: string }> = body.error.details ?? [];
-        expect(details.some(d => d.field === 'address')).toBe(true);
-    });
-
-    it('does not query the database when address contains invalid characters', async () => {
-        const invalidChars = 'G000000000000000000000000000000000000000000000000000000';
-        const serviceSpy = jest.spyOn(walletHoldingsService, 'fetchWalletHoldings');
-
-        const req = makeReq({ address: invalidChars });
-        const res = makeRes();
-        await httpGetWalletHoldings(req, res, makeNext());
-
-        expect(serviceSpy).not.toHaveBeenCalled();
+        assertInvalidAddress(res, serviceSpy);
     });
 
     // ── Valid address: service is called ──────────────────────────────────────
