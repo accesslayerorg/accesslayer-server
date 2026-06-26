@@ -58,3 +58,21 @@ export function sanitizeBigInts(value: unknown): unknown {
    }
    return value;
 }
+
+/**
+ * Recursively converts BigInt values to strings in objects, arrays, and
+ * primitives. Safe to call on any value before passing it to the response
+ * serializer, so XLM amounts and ledger sequences never trigger a
+ * `TypeError: Do not know how to serialize a BigInt` at the response layer.
+ *
+ * Alias for `sanitizeBigInts` — prefer this name in response/serializer paths.
+ *
+ * @example
+ * serializeBigInt(9007199254740993n);           // → "9007199254740993"
+ * serializeBigInt({ amount: 1000n, label: 'x' }); // → { amount: "1000", label: "x" }
+ * serializeBigInt([1n, 2n]);                    // → ["1", "2"]
+ * serializeBigInt(42);                          // → 42  (unchanged)
+ */
+export function serializeBigInt(value: unknown): unknown {
+   return sanitizeBigInts(value);
+}

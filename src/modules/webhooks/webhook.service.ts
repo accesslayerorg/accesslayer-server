@@ -24,7 +24,7 @@ export async function createWebhook(
       new Error(
         `Maximum of ${envConfig.WEBHOOK_MAX_PER_CREATOR} active webhooks per creator reached`
       ),
-      { statusCode: 409, code: 'MAX_WEBHOOKS_REACHED' }
+      { statusCode: 422, code: 'MAX_WEBHOOKS_REACHED' }
     );
   }
 
