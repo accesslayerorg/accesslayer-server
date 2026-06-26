@@ -140,7 +140,7 @@ describe('POST /api/v1/creators/:id/webhooks', () => {
       .set(authHeaders('POST', basePath, creatorId))
       .send({ callback_url: 'https://example.com/too-many', events: ['buy'] });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('MAX_WEBHOOKS_REACHED');
   });
 });

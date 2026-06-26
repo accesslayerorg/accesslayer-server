@@ -11,6 +11,8 @@ export interface TradeEventPayload {
   price: bigint;
   /** ISO timestamp of the trade */
   tradeAt: Date;
+  /** Ledger sequence number of the trade event */
+  ledgerSequence?: number;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface TradeEventPayload {
  * Idempotent: re-processing the same event produces the same state.
  */
 export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<void> {
-  const { creatorId, price, tradeAt } = event;
+  const { creatorId, price, tradeAt, ledgerSequence = null } = event;
 
   try {
     const existing = await prisma.creatorPriceSnapshot.findUnique({
@@ -40,6 +42,16 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
           lastTradeAt: tradeAt,
         },
       });
+      logger.debug(
+        {
+          creator_id: creatorId,
+          new_price: price.toString(),
+          previous_price: null,
+          ledger_sequence: ledgerSequence,
+          written_at: new Date().toISOString(),
+        },
+        'price-snapshot: written (initial)'
+      );
       return;
     }
 
@@ -49,6 +61,11 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
         { creatorId, tradeAt, lastTradeAt: existing.lastTradeAt },
         'price-snapshot: skipping stale event (idempotency guard)'
       );
+      return;
+    }
+
+    // Idempotency: skip write when the price is unchanged.
+    if (existing.currentPrice === price) {
       return;
     }
 
@@ -65,6 +82,17 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
         lastTradeAt: tradeAt,
       },
     });
+
+    logger.debug(
+      {
+        creator_id: creatorId,
+        new_price: price.toString(),
+        previous_price: existing.currentPrice.toString(),
+        ledger_sequence: ledgerSequence,
+        written_at: new Date().toISOString(),
+      },
+      'price-snapshot: written'
+    );
   } catch (err) {
     logger.error({ err, creatorId }, 'price-snapshot: failed to upsert');
     throw err;

@@ -15,4 +15,11 @@ pr.md
 CLAUDE.md
 plan.md
 
-....
+# Generated / temporary / snapshot files
+*.snap
+*.test-snapshot
+__snapshots__/
+*.tmp
+*.temp
+generated/
+prisma/generated/
