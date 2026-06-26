@@ -151,7 +151,13 @@ async function attemptDelivery(
     if (attempt < maxAttempts) {
       const delay = Math.pow(2, attempt) * 1000;
       logger.warn(
-        { webhookId, attempt, maxAttempts, nextRetryMs: delay, error: errMsg },
+        {
+          webhook_id: webhookId,
+          creator_id: payload.creator_id,
+          attempt_number: attempt + 1,
+          backoff_delay_ms: delay,
+          last_error_code: errMsg,
+        },
         'Webhook delivery failed, retrying'
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -169,7 +175,12 @@ async function attemptDelivery(
     });
 
     logger.error(
-      { webhookId, attempt, maxAttempts, error: errMsg },
+      {
+        webhook_id: webhookId,
+        creator_id: payload.creator_id,
+        attempt_number: attempt,
+        last_error_code: errMsg,
+      },
       'Webhook delivery exhausted all retries, flagged as failing'
     );
   }
