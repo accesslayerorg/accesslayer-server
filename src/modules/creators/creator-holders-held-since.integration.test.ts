@@ -59,7 +59,7 @@ describe('GET /creators/:id/holders — held_since per wallet (#493)', () => {
     jest.restoreAllMocks();
   });
 
-  it('each holder's held_since matches their first-buy timestamp', async () => {
+  it('each holder held_since matches their first-buy timestamp', async () => {
     jest
       .spyOn(holdersService, 'fetchCreatorHolders')
       .mockResolvedValue([[HOLDER_A, HOLDER_B, HOLDER_C], 3]);
