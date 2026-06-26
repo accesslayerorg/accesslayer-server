@@ -180,4 +180,41 @@ describe('price alert movement integration', () => {
         expect(JSON.stringify(mockLogger.error.mock.calls)).not.toContain('/private/price-alert');
         expect(mockPrisma.priceAlert.update).not.toHaveBeenCalled();
     });
+
+    it('logs a structured error with all fields when the database query fails', async () => {
+        const dbError = new Error('connection refused');
+        mockPrisma.priceAlert.findMany.mockRejectedValue(dbError);
+
+        await expect(
+            evaluatePriceAlertsForMovement({
+                creatorId: 'creator-1',
+                previousPrice: 90,
+                currentPrice: 110,
+                ledger_sequence: 42,
+            })
+        ).rejects.toThrow('connection refused');
+
+        expect(mockLogger.error).toHaveBeenCalledWith(
+            {
+                creator_id: 'creator-1',
+                ledger_sequence: 42,
+                new_price: 110,
+                error_message: 'connection refused',
+                failed_at: expect.any(String),
+            },
+            'Price alert threshold check failed'
+        );
+    });
+
+    it('does not log alert threshold failure when the check succeeds', async () => {
+        mockPrisma.priceAlert.findMany.mockResolvedValue([]);
+
+        await evaluatePriceAlertsForMovement({
+            creatorId: 'creator-1',
+            previousPrice: 90,
+            currentPrice: 110,
+        });
+
+        expect(mockLogger.error).not.toHaveBeenCalled();
+    });
 });

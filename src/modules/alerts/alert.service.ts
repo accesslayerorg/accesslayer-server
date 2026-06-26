@@ -7,6 +7,7 @@ export type PriceMovement = {
     creatorId: string;
     previousPrice: number | string;
     currentPrice: number | string;
+    ledger_sequence?: number;
 };
 
 /**
@@ -131,48 +132,62 @@ async function deliverPriceAlertWebhook(
 export async function evaluatePriceAlertsForMovement(
     movement: PriceMovement
 ): Promise<void> {
-    const previousPrice = toNumber(movement.previousPrice);
-    const currentPrice = toNumber(movement.currentPrice);
+    try {
+        const previousPrice = toNumber(movement.previousPrice);
+        const currentPrice = toNumber(movement.currentPrice);
 
-    const alerts = await prisma.priceAlert.findMany({
-        where: {
-            creatorId: movement.creatorId,
-            isActive: true,
-            triggeredAt: null,
-        },
-    });
-
-    for (const alert of alerts) {
-        const targetPrice = toNumber(alert.targetPrice);
-        const crossedAbove =
-            alert.direction === 'above' &&
-            previousPrice < targetPrice &&
-            currentPrice >= targetPrice;
-        const crossedBelow =
-            alert.direction === 'below' &&
-            previousPrice > targetPrice &&
-            currentPrice <= targetPrice;
-
-        if (!crossedAbove && !crossedBelow) {
-            continue;
-        }
-
-        await deliverPriceAlertWebhook(alert, {
-            event_type: 'price_alert',
-            alert_id: alert.id,
-            creator_id: alert.creatorId,
-            wallet_address: alert.walletAddress,
-            target_price: targetPrice,
-            current_price: currentPrice,
-            direction: alert.direction,
-        });
-
-        await prisma.priceAlert.update({
-            where: { id: alert.id },
-            data: {
-                isActive: false,
-                triggeredAt: new Date(),
+        const alerts = await prisma.priceAlert.findMany({
+            where: {
+                creatorId: movement.creatorId,
+                isActive: true,
+                triggeredAt: null,
             },
         });
+
+        for (const alert of alerts) {
+            const targetPrice = toNumber(alert.targetPrice);
+            const crossedAbove =
+                alert.direction === 'above' &&
+                previousPrice < targetPrice &&
+                currentPrice >= targetPrice;
+            const crossedBelow =
+                alert.direction === 'below' &&
+                previousPrice > targetPrice &&
+                currentPrice <= targetPrice;
+
+            if (!crossedAbove && !crossedBelow) {
+                continue;
+            }
+
+            await deliverPriceAlertWebhook(alert, {
+                event_type: 'price_alert',
+                alert_id: alert.id,
+                creator_id: alert.creatorId,
+                wallet_address: alert.walletAddress,
+                target_price: targetPrice,
+                current_price: currentPrice,
+                direction: alert.direction,
+            });
+
+            await prisma.priceAlert.update({
+                where: { id: alert.id },
+                data: {
+                    isActive: false,
+                    triggeredAt: new Date(),
+                },
+            });
+        }
+    } catch (err) {
+        logger.error(
+            {
+                creator_id: movement.creatorId,
+                ledger_sequence: movement.ledger_sequence,
+                new_price: movement.currentPrice,
+                error_message: err instanceof Error ? err.message : 'Unknown error',
+                failed_at: new Date().toISOString(),
+            },
+            'Price alert threshold check failed'
+        );
+        throw err;
     }
 }
