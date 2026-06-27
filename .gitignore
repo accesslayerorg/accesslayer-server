@@ -26,4 +26,5 @@ coverage/
 # TypeScript build info
 *.tsbuildinfo
 
-....
+# Lock files — project uses pnpm; npm lock file is not committed
+package-lock.json

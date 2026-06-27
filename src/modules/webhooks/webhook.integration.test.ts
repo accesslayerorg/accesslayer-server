@@ -122,26 +122,38 @@ describe('POST /api/v1/creators/:id/webhooks', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 409 when max webhooks reached', async () => {
+  it('returns 422 when max webhooks reached', async () => {
     const existingCount = await prisma.webhook.count({
       where: { creatorId, isActive: true },
     });
 
     const remaining = envConfig.WEBHOOK_MAX_PER_CREATOR - existingCount;
     for (let i = 0; i < remaining; i++) {
-      await supertest(app)
+      const res = await supertest(app)
         .post(basePath)
         .set(authHeaders('POST', basePath, creatorId))
         .send({ callback_url: `https://example.com/hook-${i}`, events: ['buy'] });
+      expect(res.status).toBe(201);
     }
+
+    const countAtLimit = await prisma.webhook.count({
+      where: { creatorId, isActive: true },
+    });
+    expect(countAtLimit).toBe(envConfig.WEBHOOK_MAX_PER_CREATOR);
 
     const res = await supertest(app)
       .post(basePath)
       .set(authHeaders('POST', basePath, creatorId))
       .send({ callback_url: 'https://example.com/too-many', events: ['buy'] });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('MAX_WEBHOOKS_REACHED');
+    expect(res.body.error.message).toMatch(/maximum/i);
+
+    const countAfter = await prisma.webhook.count({
+      where: { creatorId, isActive: true },
+    });
+    expect(countAfter).toBe(envConfig.WEBHOOK_MAX_PER_CREATOR);
   });
 });
 
