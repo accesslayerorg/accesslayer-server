@@ -15,4 +15,15 @@ pr.md
 CLAUDE.md
 plan.md
 
+# Test snapshots
+**/__snapshots__/
+*.snap
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# TypeScript build info
+*.tsbuildinfo
+
 ....
