@@ -124,7 +124,8 @@ describe('#419 min_price and max_price filtering', () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    expect(res.body.error.message).toContain('minPrice');
+    expect(res.body.error.message).toBe('Invalid query parameters');
+    expect(res.body.error.details[0].field).toBe('minPrice');
   });
 
   it('combines correctly with sort and pagination', async () => {
