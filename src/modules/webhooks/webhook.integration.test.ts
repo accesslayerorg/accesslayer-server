@@ -177,8 +177,7 @@ describe('DELETE /api/v1/creators/:id/webhooks/:webhookId', () => {
       .delete(`/api/v1/creators/${creatorId}/webhooks/${webhookId}`)
       .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/${webhookId}`, creatorId));
 
-    expect(deleteRes.status).toBe(200);
-    expect(deleteRes.body.success).toBe(true);
+    expect(deleteRes.status).toBe(204);
 
     const verifyRes = await supertest(app)
       .get(`/api/v1/creators/${creatorId}/webhooks`)
@@ -194,6 +193,48 @@ describe('DELETE /api/v1/creators/:id/webhooks/:webhookId', () => {
       .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/non-existent-id`, creatorId));
 
     expect(res.status).toBe(404);
+  });
+
+  it('stops future deliveries when a webhook is deleted (#506)', async () => {
+    // Register a webhook and confirm it exists
+    const webhook = await prisma.webhook.create({
+      data: {
+        id: 'webhook-deletion-test-506',
+        creatorId,
+        callbackUrl: 'https://example.com/deleted-hook',
+        events: { set: ['BUY', 'SELL'] },
+      },
+    });
+
+    // Delete the webhook and assert the response is 204
+    const deleteRes = await supertest(app)
+      .delete(`/api/v1/creators/${creatorId}/webhooks/${webhook.id}`)
+      .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/${webhook.id}`, creatorId));
+
+    expect(deleteRes.status).toBe(204);
+
+    // Webhook record no longer exists after deletion
+    const deletedWebhook = await prisma.webhook.findUnique({ where: { id: webhook.id } });
+    expect(deletedWebhook).toBeNull();
+
+    // Simulate a trade event after deletion
+    const { dispatchWebhookEvent } = await import('./webhook.service');
+    await dispatchWebhookEvent({
+      type: 'buy',
+      creatorId,
+      buyerOrSellerAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      amount: '100',
+      price: '10.5',
+      feePaid: '0.5',
+      timestamp: new Date().toISOString(),
+    });
+
+    // Assert no delivery attempt was made for the deleted webhook
+    const events = await prisma.webhookEvent.findMany({
+      where: { webhookId: webhook.id },
+    });
+
+    expect(events.length).toBe(0);
   });
 });
 
