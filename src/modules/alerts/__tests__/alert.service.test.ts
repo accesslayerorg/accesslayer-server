@@ -5,6 +5,7 @@
 
 import { createAlert, listAlerts, deleteAlert } from '../alert.service';
 import { prisma } from '../../../utils/prisma.utils';
+import { logger } from '../../../utils/logger.utils';
 
 jest.mock('../../../utils/prisma.utils', () => ({
     prisma: {
@@ -15,6 +16,10 @@ jest.mock('../../../utils/prisma.utils', () => ({
             delete: jest.fn(),
         },
     },
+}));
+
+jest.mock('../../../utils/logger.utils', () => ({
+    logger: { info: jest.fn() },
 }));
 
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
@@ -59,6 +64,19 @@ describe('createAlert', () => {
             },
         });
         expect(result).toEqual(DB_ALERT);
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                alert_id: DB_ALERT.id,
+                creator_id: DB_ALERT.creatorId,
+                direction: DB_ALERT.direction,
+                target_price: DB_ALERT.targetPrice,
+                registered_at: DB_ALERT.createdAt,
+                wallet_address: 'GAAA***AAAA',
+            }),
+            'Price alert registered'
+        );
+        expect((logger.info as jest.Mock).mock.calls[0][0]).not.toHaveProperty('callback_url');
     });
 
     it('creates a below-direction alert', async () => {
@@ -114,6 +132,17 @@ describe('deleteAlert', () => {
             where: { id: 'alert-1' },
         });
         expect(result).toEqual({ id: 'alert-1' });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                alert_id: DB_ALERT.id,
+                creator_id: DB_ALERT.creatorId,
+                cancelled_at: expect.any(Date),
+                wallet_address: 'GAAA***AAAA',
+            }),
+            'Price alert cancelled'
+        );
+        expect((logger.info as jest.Mock).mock.calls[0][0]).not.toHaveProperty('callback_url');
     });
 
     it('returns null when the alert is not found', async () => {
