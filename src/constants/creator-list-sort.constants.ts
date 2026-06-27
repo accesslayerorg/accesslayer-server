@@ -7,6 +7,7 @@ export const CREATOR_LIST_SORT_FIELDS = [
    'updatedAt',
    'displayName',
    'handle',
+   'price',
 ] as const;
 
 export type CreatorListSortField = (typeof CREATOR_LIST_SORT_FIELDS)[number];

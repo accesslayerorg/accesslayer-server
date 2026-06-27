@@ -15,4 +15,16 @@ pr.md
 CLAUDE.md
 plan.md
 
-....
+# Test snapshots
+**/__snapshots__/
+*.snap
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Lock files — project uses pnpm; npm lock file is not committed
+package-lock.json

@@ -6,6 +6,7 @@ import {
 } from './creator-profile.schemas';
 import { CREATOR_DETAIL_DEFAULT_SELECT } from '../../constants/creator-detail-include.constants';
 import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
+import { compute24hPriceChange } from '../../utils/price.utils';
 import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
 import { truncateString } from '../../utils/string-truncate.utils';
 
@@ -108,10 +109,8 @@ export async function getCreatorProfile(
    } | null;
 
    let priceChange24h: number | null = null;
-   if (snapshot && snapshot.price24hAgo !== BigInt(0)) {
-      const change = Number(snapshot.currentPrice - snapshot.price24hAgo);
-      const base = Number(snapshot.price24hAgo);
-      priceChange24h = parseFloat(((change / base) * 100).toFixed(2));
+   if (snapshot) {
+      priceChange24h = compute24hPriceChange(snapshot.currentPrice, snapshot.price24hAgo);
    }
 
    return {
