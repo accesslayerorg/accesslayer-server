@@ -118,10 +118,10 @@ describe('Holdings total_value recalculated after price snapshot update', () => 
         const [items, total] = await fetchWalletHoldings(WALLET_ADDRESS);
 
         expect(total).toBe(2);
-        expect(items[0].current_price).toBe('100');
-        expect(items[0].total_value).toBe('300');
-        expect(items[1].current_price).toBe('200');
-        expect(items[1].total_value).toBe('400');
+        expect(items[0].current_price).toBe('200');
+        expect(items[0].total_value).toBe('400');
+        expect(items[1].current_price).toBe('100');
+        expect(items[1].total_value).toBe('300');
     });
 
     it('total_value for each holding updates independently when snapshot changes', async () => {
@@ -156,9 +156,9 @@ describe('Holdings total_value recalculated after price snapshot update', () => 
         ]);
         const [after] = await fetchWalletHoldings(WALLET_ADDRESS);
 
-        expect(before[0].total_value).toBe('300');
+        expect(before[1].total_value).toBe('300');
         expect(after[0].total_value).toBe('450');
-        expect(before[1].total_value).toBe(after[1].total_value);
+        expect(before[0].total_value).toBe(after[1].total_value);
     });
 
     it('returns empty items for a wallet with no holdings', async () => {
