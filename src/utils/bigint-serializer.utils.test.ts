@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { bigIntReplacer, safeJsonStringify, sanitizeBigInts } from './bigint-serializer.utils';
+import { bigIntReplacer, safeJsonStringify, sanitizeBigInts, serializeBigInt } from './bigint-serializer.utils';
 
 function run() {
    // bigIntReplacer converts BigInt to string
@@ -35,6 +35,21 @@ function run() {
    // sanitizeBigInts – non-BigInt primitives pass through
    assert.equal(sanitizeBigInts(42), 42);
    assert.equal(sanitizeBigInts('str'), 'str');
+
+   // serializeBigInt – top-level BigInt converts to string
+   assert.equal(serializeBigInt(9007199254740993n), '9007199254740993');
+
+   // serializeBigInt – nested BigInt in object converts correctly
+   const serializedObj = serializeBigInt({ id: 1n, nested: { amount: 500n }, label: 'ok' });
+   assert.deepEqual(serializedObj, { id: '1', nested: { amount: '500' }, label: 'ok' });
+
+   // serializeBigInt – BigInt inside an array converts correctly
+   assert.deepEqual(serializeBigInt([1n, 2n, 3n]), ['1', '2', '3']);
+
+   // serializeBigInt – non-BigInt values pass through unchanged
+   assert.equal(serializeBigInt(42), 42);
+   assert.equal(serializeBigInt('hello'), 'hello');
+   assert.deepEqual(serializeBigInt({ x: 1, y: 'str' }), { x: 1, y: 'str' });
 
    console.log('bigint-serializer.utils tests passed');
 }

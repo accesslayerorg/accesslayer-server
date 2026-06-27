@@ -83,7 +83,7 @@ export async function deleteWebhookHandler(
       sendNotFound(res, 'Webhook');
       return;
     }
-    sendSuccess(res, result, 200, 'Webhook deleted successfully');
+    res.status(204).end();
   } catch {
     sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to delete webhook');
   }

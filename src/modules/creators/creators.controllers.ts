@@ -20,6 +20,7 @@ import {
    incrementFilterParseError,
    type FilterParseErrorCategory,
 } from '../../utils/filter-parse-metrics.utils';
+import { parseCreatorId } from '../../utils/creator-id.utils';
 
 /**
  * Controller for GET /api/v1/creators
@@ -101,16 +102,10 @@ function categorizeParseError(
  */
 export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
    try {
-      const { id } = req.params;
+      const rawId = req.params.id;
+      const _creatorId = parseCreatorId(Array.isArray(rawId) ? rawId[0] : rawId);
 
-      // Validate creator ID format (basic validation)
-      if (!id || typeof id !== 'string') {
-         return sendValidationError(res, 'Invalid creator ID', [
-            { field: 'id', message: 'Creator ID must be a valid string' },
-         ]);
-      }
-
-      // TODO: Fetch actual creator metrics from database/service
+      // TODO: Fetch actual creator metrics from database/service using _creatorId
       // For now, return placeholder data
       const placeholderMetrics = {
          holderCount: 0,
