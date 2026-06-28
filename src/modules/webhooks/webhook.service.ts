@@ -1,6 +1,8 @@
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
+import { maskWebhookUrl } from '../../utils/webhook-mask.utils';
+import { buildWebhookPayload } from './webhook-payload.utils';
 import type { CreateWebhookInput, TradeEvent, WebhookEventPayload, WebhookEventName } from './webhook.types';
 
 function normalizeEvents(events: string[]): ('BUY' | 'SELL')[] {
@@ -38,6 +40,11 @@ export async function createWebhook(
     },
   });
 
+  logger.info(
+    { creator_id: creatorId, webhook_id: webhook.id, event_types: input.events, registered_at: webhook.createdAt.toISOString() },
+    'Webhook registered'
+  );
+
   return {
     ...webhook,
     events: denormalizeEvents(webhook.events as ('BUY' | 'SELL')[]),
@@ -66,6 +73,12 @@ export async function deleteWebhook(webhookId: string, creatorId: string) {
   }
 
   await prisma.webhook.delete({ where: { id: webhookId } });
+
+  logger.info(
+    { creator_id: creatorId, webhook_id: webhookId, deleted_at: new Date().toISOString() },
+    'Webhook deleted'
+  );
+
   return { id: webhookId };
 }
 
@@ -85,15 +98,7 @@ export async function dispatchWebhookEvent(tradeEvent: TradeEvent) {
   if (webhooks.length === 0) return;
 
   for (const webhook of webhooks) {
-    const payload: WebhookEventPayload = {
-      event_type: tradeEvent.type,
-      creator_id: tradeEvent.creatorId,
-      buyer_or_seller_address: tradeEvent.buyerOrSellerAddress,
-      amount: tradeEvent.amount,
-      price: tradeEvent.price,
-      fee_paid: tradeEvent.feePaid,
-      timestamp: tradeEvent.timestamp,
-    };
+    const payload: WebhookEventPayload = buildWebhookPayload(tradeEvent);
 
     await prisma.webhookEvent.create({
       data: {
