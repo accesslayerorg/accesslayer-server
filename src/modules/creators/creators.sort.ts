@@ -50,6 +50,6 @@ export function mapCreatorListSort(
    }
 
    return {
-      [field]: { sort: order, nulls: 'last' },
+      [field]: order,
    } as Prisma.CreatorProfileOrderByWithRelationInput;
 }

@@ -76,5 +76,12 @@ export async function fetchWalletHoldings(
         };
     });
 
+    // Default sort order is by total holding value descending.
+    items.sort((a, b) => {
+        const valA = a.total_value !== null ? Number(a.total_value) : 0;
+        const valB = b.total_value !== null ? Number(b.total_value) : 0;
+        return valB - valA;
+    });
+
     return [items, total];
 }
