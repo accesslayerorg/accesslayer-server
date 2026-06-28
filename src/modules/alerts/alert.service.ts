@@ -1,245 +1,229 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
-import { envConfig } from '../../config';
 import { logger } from '../../utils/logger.utils';
-import { CreateAlertInput } from './alert.schemas';
+import { envConfig } from '../../config';
+import type {
+  AlertDirectionName,
+  AlertResponse,
+  AlertTradeEvent,
+  AlertTriggerPayload,
+  CreateAlertInput,
+} from './alert.types';
 
-export type PriceMovement = {
-   creatorId: string;
-   previousPrice: number | string;
-   currentPrice: number | string;
-   ledger_sequence?: number;
-};
+type DbDirection = 'ABOVE' | 'BELOW';
+type DbStatus = 'PENDING' | 'TRIGGERED' | 'FAILED';
 
-/**
- * Creates a new price alert for a wallet address watching a creator's key price.
- * Throws a 409 error if an identical active alert already exists.
- */
-export async function createAlert(input: CreateAlertInput) {
-   // Check for duplicate active alert
-   const existingAlert = await prisma.priceAlert.findFirst({
-      where: {
-         creatorId: input.creator_id,
-         walletAddress: input.wallet_address,
-         targetPrice: input.target_price,
-         direction: input.direction,
-         isActive: true,
-      },
-   });
+function toDbDirection(direction: AlertDirectionName): DbDirection {
+  return direction === 'above' ? 'ABOVE' : 'BELOW';
+}
 
-   if (existingAlert) {
-      const error = new Error(
-         'An identical active alert already exists for this creator, wallet, price, and direction'
-      ) as any;
-      error.statusCode = 409;
-      error.code = 'DUPLICATE_ALERT';
-      throw error;
-   }
+function fromDbDirection(direction: DbDirection): AlertDirectionName {
+  return direction === 'ABOVE' ? 'above' : 'below';
+}
 
-   const alert = await prisma.priceAlert.create({
-      data: {
-         creatorId: input.creator_id,
-         walletAddress: input.wallet_address,
-         targetPrice: input.target_price,
-         direction: input.direction,
-         callbackUrl: input.callback_url,
-      },
-   });
+function fromDbStatus(status: DbStatus): AlertResponse['status'] {
+  switch (status) {
+    case 'TRIGGERED':
+      return 'triggered';
+    case 'FAILED':
+      return 'failed';
+    default:
+      return 'pending';
+  }
+}
 
-   logger.info(
-      {
-         alert_id: alert.id,
-         creator_id: alert.creatorId,
-         direction: alert.direction,
-         target_price: toNumber(alert.targetPrice),
-         registered_at: alert.createdAt,
-         wallet_address: maskWalletAddress(alert.walletAddress),
-      },
-      'Price alert registered'
-   );
+interface AlertRecord {
+  id: string;
+  creatorId: string;
+  walletAddress: string;
+  targetPrice: Prisma.Decimal;
+  direction: DbDirection;
+  callbackUrl: string;
+  status: DbStatus;
+  createdAt: Date;
+}
 
-   return alert;
+function toAlertResponse(alert: AlertRecord): AlertResponse {
+  return {
+    id: alert.id,
+    creatorId: alert.creatorId,
+    walletAddress: alert.walletAddress,
+    targetPrice: alert.targetPrice.toString(),
+    direction: fromDbDirection(alert.direction),
+    callbackUrl: alert.callbackUrl,
+    status: fromDbStatus(alert.status),
+    createdAt: alert.createdAt,
+  };
 }
 
 /**
- * Lists all active price alerts for a given wallet address.
+ * Registers a one-shot price alert and returns its unique ID.
  */
-export async function listAlerts(walletAddress: string) {
-   return await prisma.priceAlert.findMany({
-      where: { walletAddress, isActive: true },
-      orderBy: { createdAt: 'desc' },
-   });
+export async function createAlert(
+  input: CreateAlertInput
+): Promise<AlertResponse> {
+  const alert = await prisma.alert.create({
+    data: {
+      creatorId: input.creatorId,
+      walletAddress: input.walletAddress,
+      targetPrice: new Prisma.Decimal(input.targetPrice),
+      direction: toDbDirection(input.direction),
+      callbackUrl: input.callbackUrl,
+    },
+  });
+
+  return toAlertResponse(alert as AlertRecord);
 }
 
 /**
- * Deletes a price alert by id, scoped to the wallet address for authorization.
- * Returns the deleted record id or null if not found.
+ * Cancels a pending alert. Only alerts that have not already fired (PENDING)
+ * can be cancelled. Returns the deleted alert ID, or null when not found.
  */
-export async function deleteAlert(
-   id: string,
-   walletAddress: string
-): Promise<{ id: string } | null> {
-   const existing = await prisma.priceAlert.findFirst({
-      where: { id, walletAddress },
-   });
+export async function deleteAlert(alertId: string): Promise<{ id: string } | null> {
+  const alert = await prisma.alert.findFirst({
+    where: { id: alertId, status: 'PENDING' },
+  });
 
-   if (!existing) {
-      return null;
-   }
+  if (!alert) {
+    return null;
+  }
 
-   await prisma.priceAlert.delete({ where: { id } });
-
-   logger.info(
-      {
-         alert_id: existing.id,
-         creator_id: existing.creatorId,
-         cancelled_at: new Date(),
-         wallet_address: maskWalletAddress(existing.walletAddress),
-      },
-      'Price alert cancelled'
-   );
-
-   return { id };
+  await prisma.alert.delete({ where: { id: alertId } });
+  return { id: alertId };
 }
 
-function toNumber(value: number | string | { toString(): string }): number {
-   return typeof value === 'number' ? value : Number(value.toString());
+/**
+ * Returns true when the new price has crossed the registered threshold in the
+ * direction the alert was registered for.
+ *
+ * - `above`: fires when the new price is at or above the target.
+ * - `below`: fires when the new price is at or below the target.
+ */
+function crossesThreshold(
+  direction: DbDirection,
+  newPrice: number,
+  targetPrice: number
+): boolean {
+  if (direction === 'ABOVE') {
+    return newPrice >= targetPrice;
+  }
+  return newPrice <= targetPrice;
 }
 
-function maskWalletAddress(address: string): string {
-   if (address.length <= 8) return address;
-   return `${address.slice(0, 4)}***${address.slice(-4)}`;
-}
-
-function maskCallbackUrl(callbackUrl: string): string {
-   try {
-      const url = new URL(callbackUrl);
-      return `${url.protocol}//${url.host}`;
-   } catch {
-      return 'invalid-url';
-   }
-}
-
-function getDeliveryErrorCode(error: unknown): string {
-   if (error instanceof Error && error.message.startsWith('HTTP_')) {
-      return error.message;
-   }
-
-   return error instanceof Error ? error.name : 'UNKNOWN_ERROR';
-}
-
-async function deliverPriceAlertWebhook(
-   alert: {
-      id: string;
-      creatorId: string;
-      walletAddress: string;
-      targetPrice: unknown;
-      direction: string;
-      callbackUrl: string;
-   },
-   payload: Record<string, unknown>
+/**
+ * Evaluates all pending alerts for the creator against the new trade price and
+ * fires any whose threshold was crossed.
+ *
+ * Wire this into the indexer trade-event processing path alongside webhook
+ * dispatch — it processes the same trade event.
+ */
+export async function evaluateTradeForAlerts(
+  tradeEvent: AlertTradeEvent
 ): Promise<void> {
-   const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
-   const maskedUrl = maskCallbackUrl(alert.callbackUrl);
+  const newPrice = Number(tradeEvent.price);
+  if (!Number.isFinite(newPrice)) {
+    logger.warn(
+      { creatorId: tradeEvent.creatorId, price: tradeEvent.price },
+      'Skipping alert evaluation: trade price is not a finite number'
+    );
+    return;
+  }
 
-   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-         const response = await fetch(alert.callbackUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-         });
+  const alerts = await prisma.alert.findMany({
+    where: {
+      creatorId: tradeEvent.creatorId,
+      status: 'PENDING',
+    },
+  });
 
-         if (!response.ok) {
-            throw new Error(`HTTP_${response.status}`);
-         }
+  if (alerts.length === 0) return;
 
-         return;
-      } catch (error) {
-         const logFields = {
-            alert_id: alert.id,
-            retry_count: attempt,
-            error_code: getDeliveryErrorCode(error),
-            failure_reason:
-               error instanceof Error ? error.message : 'Unknown error',
-            masked_url: maskedUrl,
-         };
+  for (const alert of alerts) {
+    const targetPrice = Number((alert.targetPrice as Prisma.Decimal).toString());
+    if (!crossesThreshold(alert.direction as DbDirection, newPrice, targetPrice)) {
+      continue;
+    }
 
-         if (attempt === maxAttempts) {
-            logger.error(
-               { ...logFields, final: true },
-               'Price alert webhook delivery exhausted retries'
-            );
-            throw error;
-         }
+    const payload: AlertTriggerPayload = {
+      creator_id: alert.creatorId,
+      triggered_price: tradeEvent.price,
+      target_price: (alert.targetPrice as Prisma.Decimal).toString(),
+      direction: fromDbDirection(alert.direction as DbDirection),
+      timestamp: tradeEvent.timestamp,
+    };
 
-         logger.warn(logFields, 'Price alert webhook delivery failed');
-      }
-   }
-}
-
-/**
- * Evaluates active alerts for a creator price movement and delivers only alerts
- * whose threshold was crossed in the registered direction.
- */
-export async function evaluatePriceAlertsForMovement(
-   movement: PriceMovement
-): Promise<void> {
-   try {
-      const previousPrice = toNumber(movement.previousPrice);
-      const currentPrice = toNumber(movement.currentPrice);
-
-      const alerts = await prisma.priceAlert.findMany({
-         where: {
-            creatorId: movement.creatorId,
-            isActive: true,
-            triggeredAt: null,
-         },
-      });
-
-      for (const alert of alerts) {
-         const targetPrice = toNumber(alert.targetPrice);
-         const crossedAbove =
-            alert.direction === 'above' &&
-            previousPrice < targetPrice &&
-            currentPrice >= targetPrice;
-         const crossedBelow =
-            alert.direction === 'below' &&
-            previousPrice > targetPrice &&
-            currentPrice <= targetPrice;
-
-         if (!crossedAbove && !crossedBelow) {
-            continue;
-         }
-
-         await deliverPriceAlertWebhook(alert, {
-            event_type: 'price_alert',
-            alert_id: alert.id,
-            creator_id: alert.creatorId,
-            wallet_address: alert.walletAddress,
-            target_price: targetPrice,
-            current_price: currentPrice,
-            direction: alert.direction,
-         });
-
-         await prisma.priceAlert.update({
-            where: { id: alert.id },
-            data: {
-               isActive: false,
-               triggeredAt: new Date(),
-            },
-         });
-      }
-   } catch (err) {
+    await deliverAlert(alert.id, alert.callbackUrl, payload).catch((err) => {
       logger.error(
-         {
-            creator_id: movement.creatorId,
-            ledger_sequence: movement.ledger_sequence,
-            new_price: movement.currentPrice,
-            error_message: err instanceof Error ? err.message : 'Unknown error',
-            failed_at: new Date().toISOString(),
-         },
-         'Price alert threshold check failed'
+        { alertId: alert.id, error: err instanceof Error ? err.message : String(err) },
+        'Alert delivery failed unexpectedly'
       );
-      throw err;
-   }
+    });
+  }
+}
+
+/**
+ * Delivers a triggered alert to its callback URL via HTTP POST.
+ *
+ * On success the alert is deleted (one-shot). On failure the delivery is retried
+ * up to `WEBHOOK_RETRY_MAX_ATTEMPTS` times with exponential backoff (with
+ * jitter); after the final failure the alert is marked FAILED.
+ */
+async function deliverAlert(
+  alertId: string,
+  callbackUrl: string,
+  payload: AlertTriggerPayload,
+  attempt = 1
+): Promise<void> {
+  const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
+  const baseDelayMs = envConfig.WEBHOOK_RETRY_BASE_DELAY_MS;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    // One-shot: a successfully delivered alert is removed.
+    await prisma.alert.delete({ where: { id: alertId } });
+    logger.info({ alertId, attempt }, 'Alert delivered and deleted');
+    return;
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+
+    await prisma.alert.update({
+      where: { id: alertId },
+      data: { retryCount: attempt, lastError: errMsg },
+    });
+
+    if (attempt < maxAttempts) {
+      const delay = Math.pow(2, attempt - 1) * baseDelayMs;
+      logger.warn(
+        { alertId, attempt, maxAttempts, nextRetryMs: delay, error: errMsg },
+        'Alert delivery failed, retrying'
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return deliverAlert(alertId, callbackUrl, payload, attempt + 1);
+    }
+
+    await prisma.alert.update({
+      where: { id: alertId },
+      data: { status: 'FAILED', retryCount: attempt, triggeredAt: new Date() },
+    });
+
+    logger.error(
+      { alertId, attempt, maxAttempts, error: errMsg },
+      'Alert delivery exhausted all retries, marked failed'
+    );
+  }
 }

@@ -1,16 +1,30 @@
 // prisma/schema/alert.prisma
 
-model PriceAlert {
-  id            String   @id @default(cuid())
+enum AlertDirection {
+  ABOVE
+  BELOW
+}
+
+enum AlertStatus {
+  PENDING
+  TRIGGERED
+  FAILED
+}
+
+model Alert {
+  id            String         @id @default(cuid())
   creatorId     String
   walletAddress String
-  targetPrice   Decimal
-  direction     String   // "above" | "below"
+  targetPrice   Decimal        @db.Decimal(38, 18)
+  direction     AlertDirection
   callbackUrl   String
-  isActive      Boolean  @default(true)
+  status        AlertStatus    @default(PENDING)
+  retryCount    Int            @default(0)
+  lastError     String?
   triggeredAt   DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([creatorId])
-  @@index([walletAddress])
+  @@index([status])
 }

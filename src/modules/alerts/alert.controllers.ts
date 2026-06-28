@@ -1,122 +1,65 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 import {
-    CreateAlertSchema,
-    ListAlertsQuerySchema,
-    AlertParamsSchema,
-    DeleteAlertBodySchema,
-} from './alert.schemas';
-import { createAlert, listAlerts, deleteAlert } from './alert.service';
-import {
-    sendSuccess,
-    sendValidationError,
-    sendNotFound,
+  sendSuccess,
+  sendError,
+  sendValidationError,
+  sendNotFound,
 } from '../../utils/api-response.utils';
+import { ErrorCode } from '../../constants/error.constants';
+import { CreateAlertSchema } from './alert.schemas';
+import * as alertService from './alert.service';
 
-/**
- * POST /api/v1/alerts
- * Register a new price alert.
- */
-export async function httpCreateAlert(
-    req: Request,
-    res: Response,
-    next: NextFunction
+export async function registerAlertHandler(
+  req: Request,
+  res: Response
 ): Promise<void> {
-    try {
-        const parsed = CreateAlertSchema.safeParse(req.body);
-        if (!parsed.success) {
-            sendValidationError(
-                res,
-                'Invalid alert input',
-                parsed.error.issues.map((issue: { path: (string | number)[]; message: string }) => ({
-                    field: issue.path.join('.'),
-                    message: issue.message,
-                }))
-            );
-            return;
-        }
+  const parseResult = CreateAlertSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    sendValidationError(
+      res,
+      'Invalid alert registration data',
+      parseResult.error.issues.map((issue) => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+      }))
+    );
+    return;
+  }
 
-        const alert = await createAlert(parsed.data);
-        sendSuccess(res, alert, 201);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const result = await alertService.createAlert({
+      creatorId: parseResult.data.creator_id,
+      walletAddress: parseResult.data.wallet_address,
+      targetPrice: parseResult.data.target_price,
+      direction: parseResult.data.direction,
+      callbackUrl: parseResult.data.callback_url,
+    });
+    sendSuccess(res, result, 201, 'Alert registered successfully');
+  } catch {
+    sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to register alert');
+  }
 }
 
-/**
- * GET /api/v1/alerts?wallet_address=...
- * List all active price alerts for a wallet address.
- */
-export async function httpListAlerts(
-    req: Request,
-    res: Response,
-    next: NextFunction
+export async function deleteAlertHandler(
+  req: Request,
+  res: Response
 ): Promise<void> {
-    try {
-        const parsed = ListAlertsQuerySchema.safeParse(req.query);
-        if (!parsed.success) {
-            sendValidationError(
-                res,
-                'Invalid query parameters',
-                parsed.error.issues.map((issue: { path: (string | number)[]; message: string }) => ({
-                    field: issue.path.join('.'),
-                    message: issue.message,
-                }))
-            );
-            return;
-        }
+  const rawAlertId = req.params.id;
+  const alertId = Array.isArray(rawAlertId) ? rawAlertId[0] : rawAlertId;
 
-        const alerts = await listAlerts(parsed.data.wallet_address);
-        sendSuccess(res, { items: alerts, total: alerts.length });
-    } catch (error) {
-        next(error);
+  if (!alertId) {
+    sendError(res, 400, ErrorCode.BAD_REQUEST, 'Missing alert ID in path');
+    return;
+  }
+
+  try {
+    const result = await alertService.deleteAlert(alertId);
+    if (!result) {
+      sendNotFound(res, 'Alert');
+      return;
     }
-}
-
-/**
- * DELETE /api/v1/alerts/:id
- * Delete a price alert by id, scoped to the wallet address in the request body.
- */
-export async function httpDeleteAlert(
-    req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        const parsedParams = AlertParamsSchema.safeParse(req.params);
-        if (!parsedParams.success) {
-            sendValidationError(
-                res,
-                'Invalid alert id',
-                parsedParams.error.issues.map((issue: { path: (string | number)[]; message: string }) => ({
-                    field: issue.path.join('.'),
-                    message: issue.message,
-                }))
-            );
-            return;
-        }
-
-        const parsedBody = DeleteAlertBodySchema.safeParse(req.body);
-        if (!parsedBody.success) {
-            sendValidationError(
-                res,
-                'Invalid request body',
-                parsedBody.error.issues.map((issue: { path: (string | number)[]; message: string }) => ({
-                    field: issue.path.join('.'),
-                    message: issue.message,
-                }))
-            );
-            return;
-        }
-
-        const result = await deleteAlert(parsedParams.data.id, parsedBody.data.wallet_address);
-
-        if (!result) {
-            sendNotFound(res, 'Alert');
-            return;
-        }
-
-        sendSuccess(res, result);
-    } catch (error) {
-        next(error);
-    }
+    sendSuccess(res, result, 200, 'Alert cancelled successfully');
+  } catch {
+    sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to cancel alert');
+  }
 }
