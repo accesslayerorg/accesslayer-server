@@ -98,6 +98,8 @@ export const envSchema = z
          .positive()
          .default(300000),
       SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
+      DB_POOL_WAIT_WARN_MS: z.coerce.number().int().positive().default(500),
+      DB_POOL_WAIT_ERROR_MS: z.coerce.number().int().positive().default(2000),
       CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce
          .number()
          .int()
