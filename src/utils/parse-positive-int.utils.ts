@@ -30,13 +30,13 @@ export function parsePositiveInt(
 
    if (!Number.isInteger(parsed)) {
       throw new Error(
-         `Configuration  error: ${name}="${value}" is not a valid integer. Expected a positive integer.`
+         `Configuration error: ${name}="${value}" is not a valid integer. Expected a positive integer.`
       );
    }
 
    if (parsed <= 0) {
       throw new Error(
-         `Configuration error: ${name}="${value}" must be a positive integer (> 0).`
+         `Configuration error: ${name}="${value}" must  be a positive integer (> 0).`
       );
    }
 
