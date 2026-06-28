@@ -1,6 +1,6 @@
 import { prisma } from '../../utils/prisma.utils';
 import { isValidStellarAddress } from '../wallet/wallet.utils';
-import { HoldingEntry } from './wallet-holdings.schemas';
+import { HoldingEntry, WalletHoldingsQueryType } from './wallet-holdings.schemas';
 
 /**
  * Fetches all creator key holdings for a given Stellar wallet address.
@@ -14,7 +14,8 @@ import { HoldingEntry } from './wallet-holdings.schemas';
  *   - total_value   (null — not calculated server-side; consumers derive it from key_count * current_price)
  */
 export async function fetchWalletHoldings(
-    address: string
+    address: string,
+    query?: WalletHoldingsQueryType
 ): Promise<[HoldingEntry[], number]> {
     if (!isValidStellarAddress(address)) {
         const err = Object.assign(
@@ -83,5 +84,10 @@ export async function fetchWalletHoldings(
         return valB - valA;
     });
 
-    return [items, total];
+    // Apply pagination
+    const limit = query?.limit ?? 20;
+    const offset = query?.offset ?? 0;
+    const paginatedItems = items.slice(offset, offset + limit);
+
+    return [paginatedItems, total];
 }
