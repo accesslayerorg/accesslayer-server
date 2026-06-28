@@ -34,7 +34,11 @@ describe('getCreatorProfile', () => {
          avatarUrl: null,
          createdAt: null,
          updatedAt: null,
+         perks: [],
          links: [],
+         currentPrice: null,
+         price24hAgo: null,
+         priceChange24h: null,
          metadata: {
             source: 'placeholder',
             isProfileComplete: false,
@@ -145,5 +149,49 @@ describe('upsertCreatorProfile', () => {
             }),
          })
       );
+   });
+
+   it('truncates multi-byte payload fields to byte limits before persistence', async () => {
+      const result = await upsertCreatorProfile('creator-5', {
+         displayName: '你'.repeat(40),
+         bio: '界'.repeat(400),
+         links: [
+            {
+               label: '名'.repeat(20),
+               url: 'https://example.com',
+            },
+         ],
+         perks: [
+            {
+               title: '礼'.repeat(60),
+               description: '品'.repeat(250),
+            },
+         ],
+      } as never);
+
+      expect(
+         Buffer.byteLength(result.acceptedProfile.displayName ?? '', 'utf8')
+      ).toBeLessThanOrEqual(80);
+      expect(
+         Buffer.byteLength(result.acceptedProfile.bio ?? '', 'utf8')
+      ).toBeLessThanOrEqual(1000);
+      expect(
+         Buffer.byteLength(
+            result.acceptedProfile.links?.[0]?.label ?? '',
+            'utf8'
+         )
+      ).toBeLessThanOrEqual(40);
+      expect(
+         Buffer.byteLength(
+            result.acceptedProfile.perks?.[0]?.title ?? '',
+            'utf8'
+         )
+      ).toBeLessThanOrEqual(100);
+      expect(
+         Buffer.byteLength(
+            result.acceptedProfile.perks?.[0]?.description ?? '',
+            'utf8'
+         )
+      ).toBeLessThanOrEqual(500);
    });
 });
