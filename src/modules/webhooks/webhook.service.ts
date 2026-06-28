@@ -174,6 +174,7 @@ async function attemptDelivery(
         {
           webhook_id: webhookId,
           creator_id: payload.creator_id,
+          callback_url: maskWebhookUrl(callbackUrl),
           attempt_number: attempt + 1,
           backoff_delay_ms: delay,
           last_error_code: errMsg,
