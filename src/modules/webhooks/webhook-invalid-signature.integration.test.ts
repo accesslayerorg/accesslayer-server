@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../../app';
+import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
 import { Keypair } from '@stellar/stellar-base';
 import { createHash } from 'crypto';
@@ -12,7 +12,7 @@ describe('POST /api/v1/creators/:id/webhooks - Invalid Signature', () => {
    afterEach(async () => {
       // Clean up any webhooks created during tests
       await prisma.webhook.deleteMany({
-         where: { creator_id: creatorId },
+         where: { creatorId },
       });
    });
 
@@ -24,7 +24,7 @@ describe('POST /api/v1/creators/:id/webhooks - Invalid Signature', () => {
 
       // Verify no webhook was created
       const count = await prisma.webhook.count({
-         where: { creator_id: creatorId },
+         where: { creatorId },
       });
       expect(count).toBe(0);
    });
@@ -53,7 +53,7 @@ describe('POST /api/v1/creators/:id/webhooks - Invalid Signature', () => {
 
       // Verify no webhook was created
       const count = await prisma.webhook.count({
-         where: { creator_id: creatorId },
+         where: { creatorId },
       });
       expect(count).toBe(0);
    });
@@ -71,7 +71,7 @@ describe('POST /api/v1/creators/:id/webhooks - Invalid Signature', () => {
 
       // Verify no webhook was created
       const count = await prisma.webhook.count({
-         where: { creator_id: creatorId },
+         where: { creatorId },
       });
       expect(count).toBe(0);
    });
@@ -89,7 +89,7 @@ describe('POST /api/v1/creators/:id/webhooks - Invalid Signature', () => {
 
       // Verify no webhook was created
       const count = await prisma.webhook.count({
-         where: { creator_id: creatorId },
+         where: { creatorId },
       });
       expect(count).toBe(0);
    });

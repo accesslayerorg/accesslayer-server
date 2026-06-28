@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../../app';
+import app from '../../app';
 
 describe('GET /api/v1/wallets/:address/activity - Malformed Stellar Address', () => {
    it('should return 400 for address with wrong prefix', async () => {

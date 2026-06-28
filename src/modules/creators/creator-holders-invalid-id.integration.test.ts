@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../../app';
+import app from '../../app';
 
 describe('GET /api/v1/creators/:id/holders - Invalid Creator ID', () => {
    it('should return 400 for non-numeric string', async () => {
