@@ -7,6 +7,7 @@ import metricsRouter from './metrics/metrics.routes';
 import adminRouter from './admin/admin.routes';
 import activityRouter from './activity/activity.routes';
 import ownershipRouter from './ownership/ownership.routes';
+import webhookRouter from './webhook/webhook.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -19,5 +20,6 @@ router.use('/metrics', metricsRouter);
 router.use('/admin', adminRouter);
 router.use('/activity', activityRouter);
 router.use('/ownership', ownershipRouter);
+router.use('/webhooks', webhookRouter);
 
 export default router;

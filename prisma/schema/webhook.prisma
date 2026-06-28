@@ -1,0 +1,9 @@
+// prisma/schema/webhook.prisma
+
+model WebhookSubscription {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  events    String[] // e.g. ["buy", "sell"]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
