@@ -62,7 +62,7 @@ export const httpSimulateTrade: AsyncController = async (req, res, next) => {
 
         // 3. Deliver webhook payloads
         await Promise.all(
-            subscriptions.map(async (sub) => {
+            subscriptions.map(async (sub: any) => {
                 try {
                     await fetch(sub.url, {
                         method: 'POST',
@@ -83,7 +83,7 @@ export const httpSimulateTrade: AsyncController = async (req, res, next) => {
             })
         );
 
-        sendSuccess(res, { activity, deliveredTo: subscriptions.map(s => s.url) });
+        sendSuccess(res, { activity, deliveredTo: subscriptions.map((s: any) => s.url) });
     } catch (error) {
         next(error);
     }

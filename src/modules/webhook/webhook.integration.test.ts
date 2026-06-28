@@ -16,8 +16,8 @@ jest.mock('../../utils/prisma.utils', () => ({
 }));
 
 const activityCreateMock = prisma.activity.create as jest.Mock;
-const webhookUpsertMock = prisma.webhookSubscription.upsert as jest.Mock;
-const webhookFindManyMock = prisma.webhookSubscription.findMany as jest.Mock;
+const webhookUpsertMock = (prisma as any).webhookSubscription.upsert as jest.Mock;
+const webhookFindManyMock = (prisma as any).webhookSubscription.findMany as jest.Mock;
 
 // Helper to mock Express req, res, next
 function makeReq(body: any = {}): any {
