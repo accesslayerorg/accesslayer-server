@@ -9,6 +9,32 @@ const keypair = Keypair.random();
 const walletAddress = keypair.publicKey();
 const testUserId = 'webhook-test-user-id';
 const creatorId = 'webhook-test-creator-id';
+
+const keypairA = Keypair.random();
+const walletAddressA = keypairA.publicKey();
+const userIdA = 'webhook-isolation-user-a';
+const creatorIdA = 'webhook-isolation-creator-a';
+
+const keypairB = Keypair.random();
+const walletAddressB = keypairB.publicKey();
+const userIdB = 'webhook-isolation-user-b';
+const creatorIdB = 'webhook-isolation-creator-b';
+
+function signMessageFor(keypair: Keypair, method: string, path: string, cId: string, timestamp: string): string {
+  const payload = `${method.toUpperCase()}:${path}:${cId}:${timestamp}`;
+  const hash = createHash('sha256').update(payload, 'utf8').digest();
+  return keypair.sign(hash).toString('base64');
+}
+
+function authHeadersFor(kp: Keypair, method: string, path: string, cId: string) {
+  const timestamp = Date.now().toString();
+  const signature = signMessageFor(kp, method, path, cId, timestamp);
+  return {
+    'x-wallet-address': kp.publicKey(),
+    'x-signature': signature,
+    'x-timestamp': timestamp,
+  };
+}
 function signMessage(method: string, path: string, creatorId: string, timestamp: string): string {
   const payload = `${method.toUpperCase()}:${path}:${creatorId}:${timestamp}`;
   const hash = createHash('sha256').update(payload, 'utf8').digest();
@@ -96,26 +122,38 @@ describe('POST /api/v1/creators/:id/webhooks', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 409 when max webhooks reached', async () => {
+  it('returns 422 when max webhooks reached', async () => {
     const existingCount = await prisma.webhook.count({
       where: { creatorId, isActive: true },
     });
 
     const remaining = envConfig.WEBHOOK_MAX_PER_CREATOR - existingCount;
     for (let i = 0; i < remaining; i++) {
-      await supertest(app)
+      const res = await supertest(app)
         .post(basePath)
         .set(authHeaders('POST', basePath, creatorId))
         .send({ callback_url: `https://example.com/hook-${i}`, events: ['buy'] });
+      expect(res.status).toBe(201);
     }
+
+    const countAtLimit = await prisma.webhook.count({
+      where: { creatorId, isActive: true },
+    });
+    expect(countAtLimit).toBe(envConfig.WEBHOOK_MAX_PER_CREATOR);
 
     const res = await supertest(app)
       .post(basePath)
       .set(authHeaders('POST', basePath, creatorId))
       .send({ callback_url: 'https://example.com/too-many', events: ['buy'] });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('MAX_WEBHOOKS_REACHED');
+    expect(res.body.error.message).toMatch(/maximum/i);
+
+    const countAfter = await prisma.webhook.count({
+      where: { creatorId, isActive: true },
+    });
+    expect(countAfter).toBe(envConfig.WEBHOOK_MAX_PER_CREATOR);
   });
 });
 
@@ -151,8 +189,7 @@ describe('DELETE /api/v1/creators/:id/webhooks/:webhookId', () => {
       .delete(`/api/v1/creators/${creatorId}/webhooks/${webhookId}`)
       .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/${webhookId}`, creatorId));
 
-    expect(deleteRes.status).toBe(200);
-    expect(deleteRes.body.success).toBe(true);
+    expect(deleteRes.status).toBe(204);
 
     const verifyRes = await supertest(app)
       .get(`/api/v1/creators/${creatorId}/webhooks`)
@@ -168,6 +205,48 @@ describe('DELETE /api/v1/creators/:id/webhooks/:webhookId', () => {
       .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/non-existent-id`, creatorId));
 
     expect(res.status).toBe(404);
+  });
+
+  it('stops future deliveries when a webhook is deleted (#506)', async () => {
+    // Register a webhook and confirm it exists
+    const webhook = await prisma.webhook.create({
+      data: {
+        id: 'webhook-deletion-test-506',
+        creatorId,
+        callbackUrl: 'https://example.com/deleted-hook',
+        events: { set: ['BUY', 'SELL'] },
+      },
+    });
+
+    // Delete the webhook and assert the response is 204
+    const deleteRes = await supertest(app)
+      .delete(`/api/v1/creators/${creatorId}/webhooks/${webhook.id}`)
+      .set(authHeaders('DELETE', `/api/v1/creators/${creatorId}/webhooks/${webhook.id}`, creatorId));
+
+    expect(deleteRes.status).toBe(204);
+
+    // Webhook record no longer exists after deletion
+    const deletedWebhook = await prisma.webhook.findUnique({ where: { id: webhook.id } });
+    expect(deletedWebhook).toBeNull();
+
+    // Simulate a trade event after deletion
+    const { dispatchWebhookEvent } = await import('./webhook.service');
+    await dispatchWebhookEvent({
+      type: 'buy',
+      creatorId,
+      buyerOrSellerAddress: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      amount: '100',
+      price: '10.5',
+      feePaid: '0.5',
+      timestamp: new Date().toISOString(),
+    });
+
+    // Assert no delivery attempt was made for the deleted webhook
+    const events = await prisma.webhookEvent.findMany({
+      where: { webhookId: webhook.id },
+    });
+
+    expect(events.length).toBe(0);
   });
 });
 
@@ -307,4 +386,92 @@ describe('webhook dispatch', () => {
     await prisma.webhookEvent.deleteMany({ where: { webhookId: failingWebhook.id } });
     await prisma.webhook.delete({ where: { id: failingWebhook.id } });
   }, 30000);
+});
+
+describe('GET /api/v1/creators/:id/webhooks — isolation between creators (#474)', () => {
+  beforeAll(async () => {
+    for (const [userId, email, walletAddr, cId, handle, displayName] of [
+      [userIdA, 'webhook-isolation-a@example.com', walletAddressA, creatorIdA, 'isolation-creator-a', 'Isolation Creator A'],
+      [userIdB, 'webhook-isolation-b@example.com', walletAddressB, creatorIdB, 'isolation-creator-b', 'Isolation Creator B'],
+    ] as const) {
+      await prisma.user.create({
+        data: { id: userId, email, passwordHash: 'dummy-hash', firstName: 'Isolation', lastName: 'Test' },
+      });
+      await prisma.stellarWallet.create({ data: { address: walletAddr, userId } });
+      await prisma.creatorProfile.create({ data: { id: cId, userId, handle, displayName } });
+    }
+
+    const pathA = `/api/v1/creators/${creatorIdA}/webhooks`;
+    const pathB = `/api/v1/creators/${creatorIdB}/webhooks`;
+
+    await supertest(app)
+      .post(pathA)
+      .set(authHeadersFor(keypairA, 'POST', pathA, creatorIdA))
+      .send({ callback_url: 'https://example.com/hook-a1', events: ['buy'] });
+
+    await supertest(app)
+      .post(pathA)
+      .set(authHeadersFor(keypairA, 'POST', pathA, creatorIdA))
+      .send({ callback_url: 'https://example.com/hook-a2', events: ['sell'] });
+
+    await supertest(app)
+      .post(pathB)
+      .set(authHeadersFor(keypairB, 'POST', pathB, creatorIdB))
+      .send({ callback_url: 'https://example.com/hook-b1', events: ['buy', 'sell'] });
+  });
+
+  afterAll(async () => {
+    await prisma.webhook.deleteMany({ where: { creatorId: creatorIdA } });
+    await prisma.webhook.deleteMany({ where: { creatorId: creatorIdB } });
+    for (const [cId, walletAddr, userId] of [
+      [creatorIdA, walletAddressA, userIdA],
+      [creatorIdB, walletAddressB, userIdB],
+    ] as const) {
+      await prisma.creatorProfile.delete({ where: { id: cId } }).catch(() => {});
+      await prisma.stellarWallet.delete({ where: { address: walletAddr } }).catch(() => {});
+      await prisma.user.delete({ where: { id: userId } }).catch(() => {});
+    }
+  });
+
+  it("creator A's webhook list contains no webhooks from creator B", async () => {
+    const pathA = `/api/v1/creators/${creatorIdA}/webhooks`;
+    const res = await supertest(app)
+      .get(pathA)
+      .set(authHeadersFor(keypairA, 'GET', pathA, creatorIdA));
+
+    expect(res.status).toBe(200);
+    const webhooks = res.body.data as Array<{ creatorId?: string; callbackUrl: string }>;
+    expect(webhooks.every((w) => !w.callbackUrl.includes('hook-b'))).toBe(true);
+  });
+
+  it("creator B's webhook list contains no webhooks from creator A", async () => {
+    const pathB = `/api/v1/creators/${creatorIdB}/webhooks`;
+    const res = await supertest(app)
+      .get(pathB)
+      .set(authHeadersFor(keypairB, 'GET', pathB, creatorIdB));
+
+    expect(res.status).toBe(200);
+    const webhooks = res.body.data as Array<{ callbackUrl: string }>;
+    expect(webhooks.every((w) => !w.callbackUrl.includes('hook-a'))).toBe(true);
+  });
+
+  it("count for creator A matches the number of webhooks registered for A", async () => {
+    const pathA = `/api/v1/creators/${creatorIdA}/webhooks`;
+    const res = await supertest(app)
+      .get(pathA)
+      .set(authHeadersFor(keypairA, 'GET', pathA, creatorIdA));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+  });
+
+  it("count for creator B matches the number of webhooks registered for B", async () => {
+    const pathB = `/api/v1/creators/${creatorIdB}/webhooks`;
+    const res = await supertest(app)
+      .get(pathB)
+      .set(authHeadersFor(keypairB, 'GET', pathB, creatorIdB));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+  });
 });

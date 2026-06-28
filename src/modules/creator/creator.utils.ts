@@ -13,6 +13,8 @@ import {
    isRecognizedCreatorListSortField,
    warnIfUnrecognizedCreatorListSort,
 } from '../creators/creators.sort-field.utils';
+import { sendNotFound } from '../../utils/api-response.utils';
+import type { Response } from 'express';
 
 export type CreatorSortField = CreatorListSortField;
 export type SortOrder = CreatorListSortOrder;
@@ -74,4 +76,38 @@ export async function resolveCreatorSlugCollision(
       });
       return !existing;
    });
+}
+
+/**
+ * Result of a creator param lookup: either the creator exists or has gone missing.
+ * Used by endpoint handlers to centralize the not-found response pattern.
+ */
+export type CreatorParamCheckResult = { id: string; handle: string } | null;
+
+/**
+ * Shortcut for returning a 404 when a creator param lookup fails.
+ *
+ * Encapsulates the common pattern of checking a creator lookup result
+ * and returning a not-found response if the creator does not exist.
+ * Use this to reduce boilerplate in route handlers that need to validate
+ * creator params before proceeding.
+ *
+ * @param res     - Express Response object (must be passed directly)
+ * @param result  - The result from findCreatorByIdOrHandle or similar lookup
+ * @returns true if the creator exists (caller should proceed), false if 404 was sent
+ *
+ * @example
+ * const creator = await findCreatorByIdOrHandle(creatorId);
+ * if (!handleCreatorParamNotFound(res, creator)) return;
+ * // ... proceed with handler logic knowing creator exists
+ */
+export function handleCreatorParamNotFound<T extends { id: string } | null>(
+   res: Response,
+   result: T
+): result is T extends null ? never : T {
+   if (!result) {
+      sendNotFound(res, 'Creator');
+      return false as const;
+   }
+   return true as const;
 }

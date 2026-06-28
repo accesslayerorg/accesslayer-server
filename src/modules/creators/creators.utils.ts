@@ -28,9 +28,9 @@ export async function fetchCreatorList(
       return [cached.creators, cached.total];
    }
 
-   const { limit, offset, sort, order, verified, search } = query;
+   const { limit, offset, sort, order, verified, search, minPrice, maxPrice } = query;
 
-   const where = buildCreatorFeedWhere({ verified, search });
+   const where = buildCreatorFeedWhere({ verified, search, minPrice, maxPrice });
    const orderBy = mapCreatorListSort(sort, order);
 
    // Fetch creators and total count in parallel

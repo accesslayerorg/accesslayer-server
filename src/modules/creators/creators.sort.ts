@@ -22,6 +22,7 @@ const CREATOR_LIST_SORT_FIELD_MAP: Record<
    updatedAt: 'updatedAt',
    displayName: 'displayName',
    handle: 'handle',
+   price: 'priceSnapshot',
 };
 
 /**
@@ -39,7 +40,16 @@ export function mapCreatorListSort(
       throw new Error(`Unsupported creator sort option: ${sort}`);
    }
 
+   // Price sorting requires nested relation sorting on priceSnapshot.currentPrice
+   if (sort === 'price') {
+      return {
+         priceSnapshot: {
+            currentPrice: order,
+         },
+      } as Prisma.CreatorProfileOrderByWithRelationInput;
+   }
+
    return {
-      [field]: { sort: order, nulls: 'last' },
+      [field]: order,
    } as Prisma.CreatorProfileOrderByWithRelationInput;
 }

@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 
-export type CreatorReadEndpoint = 'list' | 'detail';
+export type CreatorReadEndpoint = 'list' | 'detail' | 'holders';
 
 const DURATION_BUCKETS_MS = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000] as const;
 
@@ -64,6 +64,7 @@ const createEndpointState = (): EndpointState => ({
 const registry: Record<CreatorReadEndpoint, EndpointState> = {
    list: createEndpointState(),
    detail: createEndpointState(),
+   holders: createEndpointState(),
 };
 
 function classifyStatus(statusCode: number): 'success' | 'clientErrors' | 'serverErrors' {
@@ -135,13 +136,14 @@ function snapshotEndpoint(entry: EndpointState): CreatorReadEndpointSnapshot {
 export function getCreatorReadMetrics(): CreatorReadMetricsSnapshot {
    return {
       counters: {
-         totalRequests: registry.list.requests + registry.detail.requests,
-         totalSuccess: registry.list.success + registry.detail.success,
-         totalClientErrors: registry.list.clientErrors + registry.detail.clientErrors,
-         totalServerErrors: registry.list.serverErrors + registry.detail.serverErrors,
+         totalRequests: registry.list.requests + registry.detail.requests + registry.holders.requests,
+         totalSuccess: registry.list.success + registry.detail.success + registry.holders.success,
+         totalClientErrors: registry.list.clientErrors + registry.detail.clientErrors + registry.holders.clientErrors,
+         totalServerErrors: registry.list.serverErrors + registry.detail.serverErrors + registry.holders.serverErrors,
          byEndpoint: {
             list: snapshotEndpoint(registry.list),
             detail: snapshotEndpoint(registry.detail),
+            holders: snapshotEndpoint(registry.holders),
          },
       },
    };
@@ -150,4 +152,5 @@ export function getCreatorReadMetrics(): CreatorReadMetricsSnapshot {
 export function resetCreatorReadMetrics(): void {
    registry.list = createEndpointState();
    registry.detail = createEndpointState();
+   registry.holders = createEndpointState();
 }

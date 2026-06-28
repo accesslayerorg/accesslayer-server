@@ -34,6 +34,11 @@ export const CREATOR_PUBLIC_ROUTE_CACHE_PRESETS = {
       type: 'public' as const,
       staleIfError: 86400,
    },
+   [CREATOR_PUBLIC_ROUTE_NAMES.GET_HOLDERS]: {
+      maxAge: publicReadSeconds,
+      type: 'public' as const,
+      staleIfError: 86400,
+   },
 } as const;
 
 /**

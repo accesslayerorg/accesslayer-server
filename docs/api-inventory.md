@@ -42,6 +42,18 @@ Public creator discovery and stats endpoints.
 | `GET`  | `/creators`           | List creators with pagination and filtering. |
 | `GET`  | `/creators/:id/stats` | Return public stats for a specific creator.  |
 
+## Webhooks Module
+
+Manage trade webhooks for creator profiles.
+
+- Trade webhooks reference (payload shape, retry behavior, delivery guarantees): [`docs/webhooks.md`](./webhooks.md).
+
+| Method   | Path                                | Description                                           |
+| :------- | :---------------------------------- | :---------------------------------------------------- |
+| `POST`   | `/creators/:id/webhooks`            | Register a new webhook for trade events.              |
+| `GET`    | `/creators/:id/webhooks`            | List all registered webhooks for the creator.         |
+| `DELETE` | `/creators/:id/webhooks/:webhookId` | Delete a registered webhook.                          |
+
 ## Activity Module
 
 Public activity feed endpoints.
@@ -49,6 +61,14 @@ Public activity feed endpoints.
 | Method | Path        | Description                      |
 | :----- | :---------- | :------------------------------- |
 | `GET`  | `/activity` | Return the public activity feed. |
+
+## Wallets Module
+
+Wallet activity and trade history endpoints.
+
+| Method | Path                         | Description                                                   |
+| :----- | :--------------------------- | :------------------------------------------------------------ |
+| `GET`  | `/wallets/:address/activity` | Return paginated trade history (buys and sells) for a wallet. |
 
 ## Ownership Module
 

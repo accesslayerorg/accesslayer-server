@@ -4,6 +4,8 @@ The indexer processes events from the blockchain to update the read models and a
 
 Before changing this pipeline, review [Indexer Contributor Expectations](./CONTRIBUTOR_EXPECTATIONS.md) for the invariants, testing expectations, and deployment notes that apply to indexer work.
 
+For the end-to-end architecture including the polling actor and write path, see [Indexer Architecture](./ARCHITECTURE.md).
+
 ## 1. Deduplication
 
 Before processing a batch of events, they should be deduped based on their unique identifier on the chain: `transactionHash` and `eventIndex`.

@@ -21,6 +21,12 @@ export interface CreatorPerk {
    icon?: string;
 }
 
+export interface CreatorPriceSnapshot {
+   currentPrice: bigint;
+   price24hAgo: bigint;
+   lastTradeAt: Date | null;
+}
+
 export interface CreatorProfile {
    id: string;
    userId: string;
@@ -33,6 +39,8 @@ export interface CreatorProfile {
    isVerified: boolean;
    createdAt: Date;
    updatedAt: Date;
+   /** Price read model — null when no trade has been recorded yet. */
+   priceSnapshot?: CreatorPriceSnapshot | null;
 }
 
 export interface UserSettings {

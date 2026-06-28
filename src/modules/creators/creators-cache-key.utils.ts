@@ -47,6 +47,8 @@ export function buildCreatorFeedCacheKey(query: CreatorListQueryType): string {
          query.include !== undefined && query.include.length > 0
             ? query.include.join(',')
             : undefined,
+      minPrice: query.minPrice !== undefined ? query.minPrice.toString() : undefined,
+      maxPrice: query.maxPrice !== undefined ? query.maxPrice.toString() : undefined,
    };
 
    const canonical = buildCanonicalParamString(params);

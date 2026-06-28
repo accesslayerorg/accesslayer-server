@@ -68,11 +68,36 @@ export const CreatorListQuerySchema = z
         .transform((val: string | undefined) => normalizeCreatorListSearchTerm(val))
     ),
 
+    // Price range filters
+    minPrice: z
+      .string()
+      .regex(/^\d+$/, 'minPrice must be a positive integer')
+      .transform((val) => BigInt(val))
+      .optional(),
+
+    maxPrice: z
+      .string()
+      .regex(/^\d+$/, 'maxPrice must be a positive integer')
+      .transform((val) => BigInt(val))
+      .optional(),
+
     cursor: withCreatorListQueryStringNormalization(
       z.string().optional()
     ),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => {
+      if (data.minPrice !== undefined && data.maxPrice !== undefined) {
+        return data.minPrice <= data.maxPrice;
+      }
+      return true;
+    },
+    {
+      message: 'minPrice cannot be greater than maxPrice',
+      path: ['minPrice'],
+    }
+  );
 
 // Export as LegacyCreatorQuerySchema for backward compatibility
 export const LegacyCreatorQuerySchema = CreatorListQuerySchema;

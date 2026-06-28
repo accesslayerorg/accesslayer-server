@@ -25,6 +25,7 @@ function createMockResponse() {
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
   res.setHeader = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
   return res as Response;
 }
 
@@ -120,7 +121,7 @@ describe('deleteWebhookHandler', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('returns 200 on successful deletion', async () => {
+  it('returns 204 on successful deletion', async () => {
     mockService.deleteWebhook.mockResolvedValue({ id: 'wh-1' });
 
     const req = createMockSignedRequest('creator-1', { webhookId: 'wh-1' });
@@ -128,7 +129,7 @@ describe('deleteWebhookHandler', () => {
 
     await deleteWebhookHandler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(204);
     expect(mockService.deleteWebhook).toHaveBeenCalledWith('wh-1', 'creator-1');
   });
 });

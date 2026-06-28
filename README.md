@@ -14,8 +14,9 @@ The server is responsible for:
 - indexing contract activity for faster reads
 - notifications, analytics, and moderation workflows
 - access checks for gated off-chain content
+- trade webhooks for external integrations
 
-See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview, [Creator Data Model Reference](./docs/architecture/creator-data-model.md) for creator field definitions, [API Versioning](./docs/api-versioning.md) for details on schema versioning, [API Timeout Configuration](./docs/api-timeouts.md) for timeout defaults, and [Rate Limiting Configuration](./docs/rate-limiting.md) for rate limit defaults and guidelines.
+See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview, [Creator Data Model Reference](./docs/architecture/creator-data-model.md) for creator field definitions, [API Versioning](./docs/api-versioning.md) for details on schema versioning, [API Timeout Configuration](./docs/api-timeouts.md) for timeout defaults, [Rate Limiting Configuration](./docs/rate-limiting.md) for rate limit defaults and guidelines, and [Trade Webhooks Reference](./docs/webhooks.md) for webhook payload and delivery behavior.
 
 ## Tech
 

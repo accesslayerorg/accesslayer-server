@@ -47,6 +47,12 @@ export const CreatorProfileReadResponseSchema = z.object({
    updatedAt: z.string().datetime().nullable(),
    perks: z.array(CreatorPerkSchema).optional(),
    links: z.array(z.object({ label: z.string(), url: z.string().url() })),
+   /** Current key price in stroops as a string. null when no trade has occurred. */
+   currentPrice: z.string().nullable(),
+   /** Price 24 h ago in stroops as a string. null when no baseline exists. */
+   price24hAgo: z.string().nullable(),
+   /** Computed percentage change. null when no baseline exists. */
+   priceChange24h: z.number().nullable(),
    metadata: z.object({
       source: z.enum(['placeholder', 'database']),
       isProfileComplete: z.boolean(),

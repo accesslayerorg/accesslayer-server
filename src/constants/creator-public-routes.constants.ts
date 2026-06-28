@@ -14,4 +14,6 @@ export const CREATOR_PUBLIC_ROUTE_NAMES = {
    UPSERT_PROFILE: 'creators:profile:upsert',
    /** GET /api/v1/creators/:creatorId/stats - Public creator stats */
    GET_STATS: 'creators:stats:get',
+   /** GET /api/v1/creators/:creatorId/holders - Paginated key holder list */
+   GET_HOLDERS: 'creators:holders:get',
 } as const;

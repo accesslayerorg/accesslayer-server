@@ -10,6 +10,12 @@ export type CreatorFeedWhere = {
     handle?: { contains: string; mode: 'insensitive' };
     displayName?: { contains: string; mode: 'insensitive' };
   }>;
+  priceSnapshot?: {
+    currentPrice?: {
+      gte?: bigint;
+      lte?: bigint;
+    };
+  };
 };
 
 /**
@@ -18,12 +24,16 @@ export type CreatorFeedWhere = {
  * Keeps filter semantics identical to the creator list endpoint while giving
  * feed handlers a single call-site instead of inline combinator branches.
  *
- * @param filters - Parsed creator filter input (verified, search)
+ * @param filters - Parsed creator filter input (verified, search, minPrice, maxPrice)
  * @returns A Prisma-compatible where object ready for `prisma.creatorProfile.findMany`
  *
  * @example
  * const where = buildCreatorFeedWhere({ verified: true, search: 'jazz' });
  * // => { isVerified: true, OR: [{ handle: ... }, { displayName: ... }] }
+ *
+ * @example
+ * const where = buildCreatorFeedWhere({ minPrice: 1000000n, maxPrice: 5000000n });
+ * // => { priceSnapshot: { currentPrice: { gte: 1000000n, lte: 5000000n } } }
  *
  * @example
  * const where = buildCreatorFeedWhere({});
@@ -42,6 +52,21 @@ export function buildCreatorFeedWhere(filters: CreatorFilterInput): CreatorFeedW
       { handle: { contains: normalizedSearch, mode: 'insensitive' } },
       { displayName: { contains: normalizedSearch, mode: 'insensitive' } },
     ];
+  }
+
+  // Price range filtering
+  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+    where.priceSnapshot = {
+      currentPrice: {},
+    };
+
+    if (filters.minPrice !== undefined) {
+      where.priceSnapshot.currentPrice!.gte = filters.minPrice;
+    }
+
+    if (filters.maxPrice !== undefined) {
+      where.priceSnapshot.currentPrice!.lte = filters.maxPrice;
+    }
   }
 
   return where;

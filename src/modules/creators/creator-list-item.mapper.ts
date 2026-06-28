@@ -3,6 +3,7 @@ import { requestContextStorage } from '../../utils/als.utils';
 import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
 import { logger } from '../../utils/logger.utils';
 import { safeRead } from '../../utils/safe-nested-read.utils';
+import { compute24hPriceChange } from '../../utils/price.utils';
 
 /**
  * Locked output shape for creator list items.
@@ -15,6 +16,12 @@ export type CreatorListItem = {
    followers: number;
    createdAt: string;
    updatedAt: string;
+   /** Current key price in stroops. null when no trade has occurred. */
+   currentPrice: string | null;
+   /** Price 24 hours ago in stroops. null when no trade has occurred. */
+   price24hAgo: string | null;
+   /** Computed percentage change: ((current - 24h) / 24h) * 100. null when no baseline. */
+   priceChange24h: number | null;
 };
 
 type ExpectedFieldType = 'string' | 'boolean' | 'number' | 'Date';
@@ -90,6 +97,19 @@ export const mapCreatorListItem = (
    logIfFieldTypeMismatch(creator, 'createdAt');
    logIfFieldTypeMismatch(creator, 'updatedAt');
 
+   const snapshot = safeRead(creator, 'priceSnapshot', null) as {
+      currentPrice: bigint;
+      price24hAgo: bigint;
+      lastTradeAt: Date | null;
+   } | null;
+   const currentPrice = snapshot?.currentPrice ?? null;
+   const price24hAgo = snapshot?.price24hAgo ?? null;
+
+   let priceChange24h: number | null = null;
+   if (currentPrice !== null && price24hAgo !== null) {
+      priceChange24h = compute24hPriceChange(currentPrice, price24hAgo);
+   }
+
    return {
       id: creator.id,
       name: safeRead(creator, 'displayName', null),
@@ -97,5 +117,8 @@ export const mapCreatorListItem = (
       followers: 0,
       createdAt: formatIsoTimestamp(creator.createdAt),
       updatedAt: formatIsoTimestamp(creator.updatedAt),
+      currentPrice: currentPrice !== null ? currentPrice.toString() : null,
+      price24hAgo: price24hAgo !== null ? price24hAgo.toString() : null,
+      priceChange24h,
    };
 };
