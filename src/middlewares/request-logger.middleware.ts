@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 import { envConfig } from '../config';
 import { logger } from '../utils/logger.utils';
 import { computeRequestContextHash } from '../utils/request-context-hash.utils';
+import { getClientIp } from '../utils/client-ip.utils';
+import { sanitizeLogFieldValue } from '../utils/log-field-sanitizer.utils';
 
 /**
  * Lightweight request logging middleware.
@@ -35,10 +37,11 @@ export const requestLoggerMiddleware = (
       logger.info({
          type: 'request',
          method: req.method,
-         url: req.originalUrl || req.url,
+         url: sanitizeLogFieldValue(req.originalUrl || req.url),
          status: res.statusCode,
          duration: `${durationMs}ms`,
          requestId: req.requestId,
+         clientIp: getClientIp(req),
          contextHash,
       });
    });

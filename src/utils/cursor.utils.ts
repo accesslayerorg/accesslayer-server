@@ -51,34 +51,41 @@ export function decodeCursor<T>(cursor: string): T {
    }
 
    const parts = cursor.split('.');
-   if (parts.length !== 2) {
+   if (parts.length > 2) {
       throw new CursorChecksumError('Invalid cursor format. Expected base64payload.checksum');
    }
 
    const [base64Payload, providedChecksum] = parts;
    
-   if (!base64Payload || !providedChecksum) {
-      throw new CursorChecksumError('Cursor payload or checksum cannot be empty');
+   if (!base64Payload) {
+      throw new CursorChecksumError('Cursor payload cannot be empty');
    }
    
-   const expectedChecksum = generateCursorChecksum(base64Payload);
-   
-   // Use timing-safe equal to prevent timing attacks comparing checksums
-   let expectedBuffer: Buffer;
-   let providedBuffer: Buffer;
-   
-   try {
-      expectedBuffer = Buffer.from(expectedChecksum, 'hex');
-      providedBuffer = Buffer.from(providedChecksum, 'hex');
-   } catch {
-      throw new CursorChecksumError('Invalid checksum format');
-   }
-   
-   if (
-      expectedBuffer.length !== providedBuffer.length ||
-      !crypto.timingSafeEqual(expectedBuffer, providedBuffer)
-   ) {
-      throw new CursorChecksumError('Cursor checksum mismatch');
+   // Backward compatibility: allow parsing without checksum if no dot was present
+   if (providedChecksum !== undefined) {
+      if (!providedChecksum) {
+         throw new CursorChecksumError('Cursor checksum cannot be empty if signature separator is present');
+      }
+
+      const expectedChecksum = generateCursorChecksum(base64Payload);
+      
+      // Use timing-safe equal to prevent timing attacks comparing checksums
+      let expectedBuffer: Buffer;
+      let providedBuffer: Buffer;
+      
+      try {
+         expectedBuffer = Buffer.from(expectedChecksum, 'hex');
+         providedBuffer = Buffer.from(providedChecksum, 'hex');
+      } catch {
+         throw new CursorChecksumError('Invalid checksum format');
+      }
+      
+      if (
+         expectedBuffer.length !== providedBuffer.length ||
+         !crypto.timingSafeEqual(expectedBuffer, providedBuffer)
+      ) {
+         throw new CursorChecksumError('Cursor checksum mismatch');
+      }
    }
 
    let payloadStr: string;

@@ -1,0 +1,16 @@
+// prisma/schema/alert.prisma
+
+model PriceAlert {
+  id            String   @id @default(cuid())
+  creatorId     String
+  walletAddress String
+  targetPrice   Decimal
+  direction     String   // "above" | "below"
+  callbackUrl   String
+  isActive      Boolean  @default(true)
+  triggeredAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([walletAddress])
+}

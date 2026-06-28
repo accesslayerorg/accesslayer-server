@@ -1,6 +1,8 @@
 import { getPaginatedCreators } from './creator.service';
 import { prisma } from '../../utils/prisma.utils';
+import { createSeededCreatorFixture } from '../../utils/test/seeded-creator-fixtures.utils';
 import { CreatorSortOptions } from './creator.utils';
+import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
@@ -15,23 +17,6 @@ const findMany = prisma.creatorProfile.findMany as jest.Mock;
 const count = prisma.creatorProfile.count as jest.Mock;
 
 const baseSort: CreatorSortOptions = { field: 'createdAt', order: 'desc' };
-
-function makeCreator(overrides: Record<string, unknown> = {}) {
-   return {
-      id: 'creator-1',
-      userId: 'user-1',
-      handle: 'alice',
-      displayName: 'Alice',
-      bio: null,
-      avatarUrl: null,
-      perkSummary: null,
-      isVerified: false,
-      createdAt: new Date('2026-01-01'),
-      updatedAt: new Date('2026-01-01'),
-      user: { avatar: null, firstName: 'Alice', lastName: 'A' },
-      ...overrides,
-   };
-}
 
 describe('getPaginatedCreators', () => {
    beforeEach(() => {
@@ -50,14 +35,15 @@ describe('getPaginatedCreators', () => {
             skip: 40, // (3 - 1) * 20
             take: 20,
             orderBy: { createdAt: 'desc' },
+            select: CREATOR_LIST_DEFAULT_SELECT,
          })
       );
    });
 
    it('returns the resolved creators and the matching pagination metadata', async () => {
       const creators = [
-         makeCreator(),
-         makeCreator({ id: 'creator-2', handle: 'bob' }),
+         createSeededCreatorFixture(1),
+         createSeededCreatorFixture(2),
       ];
       findMany.mockResolvedValue(creators);
       count.mockResolvedValue(35);
@@ -80,7 +66,7 @@ describe('getPaginatedCreators', () => {
    });
 
    it('flags hasNextPage=false when on the last page', async () => {
-      findMany.mockResolvedValue([makeCreator()]);
+      findMany.mockResolvedValue([createSeededCreatorFixture(1)]);
       count.mockResolvedValue(15);
 
       const result = await getPaginatedCreators({
@@ -95,7 +81,7 @@ describe('getPaginatedCreators', () => {
    });
 
    it('flags hasPrevPage=false when on the first page', async () => {
-      findMany.mockResolvedValue([makeCreator()]);
+      findMany.mockResolvedValue([createSeededCreatorFixture(1)]);
       count.mockResolvedValue(15);
 
       const result = await getPaginatedCreators({
@@ -150,7 +136,10 @@ describe('getPaginatedCreators', () => {
       });
 
       expect(findMany).toHaveBeenCalledWith(
-         expect.objectContaining({ orderBy: { displayName: 'asc' } })
+         expect.objectContaining({
+            orderBy: { displayName: 'asc' },
+            select: CREATOR_LIST_DEFAULT_SELECT,
+         })
       );
    });
 });

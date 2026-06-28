@@ -10,6 +10,8 @@ import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
 import { CREATOR_PUBLIC_ROUTE_NAMES } from '../../constants/creator-public-routes.constants';
 import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
+import { validateCreatorParam } from '../../middlewares/creator-param.middleware';
+import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
 
 const router = Router();
 
@@ -36,6 +38,10 @@ router.get(
    ),
    listCreators
 );
+// 405 handler for CREATORS_ROOT
+router.all(CREATORS_ROOT, (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 
 /**
  * @route GET /api/v1/creators/:creatorId/profile
@@ -44,6 +50,7 @@ router.get(
  */
 router.get(
    '/:creatorId/profile',
+   validateCreatorParam('creatorId'),
    cacheControl(
       CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
    ),
@@ -53,13 +60,18 @@ router.get(
 /**
  * @route PUT /api/v1/creators/:creatorId/profile
  * @desc Upsert creator profile scaffold payload
- * @access Wallet ownership required — caller must send a `x-wallet-address`
- *         header tied to the creator profile being updated.
+ * @access Requires Stellar signature verification + wallet ownership.
  */
 router.put(
    '/:creatorId/profile',
+   validateCreatorParam('creatorId'),
+   requireStellarSignature(),
    requireCreatorProfileOwnership('creatorId'),
    upsertCreatorProfileHandler
 );
+// 405 handler for /:creatorId/profile
+router.all('/:creatorId/profile', (_req, res) => {
+   res.set('Allow', 'GET, PUT').sendStatus(405);
+});
 
 export default router;

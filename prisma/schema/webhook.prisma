@@ -1,9 +1,43 @@
 // prisma/schema/webhook.prisma
 
-model WebhookSubscription {
-  id        String   @id @default(cuid())
-  url       String   @unique
-  events    String[] // e.g. ["buy", "sell"]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum WebhookEventStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum WebhookEventType {
+  BUY
+  SELL
+}
+
+model Webhook {
+  id                String             @id @default(cuid())
+  creatorId         String
+  callbackUrl       String
+  events            WebhookEventType[]
+  isActive          Boolean            @default(true)
+  isFailing         Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  events_dispatched WebhookEvent[]
+
+  @@index([creatorId])
+  @@index([isActive])
+}
+
+model WebhookEvent {
+  id         String             @id @default(cuid())
+  webhookId  String
+  eventType  WebhookEventType
+  payload    Json
+  status     WebhookEventStatus @default(PENDING)
+  retryCount Int                @default(0)
+  lastError  String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  webhook    Webhook            @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
 }

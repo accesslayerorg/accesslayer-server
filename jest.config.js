@@ -8,4 +8,9 @@ module.exports = {
   transform: {
     ...tsJestTransformCfg,
   },
+  moduleNameMapper: {
+    "^chalk$": "<rootDir>/src/__mocks__/chalk.ts",
+  },
+  roots: ["<rootDir>/src"],
+  setupFiles: ["./jest.setup.ts"],
 };

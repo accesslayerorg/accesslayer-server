@@ -7,7 +7,7 @@ import { parseBoolean } from '../../utils/parseBoolean.utils';
 /**
  * Supported filter keys for creator list requests.
  */
-export const SUPPORTED_CREATOR_FILTERS = ['verified', 'search'] as const;
+export const SUPPORTED_CREATOR_FILTERS = ['verified', 'search', 'minPrice', 'maxPrice'] as const;
 
 export type CreatorFilterKey = (typeof SUPPORTED_CREATOR_FILTERS)[number];
 
@@ -17,6 +17,8 @@ export type CreatorFilterKey = (typeof SUPPORTED_CREATOR_FILTERS)[number];
 export interface CreatorFilterInput {
     verified?: boolean;
     search?: string;
+    minPrice?: bigint;
+    maxPrice?: bigint;
 }
 
 /**
@@ -25,6 +27,7 @@ export interface CreatorFilterInput {
  * - Accepts only supported filter keys; rejects unknown ones with an error
  * - Parses `verified` using the shared boolean query flag helper
  * - Trims `search` string
+ * - Parses `minPrice` and `maxPrice` as positive BigInt values in stroops
  * - Repeated calls with the same input return the same result
  *
  * @param raw - Raw query object (e.g. req.query)
@@ -34,6 +37,10 @@ export interface CreatorFilterInput {
  * @example
  * parseCreatorFilters({ verified: 'true', search: 'jazz' })
  * // => { verified: true, search: 'jazz' }
+ *
+ * @example
+ * parseCreatorFilters({ minPrice: '1000000', maxPrice: '5000000' })
+ * // => { minPrice: 1000000n, maxPrice: 5000000n }
  *
  * @example
  * parseCreatorFilters({ unknown: 'value' })
@@ -61,6 +68,22 @@ export function parseCreatorFilters(
         const normalized = raw.search.trim().replace(/\s+/g, ' ');
         if (normalized.length > 0) {
             result.search = normalized;
+        }
+    }
+
+    if (raw.minPrice !== undefined && raw.minPrice !== null && raw.minPrice !== '') {
+        const minPriceStr = String(raw.minPrice);
+        const minPriceNum = parseInt(minPriceStr, 10);
+        if (!isNaN(minPriceNum) && minPriceNum >= 0) {
+            result.minPrice = BigInt(minPriceNum);
+        }
+    }
+
+    if (raw.maxPrice !== undefined && raw.maxPrice !== null && raw.maxPrice !== '') {
+        const maxPriceStr = String(raw.maxPrice);
+        const maxPriceNum = parseInt(maxPriceStr, 10);
+        if (!isNaN(maxPriceNum) && maxPriceNum >= 0) {
+            result.maxPrice = BigInt(maxPriceNum);
         }
     }
 

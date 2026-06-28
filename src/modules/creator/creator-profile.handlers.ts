@@ -3,8 +3,11 @@ import {
    sendError,
    sendSuccess,
    sendValidationError,
+   zodIssuesToDetails,
    ErrorCode,
 } from '../../utils/api-response.utils';
+import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
+import { logger } from '../../utils/logger.utils';
 import {
    CreatorProfileParamsSchema,
    UpsertCreatorProfileBodySchema,
@@ -13,6 +16,7 @@ import {
    getCreatorProfile,
    upsertCreatorProfile,
 } from './creator-profile.service';
+import { logCreatorRouteColdStart } from './creator-observability.utils';
 
 /**
  * @route GET /api/v1/creators/:creatorId/profile
@@ -21,22 +25,30 @@ import {
  */
 export async function getCreatorProfileHandler(req: Request, res: Response) {
    try {
+      logCreatorRouteColdStart('getCreatorProfileHandler', req.requestId);
+
       const paramsResult = CreatorProfileParamsSchema.safeParse(req.params);
       if (!paramsResult.success) {
          return sendValidationError(
             res,
             'Invalid creator profile path parameters',
-            paramsResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(paramsResult.error.issues)
          );
       }
 
       const profile = await getCreatorProfile(paramsResult.data.creatorId);
+      attachTimestampHeader(res);
       return sendSuccess(res, profile, 200, 'Creator profile retrieved');
    } catch (error) {
-      console.error('Error retrieving creator profile:', error);
+      logger.error(
+         {
+            type: 'creator_profile_handler_error',
+            handler: 'getCreatorProfileHandler',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            error,
+         },
+         'Error retrieving creator profile'
+      );
       return sendError(
          res,
          500,
@@ -53,27 +65,44 @@ export async function getCreatorProfileHandler(req: Request, res: Response) {
  */
 export async function upsertCreatorProfileHandler(req: Request, res: Response) {
    try {
+      logCreatorRouteColdStart('upsertCreatorProfileHandler', req.requestId);
+
       const paramsResult = CreatorProfileParamsSchema.safeParse(req.params);
       if (!paramsResult.success) {
          return sendValidationError(
             res,
             'Invalid creator profile path parameters',
-            paramsResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(paramsResult.error.issues)
          );
       }
 
       const bodyResult = UpsertCreatorProfileBodySchema.safeParse(req.body);
       if (!bodyResult.success) {
+         // Log missing required fields with structured context
+         const missingFields = bodyResult.error.issues
+            .filter(
+               (issue: any) =>
+                  issue.code === 'invalid_type' &&
+                  issue.received === 'undefined'
+            )
+            .map((issue: any) => issue.path.join('.'));
+
+         if (missingFields.length > 0) {
+            logger.warn(
+               {
+                  type: 'creator_profile_validation_error',
+                  handler: 'upsertCreatorProfileHandler',
+                  missingFields,
+                  ...(req.requestId ? { requestId: req.requestId } : {}),
+               },
+               'Missing required fields in creator profile payload'
+            );
+         }
+
          return sendValidationError(
             res,
             'Invalid creator profile payload',
-            bodyResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(bodyResult.error.issues)
          );
       }
 
@@ -88,7 +117,15 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
          'Creator profile write accepted (placeholder)'
       );
    } catch (error) {
-      console.error('Error upserting creator profile:', error);
+      logger.error(
+         {
+            type: 'creator_profile_handler_error',
+            handler: 'upsertCreatorProfileHandler',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            error,
+         },
+         'Error upserting creator profile'
+      );
       return sendError(
          res,
          500,

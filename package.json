@@ -13,6 +13,7 @@
       "dev": "nodemon",
       "start": "node dist/server.js",
       "build": "tsc",
+      "test": "jest",
       "format": "prettier --write .",
       "format:check": "prettier --check .",
       "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
@@ -43,6 +44,7 @@
    "dependencies": {
       "@json2csv/node": "^7.0.6",
       "@prisma/client": "^6.19.1",
+      "@stellar/stellar-base": "^15.0.0",
       "@types/js-yaml": "^4.0.9",
       "@types/pdfkit": "^0.17.3",
       "@types/puppeteer": "^5.4.7",
@@ -84,6 +86,7 @@
       "@types/multer": "^1.4.13",
       "@types/node": "^22.15.3",
       "@types/nodemailer": "^6.4.17",
+      "@types/supertest": "^7.2.0",
       "@types/swagger-jsdoc": "^6.0.4",
       "@types/swagger-ui-express": "^4.1.8",
       "@types/text-to-svg": "^3.1.4",
@@ -95,6 +98,7 @@
       "lint-staged": "^15.5.2",
       "nodemon": "^3.1.10",
       "prettier": "^3.6.2",
+      "supertest": "^7.2.2",
       "ts-jest": "^29.4.6",
       "ts-node": "^10.9.2",
       "typescript": "^5.9.3"

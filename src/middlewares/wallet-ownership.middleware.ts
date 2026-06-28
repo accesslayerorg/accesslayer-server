@@ -12,6 +12,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { checkCreatorProfileOwnership } from '../utils/wallet-ownership.utils';
 import { ErrorCode, sendError } from '../utils/api-response.utils';
+import { StellarAddressSchema } from '../modules/wallet/wallet.schemas';
 
 export interface WalletOwnedRequest extends Request {
    walletAddress?: string;
@@ -51,6 +52,21 @@ export function requireCreatorProfileOwnership(
             401,
             ErrorCode.UNAUTHORIZED,
             'Wallet address is required to access this resource. Send it in the x-wallet-address header.'
+         );
+         return;
+      }
+
+      const addressValidation = StellarAddressSchema.safeParse(address);
+      if (!addressValidation.success) {
+         sendError(
+            res,
+            400,
+            ErrorCode.BAD_REQUEST,
+            'Invalid wallet address format. Stellar address must be 56 characters, start with G, and use Base32 characters.',
+            addressValidation.error.issues.map((issue) => ({
+               field: 'x-wallet-address',
+               message: issue.message,
+            }))
          );
          return;
       }

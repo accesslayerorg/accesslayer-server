@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import {
    CREATOR_LIST_SORT_ORDERS,
+   DEFAULT_CREATOR_LIST_ORDER,
    type CreatorListSortOrder,
-} from './creators.sort';
-import { DEFAULT_CREATOR_LIST_ORDER } from '../../constants/creator-list-sort.constants';
+} from '../../constants/creator-list-sort.constants';
 import { normalizeCreatorListQueryStringValue } from './creators.query-string.utils';
 
 const creatorListSortDirectionEnum = z.enum(CREATOR_LIST_SORT_ORDERS);
