@@ -8,7 +8,7 @@ import { CREATOR_DETAIL_DEFAULT_SELECT } from '../../constants/creator-detail-in
 import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
 import { compute24hPriceChange } from '../../utils/price.utils';
 import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
-import { truncateString } from '../../utils/string-truncate.utils';
+import { truncateToBytes } from '../../utils/string-truncate.utils';
 
 const CREATOR_PROFILE_LIMITS = {
    displayName: 80,
@@ -25,9 +25,9 @@ function normalizeProfileLinks(
       return links;
    }
 
-   return links.map((link) => ({
+   return links.map(link => ({
       ...link,
-      label: truncateString(link.label, CREATOR_PROFILE_LIMITS.linkLabel),
+      label: truncateToBytes(link.label, CREATOR_PROFILE_LIMITS.linkLabel),
       url: normalizeSocialLinkUrl(link.url),
    }));
 }
@@ -39,10 +39,10 @@ function normalizeProfilePerks(
       return perks;
    }
 
-   return perks.map((perk) => ({
+   return perks.map(perk => ({
       ...perk,
-      title: truncateString(perk.title, CREATOR_PROFILE_LIMITS.perkTitle),
-      description: truncateString(
+      title: truncateToBytes(perk.title, CREATOR_PROFILE_LIMITS.perkTitle),
+      description: truncateToBytes(
          perk.description,
          CREATOR_PROFILE_LIMITS.perkDescription
       ),
@@ -110,7 +110,10 @@ export async function getCreatorProfile(
 
    let priceChange24h: number | null = null;
    if (snapshot) {
-      priceChange24h = compute24hPriceChange(snapshot.currentPrice, snapshot.price24hAgo);
+      priceChange24h = compute24hPriceChange(
+         snapshot.currentPrice,
+         snapshot.price24hAgo
+      );
    }
 
    return {
@@ -148,10 +151,13 @@ export async function upsertCreatorProfile(
    const normalizedPayload: UpsertCreatorProfileBody = {
       ...payload,
       displayName: payload.displayName
-         ? truncateString(payload.displayName, CREATOR_PROFILE_LIMITS.displayName)
+         ? truncateToBytes(
+              payload.displayName,
+              CREATOR_PROFILE_LIMITS.displayName
+           )
          : payload.displayName,
       bio: payload.bio
-         ? truncateString(payload.bio, CREATOR_PROFILE_LIMITS.bio)
+         ? truncateToBytes(payload.bio, CREATOR_PROFILE_LIMITS.bio)
          : payload.bio,
       links: normalizeProfileLinks(payload.links),
       perks: normalizeProfilePerks(payload.perks),
