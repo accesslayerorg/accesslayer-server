@@ -1,0 +1,25 @@
+// prisma/schema/price-snapshot.prisma
+// Read model kept current by the indexer on every trade event.
+
+/**
+ * Lightweight price read model for creator keys.
+ *
+ * The indexer upserts this record on every BUY or SELL event so the API
+ * can return current_price and price_change_24h with a single DB read instead
+ * of a Soroban RPC round-trip.
+ *
+ * One row per creator — updated in place (upsert by creatorId).
+ */
+model CreatorPriceSnapshot {
+  id            String         @id @default(cuid())
+  creatorId     String         @unique
+  currentPrice  BigInt         @default(0)
+  price24hAgo   BigInt         @default(0)
+  lastTradeAt   DateTime?
+  updatedAt     DateTime       @updatedAt
+
+  creator       CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
+  @@map("creator_price_snapshots")
+}

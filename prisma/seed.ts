@@ -114,6 +114,23 @@ async function seed() {
          },
       });
 
+      // Seed price snapshot so dev list responses include price data.
+      const creatorRecord = await prisma.creatorProfile.findUniqueOrThrow({
+         where: { userId: upsertedUser.id },
+         select: { id: true },
+      });
+
+      await prisma.creatorPriceSnapshot.upsert({
+         where: { creatorId: creatorRecord.id },
+         create: {
+            creatorId: creatorRecord.id,
+            currentPrice: BigInt(1_000_000),
+            price24hAgo: BigInt(900_000),
+            lastTradeAt: new Date(),
+         },
+         update: {},
+      });
+
       console.log(`✓ seeded ${user.email} (${user.handle})`);
    }
 }

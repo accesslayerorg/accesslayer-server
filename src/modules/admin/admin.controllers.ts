@@ -101,7 +101,11 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
 
 export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest, res: Response, next) => {
   try {
-    const { startLedger, dryRun = false } = req.body as { startLedger?: number; dryRun?: boolean };
+    const { startLedger, endLedger, dryRun = false } = req.body as {
+      startLedger?: number;
+      endLedger?: number;
+      dryRun?: boolean;
+    };
     const adminId = req.adminId;
     const lockName = 'indexer-replay';
     const lockOwner = adminId || 'unknown';
@@ -111,6 +115,13 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
         { field: 'startLedger', message: 'startLedger must be a positive integer' },
       ]);
     }
+
+    if (endLedger !== undefined && (typeof endLedger !== 'number' || endLedger < startLedger)) {
+      return sendValidationError(res, 'Invalid request body', [
+        { field: 'endLedger', message: 'endLedger must be >= startLedger' },
+      ]);
+    }
+
     if (typeof dryRun !== 'boolean') {
       return sendValidationError(res, 'Invalid request body', [
         { field: 'dryRun', message: 'dryRun must be a boolean' },
@@ -141,6 +152,7 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
     const replayInitiated = {
       type: 'INDEXER_REPLAY_INITIATED',
       startLedger,
+      endLedger: endLedger || null,
       dryRun,
       initiatedBy: adminId,
       lock: {
@@ -155,6 +167,8 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
         lockName,
         lockOwner,
         lockExpiresAt: lock.expiresAt,
+        startLedger,
+        endLedger: endLedger || null,
       },
       'Acquired background job lock for indexer replay'
     );
@@ -165,7 +179,7 @@ export const httpReplayIndexerEvents: AsyncController = async (req: AdminRequest
         action: 'replay_indexer_events',
         target: 'IndexerQueue',
         targetId: String(startLedger),
-        metadata: { startLedger, dryRun },
+        metadata: { startLedger, endLedger: endLedger || null, dryRun },
       });
     }
 

@@ -17,6 +17,13 @@ export const CREATOR_DETAIL_DEFAULT_SELECT = {
   isVerified: true,
   createdAt: true,
   updatedAt: true,
+  priceSnapshot: {
+    select: {
+      currentPrice: true,
+      price24hAgo: true,
+      lastTradeAt: true,
+    },
+  },
 } as const;
 
 export type CreatorDetailSelectKeys = keyof typeof CREATOR_DETAIL_DEFAULT_SELECT;

@@ -58,3 +58,14 @@ export function sanitizeBigInts(value: unknown): unknown {
    }
    return value;
 }
+
+/**
+ * Recursively converts BigInt values to their decimal string representation.
+ * Alias for `sanitizeBigInts` — use this name when the intent is to prepare
+ * a value for JSON serialization in API responses.
+ *
+ * @example
+ * serializeBigInt({ amount: 1000000000000000000n });
+ * // → { amount: "1000000000000000000" }
+ */
+export const serializeBigInt = sanitizeBigInts;

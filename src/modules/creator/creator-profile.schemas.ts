@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { withCreatorSlugEmptyStringNormalization } from './creator-slug-input.utils';
+import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
+import { sanitizeBio } from './creator-bio-sanitize.utils';
 
 /**
  * Shared creator profile identifier schema for route params.
@@ -32,14 +34,25 @@ export const CreatorPerkSchema = z.object({
  *
  * The shape is explicit now so future indexing-backed values can be dropped in
  * without changing API contracts.
+ *
+ * @see ../creators/creators.serializers.ts — module docblock for null vs absent
+ *      field rules across creator list and detail responses.
  */
 export const CreatorProfileReadResponseSchema = z.object({
    creatorId: z.string(),
    displayName: z.string().nullable(),
    bio: z.string().nullable(),
    avatarUrl: z.string().url().nullable(),
+   createdAt: z.string().datetime().nullable(),
+   updatedAt: z.string().datetime().nullable(),
    perks: z.array(CreatorPerkSchema).optional(),
    links: z.array(z.object({ label: z.string(), url: z.string().url() })),
+   /** Current key price in stroops as a string. null when no trade has occurred. */
+   currentPrice: z.string().nullable(),
+   /** Price 24 h ago in stroops as a string. null when no baseline exists. */
+   price24hAgo: z.string().nullable(),
+   /** Computed percentage change. null when no baseline exists. */
+   priceChange24h: z.number().nullable(),
    metadata: z.object({
       source: z.enum(['placeholder', 'database']),
       isProfileComplete: z.boolean(),
@@ -63,6 +76,7 @@ export const UpsertCreatorProfileBodySchema = z.object({
       .string()
       .trim()
       .max(1000, 'Bio must be at most 1000 characters')
+      .transform(sanitizeBio)
       .optional(),
    avatarUrl: z
       .string()
@@ -77,7 +91,11 @@ export const UpsertCreatorProfileBodySchema = z.object({
                .trim()
                .min(1, 'Link label is required')
                .max(40, 'Link label must be at most 40 characters'),
-            url: z.string().trim().url('Link URL must be a valid URL'),
+            url: z
+               .string()
+               .trim()
+               .url('Link URL must be a valid URL')
+               .transform(normalizeSocialLinkUrl),
          })
       )
       .max(8, 'At most 8 profile links are allowed')

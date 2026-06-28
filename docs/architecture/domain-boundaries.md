@@ -50,7 +50,7 @@ erDiagram
 ### Core Entities
 
 1. **User**: Represents a registered user. Holds authentication and basic profile data.
-2. **CreatorProfile**: Represents the creator persona of a user. Tied to a specific handle and contains metadata like bio and perks.
+2. **CreatorProfile**: Represents the creator persona of a user. Tied to a specific handle and contains metadata like bio and perks. See [Creator Data Model Reference](./creator-data-model.md) for field-level types, constraints, and required/optional rules.
 3. **StellarWallet**: Links a user to their Stellar public address. Used for identity verification and ownership checks.
 4. **IndexerDLQ**: Stores failed indexing jobs from the Stellar blockchain for manual review or reprocessing.
 5. **AuditEvent**: A generic log for significant actions occurring in the system.

@@ -11,6 +11,9 @@ const mockedCheck =
       typeof walletOwnership.checkCreatorProfileOwnership
    >;
 
+const VALID_STELLAR_ADDRESS =
+   'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
 function buildRes() {
    const json = jest.fn();
    const status = jest.fn().mockImplementation(() => ({ json }));
@@ -49,8 +52,36 @@ describe('requireCreatorProfileOwnership', () => {
       expect(mockedCheck).not.toHaveBeenCalled();
    });
 
+   it('returns 400 when the wallet address has wrong length', async () => {
+      const req = buildReq({ address: 'GSHORT', creatorId: 'alice' });
+      const res = buildRes();
+      const next = jest.fn();
+
+      await requireCreatorProfileOwnership()(req, res, next as NextFunction);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).not.toHaveBeenCalled();
+      expect(mockedCheck).not.toHaveBeenCalled();
+   });
+
+   it('returns 400 when the wallet address has invalid characters', async () => {
+      const req = buildReq({
+         address:
+            'G!!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+         creatorId: 'alice',
+      });
+      const res = buildRes();
+      const next = jest.fn();
+
+      await requireCreatorProfileOwnership()(req, res, next as NextFunction);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).not.toHaveBeenCalled();
+      expect(mockedCheck).not.toHaveBeenCalled();
+   });
+
    it('returns 400 when the path parameter is missing', async () => {
-      const req = buildReq({ address: 'GABC' });
+      const req = buildReq({ address: VALID_STELLAR_ADDRESS });
       const res = buildRes();
       const next = jest.fn();
 
@@ -63,15 +94,15 @@ describe('requireCreatorProfileOwnership', () => {
    it('returns 401 when the helper reports an unknown wallet', async () => {
       mockedCheck.mockResolvedValue({
          status: 'wallet_not_found',
-         address: 'GABC',
+         address: VALID_STELLAR_ADDRESS,
       });
-      const req = buildReq({ address: 'GABC', creatorId: 'alice' });
+      const req = buildReq({ address: VALID_STELLAR_ADDRESS, creatorId: 'alice' });
       const res = buildRes();
       const next = jest.fn();
 
       await requireCreatorProfileOwnership()(req, res, next as NextFunction);
 
-      expect(mockedCheck).toHaveBeenCalledWith('GABC', 'alice');
+      expect(mockedCheck).toHaveBeenCalledWith(VALID_STELLAR_ADDRESS, 'alice');
       expect(res.status).toHaveBeenCalledWith(401);
       expect(next).not.toHaveBeenCalled();
    });
@@ -79,10 +110,10 @@ describe('requireCreatorProfileOwnership', () => {
    it('returns 403 when the helper reports forbidden ownership', async () => {
       mockedCheck.mockResolvedValue({
          status: 'forbidden',
-         address: 'GABC',
+         address: VALID_STELLAR_ADDRESS,
          ownerUserId: 'someone-else',
       });
-      const req = buildReq({ address: 'GABC', creatorId: 'alice' });
+      const req = buildReq({ address: VALID_STELLAR_ADDRESS, creatorId: 'alice' });
       const res = buildRes();
       const next = jest.fn();
 
@@ -97,7 +128,7 @@ describe('requireCreatorProfileOwnership', () => {
          status: 'granted',
          ownerUserId: 'user-1',
       });
-      const req = buildReq({ address: 'GABC', creatorId: 'alice' });
+      const req = buildReq({ address: VALID_STELLAR_ADDRESS, creatorId: 'alice' });
       const res = buildRes();
       const next = jest.fn();
 
@@ -105,7 +136,7 @@ describe('requireCreatorProfileOwnership', () => {
 
       expect(next).toHaveBeenCalledWith();
       expect((req as Request & { walletAddress?: string }).walletAddress).toBe(
-         'GABC'
+         VALID_STELLAR_ADDRESS
       );
       expect((req as Request & { ownerUserId?: string }).ownerUserId).toBe(
          'user-1'
@@ -113,13 +144,13 @@ describe('requireCreatorProfileOwnership', () => {
       expect(res.status).not.toHaveBeenCalled();
    });
 
-   it('uses the first value of an array-form wallet header', async () => {
+   it('uses the first value of an array-form wallet header when all are valid', async () => {
       mockedCheck.mockResolvedValue({
          status: 'granted',
          ownerUserId: 'user-1',
       });
       const req = buildReq({
-         address: ['GFIRST', 'GSECOND'],
+         address: [VALID_STELLAR_ADDRESS, 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'],
          creatorId: 'alice',
       });
       const res = buildRes();
@@ -127,13 +158,28 @@ describe('requireCreatorProfileOwnership', () => {
 
       await requireCreatorProfileOwnership()(req, res, next as NextFunction);
 
-      expect(mockedCheck).toHaveBeenCalledWith('GFIRST', 'alice');
+      expect(mockedCheck).toHaveBeenCalledWith(VALID_STELLAR_ADDRESS, 'alice');
       expect(next).toHaveBeenCalledWith();
    });
 
-   it('returns 500 when the helper throws', async () => {
+   it('returns 400 when the first of an array-form wallet header is invalid', async () => {
+      const req = buildReq({
+         address: ['GSHORT', VALID_STELLAR_ADDRESS],
+         creatorId: 'alice',
+      });
+      const res = buildRes();
+      const next = jest.fn();
+
+      await requireCreatorProfileOwnership()(req, res, next as NextFunction);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).not.toHaveBeenCalled();
+      expect(mockedCheck).not.toHaveBeenCalled();
+   });
+
+   it('returns 500 when the helper throws with a valid address', async () => {
       mockedCheck.mockRejectedValue(new Error('db down'));
-      const req = buildReq({ address: 'GABC', creatorId: 'alice' });
+      const req = buildReq({ address: VALID_STELLAR_ADDRESS, creatorId: 'alice' });
       const res = buildRes();
       const next = jest.fn();
       const errorSpy = jest

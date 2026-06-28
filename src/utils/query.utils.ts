@@ -2,6 +2,34 @@ import { z } from 'zod';
 import { parseBoolean, ParseBooleanError } from './parseBoolean.utils';
 
 /**
+ * Normalize an optional integer query param.
+ *
+ * - `undefined`, `null`, or blank strings return `defaultValue`
+ * - numeric strings are trimmed then parsed as base-10 integers
+ * - non-integer strings return `null` (callers can map to validation errors)
+ */
+export function normalizeOptionalIntegerQueryParam(
+   raw: unknown,
+   defaultValue: number
+): number | null {
+   if (raw === undefined || raw === null) {
+      return defaultValue;
+   }
+
+   const candidate = String(raw).trim();
+   if (!candidate) {
+      return defaultValue;
+   }
+
+   if (!/^-?\d+$/.test(candidate)) {
+      return null;
+   }
+
+   const parsed = Number.parseInt(candidate, 10);
+   return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
  * Creates a Zod schema for safely parsing an integer query parameter.
  *
  * Accepts a string (as Express delivers query params), applies a default,
@@ -19,8 +47,21 @@ export function safeIntParam(options: {
    return z
       .string()
       .optional()
-      .default(String(defaultValue))
-      .transform(val => parseInt(val, 10))
+      .transform((raw, ctx) => {
+         const normalized = normalizeOptionalIntegerQueryParam(
+            raw,
+            defaultValue
+         );
+         if (normalized === null) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               message: `${label} must be an integer between ${min} and ${max}`,
+            });
+            return z.NEVER;
+         }
+
+         return normalized;
+      })
       .refine(val => !Number.isNaN(val) && val >= min && val <= max, {
          message: `${label} must be an integer between ${min} and ${max}`,
       });

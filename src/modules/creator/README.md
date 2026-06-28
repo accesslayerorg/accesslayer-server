@@ -38,3 +38,5 @@ All routes are mounted under `/api/v1/creators`.
 - Authentication and authorization are intentionally deferred.
 - Persistence/indexing integration is intentionally deferred.
 - Current handlers are designed so storage/indexing can be added without changing route contracts.
+- The request lifecycle for the public creator routes is documented in
+  [`docs/creator-request-lifecycle.md`](../../docs/creator-request-lifecycle.md).
