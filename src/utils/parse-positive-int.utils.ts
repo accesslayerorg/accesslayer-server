@@ -36,7 +36,7 @@ export function parsePositiveInt(
 
    if (parsed <= 0) {
       throw new Error(
-         `Configuration error: ${name}="${value}" must be a positive integer (> 0).`
+         `Configuration error: ${name}="${value}" must  be a positive integer (> 0).`
       );
    }
 
