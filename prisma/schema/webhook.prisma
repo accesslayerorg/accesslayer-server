@@ -12,15 +12,14 @@ enum WebhookEventType {
 }
 
 model Webhook {
-  id          String            @id @default(cuid())
-  creatorId   String
-  callbackUrl String
-  events      WebhookEventType[]
-  isActive    Boolean           @default(true)
-  isFailing   Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
+  id                String             @id @default(cuid())
+  creatorId         String
+  callbackUrl       String
+  events            WebhookEventType[]
+  isActive          Boolean            @default(true)
+  isFailing         Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   events_dispatched WebhookEvent[]
 
   @@index([creatorId])
@@ -37,8 +36,7 @@ model WebhookEvent {
   lastError  String?
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
-
-  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  webhook    Webhook            @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@index([webhookId])
   @@index([status])
