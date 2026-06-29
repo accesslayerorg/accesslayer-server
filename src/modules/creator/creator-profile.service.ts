@@ -6,6 +6,7 @@ import {
 } from './creator-profile.schemas';
 import { CREATOR_DETAIL_DEFAULT_SELECT } from '../../constants/creator-detail-include.constants';
 import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
+import { compute24hPriceChange } from '../../utils/price.utils';
 import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
 import { truncateString } from '../../utils/string-truncate.utils';
 
@@ -24,7 +25,7 @@ function normalizeProfileLinks(
       return links;
    }
 
-   return links.map((link) => ({
+   return links.map(link => ({
       ...link,
       label: truncateString(link.label, CREATOR_PROFILE_LIMITS.linkLabel),
       url: normalizeSocialLinkUrl(link.url),
@@ -38,7 +39,7 @@ function normalizeProfilePerks(
       return perks;
    }
 
-   return perks.map((perk) => ({
+   return perks.map(perk => ({
       ...perk,
       title: truncateString(perk.title, CREATOR_PROFILE_LIMITS.perkTitle),
       description: truncateString(
@@ -55,6 +56,19 @@ function buildCreatorDetailCacheMissContext(creatorId: string) {
       lookupKeys: ['id', 'handle'],
       source: 'creator-profile-service',
    };
+}
+
+export async function creatorProfileExists(
+   creatorId: string
+): Promise<boolean> {
+   const profile = await prisma.creatorProfile.findFirst({
+      where: {
+         OR: [{ id: creatorId }, { handle: creatorId }],
+      },
+      select: { id: true },
+   });
+
+   return profile !== null;
 }
 
 /**
@@ -108,10 +122,11 @@ export async function getCreatorProfile(
    } | null;
 
    let priceChange24h: number | null = null;
-   if (snapshot && snapshot.price24hAgo !== BigInt(0)) {
-      const change = Number(snapshot.currentPrice - snapshot.price24hAgo);
-      const base = Number(snapshot.price24hAgo);
-      priceChange24h = parseFloat(((change / base) * 100).toFixed(2));
+   if (snapshot) {
+      priceChange24h = compute24hPriceChange(
+         snapshot.currentPrice,
+         snapshot.price24hAgo
+      );
    }
 
    return {
@@ -149,7 +164,10 @@ export async function upsertCreatorProfile(
    const normalizedPayload: UpsertCreatorProfileBody = {
       ...payload,
       displayName: payload.displayName
-         ? truncateString(payload.displayName, CREATOR_PROFILE_LIMITS.displayName)
+         ? truncateString(
+              payload.displayName,
+              CREATOR_PROFILE_LIMITS.displayName
+           )
          : payload.displayName,
       bio: payload.bio
          ? truncateString(payload.bio, CREATOR_PROFILE_LIMITS.bio)

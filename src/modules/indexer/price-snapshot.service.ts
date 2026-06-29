@@ -40,6 +40,16 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
           lastTradeAt: tradeAt,
         },
       });
+      logger.debug(
+        {
+          creator_id: creatorId,
+          new_price: price.toString(),
+          previous_price: null,
+          ledger_sequence: null,
+          written_at: tradeAt.toISOString(),
+        },
+        'price-snapshot: written (first trade)'
+      );
       return;
     }
 
@@ -49,6 +59,11 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
         { creatorId, tradeAt, lastTradeAt: existing.lastTradeAt },
         'price-snapshot: skipping stale event (idempotency guard)'
       );
+      return;
+    }
+
+    // Skip write when price is unchanged.
+    if (existing.currentPrice.toString() === price.toString()) {
       return;
     }
 
@@ -65,6 +80,16 @@ export async function upsertPriceSnapshot(event: TradeEventPayload): Promise<voi
         lastTradeAt: tradeAt,
       },
     });
+    logger.debug(
+      {
+        creator_id: creatorId,
+        new_price: price.toString(),
+        previous_price: existing.currentPrice.toString(),
+        ledger_sequence: null,
+        written_at: tradeAt.toISOString(),
+      },
+      'price-snapshot: written'
+    );
   } catch (err) {
     logger.error({ err, creatorId }, 'price-snapshot: failed to upsert');
     throw err;

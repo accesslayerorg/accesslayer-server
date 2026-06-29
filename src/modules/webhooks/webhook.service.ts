@@ -24,7 +24,7 @@ export async function createWebhook(
       new Error(
         `Maximum of ${envConfig.WEBHOOK_MAX_PER_CREATOR} active webhooks per creator reached`
       ),
-      { statusCode: 409, code: 'MAX_WEBHOOKS_REACHED' }
+      { statusCode: 422, code: 'MAX_WEBHOOKS_REACHED' }
     );
   }
 
@@ -121,6 +121,7 @@ async function attemptDelivery(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
+    const startTime = Date.now();
 
     const response = await fetch(callbackUrl, {
       method: 'POST',
@@ -129,6 +130,8 @@ async function attemptDelivery(
       signal: controller.signal,
     });
 
+    const endTime = Date.now();
+    const responseTimeMs = endTime - startTime;
     clearTimeout(timeout);
 
     if (response.ok) {
@@ -136,6 +139,18 @@ async function attemptDelivery(
         where: { webhookId, status: 'PENDING' },
         data: { status: 'DELIVERED', retryCount: attempt },
       });
+
+      logger.info(
+        {
+          webhook_id: webhookId,
+          creator_id: payload.creator_id,
+          event_type: payload.event_type,
+          response_status: response.status,
+          response_time_ms: responseTimeMs,
+          delivered_at: new Date().toISOString(),
+        },
+        'Webhook delivery succeeded'
+      );
       return;
     }
 

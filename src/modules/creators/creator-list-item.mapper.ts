@@ -3,6 +3,7 @@ import { requestContextStorage } from '../../utils/als.utils';
 import { formatIsoTimestamp } from '../../utils/iso-timestamp.utils';
 import { logger } from '../../utils/logger.utils';
 import { safeRead } from '../../utils/safe-nested-read.utils';
+import { compute24hPriceChange } from '../../utils/price.utils';
 
 /**
  * Locked output shape for creator list items.
@@ -105,10 +106,8 @@ export const mapCreatorListItem = (
    const price24hAgo = snapshot?.price24hAgo ?? null;
 
    let priceChange24h: number | null = null;
-   if (currentPrice !== null && price24hAgo !== null && price24hAgo !== BigInt(0)) {
-      const change = Number(currentPrice - price24hAgo);
-      const base = Number(price24hAgo);
-      priceChange24h = parseFloat(((change / base) * 100).toFixed(2));
+   if (currentPrice !== null && price24hAgo !== null) {
+      priceChange24h = compute24hPriceChange(currentPrice, price24hAgo);
    }
 
    return {

@@ -13,8 +13,8 @@ import { HoldingEntry } from '../wallet-holdings.schemas';
 const VALID_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const MALFORMED_ADDRESS = 'not-a-stellar-address';
 
-function makeReq(params: Record<string, string> = {}): any {
-    return { params };
+function makeReq(params: Record<string, string> = {}, query: Record<string, any> = {}): any {
+    return { params, query };
 }
 
 function makeRes(): any {
@@ -47,7 +47,7 @@ describe('GET /wallets/:address/holdings', () => {
         jest.restoreAllMocks();
     });
 
-    it('returns 200 with items and total for a wallet with holdings', async () => {
+    it('returns 200 with items and meta for a wallet with holdings', async () => {
         const holdings: HoldingEntry[] = [
             makeHolding({ creator_id: 'creator-1', creator_handle: 'alice', key_count: '5' }),
             makeHolding({ creator_id: 'creator-2', creator_handle: 'bob', key_count: '3' }),
@@ -62,7 +62,7 @@ describe('GET /wallets/:address/holdings', () => {
         const body = res.json.mock.calls[0][0];
         expect(body.success).toBe(true);
         expect(body.data.items).toHaveLength(2);
-        expect(body.data.total).toBe(2);
+        expect(body.data.meta.total).toBe(2);
     });
 
     it('each holding includes required fields', async () => {
@@ -98,7 +98,7 @@ describe('GET /wallets/:address/holdings', () => {
         expect(res.status).toHaveBeenCalledWith(200);
         const body = res.json.mock.calls[0][0];
         expect(body.data.items).toEqual([]);
-        expect(body.data.total).toBe(0);
+        expect(body.data.meta.total).toBe(0);
     });
 
     it('returns 400 for a malformed Stellar address', async () => {
