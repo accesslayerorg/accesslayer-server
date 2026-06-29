@@ -25,7 +25,7 @@ function normalizeProfileLinks(
       return links;
    }
 
-   return links.map((link) => ({
+   return links.map(link => ({
       ...link,
       label: truncateString(link.label, CREATOR_PROFILE_LIMITS.linkLabel),
       url: normalizeSocialLinkUrl(link.url),
@@ -39,7 +39,7 @@ function normalizeProfilePerks(
       return perks;
    }
 
-   return perks.map((perk) => ({
+   return perks.map(perk => ({
       ...perk,
       title: truncateString(perk.title, CREATOR_PROFILE_LIMITS.perkTitle),
       description: truncateString(
@@ -56,6 +56,19 @@ function buildCreatorDetailCacheMissContext(creatorId: string) {
       lookupKeys: ['id', 'handle'],
       source: 'creator-profile-service',
    };
+}
+
+export async function creatorProfileExists(
+   creatorId: string
+): Promise<boolean> {
+   const profile = await prisma.creatorProfile.findFirst({
+      where: {
+         OR: [{ id: creatorId }, { handle: creatorId }],
+      },
+      select: { id: true },
+   });
+
+   return profile !== null;
 }
 
 /**
@@ -110,7 +123,10 @@ export async function getCreatorProfile(
 
    let priceChange24h: number | null = null;
    if (snapshot) {
-      priceChange24h = compute24hPriceChange(snapshot.currentPrice, snapshot.price24hAgo);
+      priceChange24h = compute24hPriceChange(
+         snapshot.currentPrice,
+         snapshot.price24hAgo
+      );
    }
 
    return {
@@ -148,7 +164,10 @@ export async function upsertCreatorProfile(
    const normalizedPayload: UpsertCreatorProfileBody = {
       ...payload,
       displayName: payload.displayName
-         ? truncateString(payload.displayName, CREATOR_PROFILE_LIMITS.displayName)
+         ? truncateString(
+              payload.displayName,
+              CREATOR_PROFILE_LIMITS.displayName
+           )
          : payload.displayName,
       bio: payload.bio
          ? truncateString(payload.bio, CREATOR_PROFILE_LIMITS.bio)

@@ -9,6 +9,7 @@ import { mapPublicCreatorStats } from './creators.stats';
 import {
    sendSuccess,
    sendValidationError,
+   sendNotFound,
 } from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
@@ -21,6 +22,10 @@ import {
    type FilterParseErrorCategory,
 } from '../../utils/filter-parse-metrics.utils';
 import { parseCreatorId } from '../../utils/creator-id.utils';
+import {
+   creatorProfileExists,
+   getCreatorProfile,
+} from '../creator/creator-profile.service';
 
 /**
  * Controller for GET /api/v1/creators
@@ -35,16 +40,18 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       warnIfUnrecognizedCreatorListSort(ctx.query, req.requestId);
 
       // Validate query parameters
-      const parsed = parsePublicQuery(
-         CreatorListQuerySchema, 
-         ctx.query,
-         { debugContext: 'creator-list-query' }
-      );
+      const parsed = parsePublicQuery(CreatorListQuerySchema, ctx.query, {
+         debugContext: 'creator-list-query',
+      });
       if (!parsed.ok) {
          // Increment filter parse error counter
          const category = categorizeParseError(parsed.details);
          incrementFilterParseError('/api/v1/creators', category);
-         return sendValidationError(res, 'Invalid query parameters', parsed.details);
+         return sendValidationError(
+            res,
+            'Invalid query parameters',
+            parsed.details
+         );
       }
       const validatedQuery = parsed.data;
 
@@ -87,7 +94,12 @@ function categorizeParseError(
    details: Array<{ field: string; message: string }>
 ): FilterParseErrorCategory {
    // Check for unknown key errors (strict mode violations)
-   if (details.some(d => d.message.includes('unrecognized') || d.message.includes('unknown'))) {
+   if (
+      details.some(
+         d =>
+            d.message.includes('unrecognized') || d.message.includes('unknown')
+      )
+   ) {
       return 'unknown_key';
    }
    // Default to invalid_value for type/range errors
@@ -103,7 +115,9 @@ function categorizeParseError(
 export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
    try {
       const rawId = req.params.id;
-      const _creatorId = parseCreatorId(Array.isArray(rawId) ? rawId[0] : rawId);
+      const _creatorId = parseCreatorId(
+         Array.isArray(rawId) ? rawId[0] : rawId
+      );
 
       // TODO: Fetch actual creator metrics from database/service using _creatorId
       // For now, return placeholder data
@@ -119,6 +133,28 @@ export const httpGetCreatorStats: AsyncController = async (req, res, next) => {
 
       attachTimestampHeader(res);
       sendSuccess(res, stats);
+   } catch (error) {
+      next(error);
+   }
+};
+
+/**
+ * Controller for GET /api/v1/creators/:id
+ *
+ * Returns public profile details for a specific creator.
+ */
+export const httpGetCreator: AsyncController = async (req, res, next) => {
+   try {
+      const rawId = req.params.id;
+      const creatorId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+      if (!(await creatorProfileExists(creatorId))) {
+         return sendNotFound(res, 'Creator');
+      }
+
+      const profile = await getCreatorProfile(creatorId);
+      attachTimestampHeader(res);
+      sendSuccess(res, profile, 200, 'Creator retrieved successfully');
    } catch (error) {
       next(error);
    }
