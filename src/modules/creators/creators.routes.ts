@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { httpListCreators, httpGetCreatorStats } from './creators.controllers';
+import {
+   httpListCreators,
+   httpGetCreator,
+   httpGetCreatorStats,
+} from './creators.controllers';
 import { httpGetCreatorHolders } from './creator-holders.controller';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
@@ -24,7 +28,9 @@ creatorsRouter.use(normalizeTrailingSlash);
 creatorsRouter.get(
    '/',
    createCreatorReadMetricsMiddleware('list'),
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]
+   ),
    httpListCreators
 );
 // 405 handler for /
@@ -42,7 +48,9 @@ creatorsRouter.get(
    '/:id/stats',
    validateCreatorParam('id'),
    createCreatorReadMetricsMiddleware('detail'),
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]
+   ),
    httpGetCreatorStats
 );
 // 405 handler for /:id/stats
@@ -61,11 +69,33 @@ creatorsRouter.get(
    '/:id/holders',
    validateCreatorParam('id'),
    createCreatorReadMetricsMiddleware('holders'),
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_HOLDERS]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_HOLDERS]
+   ),
    httpGetCreatorHolders
 );
 // 405 handler for /:id/holders
 creatorsRouter.all('/:id/holders', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
+ * GET /api/v1/creators/:id
+ *
+ * Get public details for a specific creator.
+ * Public endpoint with 5-minute cache.
+ */
+creatorsRouter.get(
+   '/:id',
+   validateCreatorParam('id'),
+   createCreatorReadMetricsMiddleware('detail'),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
+   ),
+   httpGetCreator
+);
+// 405 handler for /:id
+creatorsRouter.all('/:id', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
 
