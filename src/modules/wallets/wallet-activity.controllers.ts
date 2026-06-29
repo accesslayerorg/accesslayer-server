@@ -3,6 +3,7 @@ import { WalletActivityParamsSchema, WalletActivityQuerySchema } from './wallet-
 import { fetchWalletActivity } from './wallet-activity.service';
 import { sendSuccess, sendValidationError } from '../../utils/api-response.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { logger } from '../../utils/logger.utils';
 
 export async function httpGetWalletActivity(
     req: Request,
@@ -36,10 +37,28 @@ export async function httpGetWalletActivity(
             return;
         }
 
+        const t0 = performance.now();
         const [items, total, nextCursor] = await fetchWalletActivity(
             parsedParams.data.address,
             parsedQuery.data
         );
+        const duration = performance.now() - t0;
+
+        const filters_applied = [];
+        if (parsedQuery.data.type) filters_applied.push('type');
+        if (parsedQuery.data.creator_id) filters_applied.push('creator_id');
+
+        const address = parsedParams.data.address;
+        const maskedAddress = address.length >= 8 
+            ? `${address.slice(0, 4)}...${address.slice(-4)}`
+            : address;
+
+        logger.debug({
+            wallet_address: maskedAddress,
+            result_count: items.length,
+            query_duration_ms: Math.round(duration),
+            filters_applied
+        }, 'Wallet activity feed query');
 
         sendSuccess(res, {
             items,

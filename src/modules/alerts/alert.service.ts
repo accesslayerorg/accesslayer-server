@@ -4,34 +4,70 @@ import { logger } from '../../utils/logger.utils';
 import { CreateAlertInput } from './alert.schemas';
 
 export type PriceMovement = {
-    creatorId: string;
-    previousPrice: number | string;
-    currentPrice: number | string;
+   creatorId: string;
+   previousPrice: number | string;
+   currentPrice: number | string;
+   ledger_sequence?: number;
 };
 
 /**
  * Creates a new price alert for a wallet address watching a creator's key price.
+ * Throws a 409 error if an identical active alert already exists.
  */
 export async function createAlert(input: CreateAlertInput) {
-    return await prisma.priceAlert.create({
-        data: {
-            creatorId: input.creator_id,
-            walletAddress: input.wallet_address,
-            targetPrice: input.target_price,
-            direction: input.direction,
-            callbackUrl: input.callback_url,
-        },
-    });
+   // Check for duplicate active alert
+   const existingAlert = await prisma.priceAlert.findFirst({
+      where: {
+         creatorId: input.creator_id,
+         walletAddress: input.wallet_address,
+         targetPrice: input.target_price,
+         direction: input.direction,
+         isActive: true,
+      },
+   });
+
+   if (existingAlert) {
+      const error = new Error(
+         'An identical active alert already exists for this creator, wallet, price, and direction'
+      ) as any;
+      error.statusCode = 409;
+      error.code = 'DUPLICATE_ALERT';
+      throw error;
+   }
+
+   const alert = await prisma.priceAlert.create({
+      data: {
+         creatorId: input.creator_id,
+         walletAddress: input.wallet_address,
+         targetPrice: input.target_price,
+         direction: input.direction,
+         callbackUrl: input.callback_url,
+      },
+   });
+
+   logger.info(
+      {
+         alert_id: alert.id,
+         creator_id: alert.creatorId,
+         direction: alert.direction,
+         target_price: toNumber(alert.targetPrice),
+         registered_at: alert.createdAt,
+         wallet_address: maskWalletAddress(alert.walletAddress),
+      },
+      'Price alert registered'
+   );
+
+   return alert;
 }
 
 /**
  * Lists all active price alerts for a given wallet address.
  */
 export async function listAlerts(walletAddress: string) {
-    return await prisma.priceAlert.findMany({
-        where: { walletAddress, isActive: true },
-        orderBy: { createdAt: 'desc' },
-    });
+   return await prisma.priceAlert.findMany({
+      where: { walletAddress, isActive: true },
+      orderBy: { createdAt: 'desc' },
+   });
 }
 
 /**
@@ -39,89 +75,106 @@ export async function listAlerts(walletAddress: string) {
  * Returns the deleted record id or null if not found.
  */
 export async function deleteAlert(
-    id: string,
-    walletAddress: string
+   id: string,
+   walletAddress: string
 ): Promise<{ id: string } | null> {
-    const existing = await prisma.priceAlert.findFirst({
-        where: { id, walletAddress },
-    });
+   const existing = await prisma.priceAlert.findFirst({
+      where: { id, walletAddress },
+   });
 
-    if (!existing) {
-        return null;
-    }
+   if (!existing) {
+      return null;
+   }
 
-    await prisma.priceAlert.delete({ where: { id } });
-    return { id };
+   await prisma.priceAlert.delete({ where: { id } });
+
+   logger.info(
+      {
+         alert_id: existing.id,
+         creator_id: existing.creatorId,
+         cancelled_at: new Date(),
+         wallet_address: maskWalletAddress(existing.walletAddress),
+      },
+      'Price alert cancelled'
+   );
+
+   return { id };
 }
 
 function toNumber(value: number | string | { toString(): string }): number {
-    return typeof value === 'number' ? value : Number(value.toString());
+   return typeof value === 'number' ? value : Number(value.toString());
+}
+
+function maskWalletAddress(address: string): string {
+   if (address.length <= 8) return address;
+   return `${address.slice(0, 4)}***${address.slice(-4)}`;
 }
 
 function maskCallbackUrl(callbackUrl: string): string {
-    try {
-        const url = new URL(callbackUrl);
-        return `${url.protocol}//${url.host}`;
-    } catch {
-        return 'invalid-url';
-    }
+   try {
+      const url = new URL(callbackUrl);
+      return `${url.protocol}//${url.host}`;
+   } catch {
+      return 'invalid-url';
+   }
 }
 
 function getDeliveryErrorCode(error: unknown): string {
-    if (error instanceof Error && error.message.startsWith('HTTP_')) {
-        return error.message;
-    }
+   if (error instanceof Error && error.message.startsWith('HTTP_')) {
+      return error.message;
+   }
 
-    return error instanceof Error ? error.name : 'UNKNOWN_ERROR';
+   return error instanceof Error ? error.name : 'UNKNOWN_ERROR';
 }
 
 async function deliverPriceAlertWebhook(
-    alert: {
-        id: string;
-        creatorId: string;
-        walletAddress: string;
-        targetPrice: unknown;
-        direction: string;
-        callbackUrl: string;
-    },
-    payload: Record<string, unknown>
+   alert: {
+      id: string;
+      creatorId: string;
+      walletAddress: string;
+      targetPrice: unknown;
+      direction: string;
+      callbackUrl: string;
+   },
+   payload: Record<string, unknown>
 ): Promise<void> {
-    const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
-    const maskedUrl = maskCallbackUrl(alert.callbackUrl);
+   const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
+   const maskedUrl = maskCallbackUrl(alert.callbackUrl);
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-            const response = await fetch(alert.callbackUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+         const response = await fetch(alert.callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+         });
 
-            if (!response.ok) {
-                throw new Error(`HTTP_${response.status}`);
-            }
+         if (!response.ok) {
+            throw new Error(`HTTP_${response.status}`);
+         }
 
-            return;
-        } catch (error) {
-            const logFields = {
-                alert_id: alert.id,
-                retry_count: attempt,
-                error_code: getDeliveryErrorCode(error),
-                failure_reason: error instanceof Error ? error.message : 'Unknown error',
-                masked_url: maskedUrl,
-            };
+         return;
+      } catch (error) {
+         const logFields = {
+            alert_id: alert.id,
+            retry_count: attempt,
+            error_code: getDeliveryErrorCode(error),
+            failure_reason:
+               error instanceof Error ? error.message : 'Unknown error',
+            masked_url: maskedUrl,
+         };
 
-            if (attempt === maxAttempts) {
-                logger.error(
-                    { ...logFields, final: true },
-                    'Price alert webhook delivery exhausted retries'
-                );
-                throw error;
-            }
+         if (attempt === maxAttempts) {
+            logger.error(
+               { ...logFields, final: true },
+               'Price alert webhook delivery exhausted retries'
+            );
+            throw error;
+         }
 
-            logger.warn(logFields, 'Price alert webhook delivery failed');
-        }
-    }
+         logger.warn(logFields, 'Price alert webhook delivery failed');
+      }
+   }
 }
 
 /**
@@ -129,35 +182,36 @@ async function deliverPriceAlertWebhook(
  * whose threshold was crossed in the registered direction.
  */
 export async function evaluatePriceAlertsForMovement(
-    movement: PriceMovement
+   movement: PriceMovement
 ): Promise<void> {
-    const previousPrice = toNumber(movement.previousPrice);
-    const currentPrice = toNumber(movement.currentPrice);
+   try {
+      const previousPrice = toNumber(movement.previousPrice);
+      const currentPrice = toNumber(movement.currentPrice);
 
-    const alerts = await prisma.priceAlert.findMany({
-        where: {
+      const alerts = await prisma.priceAlert.findMany({
+         where: {
             creatorId: movement.creatorId,
             isActive: true,
             triggeredAt: null,
-        },
-    });
+         },
+      });
 
-    for (const alert of alerts) {
-        const targetPrice = toNumber(alert.targetPrice);
-        const crossedAbove =
+      for (const alert of alerts) {
+         const targetPrice = toNumber(alert.targetPrice);
+         const crossedAbove =
             alert.direction === 'above' &&
             previousPrice < targetPrice &&
             currentPrice >= targetPrice;
-        const crossedBelow =
+         const crossedBelow =
             alert.direction === 'below' &&
             previousPrice > targetPrice &&
             currentPrice <= targetPrice;
 
-        if (!crossedAbove && !crossedBelow) {
+         if (!crossedAbove && !crossedBelow) {
             continue;
-        }
+         }
 
-        await deliverPriceAlertWebhook(alert, {
+         await deliverPriceAlertWebhook(alert, {
             event_type: 'price_alert',
             alert_id: alert.id,
             creator_id: alert.creatorId,
@@ -165,14 +219,27 @@ export async function evaluatePriceAlertsForMovement(
             target_price: targetPrice,
             current_price: currentPrice,
             direction: alert.direction,
-        });
+         });
 
-        await prisma.priceAlert.update({
+         await prisma.priceAlert.update({
             where: { id: alert.id },
             data: {
-                isActive: false,
-                triggeredAt: new Date(),
+               isActive: false,
+               triggeredAt: new Date(),
             },
-        });
-    }
+         });
+      }
+   } catch (err) {
+      logger.error(
+         {
+            creator_id: movement.creatorId,
+            ledger_sequence: movement.ledger_sequence,
+            new_price: movement.currentPrice,
+            error_message: err instanceof Error ? err.message : 'Unknown error',
+            failed_at: new Date().toISOString(),
+         },
+         'Price alert threshold check failed'
+      );
+      throw err;
+   }
 }

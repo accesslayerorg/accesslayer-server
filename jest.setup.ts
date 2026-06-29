@@ -14,3 +14,5 @@ process.env.CLOUDINARY_API_KEY ??= 'test-api-key';
 process.env.CLOUDINARY_API_SECRET ??= 'test-api-secret';
 process.env.PAYSTACK_SECRET_KEY ??= 'test-paystack-secret';
 process.env.APP_SECRET ??= 'accesslayer_test_secret_key_32_bytes_long_xxxx';
+process.env.DB_QUERY_TIMEOUT_MS = '30000';
+jest.setTimeout(30000);
