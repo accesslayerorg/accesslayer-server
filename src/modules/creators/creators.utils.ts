@@ -47,6 +47,26 @@ export async function fetchCreatorList(
    ]);
 
    const durationMs = Date.now() - start;
+
+   // Emit a structured debug log after every creator list query (#550).
+   // Only include filter keys that were actually provided in the request;
+   // cursor is intentionally excluded from the log output.
+   const activeFilters: Record<string, unknown> = {};
+   if (verified !== undefined) activeFilters.verified = verified;
+   if (search !== undefined && search !== '') activeFilters.search = search;
+   if (minPrice !== undefined) activeFilters.minPrice = minPrice.toString();
+   if (maxPrice !== undefined) activeFilters.maxPrice = maxPrice.toString();
+
+   logger.debug(
+      {
+         result_count: creators.length,
+         filters: activeFilters,
+         sort,
+         query_duration_ms: durationMs,
+      },
+      'Creator list query resolved'
+   );
+
    if (durationMs > envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS) {
       // In debug (development) mode, capture the query execution plan so
       // missing indexes and inefficient joins are immediately visible in logs.
