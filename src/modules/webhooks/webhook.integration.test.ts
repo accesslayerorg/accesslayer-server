@@ -475,3 +475,67 @@ describe('GET /api/v1/creators/:id/webhooks — isolation between creators (#474
     expect(res.body.data).toHaveLength(1);
   });
 });
+
+describe('GET /api/v1/creators/:id/webhooks — empty list for creator with no webhooks (#551)', () => {
+  // Use a dedicated keypair + creator that has no webhooks registered.
+  // The creator ID is a positive-integer-format string to satisfy
+  // parseCreatorId in webhook-signature.middleware.ts.
+  const emptyKeypair = Keypair.random();
+  const emptyWalletAddress = emptyKeypair.publicKey();
+  const emptyUserId = 'webhook-empty-user-551';
+  const emptyCreatorId = '551001';
+  const emptyHandle = 'webhook-empty-creator-551';
+  const emptyListPath = `/api/v1/creators/${emptyCreatorId}/webhooks`;
+
+  beforeAll(async () => {
+    await prisma.user.create({
+      data: {
+        id: emptyUserId,
+        email: 'webhook-empty-551@example.com',
+        passwordHash: 'dummy-hash',
+        firstName: 'Empty',
+        lastName: 'Webhooks',
+      },
+    });
+
+    await prisma.stellarWallet.create({
+      data: {
+        address: emptyWalletAddress,
+        userId: emptyUserId,
+      },
+    });
+
+    await prisma.creatorProfile.create({
+      data: {
+        id: emptyCreatorId,
+        userId: emptyUserId,
+        handle: emptyHandle,
+        displayName: 'Empty Webhooks Creator',
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.webhook.deleteMany({ where: { creatorId: emptyCreatorId } });
+    await prisma.creatorProfile.delete({ where: { id: emptyCreatorId } }).catch(() => {});
+    await prisma.stellarWallet.delete({ where: { address: emptyWalletAddress } }).catch(() => {});
+    await prisma.user.delete({ where: { id: emptyUserId } }).catch(() => {});
+  });
+
+  it('returns 200 with an empty array when the creator has not registered any webhooks (#551)', async () => {
+    // Sanity-check: ensure no webhooks are persisted in the DB for this creator.
+    const dbCount = await prisma.webhook.count({
+      where: { creatorId: emptyCreatorId },
+    });
+    expect(dbCount).toBe(0);
+
+    const res = await supertest(app)
+      .get(emptyListPath)
+      .set(authHeadersFor(emptyKeypair, 'GET', emptyListPath, emptyCreatorId));
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data).toEqual([]);
+  });
+});
