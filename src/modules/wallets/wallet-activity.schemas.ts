@@ -23,11 +23,13 @@ export const WalletActivityQuerySchema = z.object({
     }),
     type: z.enum(['buy', 'sell']).optional(),
     creator_id: z.string().optional(),
+    cursor: z.string().optional(),
 }).strict();
 
 export type WalletActivityQueryType = z.infer<typeof WalletActivityQuerySchema>;
 
 export const WalletActivityItemSchema = z.object({
+    id: z.string(),
     type: z.enum(['buy', 'sell']),
     creator_id: z.string(),
     creator_handle: z.string().nullable(),

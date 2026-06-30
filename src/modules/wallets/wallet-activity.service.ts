@@ -9,11 +9,20 @@ import { WalletActivityItem, WalletActivityQueryType } from './wallet-activity.s
  * The payload stored in Activity for trades is expected to contain:
  *   { amount, price_at_trade, fee_paid, ledger_sequence }
  */
+import { decodeCursor, encodeCursor } from '../../utils/cursor.utils';
+
+/**
+ * Shape of decoded activity cursor
+ */
+export interface ActivityFeedCursorPayload {
+    id: string;
+}
+
 export async function fetchWalletActivity(
     address: string,
     query: WalletActivityQueryType
-): Promise<[WalletActivityItem[], number]> {
-    const { limit, offset, type, creator_id } = query;
+): Promise<[WalletActivityItem[], number, string | null]> {
+    const { limit, offset, type, creator_id, cursor } = query;
 
     // Map the public-facing type param to the internal ActivityType enum values.
     const typeFilter =
@@ -32,18 +41,31 @@ export async function fetchWalletActivity(
         where.creatorId = creator_id;
     }
 
+    let prismaCursor: { id: string } | undefined;
+    if (cursor) {
+        try {
+            const decoded = decodeCursor<ActivityFeedCursorPayload>(cursor);
+            if (decoded && decoded.id) {
+                prismaCursor = { id: decoded.id };
+            }
+        } catch (_e) {
+            // Ignore tampered cursor and fall back
+        }
+    }
+
     const [rows, total] = await Promise.all([
         prisma.activity.findMany({
             where,
-            orderBy: { createdAt: 'desc' },
-            skip: offset,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            skip: prismaCursor ? 1 : offset,
             take: limit,
+            ...(prismaCursor ? { cursor: prismaCursor } : {}),
         }),
         prisma.activity.count({ where }),
     ]);
 
     if (rows.length === 0) {
-        return [[], total];
+        return [[], total, null];
     }
 
     // Resolve creator handles in a single batched query.
@@ -54,9 +76,10 @@ export async function fetchWalletActivity(
     });
     const handleMap = new Map(creatorProfiles.map((c: { id: string; handle: string }) => [c.id, c.handle]));
 
-    const items: WalletActivityItem[] = rows.map((row: { type: string; creatorId: string | null; payload: unknown; createdAt: Date }) => {
+    const items: WalletActivityItem[] = rows.map((row: { id: string; type: string; creatorId: string | null; payload: unknown; createdAt: Date }) => {
         const payload = (row.payload ?? {}) as Record<string, any>;
         return {
+            id: row.id,
             type: row.type === 'KEY_BOUGHT' ? 'buy' : 'sell',
             creator_id: row.creatorId ?? '',
             creator_handle: row.creatorId ? (handleMap.get(row.creatorId) ?? null) : null,
@@ -68,5 +91,12 @@ export async function fetchWalletActivity(
         };
     });
 
-    return [items, total];
+    const hasMore = prismaCursor ? items.length === limit : offset + limit < total;
+    let nextCursor: string | null = null;
+    if (hasMore && items.length > 0) {
+        const lastItem = items[items.length - 1];
+        nextCursor = encodeCursor<ActivityFeedCursorPayload>({ id: lastItem.id });
+    }
+
+    return [items, total, nextCursor];
 }

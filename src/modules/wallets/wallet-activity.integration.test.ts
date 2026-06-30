@@ -31,6 +31,7 @@ function makeNext(): jest.Mock {
 
 function makeActivity(overrides: Partial<WalletActivityItem> = {}): WalletActivityItem {
     return {
+        id: 'activity-1',
         type: 'buy',
         creator_id: 'creator-1',
         creator_handle: 'alice',
@@ -57,7 +58,7 @@ describe('GET /wallets/:address/activity', () => {
             makeActivity({ type: 'buy', creator_id: 'creator-1', creator_handle: 'alice' }),
             makeActivity({ type: 'sell', creator_id: 'creator-2', creator_handle: 'bob' }),
         ];
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([activities, 2]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([activities, 2, null]);
 
         const req = makeReq({ address: VALID_ADDRESS });
         const res = makeRes();
@@ -81,7 +82,7 @@ describe('GET /wallets/:address/activity', () => {
             ledger_sequence: 42,
             timestamp: new Date('2026-03-01T00:00:00Z'),
         });
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[activity], 1]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[activity], 1, null]);
 
         const req = makeReq({ address: VALID_ADDRESS });
         const res = makeRes();
@@ -103,7 +104,7 @@ describe('GET /wallets/:address/activity', () => {
     // ── Empty wallet ──────────────────────────────────────────────────────────
 
     it('returns 200 with empty items array (not 404) for a wallet with no activity', async () => {
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0, null]);
 
         const req = makeReq({ address: VALID_ADDRESS });
         const res = makeRes();
@@ -119,7 +120,7 @@ describe('GET /wallets/:address/activity', () => {
     // ── type filter ───────────────────────────────────────────────────────────
 
     it('passes type=buy filter to the service', async () => {
-        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0]);
+        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { type: 'buy' });
         const res = makeRes();
@@ -132,7 +133,7 @@ describe('GET /wallets/:address/activity', () => {
     });
 
     it('passes type=sell filter to the service', async () => {
-        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0]);
+        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { type: 'sell' });
         const res = makeRes();
@@ -146,7 +147,7 @@ describe('GET /wallets/:address/activity', () => {
 
     it('returns only buy events when type=buy', async () => {
         const buys: WalletActivityItem[] = [makeActivity({ type: 'buy' })];
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([buys, 1]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([buys, 1, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { type: 'buy' });
         const res = makeRes();
@@ -159,7 +160,7 @@ describe('GET /wallets/:address/activity', () => {
     // ── creator_id filter ─────────────────────────────────────────────────────
 
     it('passes creator_id filter to the service', async () => {
-        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0]);
+        const spy = jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([[], 0, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { creator_id: 'creator-abc' });
         const res = makeRes();
@@ -175,7 +176,7 @@ describe('GET /wallets/:address/activity', () => {
         const items: WalletActivityItem[] = [
             makeActivity({ creator_id: 'creator-abc', creator_handle: 'target' }),
         ];
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 1]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 1, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { creator_id: 'creator-abc' });
         const res = makeRes();
@@ -210,7 +211,7 @@ describe('GET /wallets/:address/activity', () => {
 
     it('meta reflects limit and offset correctly', async () => {
         const items = Array.from({ length: 5 }, () => makeActivity());
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 50]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 50, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { limit: '5', offset: '10' });
         const res = makeRes();
@@ -225,7 +226,7 @@ describe('GET /wallets/:address/activity', () => {
 
     it('hasMore is false when all items fit in one page', async () => {
         const items = [makeActivity()];
-        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 1]);
+        jest.spyOn(walletActivityService, 'fetchWalletActivity').mockResolvedValue([items, 1, null]);
 
         const req = makeReq({ address: VALID_ADDRESS }, { limit: '20', offset: '0' });
         const res = makeRes();
