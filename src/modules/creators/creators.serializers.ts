@@ -149,27 +149,45 @@ export function serializeCreatorListCursorMeta(
  * Serializes offset pagination metadata for creator list responses.
  *
  * Ensures consistency of metadata shape across offset-paginated endpoints.
+ * Includes the `search` term when one was provided, so clients can show a
+ * contextual no-results message instead of a generic empty state.
  *
  * @param meta - Raw offset pagination metadata
+ * @param search - Optional search term from the request query
  * @returns Offset pagination metadata normalized for public list responses
  */
 export function serializeCreatorListOffsetMeta(
-   meta: OffsetPaginationMeta
-): OffsetPaginationMeta {
-   return {
+   meta: OffsetPaginationMeta,
+   search?: string
+): CreatorListMeta {
+   const result: CreatorListMeta = {
       limit: meta.limit,
       offset: meta.offset,
       total: meta.total,
       hasMore: meta.hasMore,
    };
+   if (search !== undefined && search !== '') {
+      result.search = search;
+   }
+   return result;
 }
+
+/**
+ * Meta for the creator list response, extending offset pagination with an
+ * optional `search` field so clients can distinguish between an unfiltered
+ * empty database and a search that returned no results.
+ */
+export type CreatorListMeta = OffsetPaginationMeta & {
+   /** The search term that was queried, if any. */
+   search?: string;
+};
 
 /**
  * Paginated creator list response body (offset pagination metadata).
  */
 export type CreatorListResponse = PublicCreatorListEnvelope<
    CreatorListItem,
-   OffsetPaginationMeta
+   CreatorListMeta
 >;
 
 /**
@@ -185,14 +203,21 @@ export type CreatorCursorListResponse = PublicCreatorListEnvelope<
  *
  * This centralizes the wrapping of creators and metadata to ensure
  * a consistent public response shape (envelope).
+ * When a `search` term is provided, it is included in the response meta
+ * so clients can display a contextual no-results message.
+ *
+ * @param profiles - Array of creator profiles
+ * @param meta - Raw offset pagination metadata
+ * @param search - Optional search term from the request
  */
 export function serializeCreatorListResponse(
    profiles: CreatorProfile[],
-   meta: OffsetPaginationMeta
+   meta: OffsetPaginationMeta,
+   search?: string
 ): CreatorListResponse {
    return wrapPublicCreatorListResponse(
       serializeCreatorList(profiles),
-      serializeCreatorListOffsetMeta(meta)
+      serializeCreatorListOffsetMeta(meta, search)
    );
 }
 

@@ -130,7 +130,8 @@ export function createEmptyCreatorListResponse(
          limit: query.limit,
          offset: query.offset,
          total: 0,
-      })
+      }),
+      query.search
    );
 }
 

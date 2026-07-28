@@ -76,7 +76,8 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
             limit: validatedQuery.limit,
             offset: validatedQuery.offset,
             total,
-         })
+         }),
+         validatedQuery.search
       );
 
       attachTimestampHeader(res);
