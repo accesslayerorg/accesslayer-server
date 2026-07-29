@@ -5,6 +5,19 @@ import { SendMailAsync } from '../../utils/mail.utils';
 import { HTTP_STATUS } from '../../utils/logger.utils';
 import bcrypt from 'bcrypt';
 import { refreshAccessToken } from './token-refresh.utils';
+import {
+   Keypair,
+   Account,
+   TransactionBuilder,
+   Networks,
+   Operation,
+   Memo,
+} from '@stellar/stellar-base';
+import { randomBytes } from 'crypto';
+import { isValidStellarAddress } from '../wallet/wallet.utils';
+import { buildValidationError } from '../../utils/validation-error.utils';
+import { sendSuccess } from '../../utils/api-response.utils';
+import { envConfig } from '../../config';
 
 export const httpRegisterUserWithPassword: AsyncController = async (
    req,
@@ -191,5 +204,68 @@ export const httpGetProfile: AsyncController = async (req, res, next) => {
    } catch (error) {
       next(error);
       console.log(error);
+   }
+};
+
+const DEFAULT_SERVER_KEYPAIR = Keypair.random();
+
+export const httpWalletChallenge: AsyncController = async (req, res, next) => {
+   try {
+      const rawAddress =
+         req.body?.address ??
+         req.body?.wallet_address ??
+         req.body?.walletAddress;
+      const address = typeof rawAddress === 'string' ? rawAddress.trim() : '';
+
+      if (!address || !isValidStellarAddress(address)) {
+         return res
+            .status(422)
+            .json(
+               buildValidationError(
+                  'address',
+                  'Invalid Stellar wallet address',
+                  'INVALID_ADDRESS'
+               )
+            );
+      }
+
+      const serverSecret = process.env.STELLAR_SERVER_SECRET_KEY;
+      const serverKeypair = serverSecret
+         ? Keypair.fromSecret(serverSecret)
+         : DEFAULT_SERVER_KEYPAIR;
+
+      const networkPassphrase =
+         envConfig.STELLAR_NETWORK === 'mainnet'
+            ? Networks.PUBLIC
+            : Networks.TESTNET;
+
+      const serverAccount = new Account(serverKeypair.publicKey(), '0');
+      const nonce = randomBytes(14).toString('hex');
+      const domain = process.env.WEB_AUTH_DOMAIN || 'accesslayer.org';
+
+      const tx = new TransactionBuilder(serverAccount, {
+         fee: '100',
+         networkPassphrase,
+         timebounds: {
+            minTime: Math.floor(Date.now() / 1000),
+            maxTime: Math.floor(Date.now() / 1000) + 300,
+         },
+         memo: Memo.text(nonce),
+      })
+         .addOperation(
+            Operation.manageData({
+               name: 'web_auth_domain',
+               value: domain,
+               source: address,
+            })
+         )
+         .build();
+
+      tx.sign(serverKeypair);
+      const xdr = tx.toXDR();
+
+      return sendSuccess(res, { transaction: xdr });
+   } catch (error) {
+      next(error);
    }
 };
