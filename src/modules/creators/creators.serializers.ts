@@ -188,11 +188,13 @@ export type CreatorCursorListResponse = PublicCreatorListEnvelope<
  */
 export function serializeCreatorListResponse(
    profiles: CreatorProfile[],
-   meta: OffsetPaginationMeta
+   meta: OffsetPaginationMeta,
+   searchTerm?: string
 ): CreatorListResponse {
    return wrapPublicCreatorListResponse(
       serializeCreatorList(profiles),
-      serializeCreatorListOffsetMeta(meta)
+      serializeCreatorListOffsetMeta(meta),
+      searchTerm
    );
 }
 

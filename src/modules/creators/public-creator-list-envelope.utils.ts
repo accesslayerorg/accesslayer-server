@@ -7,6 +7,7 @@
 export type PublicCreatorListEnvelope<TItem, TMeta> = {
    items: TItem[];
    meta: TMeta;
+   searchTerm?: string;
 };
 
 /**
@@ -15,7 +16,15 @@ export type PublicCreatorListEnvelope<TItem, TMeta> = {
  */
 export function wrapPublicCreatorListResponse<TItem, TMeta>(
    items: TItem[] | null | undefined,
-   meta: TMeta
+   meta: TMeta,
+   searchTerm?: string
 ): PublicCreatorListEnvelope<TItem, TMeta> {
-   return { items: items ?? [], meta };
+   const envelope: PublicCreatorListEnvelope<TItem, TMeta> = {
+      items: items ?? [],
+      meta,
+   };
+   if (searchTerm !== undefined) {
+      envelope.searchTerm = searchTerm;
+   }
+   return envelope;
 }
