@@ -147,6 +147,9 @@ export const envSchema = z
       ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
       ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
 
+      // Merkle partition settings
+      PARTITION_LEDGER_RANGE: z.coerce.number().int().positive().default(1000),
+
       // Stellar network
       STELLAR_NETWORK: z
          .enum(['testnet', 'mainnet'], {

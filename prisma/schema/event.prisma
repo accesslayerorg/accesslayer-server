@@ -1,0 +1,54 @@
+// prisma/schema/event.prisma
+
+model Event {
+  id          String   @id @default(cuid())
+  network     String   @default("testnet")
+  contractId  String
+  ledger      Int
+  txHash      String
+  eventIndex  Int
+  topic       String
+  dataJson    Json
+  leafHash    String
+  createdAt   DateTime @default(now())
+
+  @@unique([network, contractId, ledger, txHash, eventIndex])
+  @@index([network, contractId, ledger])
+  @@index([leafHash])
+  @@map("events")
+}
+
+model MerkleTreeState {
+  id                   String   @id @default(cuid())
+  network              String   @default("testnet")
+  contractId           String
+  partitionStartLedger Int
+  level                Int
+  position             Int
+  hash                 String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([network, contractId, partitionStartLedger, level, position])
+  @@index([network, contractId, partitionStartLedger])
+  @@map("merkle_tree_states")
+}
+
+model MerklePartitionRoot {
+  id            String   @id @default(cuid())
+  network       String   @default("testnet")
+  contractId    String
+  ledgerStart   Int
+  ledgerEnd     Int
+  root          String
+  eventCount    Int
+  sorobanTxHash String?
+  status        String   @default("SUCCESS")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([network, contractId, ledgerStart, ledgerEnd])
+  @@index([network, contractId])
+  @@index([status])
+  @@map("merkle_partition_roots")
+}
