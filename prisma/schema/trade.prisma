@@ -1,0 +1,36 @@
+// prisma/schema/trade.prisma
+// Off-chain record of every key buy/sell that the indexer observes.
+// Powers creator analytics, holder counts and last-buy timestamps.
+
+model Trade {
+  id        String   @id @default(cuid())
+
+  // Identifier of the creator key that was traded (maps to CreatorProfile.id)
+  keyId     String
+
+  // Creator that issued the key
+  creatorId String
+
+  // Wallet that executed the trade (buyer for BUY, seller for SELL)
+  wallet    String
+
+  // Direction of the trade: BUY or SELL
+  side      String
+
+  // Amount of XLM traded (always positive)
+  amount    Decimal
+
+  // Execution price in XLM per key unit
+  price     Decimal  @default(0)
+
+  // On-chain transaction hash (used for deduplication)
+  txHash    String   @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([keyId])
+  @@index([creatorId])
+  @@index([wallet])
+  @@index([createdAt])
+  @@index([keyId, createdAt])
+}

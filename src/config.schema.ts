@@ -118,8 +118,17 @@ export const envSchema = z
       ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
       ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
 
-      // Stellar network
-      STELLAR_NETWORK: z
+       // Redis
+       REDIS_URL: z
+          .string()
+          .min(1, 'REDIS_URL is required for caching and idempotency')
+          .default('redis://localhost:6379'),
+
+       // Key lockup duration in milliseconds applied to holdings
+       KEY_LOCKUP_DURATION_MS: z.coerce.number().int().positive().default(604800000),
+
+       // Stellar network
+       STELLAR_NETWORK: z
          .enum(['testnet', 'mainnet'], {
             message:
                'STELLAR_NETWORK must be "testnet" or "mainnet". Set STELLAR_NETWORK in your .env file.',

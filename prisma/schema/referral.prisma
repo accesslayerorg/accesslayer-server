@@ -1,0 +1,31 @@
+// prisma/schema/referral.prisma
+// Off-chain record of referral fee payments observed on-chain.
+// Powers the per-wallet referral earnings breakdown.
+
+model ReferralFee {
+  id          String   @id @default(cuid())
+
+  // Wallet that earned the referral fee (the referrer)
+  wallet      String
+
+  // Identifier of the creator key that generated the fee
+  keyId       String
+
+  // Creator that issued the key
+  creatorId   String
+
+  // Display name of the creator at the time the fee was paid
+  creatorName String
+
+  // Amount of XLM earned
+  amount      Decimal
+
+  // On-chain transaction hash (used for deduplication)
+  txHash      String   @unique
+
+  createdAt   DateTime @default(now())
+
+  @@index([wallet])
+  @@index([keyId])
+  @@index([wallet, createdAt])
+}
