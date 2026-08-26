@@ -63,7 +63,7 @@ async function startServer() {
 
       return server;
    } catch (error) {
-      console.error('Failed to start server:', error);
+      logger.error({ error }, 'Failed to start server');
       await prisma.$disconnect();
       process.exit(1);
    }
@@ -71,12 +71,12 @@ async function startServer() {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', error => {
-   console.error('Uncaught Exception:', error);
+   logger.fatal({ error }, 'Uncaught exception');
    process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+   logger.fatal({ reason, promise }, 'Unhandled promise rejection');
    process.exit(1);
 });
 
@@ -84,7 +84,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
    return async () => {
       stopOwnershipSnapshotCleanupJob();
       await prisma.$disconnect();
-      console.log('💾 Database connection closed');
+      logger.info('Database connection closed');
 
       const DRAIN_WINDOW_MS = 5000;
       const SHUTDOWN_TIMEOUT_MS = 30000;
@@ -94,20 +94,20 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       });
 
       const shutdownTimer = setTimeout(() => {
-         console.error('❌ Shutdown timeout reached, forcing exit');
+         logger.error('Shutdown timeout reached, forcing exit');
          process.exit(1);
       }, SHUTDOWN_TIMEOUT_MS);
 
       server.close(async () => {
          clearTimeout(shutdownTimer);
-         console.log('✅ HTTP server closed, draining requests');
+         logger.info('HTTP server closed, draining requests');
 
          await new Promise(resolve => setTimeout(resolve, DRAIN_WINDOW_MS));
 
          await prisma.$disconnect();
-         console.log('💾 Database connection closed');
+         logger.info('Database connection closed');
 
-         console.log('👋 Shutdown complete');
+         logger.info('Shutdown complete');
          process.exit(0);
       });
    };

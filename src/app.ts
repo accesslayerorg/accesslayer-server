@@ -19,16 +19,20 @@ import { requestEntryLoggerMiddleware } from './middlewares/request-entry-logger
 import { requestCompletionLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { envConfig } from './config';
+import { logger } from './utils/logger.utils';
 
 const app: Express = express();
 
 // Middleware setup
 app.set('trust proxy', 1);
 app.use(responseTimingMiddleware);
+// requestIdMiddleware must run before requestContextMiddleware: it assigns
+// req.traceId/req.requestId, which requestContextMiddleware then captures
+// into AsyncLocalStorage for the rest of the request's call stack.
+app.use(requestIdMiddleware);
 app.use(requestContextMiddleware);
 app.use(apiVersionMiddleware);
 app.use(schemaVersionMiddleware);
-app.use(requestIdMiddleware);
 app.use(requestEntryLoggerMiddleware);
 app.use(requestCompletionLoggerMiddleware);
 app.use(corsMiddleware());
@@ -55,7 +59,7 @@ async function setupTspecDocs() {
          ...(tspecMiddlewares as unknown as RequestHandler[])
       );
    } catch (error) {
-      console.error('Failed to setup API docs:', error);
+      logger.error({ error }, 'Failed to setup API docs');
    }
 }
 

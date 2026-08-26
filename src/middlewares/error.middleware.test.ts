@@ -10,6 +10,7 @@ type MockResponse = {
 jest.mock('../utils/logger.utils', () => ({
    logger: {
       warn: jest.fn(),
+      error: jest.fn(),
    },
 }));
 
@@ -21,6 +22,7 @@ describe('Error Middleware', () => {
    it('should warn with structured creator list timeout context and keep the response unchanged', () => {
       const req: any = {
          method: 'GET',
+         path: '/api/v1/creators',
          originalUrl: '/api/v1/creators?limit=10&offset=0',
          query: {
             limit: '10',

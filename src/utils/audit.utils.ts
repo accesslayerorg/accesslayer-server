@@ -1,4 +1,5 @@
 import { prisma } from './prisma.utils';
+import { logger } from './logger.utils';
 
 export interface AuditEventPayload {
    actor: string;
@@ -27,6 +28,6 @@ export async function emitAuditEvent(
          data: data as Parameters<typeof prisma.auditEvent.create>[0]['data'],
       });
    } catch (error) {
-      console.error('Failed to emit audit event:', error);
+      logger.error({ error, payload }, 'Failed to emit audit event');
    }
 }

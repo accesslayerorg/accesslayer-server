@@ -40,6 +40,7 @@ export const requestCompletionLoggerMiddleware = (
          request_id: requestId,
          method,
          path,
+         route: path,
          status_code: statusCode,
          response_time_ms: Math.round(responseTimeMs),
       };

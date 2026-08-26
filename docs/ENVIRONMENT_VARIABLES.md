@@ -115,12 +115,30 @@ Complete reference for all server configuration environment variables.
 
 ### Logging
 
-| Variable                       | Type    | Required | Default | Description                                    |
-| ------------------------------ | ------- | -------- | ------- | ---------------------------------------------- |
-| `ENABLE_REQUEST_LOGGING`       | boolean | No       | `true`  | Log incoming HTTP requests                     |
-| `ENABLE_RESPONSE_TIMING`       | boolean | No       | `true`  | Include response timing in logs and headers    |
-| `ENABLE_API_VERSION_HEADER`    | boolean | No       | `true`  | Include `X-API-Version` header in responses    |
-| `ENABLE_SCHEMA_VERSION_HEADER` | boolean | No       | `true`  | Include `X-Schema-Version` header in responses |
+| Variable                       | Type    | Required | Default | Description                                                        |
+| ------------------------------ | ------- | -------- | ------- | ------------------------------------------------------------------ |
+| `ENABLE_REQUEST_LOGGING`       | boolean | No       | `true`  | Log incoming HTTP requests                                         |
+| `ENABLE_RESPONSE_TIMING`       | boolean | No       | `true`  | Include response timing in logs and headers                        |
+| `ENABLE_API_VERSION_HEADER`    | boolean | No       | `true`  | Include `X-API-Version` header in responses                        |
+| `ENABLE_SCHEMA_VERSION_HEADER` | boolean | No       | `true`  | Include `X-Schema-Version` header in responses                     |
+| `LOG_LEVEL`                    | string  | No       | `info`  | Minimum Pino log level (`debug`, `info`, `warn`, `error`, `fatal`) |
+
+Logs are emitted via [Pino](https://getpino.io/). In `development` mode they are pretty-printed
+via `pino-pretty`; in `test` and `production` they are newline-delimited JSON with `time`,
+`level`, and — whenever the log call happens within a request's call stack — `traceId`.
+
+#### Distributed tracing
+
+| Variable                 | Type   | Required | Default | Description                                                                                                                                                  |
+| ------------------------ | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TRACE_ID_TRUSTED_TOKEN` | string | No       | (unset) | Shared secret. A caller presenting it in `x-internal-service-token` may supply its own `X-Trace-Id` header, which is reused instead of generating a new one. |
+
+Every request is assigned a trace ID by `requestIdMiddleware`, stored in `AsyncLocalStorage`
+(`src/utils/als.utils.ts`) for the lifetime of the request, and returned in both the
+`X-Request-ID` and `X-Trace-Id` response headers. Because Pino's logger reads the trace ID out of
+`AsyncLocalStorage` via a `mixin`, every log line emitted anywhere in that request's call
+stack — middleware, service, or database layer — automatically carries the same `traceId`, with
+no need to thread it through function arguments.
 
 ### Query Performance
 

@@ -13,6 +13,7 @@ import { Request, Response, NextFunction } from 'express';
 import { checkCreatorProfileOwnership } from '../utils/wallet-ownership.utils';
 import { ErrorCode, sendError } from '../utils/api-response.utils';
 import { StellarAddressSchema } from '../modules/wallet/wallet.schemas';
+import { logger } from '../utils/logger.utils';
 
 export interface WalletOwnedRequest extends Request {
    walletAddress?: string;
@@ -115,7 +116,7 @@ export function requireCreatorProfileOwnership(
          req.ownerUserId = verdict.ownerUserId;
          next();
       } catch (error) {
-         console.error('wallet-ownership check failed:', error);
+         logger.error({ error }, 'Wallet ownership check failed');
          sendError(
             res,
             500,

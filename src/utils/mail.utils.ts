@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { envConfig } from '../config';
+import { logger } from './logger.utils';
 export interface ISendMailOptions {
    to: string;
    subject: string;
@@ -36,7 +37,7 @@ export const SendMail = async ({
 
    // Skip email in development if not configured
    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-      console.log('📧 Email skipped (Gmail not configured):', { to, subject });
+      logger.info({ to, subject }, 'Email skipped (Gmail not configured)');
       return true;
    }
 
@@ -44,7 +45,7 @@ export const SendMail = async ({
       const transporter = createTransporter();
 
       if (!transporter) {
-         console.error('❌ Could not create email transporter');
+         logger.error('Could not create email transporter');
          return false;
       }
 
@@ -59,15 +60,13 @@ export const SendMail = async ({
 
       const info = await transporter.sendMail(mailOptions);
 
-      console.log(
-         '✅ Email sent successfully via Gmail to:',
-         to,
-         'ID:',
-         info.messageId
+      logger.info(
+         { to, messageId: info.messageId },
+         'Email sent successfully via Gmail'
       );
       return true;
    } catch (error) {
-      console.error('❌ Failed to send email via Gmail:', error);
+      logger.error({ error, to }, 'Failed to send email via Gmail');
       return false;
    }
 };
@@ -109,10 +108,10 @@ export const SendMailAsync = async ({
    // Fire and forget - don't wait for response
    SendMail({ to, subject, text, html, attachments })
       .then(() => {
-         console.log('📧 Async email sent to:', to);
+         logger.info({ to }, 'Async email sent');
       })
       .catch(error => {
-         console.error('📧 Async email failed:', error);
+         logger.error({ error, to }, 'Async email failed');
       });
 };
 

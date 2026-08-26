@@ -5,6 +5,7 @@ import { indexerHeartbeat } from '../../utils/heartbeat.service';
 import { checkIndexerCursorStalenessFromStore } from '../../utils/indexer-cursor-staleness.utils';
 import { sendSuccess } from '../../utils/api-response.utils';
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
+import { logger } from '../../utils/logger.utils';
 
 const SYNC_LAG_DEGRADATION_THRESHOLD = 100;
 
@@ -96,7 +97,7 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
             responseTime: dbResponseTime,
          };
       } catch (dbError) {
-         console.error('Database health check failed:', dbError);
+         logger.error({ error: dbError }, 'Database health check failed');
          dbStatus = {
             status: 'disconnected',
          };
@@ -157,7 +158,7 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
 
       res.status(overallHealthy ? 200 : 503).json(healthData);
    } catch (error) {
-      console.error('Health check failed:', error);
+      logger.error({ error }, 'Health check failed');
       res.status(500).json({
          success: false,
          message: 'Health check failed',

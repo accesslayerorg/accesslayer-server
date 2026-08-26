@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { envConfig } from '../config';
 import { ErrorRequestHandler } from 'express';
-import chalk from 'chalk';
 import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
@@ -208,17 +207,14 @@ export const errorHandler: ErrorRequestHandler = (
    }
 
    // Log request details for debugging
-   const chalkColor = {
-      error: chalk.red,
-      success: chalk.green,
-      getReq: chalk.magenta,
-      postReq: chalk.cyan,
-   };
-
    const { hostname, originalUrl, protocol, method } = req;
-   console.log(
-      chalkColor.error('❌ ERROR'),
-      `${method === 'GET' ? chalkColor.getReq(method) : chalkColor.postReq(method)} ${protocol}://${hostname}:${envConfig.PORT || 3000}${originalUrl}`
+   logger.error(
+      {
+         requestId: req.requestId,
+         method,
+         url: `${protocol}://${hostname}:${envConfig.PORT || 3000}${originalUrl}`,
+      },
+      'Unhandled route error'
    );
 
    // Default fallback for unknown errors — delegated to a shared helper so
