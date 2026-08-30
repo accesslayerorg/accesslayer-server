@@ -268,9 +268,6 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
-
-      // Stellar auth challenge signing secret
-      STELLAR_AUTH_SECRET: optionalNonEmptyString,
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
