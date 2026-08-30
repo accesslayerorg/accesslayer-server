@@ -1,0 +1,33 @@
+enum SorobanWALOperation {
+  BUY  @map("buy")
+  SELL @map("sell")
+}
+
+enum SorobanWALState {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  ROLLED_BACK
+}
+
+model SorobanWALEntry {
+  id                   String              @id @default(cuid())
+  idempotencyKey       String              @unique
+  operation            SorobanWALOperation
+  wallet               String
+  creatorWallet        String
+  amount               Decimal
+  expectedSupplyBefore Decimal
+  xdrPayload           String              @db.Text
+  state                SorobanWALState     @default(PENDING)
+  txHash               String?             @unique
+  submittedAt          DateTime?
+  confirmedAt          DateTime?
+  error                String?             @db.Text
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([state, createdAt])
+  @@map("soroban_wal_entries")
+}

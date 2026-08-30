@@ -21,8 +21,15 @@ import {
    stopGovernanceSyncJob,
 } from './jobs/governance-sync.job';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
-import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
+import {
+   broadcastServerClosing,
+   closeAllConnections,
+} from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
+import {
+   startSorobanWALRecoveryJob,
+   stopSorobanWALRecoveryJob,
+} from './jobs/soroban-wal-recovery.job';
 
 async function startServer() {
    try {
@@ -72,6 +79,7 @@ async function startServer() {
 
       startDetectPriceMovementsJob();
       startGovernanceSyncJob();
+      startSorobanWALRecoveryJob();
 
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -107,6 +115,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopOwnershipSnapshotCleanupJob();
       stopDetectPriceMovementsJob();
       stopGovernanceSyncJob();
+      stopSorobanWALRecoveryJob();
       await prisma.$disconnect();
       logger.info('Database connection closed');
 
