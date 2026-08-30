@@ -7,7 +7,8 @@
 //   router.post('/keys/:keyId/buy', withIdempotency(httpBuyKey));
 //
 // Behaviour:
-// - `X-Idempotency-Key` header required; 400 when missing or longer than 128
+// - `Idempotency-Key` header required; the legacy `X-Idempotency-Key` spelling
+//   is still accepted. Requests return 400 when the key is missing or longer than 128
 //   characters.
 // - Responses are stored in Redis under `idempotency:{wallet}:{key}` with a
 //   24-hour TTL, where `{wallet}` comes from the `x-wallet-address` header.
@@ -20,7 +21,8 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { cacheGetRaw, cacheSetRaw } from '../utils/redis.utils';
 import { ErrorCode, sendError } from '../utils/api-response.utils';
 
-export const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
+export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
+export const LEGACY_IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
 export const WALLET_ADDRESS_HEADER = 'x-wallet-address';
 export const IDEMPOTENCY_KEY_MAX_LENGTH = 128;
 /** Stored responses expire after 24 hours (spec). */
@@ -54,7 +56,9 @@ export function validateIdempotencyHeader(
    req: Request,
    res: Response
 ): string | null {
-   const key = readHeader(req, IDEMPOTENCY_KEY_HEADER);
+   const key =
+      readHeader(req, IDEMPOTENCY_KEY_HEADER) ??
+      readHeader(req, LEGACY_IDEMPOTENCY_KEY_HEADER);
 
    if (!key) {
       sendError(
@@ -106,7 +110,7 @@ export async function tryReplayIdempotentResponse(
 
 /**
  * Wrap a request handler with idempotent-replay semantics keyed by the
- * `X-Idempotency-Key` header and caller wallet address.
+ * `Idempotency-Key` header and caller wallet address.
  */
 export function withIdempotency(handler: RequestHandler): RequestHandler {
    return async (req: Request, res: Response, next: NextFunction) => {
