@@ -13,16 +13,16 @@ model KeyOwnership {
    balance       Decimal  @default(0)
    costBasis     Decimal? @default(0)
 
-   /// Timestamp of the owner's most recent buy of this key, if any.
-   lastBuyAt     DateTime?
+  /// When the current lockup window ends for this holding, if any.
+  lockupExpiresAt DateTime?
 
-   /// When the current lockup window ends for this holding, if any.
-   lockupExpiresAt DateTime?
-  
+  /// ISO timestamp of the holder's most recent buy, null when never bought.
+  lastBuyAt DateTime?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([ownerAddress, creatorId])
-  @@index([ownerAddress])
-  @@index([creatorId])
+   @@unique([ownerAddress, creatorId])
+   @@index([ownerAddress])
+   @@index([creatorId])
 }

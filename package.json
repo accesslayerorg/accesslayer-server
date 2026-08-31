@@ -12,6 +12,7 @@
       "preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.includes('pnpm')) { console.error('Use pnpm for this repository. Run: pnpm install'); process.exit(1); }\"",
       "dev": "nodemon",
       "start": "node dist/server.js",
+      "prebuild": "prisma generate",
       "build": "tsc",
       "test": "jest",
       "format": "prettier --write .",

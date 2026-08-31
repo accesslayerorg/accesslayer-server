@@ -80,10 +80,13 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
             limit: validatedQuery.limit,
             offset: validatedQuery.offset,
             total,
+         }),
+         {
+            search: validatedQuery.search,
             ...(validatedQuery.search !== undefined && total === 0
                ? { searchTerm: validatedQuery.search }
                : {}),
-         })
+         }
       );
 
       attachTimestampHeader(res);
@@ -92,7 +95,6 @@ export const httpListCreators: AsyncController = async (req, res, next) => {
       next(error);
    }
 };
-
 /**
  * Categorize a parse error based on the validation details.
  *

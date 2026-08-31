@@ -157,7 +157,6 @@ export const envSchema = z
 
       // Stellar auth — optional server keypair secret used for SEP-10 challenge
       // signing. When absent the server falls back to an ephemeral random keypair.
-      STELLAR_AUTH_SECRET: optionalNonEmptyString,
 
       // Stellar network
       STELLAR_NETWORK: z
@@ -177,9 +176,11 @@ export const envSchema = z
          .url(
             'STELLAR_SOROBAN_RPC_URL must be a valid URL (e.g. https://soroban-testnet.stellar.org)'
          )
-         .default('https://soroban-testnet.stellar.org'),
+.default('https://soroban-testnet.stellar.org'),
 
-      // Ownership snapshot cleanup job
+   STELLAR_AUTH_SECRET: z.string().min(32).default('accesslayer_default_development_stellar_auth_secret_32b'),
+
+       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
          .string()
          .min(1)
@@ -265,6 +266,7 @@ export const envSchema = z
          .default(5000),
       SSE_REPLAY_MAX_EVENTS: z.coerce.number().int().positive().default(100),
 
+
       // SSE subscription management (src/modules/subscriptions) — a wallet's
       // subscription set, persisted in Redis, distinct from the per-connection
       // heartbeat/queue/replay tuning above.
@@ -272,23 +274,25 @@ export const envSchema = z
          .number()
          .int()
          .positive()
+
+         .default(5),
+      SSE_MAX_SUBSCRIPTIONS_PER_WALLET: z.coerce
+         .number()
+         .int()
+         .positive()
+
          .default(10),
       SSE_SUBSCRIPTION_TTL_MS: z.coerce
          .number()
          .int()
          .positive()
          .default(300000),
-      SSE_MAX_SUBSCRIPTIONS_PER_WALLET: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(10),
+
       SSE_THROTTLE_DURATION_MS: z.coerce
          .number()
          .int()
          .positive()
          .default(1000),
-
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {

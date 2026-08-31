@@ -30,6 +30,7 @@ export async function acquireSequencerLock(
       return { release: async () => {} };
    }
 
+
    const key = lockKey(creatorWallet);
    const lockValue = `${process.pid}:${Date.now()}`;
    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;

@@ -235,7 +235,9 @@ describe('Dividend Endpoints Integration Tests', () => {
          const user = await prisma.user.create({
             data: {
                email: `test2-${Date.now()}@example.com`,
-               passwordHash: 'test-hash',
+
+passwordHash: 'hash123',
+
                firstName: 'Test',
                lastName: 'User',
                stellarWallet: { create: { address: 'GBTEST0002' } },

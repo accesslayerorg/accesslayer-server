@@ -20,7 +20,9 @@ describe('Whitelist Endpoint Integration Tests', () => {
       const user = await prisma.user.create({
          data: {
             email: `test-${Date.now()}@example.com`,
-            passwordHash: 'test-hash',
+
+            passwordHash: 'hash',
+
             firstName: 'Test',
             lastName: 'User',
             stellarWallet: { create: { address: 'GBTEST0001' } },
@@ -243,6 +245,7 @@ describe('Whitelist Endpoint Integration Tests', () => {
 
           const cacheGetSpy = jest.spyOn(cacheUtils, 'cacheGetJson');
           const cacheSetSpy = jest.spyOn(cacheUtils, 'cacheSetJson');
+
 
          // First request should miss cache and populate it
          const response1 = await request(app)

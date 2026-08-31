@@ -14,7 +14,9 @@ export async function getInvestorDividends(
   }
   const items = await prisma.dividendDistribution.findMany({
     where,
-    orderBy: { distributionDate: 'desc' },
+
+    orderBy: { createdAt: 'desc' } as const,
+
     take: limit + 1,
   });
   const hasMore = items.length > limit;

@@ -215,8 +215,10 @@ export async function disconnectRedis(): Promise<void> {
 }
 
 /**
- * Ensure the shared Redis client is initialised and connected. No-op (resolves
- * immediately) when caching is disabled via ENABLE_REDIS_CACHE.
+
+ * Ensure the shared Redis client is initialised. The client connects eagerly
+ * on creation (lazyConnect is disabled), so simply touching the singleton is
+ * enough to "connect". No-op when caching is disabled (returns null).
  */
 export async function connectRedis(): Promise<void> {
    const client = getRedisClient();

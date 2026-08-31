@@ -47,9 +47,14 @@ export async function verifySupplyAndGuard(
       );
 
       const redis = getRedis();
+
+      if (!redis) return false;
+      await redis.set(driftKey(creatorWallet), '1');
+
       if (redis) {
          await redis.set(driftKey(creatorWallet), '1');
       }
+
       return false;
    }
 

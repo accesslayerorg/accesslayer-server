@@ -167,12 +167,30 @@ export function serializeCreatorListOffsetMeta(
 }
 
 /**
+ * Distinguishes an empty list from a "no matches" search result so that
+ * clients can render a tailored no-results message instead of the generic
+ * empty state.
+ *
+ * - `results`  — at least one creator was returned.
+ * - `empty`    — no creators exist and no search/filter narrowed the list.
+ * - `noResults`— a search term was supplied but matched zero creators.
+ */
+export type CreatorListState = 'results' | 'empty' | 'noResults';
+
+/**
  * Paginated creator list response body (offset pagination metadata).
+ *
+ * Adds `state` and an optional `message` so clients can differentiate the
+ * unfiltered empty list from a zero-result search and surface a message that
+ * references the search term.
  */
 export type CreatorListResponse = PublicCreatorListEnvelope<
    CreatorListItem,
    OffsetPaginationMeta
->;
+> & {
+   state: CreatorListState;
+   message?: string;
+};
 
 /**
  * Cursor-aware creator list response body.
@@ -186,16 +204,43 @@ export type CreatorCursorListResponse = PublicCreatorListEnvelope<
  * Serializes a standard offset-paginated creator list response.
  *
  * This centralizes the wrapping of creators and metadata to ensure
- * a consistent public response shape (envelope).
+ * a consistent public response shape (envelope). When the result set is
+ * empty, `state` distinguishes an unfiltered empty list (`empty`) from a
+ * zero-result search (`noResults`); the latter includes a `message` that
+ * references the supplied search term so clients can render a tailored
+ * no-results state.
+ *
+ * @param profiles - Creator profiles (null/undefined treated as empty)
+ * @param meta     - Offset pagination metadata
+ * @param options  - Serialization context (e.g. the active search term)
  */
 export async function serializeCreatorListResponse(
    profiles: CreatorProfile[],
-   meta: OffsetPaginationMeta
+   meta: OffsetPaginationMeta,
+   options: { search?: string } = {}
 ): Promise<CreatorListResponse> {
-   return wrapPublicCreatorListResponse(
-      await serializeCreatorList(profiles),
-      serializeCreatorListOffsetMeta(meta)
-   );
+   const items = await serializeCreatorList(profiles);
+
+   let state: CreatorListState;
+   let message: string | undefined;
+
+   if (meta.total > 0) {
+      state = 'results';
+   } else if (options.search) {
+      state = 'noResults';
+      message = `No creators match "${options.search}". Try a different search term.`;
+   } else {
+      state = 'empty';
+   }
+
+   return {
+      ...wrapPublicCreatorListResponse(
+         items,
+         serializeCreatorListOffsetMeta(meta)
+      ),
+      state,
+      ...(message ? { message } : {}),
+   };
 }
 
 /**

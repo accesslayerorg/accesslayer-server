@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { Redis } from 'ioredis';
 import { getRedis } from '../../utils/redis.utils';
 import { envConfig } from '../../config';
 import {
@@ -36,17 +37,28 @@ function walletSubsKey(walletAddress: string): string {
 }
 
 function generateSubscriptionId(): string {
-  return `sub_${randomUUID().replace(/-/g, '').slice(0, 24)}`;
+   return `sub_${randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+/**
+ * Resolve the shared Redis client, throwing if it is unavailable. The
+ * subscription/SSE layer is fundamentally Redis-backed, so operating without
+ * it is an error rather than a degradable cache miss.
+ */
+function assertRedis(): Redis {
+   const client = getRedis();
+   if (!client) {
+      throw new Error('Redis is not available; subscriptions require Redis');
+   }
+   return client;
 }
 
 export async function createSubscription(
   walletAddress: string,
   topics: SubscriptionTopic[]
 ): Promise<Subscription> {
-  const redis = getRedis();
-  if (!redis) {
-    throw new Error('Redis is unavailable; subscriptions require a Redis connection');
-  }
+
+  const redis = assertRedis();
 
   const walletKey = walletSubsKey(walletAddress);
 
@@ -89,8 +101,9 @@ export async function createSubscription(
 export async function getSubscription(
   subscriptionId: string
 ): Promise<Subscription | null> {
-  const redis = getRedis();
-  if (!redis) return null;
+
+  const redis = assertRedis();
+
   const data = await redis.hgetall(subKey(subscriptionId));
   if (!data || !data.walletAddress) return null;
 
@@ -103,8 +116,9 @@ export async function getSubscription(
 }
 
 export async function deleteSubscription(subscriptionId: string): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
+
+  const redis = assertRedis();
+
   const sub = await getSubscription(subscriptionId);
   if (!sub) return;
 
@@ -116,16 +130,18 @@ export async function deleteSubscription(subscriptionId: string): Promise<void> 
 }
 
 export async function touchSubscription(subscriptionId: string): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
+
+  const redis = assertRedis();
+
   await redis.expire(subKey(subscriptionId), SUBSCRIPTION_TTL_S);
 }
 
 export async function getLastCursor(
   subscriptionId: string
 ): Promise<string | null> {
-  const redis = getRedis();
-  if (!redis) return null;
+
+  const redis = assertRedis();
+
   return redis.get(cursorKey(subscriptionId));
 }
 
@@ -133,29 +149,33 @@ export async function saveCursor(
   subscriptionId: string,
   cursor: string
 ): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
+
+  const redis = assertRedis();
+
   await redis.set(cursorKey(subscriptionId), cursor);
 }
 
 export async function isThrottled(walletAddress: string): Promise<boolean> {
-  const redis = getRedis();
-  if (!redis) return false;
+
+  const redis = assertRedis();
+
   const exists = await redis.exists(throttledKey(walletAddress));
   return exists === 1;
 }
 
 export async function setThrottled(walletAddress: string): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
+
+  const redis = assertRedis();
+
   await redis.setex(throttledKey(walletAddress), THROTTLE_DURATION_S, '1');
 }
 
 export async function incrementConnectionCount(
   walletAddress: string
 ): Promise<number> {
-  const redis = getRedis();
-  if (!redis) return 0;
+
+  const redis = assertRedis();
+
   const count = await redis.incr(connectionCountKey(walletAddress));
   await redis.expire(connectionCountKey(walletAddress), 60);
   return count;
@@ -164,21 +184,22 @@ export async function incrementConnectionCount(
 export async function decrementConnectionCount(
   walletAddress: string
 ): Promise<void> {
-  const redis = getRedis();
-  if (!redis) return;
+
+  const redis = assertRedis();
+
   await redis.decr(connectionCountKey(walletAddress));
 }
 
 export async function getWalletSubscriptions(
   walletAddress: string
 ): Promise<Subscription[]> {
-  const redis = getRedis();
-  if (!redis) return [];
-   const ids = await redis.zrange(
-     walletSubsKey(walletAddress),
-     '0',
-     '-1'
-   );
+
+  const redis = assertRedis();
+  const ids = await redis.zrange(
+    walletSubsKey(walletAddress),
+    '0',
+    '-1'
+  );
 
   const subs: Subscription[] = [];
   for (const id of ids) {
@@ -191,8 +212,9 @@ export async function getWalletSubscriptions(
 export async function getSubscriptionsByTopic(
   topic: string
 ): Promise<Subscription[]> {
-  const redis = getRedis();
-  if (!redis) return [];
+
+  const redis = assertRedis();
+
   const ids = await redis.keys(`${SUBSCRIPTION_KEY_PREFIX}*`);
   const subs: Subscription[] = [];
 
@@ -215,8 +237,9 @@ export async function getSubscriptionsByTopic(
 }
 
 export async function pruneExpiredSubscriptions(): Promise<number> {
-  const redis = getRedis();
-  if (!redis) return 0;
+
+  const redis = assertRedis();
+
   const walletKeys = await redis.keys(`${WALLET_SUBSCRIPTIONS_KEY_PREFIX}*`);
 
   let pruned = 0;
