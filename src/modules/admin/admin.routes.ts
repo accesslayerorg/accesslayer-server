@@ -8,7 +8,9 @@ import {
    httpGetAuditLog,
 } from './admin.controllers';
 import { httpSyncKeyState } from './key-sync.controllers';
+import { getKeySnapshot, KeySnapshotNotFoundError } from './key-snapshot.service';
 import { createAuditEntry } from './audit-log.service';
+import { invalidateProtocolStatusCache } from '../protocol/protocol.routes';
 import {
    adminGuard,
    AdminRequest,
@@ -44,6 +46,31 @@ adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
 adminRouter.patch('/protocol-fee', adminGuard, httpUpdateProtocolFee);
 adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
+
+/**
+ * GET /api/v1/admin/keys/:keyId/snapshot
+ *
+ * Returns a full on-chain state snapshot for a key alongside the matching
+ * database values, with a `drift` boolean per field. Requires a valid admin
+ * JWT. Returns 404 for unknown key IDs.
+ */
+adminRouter.get('/keys/:keyId/snapshot', adminGuard, async (req: AdminRequest, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const snapshot = await getKeySnapshot(keyId);
+      sendSuccess(res, snapshot);
+   } catch (error) {
+      if (error instanceof KeySnapshotNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Key snapshot failed'
+      );
+      next(error);
+   }
+});
 
 /**
  * POST /api/v1/admin/vesting
@@ -129,6 +156,8 @@ adminRouter.post('/protocol/fee', adminGuard, async (req: AdminRequest, res, nex
          proposalId: proposal.proposalId,
          executionNotBefore: proposal.executionNotBefore.toISOString(),
       });
+
+      await invalidateProtocolStatusCache();
    } catch (error) {
       next(error);
    }

@@ -36,6 +36,20 @@ model PauseProposal {
   @@map("pause_proposals")
 }
 
+model GovernanceVote {
+  id          String   @id @default(cuid())
+  keyId       String
+  proposalId  String
+  voter       String
+  optionIndex Int
+  weight      Decimal  @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([keyId, proposalId, voter])
+  @@index([keyId, proposalId])
+  @@map("proposal_votes")
+}
+
 model TimelockProposal {
   id                 String    @id @default(cuid())
   proposalId         String    @unique
