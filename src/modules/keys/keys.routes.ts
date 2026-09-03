@@ -16,6 +16,9 @@ import {
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
 import { getKeyProposals } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
+import { getKeyAuction, KeyNotFoundError as AuctionKeyNotFoundError } from './key-auction.service';
+import { getKeyMetadata, KeyNotFoundError as MetadataKeyNotFoundError } from './key-metadata.service';
+import { getKeyStaking, KeyNotFoundError as StakingKeyNotFoundError } from './key-staking.service';
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
 import dividendRouter from '../dividends/dividend.routes';
@@ -246,6 +249,54 @@ router.get('/:keyId/price-history', async (req, res, next) => {
          )
       );
    } catch (error) {
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/auction
+ * Returns the configured auction price, supply, sold count, and status.
+ */
+router.get('/:keyId/auction', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyAuction(req.params.keyId));
+   } catch (error) {
+      if (error instanceof AuctionKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/metadata
+ * Returns on-chain creator metadata: name, bio, avatar_uri, creator address.
+ */
+router.get('/:keyId/metadata', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyMetadata(req.params.keyId));
+   } catch (error) {
+      if (error instanceof MetadataKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/staking
+ * Returns staking pool balance, total staked, recent fee inflow, and staker count.
+ */
+router.get('/:keyId/staking', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyStaking(req.params.keyId));
+   } catch (error) {
+      if (error instanceof StakingKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
       next(error);
    }
 });

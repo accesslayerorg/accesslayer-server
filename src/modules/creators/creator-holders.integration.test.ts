@@ -51,6 +51,8 @@ function makeHolder(
       key_count: key_balance,
       share_percent: 0,
       rank: index,
+      stakedQuantity: 0,
+      liquidQuantity: key_balance,
       ...overrides,
    };
 }
