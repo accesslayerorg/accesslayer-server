@@ -3,9 +3,15 @@ import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
 import { indexerHeartbeat } from '../../utils/heartbeat.service';
 import { checkIndexerCursorStalenessFromStore } from '../../utils/indexer-cursor-staleness.utils';
-import { sendSuccess, sendError, ErrorCode } from '../../utils/api-response.utils';
+import {
+   sendSuccess,
+   sendError,
+   ErrorCode,
+} from '../../utils/api-response.utils';
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
 import { logger } from '../../utils/logger.utils';
+import { getRedisClient } from '../../utils/redis.utils';
+import { horizonGet } from '../../clients/horizon.client';
 
 const SYNC_LAG_DEGRADATION_THRESHOLD = 100;
 
@@ -167,11 +173,119 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
    }
 };
 
-export const simpleHealthCheck = (_: Request, res: Response): void => {
-   res.status(200).json({
-      success: true,
-      message: 'OK',
+type DependencyStatus = 'ok' | 'degraded';
+
+interface DependencyCheck {
+   name: string;
+   status: DependencyStatus;
+   latencyMs?: number;
+   error?: string;
+}
+
+async function probeDatabase(): Promise<DependencyCheck> {
+   const start = Date.now();
+   try {
+      await prisma.$queryRaw`SELECT 1`;
+      return { name: 'database', status: 'ok', latencyMs: Date.now() - start };
+   } catch (err) {
+      return {
+         name: 'database',
+         status: 'degraded',
+         error: err instanceof Error ? err.message : 'Unknown error',
+      };
+   }
+}
+
+async function probeRedis(): Promise<DependencyCheck> {
+   const start = Date.now();
+   const client = getRedisClient();
+   if (!client) {
+      return {
+         name: 'redis',
+         status: 'degraded',
+         error: 'Redis client not initialised',
+      };
+   }
+   try {
+      const pong = await client.ping();
+      if (pong === 'PONG') {
+         return { name: 'redis', status: 'ok', latencyMs: Date.now() - start };
+      }
+      return {
+         name: 'redis',
+         status: 'degraded',
+         error: `Unexpected PING response: ${pong}`,
+      };
+   } catch (err) {
+      return {
+         name: 'redis',
+         status: 'degraded',
+         error: err instanceof Error ? err.message : 'Unknown error',
+      };
+   }
+}
+
+async function probeHorizon(): Promise<DependencyCheck> {
+   const start = Date.now();
+   try {
+      const response = await horizonGet('/', { timeoutMs: 3000 });
+      if (response.ok) {
+         return {
+            name: 'horizon',
+            status: 'ok',
+            latencyMs: Date.now() - start,
+         };
+      }
+      return {
+         name: 'horizon',
+         status: 'degraded',
+         error: `Horizon returned HTTP ${response.status}`,
+      };
+   } catch (err) {
+      return {
+         name: 'horizon',
+         status: 'degraded',
+         error: err instanceof Error ? err.message : 'Unknown error',
+      };
+   }
+}
+
+/**
+ * GET /health
+ *
+ * Comprehensive health check that probes database, Redis, and Stellar
+ * Horizon connectivity. Returns 200 when all dependencies are healthy,
+ * 503 when any dependency is degraded.
+ *
+ * No authentication required — suitable for load balancers and uptime
+ * monitors.
+ */
+export const simpleHealthCheck = async (
+   _: Request,
+   res: Response
+): Promise<void> => {
+   const [database, redis, horizon] = await Promise.all([
+      probeDatabase(),
+      probeRedis(),
+      probeHorizon(),
+   ]);
+
+   const checks: DependencyCheck[] = [database, redis, horizon];
+   const allHealthy = checks.every(c => c.status === 'ok');
+   const statusCode = allHealthy ? 200 : 503;
+
+   res.status(statusCode).json({
+      success: allHealthy,
+      status: allHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
+      checks,
+      ...(allHealthy
+         ? {}
+         : {
+              degraded: checks
+                 .filter(c => c.status === 'degraded')
+                 .map(c => c.name),
+           }),
    });
 };
 

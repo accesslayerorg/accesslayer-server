@@ -6,6 +6,8 @@ import {
    sendNotFound,
    sendSuccess,
    sendValidationError,
+   sendForbidden,
+   sendConflict,
    zodIssuesToDetails,
 } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
@@ -30,6 +32,13 @@ import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.se
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
+import {
+   castKeyProposalVote,
+   getProposalForVoting,
+   HolderNotEligibleError,
+   DuplicateVoteError,
+   OptionIndexOutOfRangeError,
+} from './key-proposal-votes.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -195,6 +204,92 @@ router.get('/:keyId/proposals', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * POST /api/v1/keys/:keyId/proposals/:proposalId/vote
+ * Cast a governance vote on a proposal by a key holder.
+ *
+ * - Requires a valid JWT (holder wallet from the token)
+ * - Accepts optionIndex in the request body, validated within option range
+ * - Returns 409 if the wallet has already voted
+ * - Returns 404 if the proposal does not exist or is already closed
+ * - Returns 422 if optionIndex is out of range
+ * - Returns 403 if the JWT wallet holds no keys (non-holder)
+ */
+const voteBodySchema = z.object({
+   optionIndex: z.number().int().nonnegative(),
+});
+
+router.post(
+   '/:keyId/proposals/:proposalId/vote',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const proposalId = String(req.params.proposalId);
+         const wallet = req.user!.wallet;
+
+         const parsed = voteBodySchema.safeParse(req.body);
+         if (!parsed.success) {
+            sendValidationError(
+               res,
+               'Invalid request body',
+               zodIssuesToDetails(parsed.error.issues)
+            );
+            return;
+         }
+
+         const { optionIndex } = parsed.data;
+
+         const check = await getProposalForVoting(keyId, proposalId);
+         if (!check.exists) {
+            sendNotFound(res, 'Proposal');
+            return;
+         }
+         if (check.status !== 'active') {
+            sendNotFound(res, 'Proposal');
+            return;
+         }
+
+         if (optionIndex >= (check.options ?? []).length) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               `optionIndex ${optionIndex} is out of range`
+            );
+            return;
+         }
+
+         const result = await castKeyProposalVote(
+            keyId,
+            proposalId,
+            optionIndex,
+            wallet
+         );
+
+         sendSuccess(res, result, 200);
+      } catch (error) {
+         if (error instanceof HolderNotEligibleError) {
+            sendForbidden(res, error.message);
+            return;
+         }
+         if (error instanceof DuplicateVoteError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         if (error instanceof OptionIndexOutOfRangeError) {
+            sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key proposal vote failed'
+         );
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/keys/:keyId/supply

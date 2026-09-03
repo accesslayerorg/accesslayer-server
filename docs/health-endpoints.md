@@ -2,48 +2,89 @@
 
 The health module exposes four endpoints with different contracts and intended consumers.
 
-## Liveness vs Readiness
+## Endpoints overview
 
 | Endpoint                      | Purpose                                                      | Consumer                                  |
 | ----------------------------- | ------------------------------------------------------------ | ----------------------------------------- |
-| `GET /api/v1/health`          | Liveness — confirms the process is alive                     | Load balancers, uptime monitors           |
+| `GET /api/v1/health`          | Dependency health — probes database, Redis, and Horizon      | Load balancers, uptime monitors           |
 | `GET /api/v1/health/ready`    | Readiness — confirms all critical dependencies are reachable | Kubernetes `readinessProbe`, deploy gates |
 | `GET /api/v1/health/detailed` | Diagnostics — full system snapshot                           | Operators, dashboards                     |
 | `GET /api/v1/health/indexer`  | Worker heartbeat — confirms the indexer is running           | Alerting, internal monitoring             |
 
-**Liveness** never probes dependencies. It responds `200` as long as the event loop is processing requests. Use it wherever a dependency failure should not pull the instance from rotation (e.g., when a downstream DB blip should not make the server appear down).
+`GET /api/v1/health` actively probes the database (a lightweight `SELECT 1`), Redis (a `PING`), and Stellar Horizon (fetching the root endpoint). It responds `200` when every dependency is reachable and `503` when any dependency is degraded, so load balancers and uptime monitors can verify end-to-end connectivity.
 
-**Readiness** actively pings each critical dependency. A single `fail` result flips the response to `503`, signalling to the orchestrator that this instance should stop receiving traffic until the dependency recovers.
+`GET /api/v1/health/ready` also actively pings critical dependencies. A single `fail` result flips the response to `503`, signalling to the orchestrator that this instance should stop receiving traffic until the dependency recovers.
 
 ---
 
-## `GET /api/v1/health` — liveness
+## `GET /api/v1/health` — dependency health check
 
-A minimal "the process is up" check. Always `200` while the event loop is healthy. No dependency probing.
+Probes the database, Redis, and Stellar Horizon. Returns `200` when all dependencies are healthy and `503` when any is degraded. No authentication required.
 
-### Response shape
+### Response shape — healthy
 
 ```json
 {
    "success": true,
-   "message": "OK",
-   "timestamp": "2026-04-28T16:00:00.000Z"
+   "status": "ok",
+   "timestamp": "2026-04-28T16:00:00.000Z",
+   "checks": [
+      { "name": "database", "status": "ok", "latencyMs": 3 },
+      { "name": "redis", "status": "ok", "latencyMs": 1 },
+      { "name": "horizon", "status": "ok", "latencyMs": 40 }
+   ]
+}
+```
+
+### Response shape — degraded
+
+```json
+{
+   "success": false,
+   "status": "degraded",
+   "timestamp": "2026-04-28T16:00:00.000Z",
+   "checks": [
+      { "name": "database", "status": "ok", "latencyMs": 3 },
+      { "name": "redis", "status": "degraded" },
+      { "name": "horizon", "status": "ok", "latencyMs": 41 }
+   ],
+   "degraded": ["redis"]
 }
 ```
 
 ### Fields
 
-| Field       | Type              | Description                                        |
-| ----------- | ----------------- | -------------------------------------------------- |
-| `success`   | boolean           | Always `true`.                                     |
-| `message`   | string            | Human-readable confirmation string. Always `"OK"`. |
-| `timestamp` | string (ISO-8601) | When the response was built.                       |
+| Field       | Type              | Description                                                                                    |
+| ----------- | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `success`   | boolean           | `true` when every dependency is healthy, `false` otherwise.                                    |
+| `status`    | string            | `"ok"` when all dependencies are healthy, `"degraded"` otherwise.                              |
+| `timestamp` | string (ISO-8601) | When the response was built.                                                                   |
+| `checks`    | array             | Per-dependency probe results. See the checks table below.                                      |
+| `degraded`  | array             | Present only when degraded. Lists the names of the degraded dependencies, e.g. `["database"]`. |
+
+#### `checks` array entry fields
+
+| Field       | Type   | Present when                                | Description                                                                                        |
+| ----------- | ------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `name`      | string | Always                                      | Dependency name. Current values: `"database"`, `"redis"`, `"horizon"`.                             |
+| `status`    | string | Always                                      | `"ok"` — probe passed; `"degraded"` — probe failed.                                                |
+| `latencyMs` | number | `status: "ok"` and check measured a latency | Round-trip time for this probe in milliseconds.                                                    |
+| `error`     | string | `status: "degraded"`                        | Human-readable reason for the failure. No internal hostnames, connection strings, or stack traces. |
+
+#### Probe descriptions
+
+| Probe name | What is checked                                                        | Healthy value | Unhealthy value |
+| ---------- | ---------------------------------------------------------------------- | ------------- | --------------- |
+| `database` | A lightweight `SELECT 1` executes successfully.                        | `"ok"`        | `"degraded"`    |
+| `redis`    | `PING` returns `PONG`. Degraded when Redis is disabled or unreachable. | `"ok"`        | `"degraded"`    |
+| `horizon`  | Fetching the Horizon root endpoint returns HTTP 200.                   | `"ok"`        | `"degraded"`    |
 
 ### HTTP status codes
 
-| Code  | Condition                                |
-| ----- | ---------------------------------------- |
-| `200` | Always — liveness never returns non-200. |
+| Code  | Condition                                                         |
+| ----- | ----------------------------------------------------------------- |
+| `200` | All dependencies are healthy.                                     |
+| `503` | Any dependency is degraded; the degraded dependencies are listed. |
 
 ---
 
