@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { envConfig } from '../config';
 import { sendUnauthorized } from '../utils/api-response.utils';
 import { logger } from '../utils/logger.utils';
@@ -68,11 +68,4 @@ export function jwtAuth(req: Request, res: Response, next: NextFunction): void {
     }
     sendUnauthorized(res, 'Invalid or expired token');
   }
-}
-
-export function signJwt(payload: JwtPayload): string {
-  const options: SignOptions = {
-    expiresIn: envConfig.JWT_EXPIRES_IN as any,
-  };
-  return jwt.sign(payload, envConfig.JWT_SECRET, options);
 }

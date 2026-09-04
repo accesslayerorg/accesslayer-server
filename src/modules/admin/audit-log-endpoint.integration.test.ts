@@ -1,15 +1,12 @@
 import request from 'supertest';
-import { createServer } from '../../utils/server.utils';
+import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
 import { signWalletAccessToken } from '../../utils/jwt.utils';
 
 describe('GET /admin/audit-log Endpoint Integration Tests', () => {
-   let app: any;
    let adminToken: string;
 
    beforeAll(async () => {
-      app = await createServer();
-
       // Create admin token
       const adminWallet = '0xadmintestwallet1111111111111111111111111';
       adminToken = signWalletAccessToken(adminWallet, 'admin-sub', 3600);

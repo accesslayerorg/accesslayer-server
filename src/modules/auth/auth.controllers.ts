@@ -5,6 +5,7 @@ import { SendMailAsync } from '../../utils/mail.utils';
 import { HTTP_STATUS, logger } from '../../utils/logger.utils';
 import bcrypt from 'bcrypt';
 import { refreshAccessToken } from './token-refresh.utils';
+import { buildErrorResponse, ErrorCode } from '../../utils/api-response.utils';
 
 export const httpRegisterUserWithPassword: AsyncController = async (
    req,
@@ -153,21 +154,27 @@ export const httpRefreshToken: AsyncController = async (req, res, next) => {
             : undefined) ?? req.body?.token;
 
       if (!token) {
-         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-            success: false,
-            code: 'invalid_token',
-            message: 'No token provided',
-         });
+         return res
+            .status(HTTP_STATUS.UNAUTHORIZED)
+            .json(
+               buildErrorResponse(ErrorCode.JWT_ERROR, 'No token provided', [
+                  { message: 'invalid_token' },
+               ])
+            );
       }
 
       const result = refreshAccessToken(token);
 
       if (!result.success) {
-         return res.status(result.status).json({
-            success: false,
-            code: result.code,
-            message: 'Token could not be refreshed',
-         });
+         return res
+            .status(result.status)
+            .json(
+               buildErrorResponse(
+                  ErrorCode.JWT_ERROR,
+                  'Token could not be refreshed',
+                  [{ message: result.code }]
+               )
+            );
       }
 
       return res.status(HTTP_STATUS.OK).json({

@@ -1,4 +1,5 @@
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
+import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
 import { Router } from 'express';
 import authRouter from './auth/auth.routes';
 import healthRouter from './health/health.routes';
@@ -25,6 +26,14 @@ import followerRouter from './followers/follower.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
+
+// Adaptive per-wallet/per-IP database query cost governor (#755). Mounted
+// ahead of route resolution (so it matches on req.path, not req.route — see
+// query-cost.utils.ts) and ahead of every group below, so it covers the
+// whole API surface rather than needing to be threaded into each route
+// individually. Exempts /health and its own /internal/qcost management
+// routes (see QUERY_COST_EXEMPT_PATH_PREFIXES).
+router.use(queryCostGovernor());
 
 // Each group gets its own JSON body parser so its size limit can be tuned
 // independently via BODY_SIZE_LIMIT_<GROUP> env vars (see

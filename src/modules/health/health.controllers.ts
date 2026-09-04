@@ -3,7 +3,7 @@ import { prisma } from '../../utils/prisma.utils';
 import { envConfig } from '../../config';
 import { indexerHeartbeat } from '../../utils/heartbeat.service';
 import { checkIndexerCursorStalenessFromStore } from '../../utils/indexer-cursor-staleness.utils';
-import { sendSuccess } from '../../utils/api-response.utils';
+import { sendSuccess, sendError, ErrorCode } from '../../utils/api-response.utils';
 import { PUBLIC_ENDPOINT_CACHE_SECONDS } from '../../constants/public-endpoint-cache.constants';
 import { logger } from '../../utils/logger.utils';
 
@@ -159,11 +159,11 @@ export const healthCheck = async (_: Request, res: Response): Promise<void> => {
       res.status(overallHealthy ? 200 : 503).json(healthData);
    } catch (error) {
       logger.error({ error }, 'Health check failed');
-      res.status(500).json({
-         success: false,
-         message: 'Health check failed',
-         error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Health check failed', [
+         {
+            message: error instanceof Error ? error.message : 'Unknown error',
+         },
+      ]);
    }
 };
 

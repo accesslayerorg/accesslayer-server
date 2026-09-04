@@ -9,7 +9,7 @@ import supertest from 'supertest';
 import { Keypair } from '@stellar/stellar-base';
 import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
-import { signJwt } from '../../middlewares/jwt.middleware';
+import { signWalletAccessToken } from '../../utils/jwt.utils';
 
 describe('GET /api/v1/wallets/:address/following', () => {
    const PREFIX = 'wallet-following-test';
@@ -166,10 +166,7 @@ describe('GET /api/v1/wallets/:address/following', () => {
    // ── Alphabetical ordering ────────────────────────────────────────────────
 
    it('returns creators in alphabetical order by display name', async () => {
-      const token = signJwt({
-         walletAddress: walletA.publicKey(),
-         sub: userIdWalletA,
-      });
+      const token = signWalletAccessToken(walletA.publicKey(), userIdWalletA);
 
       const res = await supertest(app)
          .get(`/api/v1/wallets/${walletA.publicKey()}/following`)
@@ -185,10 +182,7 @@ describe('GET /api/v1/wallets/:address/following', () => {
    // ── Completeness ─────────────────────────────────────────────────────────
 
    it('returns all followed creators', async () => {
-      const token = signJwt({
-         walletAddress: walletA.publicKey(),
-         sub: userIdWalletA,
-      });
+      const token = signWalletAccessToken(walletA.publicKey(), userIdWalletA);
 
       const res = await supertest(app)
          .get(`/api/v1/wallets/${walletA.publicKey()}/following`)
@@ -206,10 +200,7 @@ describe('GET /api/v1/wallets/:address/following', () => {
    // ── Empty array for wallet with no follows ───────────────────────────────
 
    it('returns an empty array for a wallet that follows no one', async () => {
-      const token = signJwt({
-         walletAddress: walletB.publicKey(),
-         sub: userIdWalletB,
-      });
+      const token = signWalletAccessToken(walletB.publicKey(), userIdWalletB);
 
       const res = await supertest(app)
          .get(`/api/v1/wallets/${walletB.publicKey()}/following`)
