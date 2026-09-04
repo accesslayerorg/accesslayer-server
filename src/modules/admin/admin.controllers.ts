@@ -4,6 +4,7 @@ import {
    sendValidationError,
    sendCreatorParamNotFound,
    sendForbidden,
+   sendError,
 } from '../../utils/api-response.utils';
 import { prisma } from '../../utils/prisma.utils';
 import { emitAuditEvent } from '../../utils/audit.utils';
@@ -174,19 +175,18 @@ export const httpReplayIndexerEvents: AsyncController = async (
       });
 
       if (!lock.acquired) {
-         return res.status(409).json({
-            success: false,
-            error: {
-               code: ErrorCode.CONFLICT,
-               message: 'Indexer replay job is already running',
-               details: [
-                  {
-                     field: 'indexerReplayLock',
-                     message: `Lock is held by ${lock.holder || 'another worker'} until ${lock.expiresAt || 'unknown time'}`,
-                  },
-               ],
-            },
-         });
+         return sendError(
+            res,
+            409,
+            ErrorCode.CONFLICT,
+            'Indexer replay job is already running',
+            [
+               {
+                  field: 'indexerReplayLock',
+                  message: `Lock is held by ${lock.holder || 'another worker'} until ${lock.expiresAt || 'unknown time'}`,
+               },
+            ]
+         );
       }
 
       const replayInitiated = {

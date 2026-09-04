@@ -228,6 +228,24 @@ export const envSchema = z
       // Left unset by default, so no caller is trusted unless configured.
       TRACE_ID_TRUSTED_TOKEN: optionalNonEmptyString,
       INTERNAL_SERVICE_KEY: optionalNonEmptyString,
+
+      // Query cost governor (#755): rolling per-wallet (or per-IP, when
+      // unauthenticated) database query budget. See
+      // src/middlewares/query-cost-governor.middleware.ts.
+      QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
+      QUERY_COST_WINDOW_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60_000),
+      // JSON object overriding/extending the default route->cost map in
+      // src/constants/query-cost.constants.ts, e.g.
+      // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
+      // defaults, not a full replacement, so operators only need to
+      // specify what differs.
+      QUERY_COST_MAP_JSON: optionalNonEmptyString,
+      // Comma-separated wallet addresses that bypass the governor entirely.
+      QUERY_COST_ADMIN_WALLETS: optionalNonEmptyString,
       HORIZON_WEBHOOK_SECRET: optionalNonEmptyString,
       WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
          .number()
@@ -247,7 +265,9 @@ export const envSchema = z
          .default(5000),
       SSE_REPLAY_MAX_EVENTS: z.coerce.number().int().positive().default(100),
 
-      // Server-Sent Events (SSE) subscription limits
+      // SSE subscription management (src/modules/subscriptions) — a wallet's
+      // subscription set, persisted in Redis, distinct from the per-connection
+      // heartbeat/queue/replay tuning above.
       SSE_MAX_CONNECTIONS_PER_WALLET: z.coerce
          .number()
          .int()

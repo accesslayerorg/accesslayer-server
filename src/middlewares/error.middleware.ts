@@ -117,11 +117,9 @@ export const errorHandler: ErrorRequestHandler = (
          route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
          requestId: req.requestId,
       });
-      res.status(401).json({
-         success: false,
-         code: ErrorCode.JWT_ERROR,
-         message: 'Invalid or expired token',
-      });
+      res.status(401).json(
+         buildErrorResponse(ErrorCode.JWT_ERROR, 'Invalid or expired token')
+      );
       return;
    }
 
@@ -132,11 +130,9 @@ export const errorHandler: ErrorRequestHandler = (
          route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
          requestId: req.requestId,
       });
-      res.status(401).json({
-         success: false,
-         code: ErrorCode.JWT_ERROR,
-         message: 'Token has expired',
-      });
+      res.status(401).json(
+         buildErrorResponse(ErrorCode.JWT_ERROR, 'Token has expired')
+      );
       return;
    }
 
@@ -157,22 +153,26 @@ export const errorHandler: ErrorRequestHandler = (
             break;
       }
 
-      res.status(400).json({
-         success: false,
-         code: ErrorCode.PRISMA_ERROR,
-         message,
-         ...(envConfig.MODE === 'development' && { error: err.message }),
-      });
+      res.status(400).json(
+         buildErrorResponse(
+            ErrorCode.PRISMA_ERROR,
+            message,
+            envConfig.MODE === 'development'
+               ? [{ message: err.message }]
+               : undefined
+         )
+      );
       return;
    }
 
    // Handle custom API errors
    if (err instanceof ApiError) {
-      res.status(err.statusCode).json({
-         success: false,
-         code: err.errorCode || ErrorCode.INTERNAL_ERROR,
-         message: err.message,
-      });
+      res.status(err.statusCode).json(
+         buildErrorResponse(
+            err.errorCode || ErrorCode.INTERNAL_ERROR,
+            err.message
+         )
+      );
       return;
    }
 
@@ -188,21 +188,17 @@ export const errorHandler: ErrorRequestHandler = (
          contentLength: req.headers['content-length'],
          limitBytes: err.limit,
       });
-      res.status(413).json({
-         success: false,
-         code: ErrorCode.BAD_REQUEST,
-         message: 'Request payload too large',
-      });
+      res.status(413).json(
+         buildErrorResponse(ErrorCode.BAD_REQUEST, 'Request payload too large')
+      );
       return;
    }
 
    // Handle syntax errors (malformed JSON)
    if (err instanceof SyntaxError && 'body' in err) {
-      res.status(400).json({
-         success: false,
-         code: ErrorCode.BAD_REQUEST,
-         message: 'Invalid JSON format',
-      });
+      res.status(400).json(
+         buildErrorResponse(ErrorCode.BAD_REQUEST, 'Invalid JSON format')
+      );
       return;
    }
 
