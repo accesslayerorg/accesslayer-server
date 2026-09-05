@@ -285,6 +285,55 @@ Error codes are defined in `src/constants/error.constants.ts` and should be trea
 ```
 
 ---
+### TOKEN_EXPIRY_TAMPERED
+
+**HTTP Status:** 401 Unauthorized
+
+**Meaning:** JWT token expiry has been tampered with. The token's `exp` claim does not match the expected `iat + ttlSeconds`.
+
+**When to use:**
+
+- Token's `exp` is greater than `iat + ttlSeconds` (expiry was extended beyond the valid window)
+- Token's `exp` is less than `iat + ttlSeconds` (expiry was shortened, token revoked early)
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "TOKEN_EXPIRY_TAMPERED",
+      "message": "Token expiry has been tampered with"
+   }
+}
+```
+
+---
+
+### MISSING_IAT
+
+**HTTP Status:** 401 Unauthorized
+
+**Meaning:** JWT token is missing the `iat` (issued-at) claim. The token cannot have its expiry validated without an issuance timestamp.
+
+**When to use:**
+
+- Token does not include an `iat` claim
+- Token payload is decoded but `iat` is undefined
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "MISSING_IAT",
+      "message": "Token is missing the issued-at (iat) claim"
+   }
+}
+```
+
+---
 
 ## Adding New Error Codes
 
