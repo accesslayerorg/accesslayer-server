@@ -34,6 +34,18 @@ interface ApiErrorResponse {
 }
 
 /**
+ * Thrown by {@link buildErrorResponse} when called with an empty string
+ * error code, since an empty code can't be used by clients to distinguish
+ * error types.
+ */
+export class InvalidErrorCode extends Error {
+   constructor() {
+      super('buildErrorResponse: error code must not be an empty string');
+      this.name = 'InvalidErrorCode';
+   }
+}
+
+/**
  * Builds a structured error response body, embedding the request ID from the
  * current async-local-storage context when available. The `requestId` field is
  * omitted entirely when no context is active, keeping the shape clean for
@@ -47,6 +59,7 @@ interface ApiErrorResponse {
  * @param message - Human-readable error message
  * @param details - Optional per-field validation details
  * @returns       Structured error response body ready to pass to `res.json()`
+ * @throws {InvalidErrorCode} when `code` is an empty string
  *
  * @example
  * res.status(400).json(buildErrorResponse(ErrorCode.VALIDATION_ERROR, 'Bad input'));
@@ -56,6 +69,9 @@ export function buildErrorResponse(
    message: string,
    details?: Array<{ field?: string; message: string }>
 ): ApiErrorResponse {
+   if (!code) {
+      throw new InvalidErrorCode();
+   }
    const requestId = requestContextStorage.getStore()?.requestId;
    const body: ApiErrorResponse = {
       success: false,

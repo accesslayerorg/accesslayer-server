@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.utils';
 import { getClientIp } from '../utils/client-ip.utils';
 import { ErrorCode } from '../constants/error.constants';
 import { sanitizeLogFieldValue } from '../utils/log-field-sanitizer.utils';
+import { buildErrorResponse } from '../utils/api-response.utils';
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -52,17 +53,17 @@ export const bodyParseErrorMiddleware = (
    });
 
    if (isEntityTooLarge) {
-      res.status(413).json({
-         success: false,
-         code: ErrorCode.BAD_REQUEST,
-         message: 'Request payload too large',
-      });
+      res
+         .status(413)
+         .json(
+            buildErrorResponse(ErrorCode.BAD_REQUEST, 'Request payload too large')
+         );
       return;
    }
 
-   res.status(400).json({
-      success: false,
-      code: ErrorCode.BAD_REQUEST,
-      message: 'Invalid JSON in request body',
-   });
+   res
+      .status(400)
+      .json(
+         buildErrorResponse(ErrorCode.BAD_REQUEST, 'Invalid JSON in request body')
+      );
 };

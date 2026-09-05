@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { httpGetLedgerStatus } from './ledger.controllers';
 import { prisma } from '../../utils/prisma.utils';
-import { sendSuccess } from '../../utils/api-response.utils';
+import { sendSuccess, sendError } from '../../utils/api-response.utils';
 
 // Mock prisma and api-response utils
 jest.mock('../../utils/prisma.utils', () => ({
@@ -14,6 +14,8 @@ jest.mock('../../utils/prisma.utils', () => ({
 
 jest.mock('../../utils/api-response.utils', () => ({
    sendSuccess: jest.fn(),
+   sendError: jest.fn(),
+   ErrorCode: { INTERNAL_ERROR: 'INTERNAL_ERROR' },
 }));
 
 jest.mock('../../utils/timestamp-headers.utils', () => ({
@@ -90,12 +92,11 @@ describe('Ledger Controller', () => {
          mockResponse as Response
       );
 
-      expect(statusFn).toHaveBeenCalledWith(500);
-      expect(jsonFn).toHaveBeenCalledWith(
-         expect.objectContaining({
-            success: false,
-            message: 'Failed to fetch ledger status',
-         })
+      expect(sendError).toHaveBeenCalledWith(
+         mockResponse,
+         500,
+         'INTERNAL_ERROR',
+         'Failed to fetch ledger status'
       );
    });
 });
