@@ -16,6 +16,8 @@ export const ErrorCode = {
    JWT_ERROR: 'TOKEN_ERROR',
    INSUFFICIENT_BALANCE: 'insufficient_balance',
    NOT_A_CREATOR: 'not_a_creator',
+   TOKEN_EXPIRY_TAMPERED: 'token_expiry_tampered',
+   MISSING_IAT: 'missing_iat',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
