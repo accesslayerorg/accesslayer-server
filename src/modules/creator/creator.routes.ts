@@ -74,9 +74,7 @@ creatorsRouter.post(
             'capBps must be between 100 and 2500'
          );
          return;
-      }         const keyId = Array.isArray(req.params.keyId)
-            ? req.params.keyId[0]
-            : req.params.keyId;
+      }
 
       const keyId = Array.isArray(req.params.keyId)
          ? req.params.keyId[0]

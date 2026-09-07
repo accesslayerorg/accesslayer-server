@@ -27,4 +27,30 @@ process.env.SSE_MAX_SUBSCRIPTIONS_PER_WALLET = '5';
 process.env.SSE_SUBSCRIPTION_TTL_MS = '86400000';
 process.env.SSE_REPLAY_MAX_EVENTS = '1000';
 process.env.SSE_PRUNE_INTERVAL_MS = '300000';
+
+jest.mock('@prisma/client', () => {
+   const mockPrismaClient = {
+      creatorProfile: {
+         findMany: jest.fn().mockResolvedValue([]),
+      },
+      activity: {
+         findMany: jest.fn().mockResolvedValue([]),
+      },
+      $disconnect: jest.fn(),
+      $extends: jest.fn(() => ({
+         creatorProfile: {
+            findMany: jest.fn().mockResolvedValue([]),
+         },
+         activity: {
+            findMany: jest.fn().mockResolvedValue([]),
+         },
+         $disconnect: jest.fn(),
+      })),
+   };
+
+   return {
+      PrismaClient: jest.fn(() => mockPrismaClient),
+   };
+}, { virtual: true });
+
 jest.setTimeout(30000);

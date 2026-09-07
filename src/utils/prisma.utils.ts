@@ -80,7 +80,7 @@ const queryStartTimes = new Map<symbol, number>();
 // Extend Prisma with query timeout, slow-query detection, and pool wait tracking
 export const prisma = basePrisma.$extends({
    query: {
-      $allOperations({ operation, model, args, query }) {
+      $allOperations({ operation, model, args, query }: any) {
          const timeoutMs = envConfig.DB_QUERY_TIMEOUT_MS;
          const slowThresholdMs = envConfig.SLOW_QUERY_THRESHOLD_MS;
          const poolWarnThreshold = envConfig.DB_POOL_WAIT_WARN_MS;
