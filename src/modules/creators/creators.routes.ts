@@ -22,6 +22,7 @@ import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownersh
 import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
 import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
 import { validateBody } from '../../middlewares/validate-body.middleware';
+import { withIdempotency } from '../../middlewares/idempotency.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
 import {
    httpCreatePost,
@@ -50,7 +51,7 @@ creatorsRouter.post(
    requireStellarSignature(),
    buyKeyRateLimit,
    validateBody(buySchema),
-   httpBuyCreatorKey
+   withIdempotency(httpBuyCreatorKey)
 );
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);
