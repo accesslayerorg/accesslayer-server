@@ -45,6 +45,15 @@ describe('Config Validation and Source Precedence', () => {
          );
          expect(defaults.API_VERSION).toBe('1.0.0');
          expect(defaults.ENABLE_INDEXER_DEDUPE).toBe(true);
+         expect(defaults.SLOW_REQUEST_THRESHOLD_MS).toBe(2000);
+      });
+
+      it('SLOW_REQUEST_THRESHOLD_MS can be configured via environment variable', () => {
+         const config = envSchema.parse({
+            ...BASE_ENV,
+            SLOW_REQUEST_THRESHOLD_MS: '3500',
+         });
+         expect(config.SLOW_REQUEST_THRESHOLD_MS).toBe(3500);
       });
 
       it('Valid explicit config is accepted', () => {

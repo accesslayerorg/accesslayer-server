@@ -114,34 +114,35 @@ These values **must** be provided via environment variables:
 
 These values have defaults and can be overridden:
 
-| Variable                                      | Type    | Default                       | Description                   |
-| --------------------------------------------- | ------- | ----------------------------- | ----------------------------- |
-| `PORT`                                        | number  | `3000`                        | Server port                   |
-| `MODE`                                        | enum    | `development`                 | Environment mode              |
-| `DB_QUERY_TIMEOUT_MS`                         | number  | `5000`                        | Prisma query timeout in ms    |
-| `APP_SECRET`                                  | string  | (dev key)                     | Secret for signing/encryption |
-| `API_VERSION`                                 | string  | `1.0.0`                       | API version string            |
-| `ENABLE_RESPONSE_TIMING`                      | boolean | `true`                        | Enable timing headers         |
-| `ENABLE_API_VERSION_HEADER`                   | boolean | `true`                        | Enable version header         |
-| `ENABLE_SCHEMA_VERSION_HEADER`                | boolean | `true`                        | Enable schema header          |
-| `ENABLE_REQUEST_LOGGING`                      | boolean | `true`                        | Enable request logging        |
-| `INDEXER_JITTER_FACTOR`                       | number  | `0.1`                         | Jitter factor (0-1)           |
-| `BACKGROUND_JOB_LOCK_TTL_MS`                  | number  | `300000`                      | Job lock TTL (5 min)          |
-| `CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS`        | number  | `500`                         | Slow query threshold          |
-| `INDEXER_CURSOR_STALE_AGE_WARNING_MS`         | number  | `300000`                      | Stale cursor warning (5 min)  |
-| `INDEXER_HEARTBEAT_STALE_THRESHOLD_MS`        | number  | `300000`                      | Heartbeat stale threshold     |
-| `ENABLE_INDEXER_DEDUPE`                       | boolean | `true`                        | Enable dedupe guard           |
-| `ENABLE_INDEXER_DLQ`                          | boolean | `true`                        | Enable indexer dead-lettering |
-| `ENABLE_INDEXER_CURSOR_STALENESS_WARNING`     | boolean | `true`                        | Warn on stale cursors         |
-| `STELLAR_NETWORK`                             | enum    | `testnet`                     | Stellar network selection     |
-| `STELLAR_HORIZON_URL`                         | URL     | testnet URL                   | Horizon endpoint              |
-| `STELLAR_SOROBAN_RPC_URL`                     | URL     | testnet URL                   | Soroban RPC endpoint          |
-| `OWNERSHIP_SNAPSHOT_TABLE_NAME`               | string  | `creator_ownership_snapshots` | Snapshot table name           |
-| `OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN`          | boolean | `true`                        | Log deletes without executing |
-| `OWNERSHIP_SNAPSHOT_RETENTION_DAYS`           | number  | `30`                          | Retention window in days      |
-| `OWNERSHIP_SNAPSHOT_CLEANUP_ENABLED`          | boolean | `false`                       | Enable cleanup scheduler      |
-| `OWNERSHIP_SNAPSHOT_CLEANUP_INTERVAL_MINUTES` | number  | `60`                          | Cleanup scheduler interval    |
-| `PAYSTACK_PUBLIC_KEY`                         | string  | (optional)                    | Paystack public key           |
+| Variable                                      | Type    | Default                       | Description                    |
+| --------------------------------------------- | ------- | ----------------------------- | ------------------------------ |
+| `PORT`                                        | number  | `3000`                        | Server port                    |
+| `MODE`                                        | enum    | `development`                 | Environment mode               |
+| `DB_QUERY_TIMEOUT_MS`                         | number  | `5000`                        | Prisma query timeout in ms     |
+| `APP_SECRET`                                  | string  | (dev key)                     | Secret for signing/encryption  |
+| `API_VERSION`                                 | string  | `1.0.0`                       | API version string             |
+| `ENABLE_RESPONSE_TIMING`                      | boolean | `true`                        | Enable timing headers          |
+| `ENABLE_API_VERSION_HEADER`                   | boolean | `true`                        | Enable version header          |
+| `ENABLE_SCHEMA_VERSION_HEADER`                | boolean | `true`                        | Enable schema header           |
+| `ENABLE_REQUEST_LOGGING`                      | boolean | `true`                        | Enable request logging         |
+| `INDEXER_JITTER_FACTOR`                       | number  | `0.1`                         | Jitter factor (0-1)            |
+| `BACKGROUND_JOB_LOCK_TTL_MS`                  | number  | `300000`                      | Job lock TTL (5 min)           |
+| `CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS`        | number  | `500`                         | Slow query threshold           |
+| `SLOW_REQUEST_THRESHOLD_MS`                   | number  | `2000`                        | Slow request warning threshold |
+| `INDEXER_CURSOR_STALE_AGE_WARNING_MS`         | number  | `300000`                      | Stale cursor warning (5 min)   |
+| `INDEXER_HEARTBEAT_STALE_THRESHOLD_MS`        | number  | `300000`                      | Heartbeat stale threshold      |
+| `ENABLE_INDEXER_DEDUPE`                       | boolean | `true`                        | Enable dedupe guard            |
+| `ENABLE_INDEXER_DLQ`                          | boolean | `true`                        | Enable indexer dead-lettering  |
+| `ENABLE_INDEXER_CURSOR_STALENESS_WARNING`     | boolean | `true`                        | Warn on stale cursors          |
+| `STELLAR_NETWORK`                             | enum    | `testnet`                     | Stellar network selection      |
+| `STELLAR_HORIZON_URL`                         | URL     | testnet URL                   | Horizon endpoint               |
+| `STELLAR_SOROBAN_RPC_URL`                     | URL     | testnet URL                   | Soroban RPC endpoint           |
+| `OWNERSHIP_SNAPSHOT_TABLE_NAME`               | string  | `creator_ownership_snapshots` | Snapshot table name            |
+| `OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN`          | boolean | `true`                        | Log deletes without executing  |
+| `OWNERSHIP_SNAPSHOT_RETENTION_DAYS`           | number  | `30`                          | Retention window in days       |
+| `OWNERSHIP_SNAPSHOT_CLEANUP_ENABLED`          | boolean | `false`                       | Enable cleanup scheduler       |
+| `OWNERSHIP_SNAPSHOT_CLEANUP_INTERVAL_MINUTES` | number  | `60`                          | Cleanup scheduler interval     |
+| `PAYSTACK_PUBLIC_KEY`                         | string  | (optional)                    | Paystack public key            |
 
 **Startup Behavior:** Uses default if not provided in environment.
 
