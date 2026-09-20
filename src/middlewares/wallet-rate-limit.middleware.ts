@@ -125,3 +125,13 @@ export const buyKeyRateLimit = walletRateLimit({
    max: 5,
    keyPrefix: 'rl:buy:',
 });
+
+/**
+ * Rate limit applied to the key sell endpoint: 5 requests per
+ * 10-second sliding window per wallet.
+ */
+export const sellKeyRateLimit = walletRateLimit({
+   windowMs: 10_000,
+   max: 5,
+   keyPrefix: 'rl:sell:',
+});

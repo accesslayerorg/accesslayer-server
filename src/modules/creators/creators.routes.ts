@@ -20,9 +20,17 @@ import { normalizeTrailingSlash } from '../../middlewares/trailing-slash-normali
 import { validateCreatorParam } from '../../middlewares/creator-param.middleware';
 import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
 import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
-import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
+import {
+   buyKeyRateLimit,
+   sellKeyRateLimit,
+} from '../../middlewares/wallet-rate-limit.middleware';
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
+import {
+   httpSellCreatorKey,
+   httpGetCreatorKeyBalance,
+   sellSchema,
+} from '../creator/sell.controller';
 import {
    httpCreatePost,
    httpListPosts,
@@ -52,6 +60,30 @@ creatorsRouter.post(
    validateBody(buySchema),
    httpBuyCreatorKey
 );
+creatorsRouter.all('/:id/buy', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+creatorsRouter.post(
+   '/:id/sell',
+   validateCreatorParam('id'),
+   requireStellarSignature(),
+   sellKeyRateLimit,
+   validateBody(sellSchema),
+   httpSellCreatorKey
+);
+creatorsRouter.all('/:id/sell', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+creatorsRouter.get(
+   '/:id/balance',
+   validateCreatorParam('id'),
+   httpGetCreatorKeyBalance
+);
+creatorsRouter.all('/:id/balance', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);
 creatorsRouter.post(

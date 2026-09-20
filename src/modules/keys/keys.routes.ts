@@ -29,6 +29,14 @@ import {
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
+import { validateBody } from '../../middlewares/validate-body.middleware';
+import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
+import { sellKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
+import {
+   httpSellCreatorKey,
+   httpGetCreatorKeyBalance,
+   sellSchema,
+} from '../creator/sell.controller';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
@@ -466,6 +474,30 @@ router.post(
 
 router.all('/:keyId/burn', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
+});
+
+/**
+ * POST /api/v1/keys/:keyId/sell
+ * Sell creator keys and update seller's key balance.
+ */
+router.post(
+   '/:keyId/sell',
+   requireStellarSignature(),
+   sellKeyRateLimit,
+   validateBody(sellSchema),
+   httpSellCreatorKey
+);
+router.all('/:keyId/sell', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+/**
+ * GET /api/v1/keys/:keyId/balance
+ * Query key balance for a wallet and key/creator ID.
+ */
+router.get('/:keyId/balance', httpGetCreatorKeyBalance);
+router.all('/:keyId/balance', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
 });
 
 export default router;
