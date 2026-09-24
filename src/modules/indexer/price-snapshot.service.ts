@@ -5,6 +5,9 @@
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 
+/** Trade side, mirroring the `TradeDirection` enum in the Prisma schema. */
+export type TradeDirectionValue = 'BUY' | 'SELL';
+
 export interface TradeEventPayload {
    creatorId: string;
    /** Trade price in stroops */
@@ -13,6 +16,14 @@ export interface TradeEventPayload {
    tradeAt: Date;
    /** Ledger sequence number the trade was included in */
    ledger?: number;
+   /**
+    * Circulating supply the price was computed against, as returned by
+    * `persistCirculatingSupply` for this trade. Optional so that older callers
+    * (and the debug tooling) keep compiling; stored as 0 when absent.
+    */
+   supply?: bigint;
+   /** Trade side. Defaults to BUY for callers that predate this field. */
+   direction?: TradeDirectionValue;
 }
 
 /**
@@ -22,12 +33,23 @@ export interface TradeEventPayload {
  * - On subsequent trades: updates currentPrice; price24hAgo is updated separately
  *   by a scheduled job (or set inline when the existing record is >24 h old).
  *
+ * Each history row carries the supply and the trade direction as well as the
+ * price, so price-history consumers can weight points by size and tell buys
+ * from sells instead of reconstructing both from the trade log.
+ *
  * Idempotent: re-processing the same event produces the same state.
  */
 export async function upsertPriceSnapshot(
    event: TradeEventPayload
 ): Promise<void> {
-   const { creatorId, price, tradeAt, ledger } = event;
+   const {
+      creatorId,
+      price,
+      tradeAt,
+      ledger,
+      supply = 0n,
+      direction = 'BUY',
+   } = event;
 
    try {
       const existing = await prisma.creatorPriceSnapshot.findUnique({
@@ -48,6 +70,8 @@ export async function upsertPriceSnapshot(
             data: {
                creatorId,
                price,
+               supply,
+               direction,
                recordedAt: tradeAt,
             },
          });
@@ -56,6 +80,8 @@ export async function upsertPriceSnapshot(
                creator_id: creatorId,
                new_price: price.toString(),
                previous_price: null,
+               supply: supply.toString(),
+               direction,
                ledger: ledger ?? null,
                ingested_at: new Date().toISOString(),
             },
@@ -97,6 +123,8 @@ export async function upsertPriceSnapshot(
          data: {
             creatorId,
             price,
+            supply,
+            direction,
             recordedAt: tradeAt,
          },
       });
@@ -105,6 +133,8 @@ export async function upsertPriceSnapshot(
             creator_id: creatorId,
             new_price: price.toString(),
             previous_price: existing.currentPrice.toString(),
+            supply: supply.toString(),
+            direction,
             ledger: ledger ?? null,
             ingested_at: new Date().toISOString(),
          },

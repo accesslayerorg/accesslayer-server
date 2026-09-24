@@ -104,15 +104,19 @@ export async function processTradeEvents(events: IndexerChainEvent[]): Promise<v
          }
       }
 
-      // 3. upsertPriceSnapshot
+      // 3a. persistCirculatingSupply — has to run before the price snapshot,
+      // because the snapshot records the supply this trade produced.
+      const supply = await persistCirculatingSupply(creatorId);
+
+      // 3b. upsertPriceSnapshot
       await upsertPriceSnapshot({
          creatorId,
          price: BigInt(price),
          tradeAt: new Date(tradeAt),
          ledger: Number(ledger),
+         supply: BigInt(supply),
+         direction: event.eventType === 'KEY_BOUGHT' ? 'BUY' : 'SELL',
       });
-
-      await persistCirculatingSupply(creatorId);
 
       // 4. Emit a structured log for confirmed sells, mirroring buy-side logging.
       if (event.eventType === 'KEY_SOLD') {
