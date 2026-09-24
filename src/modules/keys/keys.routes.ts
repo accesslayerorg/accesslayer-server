@@ -60,6 +60,7 @@ import {
    PositionNotFoundError,
    unfreezePosition,
 } from './key-freeze.service';
+import { getKeyTwap } from './key-twap.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -361,6 +362,45 @@ router.get('/:keyId/price-history', async (req, res, next) => {
             parsed.data.interval
          )
       );
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/twap ──────────────────────────────────────────
+
+const twapQuerySchema = z.object({
+   window: z.enum(['1h', '24h', '7d'], {
+      errorMap: () => ({ message: 'Invalid window param. Must be 1h, 24h, or 7d' }),
+   }),
+});
+
+router.get('/:keyId/twap', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const parsed = twapQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'Invalid window param. Must be 1h, 24h, or 7d',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const result = await getKeyTwap(creator.id, parsed.data.window);
+      sendSuccess(res, result);
    } catch (error) {
       next(error);
    }
