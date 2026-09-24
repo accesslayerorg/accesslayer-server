@@ -60,6 +60,13 @@ import {
    PositionNotFoundError,
    unfreezePosition,
 } from './key-freeze.service';
+import {
+   simulateKeyTrade,
+   type SimulateSide,
+   InsufficientCirculatingSupplyError,
+   QuantityExceedsLimitError,
+   BatchSizeExceedsLimitError,
+} from './key-simulate.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -362,6 +369,81 @@ router.get('/:keyId/price-history', async (req, res, next) => {
          )
       );
    } catch (error) {
+      next(error);
+   }
+ });
+
+// ── GET /:keyId/simulate ──────────────────────────────────────
+
+router.get('/:keyId/simulate', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const rawSide = req.query.side;
+   const rawQty = req.query.quantity ?? req.query.quantities;
+
+   if (rawSide !== 'buy' && rawSide !== 'sell') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         "side must be 'buy' or 'sell'"
+      );
+      return;
+   }
+
+   if (!rawQty || typeof rawQty !== 'string') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantity is required'
+      );
+      return;
+   }
+
+   const quantities = rawQty
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+      .map((s: string) => Number(s));
+
+   if (
+      quantities.length === 0 ||
+      quantities.some((q: number) => isNaN(q) || !Number.isInteger(q) || q <= 0)
+   ) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantities must be positive integers'
+      );
+      return;
+   }
+
+   try {
+      const result = await simulateKeyTrade(
+         keyId,
+         quantities,
+         rawSide as SimulateSide
+      );
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (
+         error instanceof InsufficientCirculatingSupplyError ||
+         error instanceof QuantityExceedsLimitError ||
+         error instanceof BatchSizeExceedsLimitError
+      ) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            error.message
+         );
+         return;
+      }
       next(error);
    }
 });
