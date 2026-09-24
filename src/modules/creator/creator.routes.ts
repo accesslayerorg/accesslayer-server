@@ -9,6 +9,10 @@ import { requireKeyCreator, AuthenticatedRequest } from '../../middlewares/jwt-a
 import { sendError, sendSuccess } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import { prisma } from '../../utils/prisma.utils';
+import { logger } from '../../utils/logger.utils';
+import { buyGateway } from './buy.service';
+import { horizonRequest } from '../../utils/horizon-api.utils';
+import { getRedis } from '../../utils/redis.utils';
 
 const creatorsRouter = Router();
 
@@ -96,6 +100,291 @@ creatorsRouter.post(
          sendSuccess(res, {
             holderCapBps: updated.holderCapBps,
             percentage: `${updated.holderCapBps / 100}%`,
+         });
+      } catch (error) {
+         next(error);
+      }
+   }
+);
+
+/**
+ * POST /api/v1/creator/:keyId/curve
+ * Configure supply milestone exponents for graduated bonding curve (#869).
+ */
+creatorsRouter.post(
+   '/:keyId/curve',
+   requireKeyCreator('keyId'),
+   async (req: AuthenticatedRequest, res, next) => {
+      const keyId = Array.isArray(req.params.keyId)
+         ? req.params.keyId[0]
+         : req.params.keyId;
+
+      const { milestones } = req.body || {};
+
+      if (!Array.isArray(milestones) || milestones.length === 0) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'milestones must be a non-empty array'
+         );
+         return;
+      }
+
+      if (milestones.length > 5) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'Maximum of 5 milestones allowed'
+         );
+         return;
+      }
+
+      for (let i = 0; i < milestones.length; i++) {
+         const m = milestones[i];
+         if (
+            !m ||
+            typeof m.supplyThreshold !== 'number' ||
+            typeof m.exponent !== 'number' ||
+            isNaN(m.supplyThreshold) ||
+            isNaN(m.exponent)
+         ) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               'Each milestone must have supplyThreshold and exponent'
+            );
+            return;
+         }
+
+         if (m.supplyThreshold <= 0) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               'supplyThreshold must be positive'
+            );
+            return;
+         }
+
+         if (m.exponent < 1 || m.exponent > 5) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               'exponent must be between 1 and 5'
+            );
+            return;
+         }
+
+         if (i > 0 && m.supplyThreshold <= milestones[i - 1].supplyThreshold) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               'supplyThreshold values must be in strictly ascending order'
+            );
+            return;
+         }
+      }
+
+      try {
+         const creatorProfile = await prisma.creatorProfile.findFirst({
+            where: { OR: [{ id: keyId }, { handle: keyId }] },
+         });
+         if (!creatorProfile) {
+            sendError(res, 404, ErrorCode.NOT_FOUND, 'Key not found');
+            return;
+         }
+
+         logger.info(
+            {
+               operation: 'configure_graduated_curve_contract_call',
+               keyId: creatorProfile.id,
+               milestones,
+            },
+            'Submitting configure_graduated_curve contract call'
+         );
+
+         const updated = await prisma.creatorProfile.update({
+            where: { id: creatorProfile.id },
+            data: { curveMilestones: milestones },
+         });
+
+         await prisma.activity.create({
+            data: {
+               type: 'GRADUATED_CURVE_CONFIGURED',
+               actor: req.user!.wallet,
+               creatorId: creatorProfile.id,
+               payload: {
+                  keyId: creatorProfile.id,
+                  milestones,
+               },
+            },
+         });
+
+         sendSuccess(res, {
+            keyId: creatorProfile.id,
+            milestones: (updated.curveMilestones as any) ?? milestones,
+            baseExponent: updated.baseExponent ?? 1,
+         });
+      } catch (error) {
+         next(error);
+      }
+   }
+);
+
+/**
+ * POST /api/v1/creator/:keyId/deprecate
+ * Initiate a buyback wind-down and deprecate a creator key (#872).
+ */
+creatorsRouter.post(
+   '/:keyId/deprecate',
+   requireKeyCreator('keyId'),
+   async (req: AuthenticatedRequest, res, next) => {
+      const keyId = Array.isArray(req.params.keyId)
+         ? req.params.keyId[0]
+         : req.params.keyId;
+
+      const { buybackPricePerKey } = req.body || {};
+
+      if (buybackPricePerKey === 0) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'buybackPricePerKey must be greater than zero'
+         );
+         return;
+      }
+
+      if (
+         typeof buybackPricePerKey !== 'number' ||
+         isNaN(buybackPricePerKey) ||
+         !Number.isInteger(buybackPricePerKey) ||
+         buybackPricePerKey < 1
+      ) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'buybackPricePerKey must be a positive integer'
+         );
+         return;
+      }
+
+      try {
+         const creatorProfile = await prisma.creatorProfile.findFirst({
+            where: { OR: [{ id: keyId }, { handle: keyId }] },
+         });
+         if (!creatorProfile) {
+            sendError(res, 404, ErrorCode.NOT_FOUND, 'Key not found');
+            return;
+         }
+
+         const circulatingSupply = Number(creatorProfile.circulatingSupply);
+         const requiredXlm = circulatingSupply * buybackPricePerKey;
+
+         // Check creator wallet balance
+         const walletAddress = req.user!.wallet;
+         let creatorBalance = 0;
+         try {
+            creatorBalance = await buyGateway.getXlmBalance(walletAddress);
+         } catch {
+            try {
+               const resHorizon = await horizonRequest(`/accounts/${walletAddress}`);
+               if (resHorizon.ok) {
+                  const data = (await resHorizon.json()) as {
+                     balances?: Array<{ asset_type: string; balance: string }>;
+                  };
+                  const native = data.balances?.find(b => b.asset_type === 'native');
+                  creatorBalance = native ? parseFloat(native.balance) : 0;
+               }
+            } catch {
+               creatorBalance = 0;
+            }
+         }
+
+         if (creatorBalance < requiredXlm) {
+            sendError(
+               res,
+               400,
+               ErrorCode.INSUFFICIENT_BALANCE,
+               'Insufficient creator XLM balance to cover key buyback'
+            );
+            return;
+         }
+
+         // Submit deprecate_key contract call
+         logger.info(
+            {
+               operation: 'deprecate_key_contract_call',
+               keyId: creatorProfile.id,
+               buybackPricePerKey,
+               circulatingSupply,
+               requiredXlm,
+            },
+            'Submitting deprecate_key contract call'
+         );
+
+         // Update key status to Deprecated in database
+         const updated = await prisma.creatorProfile.update({
+            where: { id: creatorProfile.id },
+            data: {
+               status: 'Deprecated',
+               tradingPaused: true,
+            },
+         });
+
+         // Record activity
+         await prisma.activity.create({
+            data: {
+               type: 'KEY_DEPRECATED',
+               actor: walletAddress,
+               creatorId: creatorProfile.id,
+               payload: {
+                  keyId: creatorProfile.id,
+                  buybackPricePerKey,
+                  circulatingSupply,
+                  notification: 'key_deprecated',
+               },
+            },
+         });
+
+         // Notify all current holders via the notification queue
+         const holders = await prisma.keyOwnership.findMany({
+            where: {
+               creatorId: creatorProfile.id,
+               balance: { gt: 0 },
+            },
+            select: { ownerAddress: true, balance: true },
+         });
+
+         const redis = getRedis();
+         for (const holder of holders) {
+            if (redis) {
+               await redis.lpush(
+                  'queue:notifications',
+                  JSON.stringify({
+                     type: 'key_deprecated',
+                     keyId: creatorProfile.id,
+                     walletAddress: holder.ownerAddress,
+                     buybackPricePerKey,
+                     balance: holder.balance.toString(),
+                     timestamp: new Date().toISOString(),
+                  })
+               );
+            }
+         }
+
+         sendSuccess(res, {
+            keyId: creatorProfile.id,
+            status: updated.status,
+            buybackPricePerKey,
+            circulatingSupply,
+            notifiedHoldersCount: holders.length,
          });
       } catch (error) {
          next(error);

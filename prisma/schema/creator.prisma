@@ -25,6 +25,12 @@ model CreatorProfile {
   circuitBreakerThreshold Int @default(3000) @map("circuit_breaker_threshold")
   perks             Json?
   followersCount    Int      @default(0)
+  /// Current lifecycle status of the creator key (e.g. Active, Deprecated).
+  status            String   @default("Active")
+  /// Graduated curve milestones configuration.
+  curveMilestones   Json?    @map("curve_milestones")
+  /// Base curve exponent (default 1).
+  baseExponent      Int      @default(1) @map("base_exponent")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

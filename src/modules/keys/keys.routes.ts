@@ -39,6 +39,8 @@ import {
    DuplicateVoteError,
    OptionIndexOutOfRangeError,
 } from './key-proposal-votes.service';
+import { getKeyTwap } from './key-twap.service';
+import { simulateKeyTrade, type SimulateSide } from './key-simulate.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -340,6 +342,131 @@ router.get('/:keyId/price-history', async (req, res, next) => {
             parsed.data.interval
          )
       );
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/twap ──────────────────────────────────────────
+
+const twapQuerySchema = z.object({
+   window: z.enum(['1h', '24h', '7d'], {
+      errorMap: () => ({ message: 'Invalid window param. Must be 1h, 24h, or 7d' }),
+   }),
+});
+
+router.get('/:keyId/twap', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const parsed = twapQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'Invalid window param. Must be 1h, 24h, or 7d',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const result = await getKeyTwap(creator.id, parsed.data.window);
+      sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/simulate ──────────────────────────────────────
+
+router.get('/:keyId/simulate', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const rawSide = req.query.side;
+   const rawQty = req.query.quantity ?? req.query.quantities;
+
+   if (rawSide !== 'buy' && rawSide !== 'sell') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         "side must be 'buy' or 'sell'"
+      );
+      return;
+   }
+
+   if (!rawQty || typeof rawQty !== 'string') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantity is required'
+      );
+      return;
+   }
+
+   const quantities = rawQty
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+      .map((s: string) => Number(s));
+
+   if (
+      quantities.length === 0 ||
+      quantities.some((q: number) => isNaN(q) || !Number.isInteger(q) || q <= 0)
+   ) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantities must be positive integers'
+      );
+      return;
+   }
+
+   try {
+      const result = await simulateKeyTrade(
+         keyId,
+         quantities,
+         rawSide as SimulateSide
+      );
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof Error && error.name === 'KeyNotFoundError') {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+// ── GET /:keyId/curve-config ──────────────────────────────────
+
+router.get('/:keyId/curve-config', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true, curveMilestones: true, baseExponent: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      sendSuccess(res, {
+         keyId: creator.id,
+         milestones: (creator.curveMilestones as any) ?? [],
+         baseExponent: creator.baseExponent ?? 1,
+      });
    } catch (error) {
       next(error);
    }

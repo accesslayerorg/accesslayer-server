@@ -110,6 +110,12 @@ export async function upsertPriceSnapshot(
          },
          'price-snapshot: written'
       );
+      try {
+         const { invalidateKeyTwapCache } = await import('../keys/key-twap.service');
+         await invalidateKeyTwapCache(creatorId);
+      } catch {
+         // Non-critical cache invalidation failure
+      }
    } catch (err) {
       logger.error({ err, creatorId }, 'price-snapshot: failed to upsert');
       throw err;
