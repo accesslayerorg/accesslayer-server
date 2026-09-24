@@ -345,6 +345,30 @@ router.get('/:keyId/price-history', async (req, res, next) => {
    }
 });
 
+// ── GET /:keyId/curve-config ──────────────────────────────────
+
+router.get('/:keyId/curve-config', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true, curveMilestones: true, baseExponent: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      sendSuccess(res, {
+         keyId: creator.id,
+         milestones: (creator.curveMilestones as any) ?? [],
+         baseExponent: creator.baseExponent ?? 1,
+      });
+   } catch (error) {
+      next(error);
+   }
+});
+
 // Mount dividend routes
 router.use('/', dividendRouter);
 
