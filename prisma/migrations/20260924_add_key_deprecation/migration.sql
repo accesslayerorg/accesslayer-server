@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'KEY_DEPRECATED';
+
+-- AlterTable
+ALTER TABLE "CreatorProfile" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'Active';
