@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { cacheGetJson, cacheSetJson, cacheInvalidate } from '../../utils/redis.utils';
+import { envConfig } from '../../config';
 
 export const TWAP_WINDOWS = ['1h', '24h', '7d'] as const;
 export type TwapWindow = (typeof TWAP_WINDOWS)[number];
@@ -37,6 +38,46 @@ export async function invalidateKeyTwapCache(keyId: string): Promise<void> {
    await cacheInvalidate(`key:twap:${keyId}:*`);
 }
 
+/**
+ * Attempts to query on-chain Soroban contract get_twap view via RPC.
+ */
+async function fetchOnChainTwap(
+   contractId: string,
+   windowLedgers: number
+): Promise<string | null> {
+   if (!envConfig.STELLAR_SOROBAN_RPC_URL) {
+      return null;
+   }
+
+   try {
+      const response = await fetch(envConfig.STELLAR_SOROBAN_RPC_URL, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'get_twap_view',
+            method: 'simulateTransaction',
+            params: {
+               contractId,
+               functionName: 'get_twap',
+               args: [windowLedgers],
+            },
+         }),
+      });
+
+      if (!response.ok) return null;
+
+      const json = await response.json();
+      if (json.result?.results?.[0]?.xdr) {
+         return json.result.results[0].xdr.toString();
+      }
+   } catch (err) {
+      logger.debug({ err, contractId }, 'get_twap on-chain view query skipped');
+   }
+
+   return null;
+}
+
 export async function getKeyTwap(
    creatorId: string,
    window: TwapWindow,
@@ -63,6 +104,26 @@ export async function getKeyTwap(
       'Calling get_twap contract view'
    );
 
+   // 1. Try on-chain Soroban view
+   const onChainPrice = await fetchOnChainTwap(creatorId, windowLedgers);
+   if (onChainPrice !== null) {
+      const priceSnapshot = await prisma.creatorPriceSnapshot.findUnique({
+         where: { creatorId },
+         select: { currentPrice: true },
+      });
+      const result: TwapResult = {
+         keyId: creatorId,
+         window,
+         windowLedgers,
+         twapPrice: onChainPrice,
+         spotPrice: priceSnapshot?.currentPrice.toString() ?? onChainPrice,
+         snapshotCount: 0,
+      };
+      await cacheSetJson(cacheKey, result, TWAP_CACHE_TTL_SECONDS);
+      return result;
+   }
+
+   // 2. Derive contract-backed calculation using stored price snapshots
    const [snapshots, priceSnapshot] = await Promise.all([
       prisma.creatorPriceHistory.findMany({
          where: {
@@ -95,17 +156,16 @@ export async function getKeyTwap(
          const dt = Math.max(0, tNext - tCurrent);
 
          if (dt > 0) {
-            // Trapezoidal average between consecutive snapshots
-            const avgPrice = (snapshots[i].price + snapshots[i + 1].price) / 2n;
-            weightedPriceSum += avgPrice * BigInt(dt);
+            // Accumulate doubled sum: (P_i + P_{i+1}) * dt to prevent premature integer truncation
+            weightedPriceSum += (snapshots[i].price + snapshots[i + 1].price) * BigInt(dt);
             totalTimeWeight += dt;
          }
       }
 
       if (totalTimeWeight > 0) {
-         twapPrice = (weightedPriceSum / BigInt(totalTimeWeight)).toString();
+         // Divide once at the end by 2 * totalTimeWeight
+         twapPrice = (weightedPriceSum / (2n * BigInt(totalTimeWeight))).toString();
       } else {
-         // All snapshots occurred at the same millisecond; simple arithmetic mean
          const sum = snapshots.reduce((acc, s) => acc + s.price, 0n);
          twapPrice = (sum / BigInt(snapshots.length)).toString();
       }

@@ -61,6 +61,12 @@ export async function upsertPriceSnapshot(
             },
             'price-snapshot: written (first trade)'
          );
+         try {
+            const { invalidateKeyTwapCache } = await import('../keys/key-twap.service');
+            await invalidateKeyTwapCache(creatorId);
+         } catch {
+            // Non-critical cache invalidation failure
+         }
          return;
       }
 
