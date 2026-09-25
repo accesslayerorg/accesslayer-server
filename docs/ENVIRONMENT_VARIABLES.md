@@ -150,6 +150,12 @@ Every request is assigned a trace ID by `requestIdMiddleware`, stored in `AsyncL
 stack — middleware, service, or database layer — automatically carries the same `traceId`, with
 no need to thread it through function arguments.
 
+### Request Performance
+
+| Variable                    | Type   | Required | Default | Description                                                                   |
+| --------------------------- | ------ | -------- | ------- | ----------------------------------------------------------------------------- |
+| `SLOW_REQUEST_THRESHOLD_MS` | number | No       | `2000`  | Threshold in milliseconds above which a warn log is emitted for slow requests |
+
 ### Query Performance
 
 | Variable                               | Type   | Required | Default | Description                                                    |

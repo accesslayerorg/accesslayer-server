@@ -81,6 +81,11 @@ export const envSchema = z
          .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
       PAYSTACK_PUBLIC_KEY: optionalNonEmptyString,
       ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
+      SLOW_REQUEST_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(2000),
       API_VERSION: z.string().default('1.0.0'),
       ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
       ENABLE_SCHEMA_VERSION_HEADER: booleanCoerce.default(true),
@@ -248,11 +253,7 @@ export const envSchema = z
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
       QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
-      QUERY_COST_WINDOW_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(60_000),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
       // JSON object overriding/extending the default route->cost map in
       // src/constants/query-cost.constants.ts, e.g.
       // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
@@ -303,7 +304,6 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
-
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
