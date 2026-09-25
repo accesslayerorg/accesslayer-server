@@ -83,6 +83,39 @@ const walletQuerySchema = z.object({
    wallet: StellarAddressSchema,
 });
 
+const holdingCapacityQuerySchema = walletQuerySchema.extend({
+   quantity: z.coerce.number().finite().positive(),
+});
+
+/**
+ * Calculate whether a requested buy fits within a creator's per-wallet cap.
+ * The cap is stored in basis points of circulating supply (10_000 = 100%).
+ */
+export function calculateHoldingCapacity(input: {
+   circulatingSupply: number;
+   holderCapBps: number;
+   currentHolding: number;
+   quantity: number;
+}): {
+   allowed: boolean;
+   remaining_capacity: number;
+   current_holding: number;
+   maximum_holding: number;
+} {
+   const maximumHolding = Math.max(
+      0,
+      input.circulatingSupply * (input.holderCapBps / 10_000)
+   );
+   const remainingCapacity = Math.max(0, maximumHolding - input.currentHolding);
+
+   return {
+      allowed: input.quantity <= remainingCapacity,
+      remaining_capacity: remainingCapacity,
+      current_holding: input.currentHolding,
+      maximum_holding: maximumHolding,
+   };
+}
+
 const router = Router();
 
 /**
@@ -349,6 +382,59 @@ router.get('/:keyId/supply', async (req, res, next) => {
          sendNotFound(res, 'Key');
          return;
       }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/holding-capacity?wallet=&quantity=
+ *
+ * Public pre-flight check for buy clients. This is intentionally read-only
+ * and does not require authentication; the wallet address is validated and
+ * the response is derived from the latest ownership read model and key cap.
+ */
+router.get('/:keyId/holding-capacity', async (req, res, next) => {
+   const parsed = holdingCapacityQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid holding capacity query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const keyId = String(req.params.keyId);
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true, circulatingSupply: true, holderCapBps: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const ownership = await prisma.keyOwnership.findUnique({
+         where: {
+            ownerAddress_creatorId: {
+               ownerAddress: parsed.data.wallet,
+               creatorId: creator.id,
+            },
+         },
+         select: { balance: true },
+      });
+
+      sendSuccess(
+         res,
+         calculateHoldingCapacity({
+            circulatingSupply: Number(creator.circulatingSupply),
+            holderCapBps: creator.holderCapBps,
+            currentHolding: Number(ownership?.balance ?? 0),
+            quantity: parsed.data.quantity,
+         })
+      );
+   } catch (error) {
       next(error);
    }
 });
