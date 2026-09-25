@@ -80,9 +80,8 @@ export async function hasWalletVoted(
 /**
  * Submit a governance vote on behalf of a key holder and persist it.
  *
- * The voter's key balance becomes the vote weight. The vote record is
- * written to the `proposal_votes` table; a duplicate vote surfaces as a
- * Prisma unique constraint violation mapped by the route to 409.
+ * The voter's staked balance at the proposal snapshot becomes the vote weight.
+ * This implements the snapshot voting mechanism from issue #878.
  */
 export async function castKeyProposalVote(
    keyId: string,
@@ -97,19 +96,37 @@ export async function castKeyProposalVote(
       throw err;
    }
 
+   if (existing.status === 'closed') {
+      const err = new Error('Proposal is closed for voting');
+      err.name = 'ProposalClosedError';
+      throw err;
+   }
+
    const options = existing.options ?? [];
    if (optionIndex < 0 || optionIndex >= options.length) {
       throw new OptionIndexOutOfRangeError(optionIndex, options.length);
    }
 
+   // Get staked balance for voting weight
+   const stakingPosition = await prisma.stakingPosition.findUnique({
+      where: { keyId_wallet: { keyId, wallet } },
+   });
+
+   const stakedBalance = stakingPosition ? BigInt(stakingPosition.amount.toString()) : 0n;
+   
+   // Fallback to regular ownership if no staking position
    const ownership = await prisma.keyOwnership.findUnique({
       where: {
          ownerAddress_creatorId: { ownerAddress: wallet, creatorId: keyId },
       },
    });
 
-   const balance = ownership ? Number(ownership.balance) : 0;
-   if (balance <= 0) {
+   const regularBalance = ownership ? BigInt(ownership.balance.toString()) : 0n;
+   
+   // Use staked balance if available, otherwise regular balance
+   const weight = stakedBalance > 0n ? stakedBalance : regularBalance;
+
+   if (weight <= 0n) {
       throw new HolderNotEligibleError(wallet);
    }
 
@@ -118,7 +135,7 @@ export async function castKeyProposalVote(
       throw new DuplicateVoteError();
    }
 
-   const weight = String(balance);
+   const weightString = weight.toString();
 
    // TODO: submit cast_vote contract call via Stellar SDK
    // On-chain failure should return 502 before reaching this point.
@@ -130,7 +147,7 @@ export async function castKeyProposalVote(
          voter: wallet,
          optionIndex,
          option: options[optionIndex],
-         weight,
+         weight: weightString,
       },
       'Submitting cast_vote contract call'
    );
@@ -142,12 +159,12 @@ export async function castKeyProposalVote(
             proposalId,
             voter: wallet,
             optionIndex,
-            weight: new Decimal(weight),
+            weight: new Decimal(weightString),
          },
       }),
       prisma.activity.create({
          data: {
-            type: 'GOVERNANCE_PROPOSAL_CREATED',
+            type: 'GOVERNANCE_PROPOSAL_VOTE_CAST',
             actor: wallet,
             creatorId: keyId,
             payload: {
@@ -156,7 +173,7 @@ export async function castKeyProposalVote(
                action: 'vote_cast',
                optionIndex,
                option: options[optionIndex],
-               weight,
+               weight: weightString,
             },
          },
       }),
@@ -166,6 +183,6 @@ export async function castKeyProposalVote(
       proposalId,
       optionIndex,
       option: options[optionIndex],
-      weight,
+      weight: weightString,
    };
 }

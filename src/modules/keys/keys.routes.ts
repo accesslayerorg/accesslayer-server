@@ -71,6 +71,14 @@ const priceHistoryQuerySchema = z.object({
    interval: z.enum(PRICE_HISTORY_INTERVALS),
 });
 
+const priceQuerySchema = z.object({
+   quantity: z.coerce.number().int().positive().optional().default(1),
+});
+
+const twapQuerySchema = z.object({
+   window: z.enum(['1h', '24h', '7d']).optional().default('24h'),
+});
+
 const searchQuerySchema = z.object({
    q: z.string(),
 });
@@ -336,6 +344,63 @@ router.post(
       }
    }
 );
+
+/**
+ * GET /api/v1/keys/:keyId/price
+ * Returns current buy and sell price based on bonding curve.
+ * Accepts optional quantity param for batch pricing with price impact.
+ */
+router.get('/:keyId/price', async (req: any, res: any, next: any) => {
+   const parsed = priceQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid price query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      sendSuccess(res, await getKeyPrice(req.params.keyId, parsed.data.quantity));
+   } catch (error) {
+      if (error instanceof PricingKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/twap
+ * Returns time-weighted average price over a configurable window.
+ */
+router.get('/:keyId/twap', async (req: any, res: any, next: any) => {
+   const parsed = twapQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid TWAP query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      sendSuccess(res, await getKeyTWAP(req.params.keyId, parsed.data.window));
+   } catch (error) {
+      if (error instanceof TWAPKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (error instanceof Error && error.message.includes('Invalid window')) {
+         sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+         return;
+      }
+      next(error);
+   }
+});
 
 /**
  * GET /api/v1/keys/:keyId/supply
@@ -971,5 +1036,7 @@ router.post(
 router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
 });
+
+export default router;
 
 export default router;

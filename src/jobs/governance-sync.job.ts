@@ -12,9 +12,40 @@ export async function syncGovernanceProposals() {
   let closed = 0;
   for (const proposal of activeProposals) {
     if (new Date() > proposal.expiresAt) {
+      // Calculate final vote tallies and determine status
+      const votes = await prisma.governanceVote.findMany({
+        where: { keyId: proposal.keyId, proposalId: proposal.proposalId },
+      });
+
+      const totalVotes = votes.reduce((sum: number, vote: any) => sum + Number(vote.weight.toString()), 0);
+      const proposalData = await prisma.governanceProposal.findUnique({
+        where: { id: proposal.id },
+        select: { totalVotingWeight: true, options: true },
+      });
+
+      const totalVotingWeight = Number(proposalData?.totalVotingWeight || '0');
+      
+      // Quorum check: at least 10% of total voting weight must participate
+      const quorumMet = totalVotes >= totalVotingWeight * 0.1;
+      
+      let finalStatus = 'closed';
+      if (!quorumMet) {
+        finalStatus = 'quorum_not_met';
+      } else {
+        // Determine passed/failed based on majority option
+        const tally: Record<number, number> = {};
+        votes.forEach((vote: any) => {
+          tally[vote.optionIndex] = (tally[vote.optionIndex] || 0) + Number(vote.weight.toString());
+        });
+        
+        const winningOption = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+        const winningWeight = winningOption ? Number(winningOption[1]) : 0;
+        finalStatus = winningWeight > totalVotes / 2 ? 'passed' : 'failed';
+      }
+
       await prisma.governanceProposal.update({
         where: { id: proposal.id },
-        data: { status: 'closed', closedAt: new Date() },
+        data: { status: finalStatus, closedAt: new Date() },
       });
       closed++;
     }
@@ -45,8 +76,8 @@ export function startGovernanceSyncJob(): void {
   void run();
   governanceTimer = setInterval(() => { void run(); }, intervalMs);
 
-  if (typeof (governanceTimer as any).unref === 'function') {
-    governanceTimer.unref();
+  if (governanceTimer && typeof (governanceTimer as any).unref === 'function') {
+    (governanceTimer as any).unref();
   }
 
   logger.info({ intervalMinutes: envConfig.GOVERNANCE_SYNC_INTERVAL_MINUTES ?? 5 }, 'governanceSync job started');

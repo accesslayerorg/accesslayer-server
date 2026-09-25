@@ -1,0 +1,19 @@
+// prisma/schema/staking.prisma
+// Staking positions for creator keys with lock periods
+
+model StakingPosition {
+  id              String   @id @default(cuid())
+  keyId           String
+  wallet          String
+  amount          BigInt   @default(0)
+  lockPeriodDays  Int
+  lockedUntil     DateTime
+  unstakedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([keyId, wallet])
+  @@index([keyId, wallet])
+  @@index([lockedUntil])
+  @@map("staking_positions")
+}

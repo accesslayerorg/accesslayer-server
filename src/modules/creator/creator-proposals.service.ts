@@ -28,6 +28,28 @@ export interface CreatedProposalResult {
 // Stellar / Soroban ledgers close roughly every 5 seconds (~17,280 ledgers per day)
 export const LEDGERS_PER_DAY = 17280;
 
+/**
+ * Calculate the total voting weight from staked balances at proposal creation time.
+ * This implements the snapshot voting mechanism from issue #878.
+ */
+async function calculateSnapshotVotingWeight(keyId: string): Promise<string> {
+   const stakingPositions = await prisma.stakingPosition.findMany({
+      where: {
+         keyId,
+         amount: { not: '0' },
+         lockedUntil: { gt: new Date() }, // Only active locks
+      },
+      select: { amount: true },
+   });
+
+   const totalWeight = stakingPositions.reduce(
+      (sum: bigint, pos: any) => sum + BigInt(pos.amount.toString()),
+      0n
+   );
+
+   return totalWeight.toString();
+}
+
 export async function createCreatorProposal(
    keyId: string,
    creatorWallet: string,
@@ -54,6 +76,9 @@ export async function createCreatorProposal(
       initialResults[option] = '0';
    }
 
+   // Calculate snapshot voting weight from staked balances
+   const snapshotVotingWeight = await calculateSnapshotVotingWeight(resolvedKeyId);
+
    // Simulated contract call submit: create_proposal on Soroban
    logger.info(
       {
@@ -62,6 +87,7 @@ export async function createCreatorProposal(
          proposalId,
          durationDays,
          durationLedgerUnits,
+         snapshotVotingWeight,
       },
       'Submitting create_proposal contract call'
    );
@@ -72,9 +98,9 @@ export async function createCreatorProposal(
          proposalId,
          title,
          options,
-         totalVotingWeight: '0',
+         totalVotingWeight: snapshotVotingWeight,
          results: initialResults,
-         snapshotLedger: 0,
+         snapshotLedger: 0, // Will be updated with actual ledger from contract
          expiresAt,
          status: 'active',
       },
@@ -93,6 +119,7 @@ export async function createCreatorProposal(
             durationDays,
             durationLedgerUnits,
             expiresAt: expiresAt.toISOString(),
+            snapshotVotingWeight,
          },
       },
    });
