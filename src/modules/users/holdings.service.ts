@@ -88,7 +88,9 @@ export function computeLockupExpiry(lastBuyAt: Date | null): Date | null {
  * Build the holdings view for a wallet. Returns an empty array when the
  * wallet holds no keys.
  */
-export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> {
+export async function getWalletHoldings(
+   wallet: string
+): Promise<HoldingView[]> {
    const ownerships = (await prisma.keyOwnership.findMany({
       where: { ownerAddress: wallet, balance: { gt: 0 } },
       select: {
@@ -104,7 +106,7 @@ export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> 
       return [];
    }
 
-   const keyIds = ownerships.map((row) => row.creatorId);
+   const keyIds = ownerships.map(row => row.creatorId);
 
    const [creatorProfiles, latestPrices] = await Promise.all([
       prisma.creatorProfile.findMany({
@@ -116,13 +118,16 @@ export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> 
       loadLatestTradePrices(keyIds),
    ]);
 
-   const profileByIdentifier = new Map<string, (typeof creatorProfiles)[number]>();
+   const profileByIdentifier = new Map<
+      string,
+      (typeof creatorProfiles)[number]
+   >();
    for (const profile of creatorProfiles) {
       profileByIdentifier.set(profile.id, profile);
       profileByIdentifier.set(profile.handle, profile);
    }
 
-   const holdings = ownerships.map((row) => {
+   const holdings = ownerships.map(row => {
       const profile = profileByIdentifier.get(row.creatorId);
       const quantity = toNumber(row.balance);
       const costBasis = toNumber(row.costBasis);
@@ -142,14 +147,12 @@ export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> 
          costBasis,
          unrealisedPnl: Number(unrealisedPnl.toFixed(7)),
          currentValue,
-         last_buy_timestamp: row.lastBuyAt
-            ? row.lastBuyAt.toISOString()
+         last_buy_timestamp: row.lastBuyAt ? row.lastBuyAt.toISOString() : null,
+         lockup_expires_at: lockupExpiresAt
+            ? lockupExpiresAt.toISOString()
             : null,
-          lockup_expires_at: lockupExpiresAt
-             ? lockupExpiresAt.toISOString()
-             : null,
-          frozen: Boolean(row.frozen),
-       };
+         frozen: Boolean(row.frozen),
+      };
    });
 
    holdings.sort((left, right) => right.currentValue - left.currentValue);

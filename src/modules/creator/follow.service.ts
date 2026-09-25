@@ -41,7 +41,7 @@ export async function followCreator(
       };
    }
 
-   const result = await prisma.$transaction(async (tx) => {
+   const result = await prisma.$transaction(async tx => {
       await tx.follow.create({
          data: {
             followerAddress,
@@ -93,7 +93,7 @@ export async function unfollowCreator(
       };
    }
 
-   const result = await prisma.$transaction(async (tx) => {
+   const result = await prisma.$transaction(async tx => {
       await tx.follow.delete({
          where: {
             followerAddress_creatorId: {

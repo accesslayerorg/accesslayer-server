@@ -232,7 +232,7 @@ describe('compute24hVolume()', () => {
    describe('rolling 24h window boundary behaviors', () => {
       it('includes a trade timestamped exactly 24 hours ago', async () => {
          mockPrisma.activity.findMany.mockResolvedValue([
-            { payload: { price: '1000' } }
+            { payload: { price: '1000' } },
          ]);
 
          const volume = await compute24hVolume(CREATOR_ID);
@@ -241,7 +241,9 @@ describe('compute24hVolume()', () => {
          // Verify the query where clause gte matches exactly 24h ago
          const callArgs = mockPrisma.activity.findMany.mock.calls[0][0];
          const expectedCutoff = new Date(NOW.getTime() - 24 * 60 * 60 * 1000);
-         expect(callArgs.where.createdAt.gte.getTime()).toBe(expectedCutoff.getTime());
+         expect(callArgs.where.createdAt.gte.getTime()).toBe(
+            expectedCutoff.getTime()
+         );
       });
 
       it('excludes a trade timestamped 24 hours and 1 millisecond ago', async () => {
@@ -251,15 +253,17 @@ describe('compute24hVolume()', () => {
          const volume = await compute24hVolume(CREATOR_ID);
 
          expect(volume).toBe(0n);
-         
+
          const callArgs = mockPrisma.activity.findMany.mock.calls[0][0];
          const expectedCutoff = new Date(NOW.getTime() - 24 * 60 * 60 * 1000);
-         expect(callArgs.where.createdAt.gte.getTime()).toBe(expectedCutoff.getTime());
+         expect(callArgs.where.createdAt.gte.getTime()).toBe(
+            expectedCutoff.getTime()
+         );
       });
 
       it('includes a trade timestamped 1 second ago', async () => {
          mockPrisma.activity.findMany.mockResolvedValue([
-            { payload: { price: '500' } }
+            { payload: { price: '500' } },
          ]);
 
          const volume = await compute24hVolume(CREATOR_ID);
@@ -300,7 +304,9 @@ describe('compute24hVolume()', () => {
 
          const callArgs = mockPrisma.activity.findMany.mock.calls[0][0];
          const expectedCutoff = exactly24hAgo;
-         expect(callArgs.where.createdAt.gte.getTime()).toBe(expectedCutoff.getTime());
+         expect(callArgs.where.createdAt.gte.getTime()).toBe(
+            expectedCutoff.getTime()
+         );
 
          expect(callArgs.where.createdAt.gte.getTime()).toBeLessThanOrEqual(
             twentyThreeHoursFiftyNineMinsAgo.getTime()

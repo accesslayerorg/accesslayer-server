@@ -28,7 +28,7 @@ describe('CreatorSequencer (#758)', () => {
       const executionOrder: number[] = [];
 
       const op1 = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             setTimeout(() => {
                executionOrder.push(1);
                resolve();
@@ -36,13 +36,13 @@ describe('CreatorSequencer (#758)', () => {
          });
 
       const op2 = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             executionOrder.push(2);
             resolve();
          });
 
       const op3 = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             executionOrder.push(3);
             resolve();
          });
@@ -60,7 +60,7 @@ describe('CreatorSequencer (#758)', () => {
       const active: string[] = [];
 
       const opA = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             active.push('A-start');
             setTimeout(() => {
                active.push('A-end');
@@ -69,7 +69,7 @@ describe('CreatorSequencer (#758)', () => {
          });
 
       const opB = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             active.push('B-start');
             setTimeout(() => {
                active.push('B-end');
@@ -89,7 +89,7 @@ describe('CreatorSequencer (#758)', () => {
    it('rejects queued operations with SequencerTimeoutError if waiting > 10s', async () => {
       let resolveSlowOp: () => void = () => {};
       const slowOp = () =>
-         new Promise<void>((resolve) => {
+         new Promise<void>(resolve => {
             resolveSlowOp = resolve;
          });
 

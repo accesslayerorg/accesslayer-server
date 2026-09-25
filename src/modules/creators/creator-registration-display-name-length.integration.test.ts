@@ -47,7 +47,10 @@ async function httpRegisterCreator(req: any, res: any): Promise<void> {
    // Guard: displayName must be present and within the 50-character limit.
    // Validation fires before any DB read/write to satisfy the acceptance
    // criterion "No database record created on validation failure".
-   if (typeof displayName === 'string' && displayName.length > DISPLAY_NAME_MAX_LENGTH) {
+   if (
+      typeof displayName === 'string' &&
+      displayName.length > DISPLAY_NAME_MAX_LENGTH
+   ) {
       res.status(422).json({
          success: false,
          error: {

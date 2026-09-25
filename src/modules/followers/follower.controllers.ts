@@ -1,12 +1,13 @@
 import { AsyncController } from '../../types/auth.types';
+import { follow, unfollow, getFollowerCount } from './follower.service';
 import {
-   follow,
-   unfollow,
-   getFollowerCount,
-} from './follower.service';
-import { sendSuccess, sendValidationError } from '../../utils/api-response.utils';
+   sendSuccess,
+   sendValidationError,
+} from '../../utils/api-response.utils';
 
-function getParamString(val: string | string[] | undefined): string | undefined {
+function getParamString(
+   val: string | string[] | undefined
+): string | undefined {
    if (!val) return undefined;
    return Array.isArray(val) ? val[0] : val;
 }
@@ -14,10 +15,14 @@ function getParamString(val: string | string[] | undefined): string | undefined 
 export const httpFollow: AsyncController = async (req, res, next) => {
    try {
       const creatorWallet = getParamString(req.params.creatorWallet);
-      const followerWallet = req.body?.followerWallet || req.jwtPayload?.walletAddress;
+      const followerWallet =
+         req.body?.followerWallet || req.jwtPayload?.walletAddress;
 
       if (!creatorWallet || !followerWallet) {
-         sendValidationError(res, 'creatorWallet param and followerWallet body/token are required');
+         sendValidationError(
+            res,
+            'creatorWallet param and followerWallet body/token are required'
+         );
          return;
       }
 
@@ -31,10 +36,14 @@ export const httpFollow: AsyncController = async (req, res, next) => {
 export const httpUnfollow: AsyncController = async (req, res, next) => {
    try {
       const creatorWallet = getParamString(req.params.creatorWallet);
-      const followerWallet = req.body?.followerWallet || req.jwtPayload?.walletAddress;
+      const followerWallet =
+         req.body?.followerWallet || req.jwtPayload?.walletAddress;
 
       if (!creatorWallet || !followerWallet) {
-         sendValidationError(res, 'creatorWallet param and followerWallet body/token are required');
+         sendValidationError(
+            res,
+            'creatorWallet param and followerWallet body/token are required'
+         );
          return;
       }
 

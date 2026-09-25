@@ -410,13 +410,15 @@ export const httpGetTrendingCreators: AsyncController = async (
       );
 
       // Sort by volume descending
-      creatorsWithVolume.sort((a: { volume_24h: string }, b: { volume_24h: string }) => {
-         const volA = BigInt(a.volume_24h);
-         const volB = BigInt(b.volume_24h);
-         if (volB > volA) return 1;
-         if (volB < volA) return -1;
-         return 0;
-      });
+      creatorsWithVolume.sort(
+         (a: { volume_24h: string }, b: { volume_24h: string }) => {
+            const volA = BigInt(a.volume_24h);
+            const volB = BigInt(b.volume_24h);
+            if (volB > volA) return 1;
+            if (volB < volA) return -1;
+            return 0;
+         }
+      );
 
       // Slice list based on limit
       const items = creatorsWithVolume.slice(0, limit);

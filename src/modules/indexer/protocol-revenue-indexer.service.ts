@@ -44,7 +44,8 @@ export async function processProtocolRevenueEvents(
          'ledger',
       ];
       for (const field of requiredFields) {
-         const value = typedEvent[field as keyof ProtocolRevenueDistributedEvent];
+         const value =
+            typedEvent[field as keyof ProtocolRevenueDistributedEvent];
          if (value === undefined || value === null || value === '') {
             logger.warn(
                {
@@ -84,7 +85,9 @@ export async function processProtocolRevenueEvents(
       });
 
       await cacheInvalidate(
-         ...typedEvent.recipients.map(r => protocolRevenueCachePattern(r.wallet))
+         ...typedEvent.recipients.map(r =>
+            protocolRevenueCachePattern(r.wallet)
+         )
       );
 
       logger.info(

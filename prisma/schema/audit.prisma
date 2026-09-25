@@ -12,6 +12,7 @@ model AuditLog {
   id            String   @id @default(cuid())
   actorWallet   String
   actionType    String
+  targetEntity  String?
   targetId      String?
   payload       Json?
   createdAt     DateTime @default(now())
@@ -20,3 +21,4 @@ model AuditLog {
   @@index([createdAt(sort: Desc)])
   @@index([actorWallet])
 }
+

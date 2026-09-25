@@ -5,7 +5,11 @@
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
-      keyOwnership: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+      keyOwnership: {
+         findUnique: jest.fn(),
+         upsert: jest.fn(),
+         update: jest.fn(),
+      },
    },
 }));
 
@@ -30,7 +34,13 @@ describe('recordKeyPurchase average cost', () => {
       findUnique.mockResolvedValue({ balance: 10, costBasis: 2 });
       upsert.mockImplementation(async (args: any) => args);
 
-      await recordKeyPurchase('W', 'K', 10, 4, new Date('2026-09-25T00:00:00.000Z'));
+      await recordKeyPurchase(
+         'W',
+         'K',
+         10,
+         4,
+         new Date('2026-09-25T00:00:00.000Z')
+      );
 
       expect(upsert).toHaveBeenCalledTimes(1);
       const call = upsert.mock.calls[0][0];
@@ -65,7 +75,11 @@ describe('recordKeySale realised persistence', () => {
    });
 
    it('partial sell keeps cost basis and accumulates realised: 10@2 sell 4@5 => +12', async () => {
-      findUnique.mockResolvedValue({ balance: 10, costBasis: 2, realisedPnl: 5 });
+      findUnique.mockResolvedValue({
+         balance: 10,
+         costBasis: 2,
+         realisedPnl: 5,
+      });
       update.mockImplementation(async (args: any) => args);
 
       await recordKeySale('W', 'K', 4, 5);
@@ -80,7 +94,11 @@ describe('recordKeySale realised persistence', () => {
    });
 
    it('full sell resets cost basis to zero and persists realised: 10@2 sell 10@5 => +30', async () => {
-      findUnique.mockResolvedValue({ balance: 10, costBasis: 2, realisedPnl: 0 });
+      findUnique.mockResolvedValue({
+         balance: 10,
+         costBasis: 2,
+         realisedPnl: 0,
+      });
       update.mockImplementation(async (args: any) => args);
 
       await recordKeySale('W', 'K', 10, 5);
@@ -92,7 +110,11 @@ describe('recordKeySale realised persistence', () => {
    });
 
    it('records a loss when selling below cost basis', async () => {
-      findUnique.mockResolvedValue({ balance: 5, costBasis: 4, realisedPnl: 0 });
+      findUnique.mockResolvedValue({
+         balance: 5,
+         costBasis: 4,
+         realisedPnl: 0,
+      });
       update.mockImplementation(async (args: any) => args);
 
       await recordKeySale('W', 'K', 5, 1);
@@ -105,7 +127,11 @@ describe('recordKeySale realised persistence', () => {
    });
 
    it('rejects sells exceeding the open balance', async () => {
-      findUnique.mockResolvedValue({ balance: 2, costBasis: 2, realisedPnl: 0 });
+      findUnique.mockResolvedValue({
+         balance: 2,
+         costBasis: 2,
+         realisedPnl: 0,
+      });
 
       await expect(recordKeySale('W', 'K', 5, 5)).rejects.toThrow();
       expect(update).not.toHaveBeenCalled();

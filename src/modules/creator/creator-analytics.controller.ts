@@ -7,7 +7,11 @@
 // without waiting out the TTL.
 
 import { Response } from 'express';
-import { ErrorCode, sendError, sendSuccess } from '../../utils/api-response.utils';
+import {
+   ErrorCode,
+   sendError,
+   sendSuccess,
+} from '../../utils/api-response.utils';
 import {
    cacheGetJson,
    cacheSetJson,
@@ -36,24 +40,29 @@ export async function httpGetCreatorAnalytics(
 
       const cacheKey = buildCreatorAnalyticsCacheKey(keyId);
 
-      const cached =
-         await cacheGetJson<CreatorAnalyticsResult>(cacheKey);
+      const cached = await cacheGetJson<CreatorAnalyticsResult>(cacheKey);
       if (cached) {
          attachTimestampHeader(res);
-         sendSuccess(res, cached, 200, 'Creator analytics retrieved successfully');
+         sendSuccess(
+            res,
+            cached,
+            200,
+            'Creator analytics retrieved successfully'
+         );
          return;
       }
 
       const analytics = await getCreatorAnalytics(keyId);
 
-      await cacheSetJson(
-         cacheKey,
-         analytics,
-         ANALYTICS_CACHE_TTL_SECONDS
-      );
+      await cacheSetJson(cacheKey, analytics, ANALYTICS_CACHE_TTL_SECONDS);
 
       attachTimestampHeader(res);
-      sendSuccess(res, analytics, 200, 'Creator analytics retrieved successfully');
+      sendSuccess(
+         res,
+         analytics,
+         200,
+         'Creator analytics retrieved successfully'
+      );
    } catch (error) {
       logger.error(
          {
@@ -64,7 +73,12 @@ export async function httpGetCreatorAnalytics(
          },
          'Failed to retrieve creator analytics'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve creator analytics');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve creator analytics'
+      );
    }
 }
 
@@ -73,6 +87,8 @@ export async function httpGetCreatorAnalytics(
  * (buy or sell) is recorded for the key so the next request recomputes from
  * source data.
  */
-export async function invalidateCreatorAnalyticsCache(keyId: string): Promise<void> {
+export async function invalidateCreatorAnalyticsCache(
+   keyId: string
+): Promise<void> {
    await cacheInvalidate(buildCreatorAnalyticsCacheKey(keyId));
 }

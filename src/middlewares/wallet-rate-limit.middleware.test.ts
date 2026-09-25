@@ -156,7 +156,9 @@ describe('walletRateLimit', () => {
          keyPrefix: 'rl:test:',
       });
 
-      const req = makeReq('GBUYER', { 'x-internal-service-key': 'super-secret' });
+      const req = makeReq('GBUYER', {
+         'x-internal-service-key': 'super-secret',
+      });
       const res = makeRes();
       const next = jest.fn();
       await middleware(req, res, next);

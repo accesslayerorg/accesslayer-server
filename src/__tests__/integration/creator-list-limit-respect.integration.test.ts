@@ -77,7 +77,7 @@ describe('GET /api/v1/creators — limit query parameter', () => {
       const res = await supertest(app).get('/api/v1/creators?limit=100');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      
+
       expect(res.body.data.items).toHaveLength(20);
       expect(res.body.data.meta.has_more).toBe(false);
       expect(res.body.data.meta.limit).toBe(100);

@@ -30,10 +30,15 @@ import {
    adminGuard,
    AdminRequest,
 } from '../../middlewares/admin-guard.middleware';
+import { requireInternalApiKey } from '../../middlewares/internal-api-key.middleware';
+import { httpRegisterKey } from './key-registration.controller';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
-import { creatorProfileExists, getCreatorProfile } from '../creator/creator-profile.service';
+import {
+   creatorProfileExists,
+   getCreatorProfile,
+} from '../creator/creator-profile.service';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
@@ -183,6 +188,13 @@ router.get('/search', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * POST /api/v1/keys/register
+ * Accepts newly deployed key contract address from factory indexer and registers it.
+ * Restricted to internal indexer service via API key auth.
+ */
+router.post('/register', requireInternalApiKey, httpRegisterKey);
 
 /**
  * GET /api/v1/keys/:keyId
@@ -661,7 +673,10 @@ router.post(
             sendForbidden(res, error.message);
             return;
          }
-         logger.error({ error, keyId: req.params.keyId }, 'Key deprecate failed');
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key deprecate failed'
+         );
          next(error);
       }
    }

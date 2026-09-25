@@ -64,11 +64,23 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = [
-            createMockCreator('creator-a-24h-window', 'user-a', 'creator-a', 'Creator A'),
-            createMockCreator('creator-b-outside-window', 'user-b', 'creator-b', 'Creator B'),
+            createMockCreator(
+               'creator-a-24h-window',
+               'user-a',
+               'creator-a',
+               'Creator A'
+            ),
+            createMockCreator(
+               'creator-b-outside-window',
+               'user-b',
+               'creator-b',
+               'Creator B'
+            ),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          // Mock compute24hVolume to simulate the 24-hour window filtering
          // Creator A: 500 XLM within 24h window
@@ -93,7 +105,9 @@ describe('GET /api/v1/creators/trending', () => {
          const items = res.body.data.items;
 
          // Creator A should appear with 500 XLM volume
-         const creatorA = items.find((c: any) => c.id === 'creator-a-24h-window');
+         const creatorA = items.find(
+            (c: any) => c.id === 'creator-a-24h-window'
+         );
          expect(creatorA).toBeDefined();
          expect(creatorA.volume_24h).toBe('500000000');
 
@@ -114,12 +128,29 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = [
-            createMockCreator('creator-c-high-volume', 'user-c', 'creator-c', 'Creator C'),
-            createMockCreator('creator-a-mid-volume', 'user-a', 'creator-a', 'Creator A'),
-            createMockCreator('creator-b-no-volume', 'user-b', 'creator-b', 'Creator B'),
+            createMockCreator(
+               'creator-c-high-volume',
+               'user-c',
+               'creator-c',
+               'Creator C'
+            ),
+            createMockCreator(
+               'creator-a-mid-volume',
+               'user-a',
+               'creator-a',
+               'Creator A'
+            ),
+            createMockCreator(
+               'creator-b-no-volume',
+               'user-b',
+               'creator-b',
+               'Creator B'
+            ),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          jest
             .spyOn(tradingVolumeUtils, 'compute24hVolume')
@@ -162,10 +193,17 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = Array.from({ length: 5 }, (_, i) =>
-            createMockCreator(`creator-${i}`, `user-${i}`, `handle-${i}`, `Creator ${i}`)
+            createMockCreator(
+               `creator-${i}`,
+               `user-${i}`,
+               `handle-${i}`,
+               `Creator ${i}`
+            )
          );
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          // Mock volumes in random order: 500, 100, 2000, 300, 1000
          const volumes: Record<string, bigint> = {
@@ -219,7 +257,9 @@ describe('GET /api/v1/creators/trending', () => {
             ),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          jest
             .spyOn(tradingVolumeUtils, 'compute24hVolume')
@@ -253,11 +293,20 @@ describe('GET /api/v1/creators/trending', () => {
 
       it('serializes timestamps as ISO 8601 strings', async () => {
          const fixedDate = new Date('2026-07-25T15:30:45.123Z');
-         const mockCreators = [createMockCreator('timestamp-test', 'user-ts', 'timestamp-handle', 'Timestamp Test')];
+         const mockCreators = [
+            createMockCreator(
+               'timestamp-test',
+               'user-ts',
+               'timestamp-handle',
+               'Timestamp Test'
+            ),
+         ];
          mockCreators[0].createdAt = fixedDate;
          mockCreators[0].updatedAt = fixedDate;
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
          jest
             .spyOn(tradingVolumeUtils, 'compute24hVolume')
             .mockResolvedValue(BigInt(100_000_000));
@@ -282,10 +331,17 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = Array.from({ length: 5 }, (_, i) =>
-            createMockCreator(`creator-paginate-${i}`, `user-p${i}`, `handle-${i}`, `Creator ${i}`)
+            createMockCreator(
+               `creator-paginate-${i}`,
+               `user-p${i}`,
+               `handle-${i}`,
+               `Creator ${i}`
+            )
          );
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          // Return volumes in descending order: 500, 400, 300, 200, 100
          jest
@@ -295,7 +351,9 @@ describe('GET /api/v1/creators/trending', () => {
                return Promise.resolve(BigInt((5 - index) * 100_000_000));
             });
 
-         const res = await supertest(app).get('/api/v1/creators/trending?limit=2');
+         const res = await supertest(app).get(
+            '/api/v1/creators/trending?limit=2'
+         );
 
          expect(res.status).toBe(200);
          expect(res.body.data.items).toHaveLength(2);
@@ -311,13 +369,17 @@ describe('GET /api/v1/creators/trending', () => {
             createMockCreator('creator-2', 'user-2', 'handle-2', 'Creator 2'),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
          jest
             .spyOn(tradingVolumeUtils, 'compute24hVolume')
             .mockResolvedValue(BigInt(100_000_000));
 
          // Request limit=50 but only 2 creators exist
-         const res = await supertest(app).get('/api/v1/creators/trending?limit=50');
+         const res = await supertest(app).get(
+            '/api/v1/creators/trending?limit=50'
+         );
 
          expect(res.status).toBe(200);
          expect(res.body.data.items).toHaveLength(2);
@@ -334,11 +396,23 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = [
-            createMockCreator('creator-with-volume', 'user-wv', 'with-volume', 'Creator With Volume'),
-            createMockCreator('creator-zero-volume', 'user-zv', 'zero-volume', 'Creator Zero Volume'),
+            createMockCreator(
+               'creator-with-volume',
+               'user-wv',
+               'with-volume',
+               'Creator With Volume'
+            ),
+            createMockCreator(
+               'creator-zero-volume',
+               'user-zv',
+               'zero-volume',
+               'Creator Zero Volume'
+            ),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          jest
             .spyOn(tradingVolumeUtils, 'compute24hVolume')
@@ -381,10 +455,17 @@ describe('GET /api/v1/creators/trending', () => {
           */
 
          const mockCreators = [
-            createMockCreator('large-volume-creator', 'user-lv', 'large-volume', 'Large Volume Creator'),
+            createMockCreator(
+               'large-volume-creator',
+               'user-lv',
+               'large-volume',
+               'Large Volume Creator'
+            ),
          ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          // A very large volume: 9,223,372,036,854,775,807 (near max BigInt)
          jest
@@ -413,9 +494,13 @@ describe('GET /api/v1/creators/trending', () => {
           * and verify they're correctly filtered.
           */
 
-         const mockCreators = [createMockCreator('vol-test', 'user-vol', 'vol-test', 'Vol Test')];
+         const mockCreators = [
+            createMockCreator('vol-test', 'user-vol', 'vol-test', 'Vol Test'),
+         ];
 
-         jest.spyOn(prisma.creatorProfile, 'findMany').mockResolvedValue(mockCreators);
+         jest
+            .spyOn(prisma.creatorProfile, 'findMany')
+            .mockResolvedValue(mockCreators);
 
          // Simulate the 24-hour window filtering logic:
          // - Transactions within last 24 hours: included

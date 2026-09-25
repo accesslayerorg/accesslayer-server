@@ -109,18 +109,8 @@ export const UpsertCreatorProfileBodySchema = z.object({
       .array(CreatorPerkSchema)
       .max(10, 'At most 10 perks are allowed')
       .optional(),
-   creatorRoyaltyBuyBps: z
-      .number()
-      .int()
-      .min(0)
-      .max(10000)
-      .optional(),
-   creatorRoyaltySellBps: z
-      .number()
-      .int()
-      .min(0)
-      .max(10000)
-      .optional(),
+   creatorRoyaltyBuyBps: z.number().int().min(0).max(10000).optional(),
+   creatorRoyaltySellBps: z.number().int().min(0).max(10000).optional(),
 });
 
 export type CreatorProfileParams = z.infer<typeof CreatorProfileParamsSchema>;

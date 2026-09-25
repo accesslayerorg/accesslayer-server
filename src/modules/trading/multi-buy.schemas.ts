@@ -6,7 +6,7 @@ const MultiBuyLegSchema = z.object({
    max_price: z
       .string()
       .min(1, 'max_price is required')
-      .refine((val) => {
+      .refine(val => {
          try {
             return BigInt(val) > 0n;
          } catch {

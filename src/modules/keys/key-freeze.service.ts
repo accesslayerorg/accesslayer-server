@@ -15,7 +15,9 @@ import { KeyNotFoundError } from './key-fees.service';
 
 export class PositionFrozenError extends Error {
    constructor(public readonly keyId: string) {
-      super('Position is frozen — trading and transfers are disabled until unfrozen');
+      super(
+         'Position is frozen — trading and transfers are disabled until unfrozen'
+      );
       this.name = 'PositionFrozenError';
    }
 }
@@ -74,13 +76,22 @@ async function auditFreezeEvent(params: {
       action: params.action,
       target: 'KeyOwnership',
       targetId: `${params.keyId}:${params.wallet}`,
-      metadata: { keyId: params.keyId, wallet: params.wallet, ...params.metadata },
+      metadata: {
+         keyId: params.keyId,
+         wallet: params.wallet,
+         ...params.metadata,
+      },
    });
    await createAuditEntry({
       actorWallet: params.wallet,
       actionType: params.action,
+      targetEntity: 'KeyOwnership',
       targetId: params.keyId,
-      payload: { keyId: params.keyId, wallet: params.wallet, ...params.metadata },
+      payload: {
+         keyId: params.keyId,
+         wallet: params.wallet,
+         ...params.metadata,
+      },
    });
 }
 

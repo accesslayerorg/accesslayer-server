@@ -55,9 +55,7 @@ describe('validateBody', () => {
       expect(body.success).toBe(false);
       expect(body.error.code).toBe('VALIDATION_ERROR');
       expect(body.error.details).toEqual(
-         expect.arrayContaining([
-            expect.objectContaining({ field: 'name' }),
-         ])
+         expect.arrayContaining([expect.objectContaining({ field: 'name' })])
       );
    });
 

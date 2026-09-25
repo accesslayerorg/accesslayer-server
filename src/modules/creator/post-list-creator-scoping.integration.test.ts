@@ -76,7 +76,7 @@ describe('GET /api/v1/creators/:id/posts — creator scoping', () => {
 
       // Seed 2 posts for creator A
       await prisma.creatorPost.createMany({
-         data: creatorAPostContents.map((content) => ({
+         data: creatorAPostContents.map(content => ({
             creatorId: creatorAId,
             content,
          })),
@@ -84,7 +84,7 @@ describe('GET /api/v1/creators/:id/posts — creator scoping', () => {
 
       // Seed 3 posts for creator B
       await prisma.creatorPost.createMany({
-         data: creatorBPostContents.map((content) => ({
+         data: creatorBPostContents.map(content => ({
             creatorId: creatorBId,
             content,
          })),
@@ -124,10 +124,7 @@ describe('GET /api/v1/creators/:id/posts — creator scoping', () => {
 
       const contents = res.body.data.map((p: any) => p.content);
       expect(contents).toEqual(
-         expect.arrayContaining([
-            'Creator A post 1',
-            'Creator A post 2',
-         ])
+         expect.arrayContaining(['Creator A post 1', 'Creator A post 2'])
       );
    });
 

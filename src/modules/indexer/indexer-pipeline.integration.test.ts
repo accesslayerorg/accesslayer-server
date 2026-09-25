@@ -45,18 +45,22 @@ describe('processTradeEvents integration test', () => {
    const mockPrisma = prisma as unknown as {
       activity: { create: jest.Mock };
       keyOwnership: { findFirst: jest.Mock; upsert: jest.Mock };
-      creatorPriceSnapshot: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
+      creatorPriceSnapshot: {
+         findUnique: jest.Mock;
+         create: jest.Mock;
+         update: jest.Mock;
+      };
       indexedLedger: { upsert: jest.Mock };
    };
    const mockLogger = logger as unknown as {
       warn: jest.Mock;
    };
 
-    beforeEach(() => {
-       jest.clearAllMocks();
-       mockPrisma.keyOwnership.upsert.mockResolvedValue({ balance: -50 });
-       mockPrisma.indexedLedger.upsert.mockResolvedValue({});
-    });
+   beforeEach(() => {
+      jest.clearAllMocks();
+      mockPrisma.keyOwnership.upsert.mockResolvedValue({ balance: -50 });
+      mockPrisma.indexedLedger.upsert.mockResolvedValue({});
+   });
 
    it('correctly processes and persists a valid sell event', async () => {
       const event: IndexerChainEvent = {
@@ -141,62 +145,64 @@ describe('processTradeEvents integration test', () => {
       expect(mockPrisma.activity.create).toHaveBeenCalledTimes(1);
    });
 
-    it('skips a sell event with missing required fields and logs a warning', async () => {
-       const malformedEvent: IndexerChainEvent = {
-          txHash: '0xhash123',
-          eventIndex: 0,
-          eventType: 'KEY_SOLD',
-          ledger: 12345,
-          // creatorId is missing
-          actor: 'G_SELLER_ADDRESS',
-          amount: 50,
-          price: 2000n,
-          feePaid: 10n,
-          tradeAt: '2026-07-25T12:00:00.000Z',
-       } as any;
+   it('skips a sell event with missing required fields and logs a warning', async () => {
+      const malformedEvent: IndexerChainEvent = {
+         txHash: '0xhash123',
+         eventIndex: 0,
+         eventType: 'KEY_SOLD',
+         ledger: 12345,
+         // creatorId is missing
+         actor: 'G_SELLER_ADDRESS',
+         amount: 50,
+         price: 2000n,
+         feePaid: 10n,
+         tradeAt: '2026-07-25T12:00:00.000Z',
+      } as any;
 
-       await processTradeEvents([malformedEvent]);
+      await processTradeEvents([malformedEvent]);
 
-       expect(mockPrisma.activity.create).not.toHaveBeenCalled();
-       expect(mockLogger.warn).toHaveBeenCalledTimes(1);
-       expect(mockLogger.warn).toHaveBeenCalledWith(
-          expect.objectContaining({ missingField: 'creatorId' }),
-          expect.any(String)
-       );
-    });
+      expect(mockPrisma.activity.create).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+         expect.objectContaining({ missingField: 'creatorId' }),
+         expect.any(String)
+      );
+   });
 
-    it('emits a warn log when checkpoint write fails and continues processing', async () => {
-       const event: IndexerChainEvent = {
-          txHash: '0xhash456',
-          eventIndex: 0,
-          eventType: 'KEY_SOLD',
-          ledger: 99999,
-          creatorId: 'creator-xyz',
-          actor: 'G_BUYER_ADDRESS',
-          amount: 30,
-          price: 1500n,
-          feePaid: 5n,
-          tradeAt: '2026-07-25T13:00:00.000Z',
-       };
+   it('emits a warn log when checkpoint write fails and continues processing', async () => {
+      const event: IndexerChainEvent = {
+         txHash: '0xhash456',
+         eventIndex: 0,
+         eventType: 'KEY_SOLD',
+         ledger: 99999,
+         creatorId: 'creator-xyz',
+         actor: 'G_BUYER_ADDRESS',
+         amount: 30,
+         price: 1500n,
+         feePaid: 5n,
+         tradeAt: '2026-07-25T13:00:00.000Z',
+      };
 
-       mockPrisma.keyOwnership.findFirst.mockResolvedValue(null);
-       mockPrisma.creatorPriceSnapshot.findUnique.mockResolvedValue(null);
-       mockPrisma.indexedLedger.upsert.mockRejectedValue(new Error('DB timeout'));
+      mockPrisma.keyOwnership.findFirst.mockResolvedValue(null);
+      mockPrisma.creatorPriceSnapshot.findUnique.mockResolvedValue(null);
+      mockPrisma.indexedLedger.upsert.mockRejectedValue(
+         new Error('DB timeout')
+      );
 
-       await processTradeEvents([event]);
+      await processTradeEvents([event]);
 
-       // Processing still completes despite checkpoint failure
-       expect(mockPrisma.activity.create).toHaveBeenCalledTimes(1);
+      // Processing still completes despite checkpoint failure
+      expect(mockPrisma.activity.create).toHaveBeenCalledTimes(1);
 
-       // A warn log is emitted for the checkpoint failure
-       expect(mockLogger.warn).toHaveBeenCalledWith(
-          expect.objectContaining({
-             ledger: 99999,
-             error_reason: 'DB timeout',
-             failed_at: expect.any(String),
-             batch_hash: expect.any(String),
-          }),
-          'Indexer checkpoint write failed'
-       );
-    });
+      // A warn log is emitted for the checkpoint failure
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+         expect.objectContaining({
+            ledger: 99999,
+            error_reason: 'DB timeout',
+            failed_at: expect.any(String),
+            batch_hash: expect.any(String),
+         }),
+         'Indexer checkpoint write failed'
+      );
+   });
 });

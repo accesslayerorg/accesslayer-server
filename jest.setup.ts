@@ -28,29 +28,112 @@ process.env.SSE_SUBSCRIPTION_TTL_MS = '86400000';
 process.env.SSE_REPLAY_MAX_EVENTS = '1000';
 process.env.SSE_PRUNE_INTERVAL_MS = '300000';
 
-jest.mock('@prisma/client', () => {
-   const mockPrismaClient = {
-      creatorProfile: {
-         findMany: jest.fn().mockResolvedValue([]),
-      },
-      activity: {
-         findMany: jest.fn().mockResolvedValue([]),
-      },
-      $disconnect: jest.fn(),
-      $extends: jest.fn(() => ({
+const auditLogsStore: any[] = [];
+let auditIdCounter = 1;
+
+const mockAuditLog = {
+   create: jest.fn().mockImplementation(async ({ data }: any) => {
+      const item = {
+         id: `audit_log_${auditIdCounter}`,
+         actorWallet: data.actorWallet,
+         actionType: data.actionType,
+         targetEntity: data.targetEntity ?? null,
+         targetId: data.targetId ?? null,
+         payload: data.payload ?? null,
+         createdAt: data.createdAt
+            ? new Date(data.createdAt)
+            : new Date(Date.now() + auditIdCounter),
+      };
+      auditIdCounter++;
+      auditLogsStore.push(item);
+      return item;
+   }),
+   findMany: jest.fn().mockImplementation(async (args?: any) => {
+      let filtered = [...auditLogsStore];
+      if (args?.where?.actionType) {
+         filtered = filtered.filter(
+            e => e.actionType === args.where.actionType
+         );
+      }
+      if (args?.where?.createdAt?.gte) {
+         filtered = filtered.filter(
+            e =>
+               e.createdAt.getTime() >=
+               new Date(args.where.createdAt.gte).getTime()
+         );
+      }
+      if (args?.where?.createdAt?.lte) {
+         filtered = filtered.filter(
+            e =>
+               e.createdAt.getTime() <=
+               new Date(args.where.createdAt.lte).getTime()
+         );
+      }
+      // sort by createdAt desc, id desc
+      filtered.sort((a, b) => {
+         const diff = b.createdAt.getTime() - a.createdAt.getTime();
+         if (diff !== 0) return diff;
+         return b.id.localeCompare(a.id);
+      });
+      if (args?.cursor?.id) {
+         const idx = filtered.findIndex(e => e.id === args.cursor.id);
+         if (idx !== -1) {
+            filtered = filtered.slice(idx + (args.skip || 0));
+         }
+      }
+      if (args?.take) {
+         filtered = filtered.slice(0, args.take);
+      }
+      return filtered;
+   }),
+   findFirst: jest.fn().mockImplementation(async (args?: any) => {
+      const list = await mockAuditLog.findMany(args);
+      return list[0] ?? null;
+   }),
+   deleteMany: jest.fn().mockImplementation(async () => {
+      const count = auditLogsStore.length;
+      auditLogsStore.length = 0;
+      return { count };
+   }),
+};
+
+jest.mock(
+   '@prisma/client',
+   () => {
+      const mockPrismaClient = {
          creatorProfile: {
             findMany: jest.fn().mockResolvedValue([]),
+            findFirst: jest.fn().mockResolvedValue(null),
+            findUnique: jest.fn().mockResolvedValue(null),
+            update: jest.fn().mockResolvedValue({}),
          },
          activity: {
             findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn().mockResolvedValue({}),
          },
+         auditLog: mockAuditLog,
          $disconnect: jest.fn(),
-      })),
-   };
+         $extends: jest.fn(() => ({
+            creatorProfile: {
+               findMany: jest.fn().mockResolvedValue([]),
+               findFirst: jest.fn().mockResolvedValue(null),
+               findUnique: jest.fn().mockResolvedValue(null),
+               update: jest.fn().mockResolvedValue({}),
+            },
+            activity: {
+               findMany: jest.fn().mockResolvedValue([]),
+               create: jest.fn().mockResolvedValue({}),
+            },
+            auditLog: mockAuditLog,
+            $disconnect: jest.fn(),
+         })),
+      };
 
-   return {
-      PrismaClient: jest.fn(() => mockPrismaClient),
-   };
-}, { virtual: true });
+      return {
+         PrismaClient: jest.fn(() => mockPrismaClient),
+      };
+   },
+   { virtual: true }
+);
 
 jest.setTimeout(30000);

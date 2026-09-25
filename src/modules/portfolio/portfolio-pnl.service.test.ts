@@ -22,7 +22,12 @@ const protocolFindUnique = prisma.protocolConfig.findUnique as jest.Mock;
 const WALLET = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 function setupMocks(options: {
-   ownerships: Array<{ creatorId: string; balance: number; costBasis: number; realisedPnl?: number }>;
+   ownerships: Array<{
+      creatorId: string;
+      balance: number;
+      costBasis: number;
+      realisedPnl?: number;
+   }>;
    supplies: Record<string, number>;
    feeBps?: number;
 }) {
@@ -40,7 +45,9 @@ function setupMocks(options: {
          circulatingSupply,
       }))
    );
-   protocolFindUnique.mockResolvedValue({ protocolFeeBps: options.feeBps ?? 0 });
+   protocolFindUnique.mockResolvedValue({
+      protocolFeeBps: options.feeBps ?? 0,
+   });
 }
 
 describe('getPortfolioPnl', () => {
@@ -106,7 +113,12 @@ describe('getPortfolioPnl', () => {
    it('aggregates totals across multiple positions sorted by current value', async () => {
       setupMocks({
          ownerships: [
-            { creatorId: 'key-small', balance: 1, costBasis: 1, realisedPnl: 2 },
+            {
+               creatorId: 'key-small',
+               balance: 1,
+               costBasis: 1,
+               realisedPnl: 2,
+            },
             { creatorId: 'key-big', balance: 10, costBasis: 1, realisedPnl: 3 },
          ],
          supplies: { 'key-small': 10, 'key-big': 10 },
@@ -115,7 +127,10 @@ describe('getPortfolioPnl', () => {
 
       const result = await getPortfolioPnl(WALLET);
 
-      expect(result.positions.map(p => p.keyId)).toEqual(['key-big', 'key-small']);
+      expect(result.positions.map(p => p.keyId)).toEqual([
+         'key-big',
+         'key-small',
+      ]);
       const big = result.positions[0];
       const small = result.positions[1];
       expect(result.summary.totalUnrealisedPnl).toBeCloseTo(
@@ -139,7 +154,12 @@ describe('getPortfolioPnl', () => {
       setupMocks({
          ownerships: [
             { creatorId: 'key-open', balance: 2, costBasis: 1, realisedPnl: 1 },
-            { creatorId: 'key-closed', balance: 0, costBasis: 0, realisedPnl: 7.5 },
+            {
+               creatorId: 'key-closed',
+               balance: 0,
+               costBasis: 0,
+               realisedPnl: 7.5,
+            },
          ],
          supplies: { 'key-open': 10 },
          feeBps: 0,

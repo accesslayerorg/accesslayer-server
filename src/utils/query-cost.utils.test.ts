@@ -7,7 +7,11 @@ import {
 describe('compileCostMap', () => {
    it('compiles the default map and matches param segments', () => {
       const routes = compileCostMap();
-      const matched = matchCostRoute(routes, 'GET', '/creators/abc-123/holders');
+      const matched = matchCostRoute(
+         routes,
+         'GET',
+         '/creators/abc-123/holders'
+      );
       expect(matched?.baseCost).toBe(3);
    });
 
@@ -37,11 +41,15 @@ describe('compileCostMap', () => {
 
    it('rejects a non-positive-number cost', () => {
       expect(() => compileCostMap('{"GET /x": -1}')).toThrow(/positive number/);
-      expect(() => compileCostMap('{"GET /x": "5"}')).toThrow(/positive number/);
+      expect(() => compileCostMap('{"GET /x": "5"}')).toThrow(
+         /positive number/
+      );
    });
 
    it('rejects a key with no method prefix', () => {
-      expect(() => compileCostMap('{"/no-method": 1}')).toThrow(/METHOD \/pattern/);
+      expect(() => compileCostMap('{"/no-method": 1}')).toThrow(
+         /METHOD \/pattern/
+      );
    });
 });
 

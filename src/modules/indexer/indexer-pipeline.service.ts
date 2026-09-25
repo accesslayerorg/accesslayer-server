@@ -1,14 +1,17 @@
 import { createHash } from 'crypto';
 import { prisma } from '../../utils/prisma.utils';
 import {
-    recordKeyPurchase,
-    recordKeySale,
-    updateOwnership,
+   recordKeyPurchase,
+   recordKeySale,
+   updateOwnership,
 } from '../ownership/ownership.service';
 import { upsertPriceSnapshot } from './price-snapshot.service';
 import { updateIndexedLedger } from './ledger-gap-detection.service';
 import { logger } from '../../utils/logger.utils';
-import { processIndexerChainEvents, IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
+import {
+   processIndexerChainEvents,
+   IndexerChainEvent,
+} from '../../utils/indexer-event-processor.utils';
 import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
 import { logSellTransactionConfirmed } from '../../utils/sell-transaction-logger.utils';
 import { persistCirculatingSupply } from './persist-circulating-supply.service';
@@ -24,26 +27,44 @@ import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboar
  * - Upserts the CreatorPriceSnapshot read model.
  * - Writes a checkpoint record of the highest ledger processed.
  */
-export async function processTradeEvents(events: IndexerChainEvent[]): Promise<void> {
-   await processIndexerChainEvents(events, async (event) => {
+export async function processTradeEvents(
+   events: IndexerChainEvent[]
+): Promise<void> {
+   await processIndexerChainEvents(events, async event => {
       // Validate event type
       if (event.eventType !== 'KEY_BOUGHT' && event.eventType !== 'KEY_SOLD') {
          return;
       }
 
       // Check required fields. Skip with a warn-level log if any is missing.
-      const requiredFields = ['creatorId', 'actor', 'amount', 'price', 'feePaid', 'tradeAt', 'ledger'];
+      const requiredFields = [
+         'creatorId',
+         'actor',
+         'amount',
+         'price',
+         'feePaid',
+         'tradeAt',
+         'ledger',
+      ];
       for (const field of requiredFields) {
-         if (event[field] === undefined || event[field] === null || event[field] === '') {
+         if (
+            event[field] === undefined ||
+            event[field] === null ||
+            event[field] === ''
+         ) {
             logger.warn(
-               { eventId: `${event.txHash}:${event.eventIndex}`, missingField: field },
+               {
+                  eventId: `${event.txHash}:${event.eventIndex}`,
+                  missingField: field,
+               },
                'Skipping trade event due to missing required field'
             );
             return;
          }
       }
 
-      const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } = event;
+      const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } =
+         event;
 
       // 1. Create corresponding Activity record
       await prisma.activity.create({
@@ -119,7 +140,11 @@ export async function processTradeEvents(events: IndexerChainEvent[]): Promise<v
          const [creatorProfile, supplyAggregate] = await Promise.all([
             prisma.creatorProfile.findUnique({
                where: { id: creatorId },
-               select: { user: { select: { stellarWallet: { select: { address: true } } } } },
+               select: {
+                  user: {
+                     select: { stellarWallet: { select: { address: true } } },
+                  },
+               },
             }),
             prisma.keyOwnership.aggregate({
                where: { creatorId },
@@ -153,10 +178,15 @@ export async function processTradeEvents(events: IndexerChainEvent[]): Promise<v
    }
 }
 
-function computeBatchHash(events: Array<{ txHash: string; eventIndex: number }>): string {
+function computeBatchHash(
+   events: Array<{ txHash: string; eventIndex: number }>
+): string {
    const identifiers = events
       .map(e => `${e.txHash}:${e.eventIndex}`)
       .sort()
       .join('|');
-   return createHash('sha256').update(identifiers, 'utf8').digest('hex').slice(0, 16);
+   return createHash('sha256')
+      .update(identifiers, 'utf8')
+      .digest('hex')
+      .slice(0, 16);
 }

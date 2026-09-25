@@ -4,6 +4,7 @@ import { logger } from '../../utils/logger.utils';
 export interface CreateAuditEntryInput {
    actorWallet: string;
    actionType: string;
+   targetEntity?: string;
    targetId?: string;
    payload?: Record<string, unknown>;
 }
@@ -20,6 +21,7 @@ export async function createAuditEntry(
          data: {
             actorWallet: input.actorWallet,
             actionType: input.actionType,
+            targetEntity: input.targetEntity,
             targetId: input.targetId,
             payload: input.payload ? (input.payload as any) : undefined,
          },
@@ -34,12 +36,15 @@ export interface GetAuditLogsInput {
    limit?: number;
    cursor?: string; // id of last item from previous page
    actionType?: string;
+   startDate?: string | Date;
+   endDate?: string | Date;
 }
 
 export interface AuditLogEntry {
    id: string;
    actorWallet: string;
    actionType: string;
+   targetEntity: string | null;
    targetId: string | null;
    payload: Record<string, unknown> | null;
    createdAt: Date;
@@ -67,6 +72,17 @@ export async function getAuditLogs(
          where.actionType = input.actionType;
       }
 
+      if (input.startDate || input.endDate) {
+         const createdAtFilter: Record<string, Date> = {};
+         if (input.startDate) {
+            createdAtFilter.gte = new Date(input.startDate);
+         }
+         if (input.endDate) {
+            createdAtFilter.lte = new Date(input.endDate);
+         }
+         where.createdAt = createdAtFilter;
+      }
+
       // Cursor-based pagination: fetch by createdAt and id
       const entries = await prisma.auditLog.findMany({
          where,
@@ -82,7 +98,10 @@ export async function getAuditLogs(
 
       const hasMore = entries.length > limit;
       const result = entries.slice(0, limit);
-      const nextCursor = hasMore && result.length > 0 ? result[result.length - 1].id : undefined;
+      const nextCursor =
+         hasMore && result.length > 0
+            ? result[result.length - 1].id
+            : undefined;
 
       return {
          entries: result as AuditLogEntry[],

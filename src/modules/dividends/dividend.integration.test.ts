@@ -110,7 +110,7 @@ describe('Dividend Service Integration Tests', () => {
          });
 
          expect(claims).toHaveLength(3);
-         claims.forEach((claim) => {
+         claims.forEach(claim => {
             expect(claim.amountXlm.toString()).toBe('10000'); // 100 * 100 keys
          });
       });
@@ -142,7 +142,9 @@ describe('Dividend Service Integration Tests', () => {
 
          // Verify descending order
          for (let i = 0; i < result.distributions.length - 1; i++) {
-            expect(result.distributions[i].distributedAt.getTime()).toBeGreaterThanOrEqual(
+            expect(
+               result.distributions[i].distributedAt.getTime()
+            ).toBeGreaterThanOrEqual(
                result.distributions[i + 1].distributedAt.getTime()
             );
          }
@@ -195,7 +197,7 @@ describe('Dividend Service Integration Tests', () => {
          });
 
          expect(result.claims.length).toBeGreaterThan(0);
-         result.claims.forEach((claim) => {
+         result.claims.forEach(claim => {
             expect(claim.recipientAddress).toBeDefined();
             expect(claim.amountXlm).toBeDefined();
          });
@@ -247,7 +249,9 @@ describe('Dividend Service Integration Tests', () => {
       });
 
       it('AC6: should return 404 for unknown distribution ID', async () => {
-         const distribution = await getDividendDistributionById('nonexistent-dist-id');
+         const distribution = await getDividendDistributionById(
+            'nonexistent-dist-id'
+         );
          expect(distribution).toBeNull();
       });
 
@@ -322,7 +326,10 @@ describe('Dividend Service Integration Tests', () => {
          for (const claim of claims.claims) {
             // Verify payout calculation
             const holder = await prisma.keyOwnership.findFirst({
-               where: { ownerAddress: claim.recipientAddress, creatorId: testCreatorId },
+               where: {
+                  ownerAddress: claim.recipientAddress,
+                  creatorId: testCreatorId,
+               },
             });
 
             if (holder) {

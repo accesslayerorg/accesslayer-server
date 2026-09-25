@@ -80,10 +80,7 @@ export async function getLedgerEntries(
 
       return json.result as GetLedgerEntriesResponse;
    } catch (error) {
-      logger.warn(
-         { error },
-         'Failed to query Soroban RPC'
-      );
+      logger.warn({ error }, 'Failed to query Soroban RPC');
       return null;
    }
 }

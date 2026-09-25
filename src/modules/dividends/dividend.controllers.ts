@@ -64,7 +64,7 @@ export const httpGetDividendDistributions: AsyncController = async (
       });
 
       // Format response
-      const entries = result.distributions.map((dist) => ({
+      const entries = result.distributions.map(dist => ({
          distributionId: dist.id,
          totalAmount: Number(dist.totalAmount),
          holderCount: dist.holderCount,
@@ -102,10 +102,17 @@ export const httpGetDividendHolders: AsyncController = async (
 
       if (!keyId || !distributionId) {
          return sendValidationError(res, 'Missing required parameters', [
-            ...(keyId ? [] : [{ field: 'keyId', message: 'Key ID is required' }]),
+            ...(keyId
+               ? []
+               : [{ field: 'keyId', message: 'Key ID is required' }]),
             ...(distributionId
                ? []
-               : [{ field: 'distributionId', message: 'Distribution ID is required' }]),
+               : [
+                    {
+                       field: 'distributionId',
+                       message: 'Distribution ID is required',
+                    },
+                 ]),
          ]);
       }
 
@@ -147,7 +154,7 @@ export const httpGetDividendHolders: AsyncController = async (
       });
 
       // Format response
-      const entries = result.claims.map((claim) => ({
+      const entries = result.claims.map(claim => ({
          recipientWallet: claim.recipientAddress,
          amountXlm: Number(claim.amountXlm),
          claimedAt: claim.claimedAt ? claim.claimedAt.toISOString() : null,
@@ -166,12 +173,11 @@ export const httpGetDividendHolders: AsyncController = async (
    }
 };
 
-
 import {
    createDividendDistribution,
    InsufficientBalanceError,
-} from "./dividend.service";
-import { AuthenticatedRequest } from "../../middlewares/jwt-auth.middleware";
+} from './dividend.service';
+import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
 
 /**
  * POST /creator/:keyId/dividends
@@ -189,9 +195,9 @@ export const httpDistributeDividend: AsyncController = async (
       if (totalAmountRaw === undefined || totalAmountRaw === null) {
          return res.status(422).json({
             error: {
-               code: "VALIDATION_ERROR",
-               message: "totalAmount is required",
-               details: [{ field: "totalAmount", message: "Required" }],
+               code: 'VALIDATION_ERROR',
+               message: 'totalAmount is required',
+               details: [{ field: 'totalAmount', message: 'Required' }],
             },
          });
       }
@@ -200,9 +206,11 @@ export const httpDistributeDividend: AsyncController = async (
       if (isNaN(totalAmountNum) || totalAmountNum <= 0) {
          return res.status(422).json({
             error: {
-               code: "VALIDATION_ERROR",
-               message: "totalAmount must be a positive integer",
-               details: [{ field: "totalAmount", message: "Must be greater than 0" }],
+               code: 'VALIDATION_ERROR',
+               message: 'totalAmount must be a positive integer',
+               details: [
+                  { field: 'totalAmount', message: 'Must be greater than 0' },
+               ],
             },
          });
       }
@@ -210,8 +218,8 @@ export const httpDistributeDividend: AsyncController = async (
       if (!req.user || !req.user.wallet) {
          return res.status(403).json({
             error: {
-               code: "FORBIDDEN",
-               message: "Only the key creator can distribute dividends",
+               code: 'FORBIDDEN',
+               message: 'Only the key creator can distribute dividends',
             },
          });
       }
@@ -225,7 +233,7 @@ export const httpDistributeDividend: AsyncController = async (
       });
 
       if (!creator) {
-         return sendNotFound(res, "Creator");
+         return sendNotFound(res, 'Creator');
       }
 
       const creatorWalletAddress = creator.user?.stellarWallet?.address;
@@ -235,8 +243,8 @@ export const httpDistributeDividend: AsyncController = async (
       ) {
          return res.status(403).json({
             error: {
-               code: "FORBIDDEN",
-               message: "Only the key creator can distribute dividends",
+               code: 'FORBIDDEN',
+               message: 'Only the key creator can distribute dividends',
             },
          });
       }
@@ -250,11 +258,14 @@ export const httpDistributeDividend: AsyncController = async (
 
          return sendSuccess(res, result, 201);
       } catch (err: any) {
-         if (err instanceof InsufficientBalanceError || err.name === "InsufficientBalanceError") {
+         if (
+            err instanceof InsufficientBalanceError ||
+            err.name === 'InsufficientBalanceError'
+         ) {
             return res.status(400).json({
                error: {
-                  code: "BAD_REQUEST",
-                  message: err.message || "Insufficient wallet balance",
+                  code: 'BAD_REQUEST',
+                  message: err.message || 'Insufficient wallet balance',
                },
             });
          }

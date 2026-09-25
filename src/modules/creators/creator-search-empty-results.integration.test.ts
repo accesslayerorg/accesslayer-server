@@ -11,14 +11,8 @@ import supertest from 'supertest';
 import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
 
-const USER_IDS = [
-   'search-empty-user-alpha',
-   'search-empty-user-beta',
-];
-const HANDLES = [
-   'search-empty-alpha',
-   'search-empty-beta',
-];
+const USER_IDS = ['search-empty-user-alpha', 'search-empty-user-beta'];
+const HANDLES = ['search-empty-alpha', 'search-empty-beta'];
 const DISPLAY_NAMES = ['AlphaSearcher', 'BetaSearcher'];
 
 describe('#765 search endpoint — empty results for non-matching query', () => {

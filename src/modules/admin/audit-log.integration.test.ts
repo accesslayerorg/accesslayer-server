@@ -26,7 +26,9 @@ describe('Audit Log Integration Tests', () => {
          });
 
          expect(entry).toBeDefined();
-         expect(entry?.actorWallet).toBe('0x1234567890123456789012345678901234567890');
+         expect(entry?.actorWallet).toBe(
+            '0x1234567890123456789012345678901234567890'
+         );
          expect(entry?.actionType).toBe('protocol_fee_updated');
          expect(entry?.targetId).toBe('default');
          expect(entry?.payload).toEqual({ protocolFeeBps: 500 });
@@ -68,7 +70,9 @@ describe('Audit Log Integration Tests', () => {
          });
 
          expect(entries).toHaveLength(3);
-         expect(entries.map((e) => e.actorWallet)).toEqual(expect.arrayContaining(actors));
+         expect(entries.map(e => e.actorWallet)).toEqual(
+            expect.arrayContaining(actors)
+         );
       });
    });
 
@@ -87,7 +91,7 @@ describe('Audit Log Integration Tests', () => {
             });
 
             // Add slight delay to ensure different timestamps
-            await new Promise((resolve) => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 10));
          }
       });
 
@@ -99,9 +103,9 @@ describe('Audit Log Integration Tests', () => {
 
          // Verify descending order by createdAt
          for (let i = 0; i < result.entries.length - 1; i++) {
-            expect(result.entries[i].createdAt.getTime()).toBeGreaterThanOrEqual(
-               result.entries[i + 1].createdAt.getTime()
-            );
+            expect(
+               result.entries[i].createdAt.getTime()
+            ).toBeGreaterThanOrEqual(result.entries[i + 1].createdAt.getTime());
          }
       });
 
@@ -129,7 +133,7 @@ describe('Audit Log Integration Tests', () => {
          });
 
          expect(result.entries.length).toBeGreaterThan(0);
-         result.entries.forEach((entry) => {
+         result.entries.forEach(entry => {
             expect(entry.actionType).toBe('action_a');
          });
       });
@@ -192,6 +196,39 @@ describe('Audit Log Integration Tests', () => {
          expect(result.hasMore).toBe(false);
          expect(result.nextCursor).toBeUndefined();
       });
+
+      it('should filter by date range', async () => {
+         const now = new Date();
+         const pastDate = new Date(now.getTime() - 1000 * 60 * 60); // 1 hour ago
+         const futureDate = new Date(now.getTime() + 1000 * 60 * 60); // 1 hour in future
+
+         const result = await getAuditLogs({
+            startDate: pastDate,
+            endDate: futureDate,
+         });
+
+         expect(result.entries.length).toBeGreaterThan(0);
+         result.entries.forEach(entry => {
+            expect(entry.createdAt.getTime()).toBeGreaterThanOrEqual(
+               pastDate.getTime()
+            );
+            expect(entry.createdAt.getTime()).toBeLessThanOrEqual(
+               futureDate.getTime()
+            );
+         });
+      });
+
+      it('should return empty list for out-of-range date filter', async () => {
+         const pastDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 10); // 10 days ago
+         const pastDateEnd = new Date(Date.now() - 1000 * 60 * 60 * 24 * 9); // 9 days ago
+
+         const result = await getAuditLogs({
+            startDate: pastDate,
+            endDate: pastDateEnd,
+         });
+
+         expect(result.entries).toHaveLength(0);
+      });
    });
 
    describe('Acceptance Criteria Validation', () => {
@@ -199,53 +236,80 @@ describe('Audit Log Integration Tests', () => {
          // Clear and set up for acceptance criteria tests
          await prisma.auditLog.deleteMany({});
 
-         // Create test entries
+         // Create test entries for sensitive operations
          const admin1 = '0xadmin0001111111111111111111111111111111';
          const admin2 = '0xadmin0002222222222222222222222222222222';
 
          await createAuditEntry({
             actorWallet: admin1,
             actionType: 'protocol_fee_updated',
+            targetEntity: 'ProtocolConfig',
             targetId: 'default',
             payload: { newFee: 500 },
          });
 
-         await new Promise((resolve) => setTimeout(resolve, 10));
+         await new Promise(resolve => setTimeout(resolve, 10));
 
          await createAuditEntry({
             actorWallet: admin1,
             actionType: 'key_trading_paused',
+            targetEntity: 'CreatorProfile',
             targetId: 'creator_123',
             payload: { paused: true },
          });
 
-         await new Promise((resolve) => setTimeout(resolve, 10));
+         await new Promise(resolve => setTimeout(resolve, 10));
 
          await createAuditEntry({
             actorWallet: admin2,
-            actionType: 'protocol_fee_updated',
-            targetId: 'default',
-            payload: { newFee: 600 },
+            actionType: 'key_deprecated',
+            targetEntity: 'CreatorProfile',
+            targetId: 'key_dep_1',
+            payload: { buybackPriceXlm: '10' },
          });
 
-         await new Promise((resolve) => setTimeout(resolve, 10));
+         await new Promise(resolve => setTimeout(resolve, 10));
 
          await createAuditEntry({
             actorWallet: admin1,
-            actionType: 'update_creator_metadata',
+            actionType: 'TRADING_PAUSE_PROPOSED',
+            targetEntity: 'CreatorProfile',
             targetId: 'creator_456',
-            payload: { isVerified: true },
+            payload: { proposalId: 'p-1' },
+         });
+
+         await new Promise(resolve => setTimeout(resolve, 10));
+
+         await createAuditEntry({
+            actorWallet: admin2,
+            actionType: 'position_frozen',
+            targetEntity: 'KeyOwnership',
+            targetId: 'creator_456',
+            payload: { wallet: '0xholder' },
+         });
+
+         await new Promise(resolve => setTimeout(resolve, 10));
+
+         await createAuditEntry({
+            actorWallet: admin1,
+            actionType: 'role_changed',
+            targetEntity: 'User',
+            targetId: 'user_789',
+            payload: { role: 'admin' },
          });
       });
 
-      it('AC1: Audit entry written after every admin action', async () => {
+      it('AC1: Audit entry written after every sensitive admin operation', async () => {
          const entries = await prisma.auditLog.findMany();
-         expect(entries.length).toBeGreaterThanOrEqual(4);
+         expect(entries.length).toBeGreaterThanOrEqual(6);
 
-         const actionTypes = entries.map((e) => e.actionType);
+         const actionTypes = entries.map(e => e.actionType);
          expect(actionTypes).toContain('protocol_fee_updated');
          expect(actionTypes).toContain('key_trading_paused');
-         expect(actionTypes).toContain('update_creator_metadata');
+         expect(actionTypes).toContain('key_deprecated');
+         expect(actionTypes).toContain('TRADING_PAUSE_PROPOSED');
+         expect(actionTypes).toContain('position_frozen');
+         expect(actionTypes).toContain('role_changed');
       });
 
       it('AC2: Entries returned sorted by createdAt descending', async () => {
@@ -265,15 +329,17 @@ describe('Audit Log Integration Tests', () => {
             actionType: 'protocol_fee_updated',
          });
 
-         expect(filteredResult.entries.length).toBeLessThanOrEqual(allResult.entries.length);
+         expect(filteredResult.entries.length).toBeLessThanOrEqual(
+            allResult.entries.length
+         );
          expect(filteredResult.entries.length).toBeGreaterThan(0);
 
-         filteredResult.entries.forEach((entry) => {
+         filteredResult.entries.forEach(entry => {
             expect(entry.actionType).toBe('protocol_fee_updated');
          });
       });
 
-      it('AC4: Returned fields include actorWallet, actionType, targetId, payload, createdAt', async () => {
+      it('AC4: Returned fields include actorWallet, actionType, targetEntity, targetId, payload, createdAt', async () => {
          const result = await getAuditLogs({ limit: 1 });
 
          expect(result.entries.length).toBeGreaterThan(0);
@@ -281,6 +347,7 @@ describe('Audit Log Integration Tests', () => {
          const entry = result.entries[0];
          expect(entry).toHaveProperty('actorWallet');
          expect(entry).toHaveProperty('actionType');
+         expect(entry).toHaveProperty('targetEntity');
          expect(entry).toHaveProperty('targetId');
          expect(entry).toHaveProperty('payload');
          expect(entry).toHaveProperty('createdAt');
@@ -299,10 +366,10 @@ describe('Audit Log Integration Tests', () => {
 
          // Verify we got different entries
          if (page1.entries.length > 0 && page2.entries.length > 0) {
-            const page1Ids = page1.entries.map((e) => e.id);
-            const page2Ids = page2.entries.map((e) => e.id);
+            const page1Ids = page1.entries.map(e => e.id);
+            const page2Ids = page2.entries.map(e => e.id);
 
-            const overlap = page1Ids.filter((id) => page2Ids.includes(id));
+            const overlap = page1Ids.filter(id => page2Ids.includes(id));
             expect(overlap.length).toBe(0);
          }
       });

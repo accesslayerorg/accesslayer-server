@@ -55,7 +55,10 @@ export const httpGetCreatorHolders: AsyncController = async (
          const decoded = decodeHoldersCursor(parsed.data.cursor);
          if (!decoded.ok) {
             return sendValidationError(res, 'Invalid pagination cursor', [
-               { field: 'cursor', message: 'Cursor is malformed or has expired' },
+               {
+                  field: 'cursor',
+                  message: 'Cursor is malformed or has expired',
+               },
             ]);
          }
 
@@ -66,7 +69,10 @@ export const httpGetCreatorHolders: AsyncController = async (
          );
          if (!page) {
             return sendValidationError(res, 'Invalid pagination cursor', [
-               { field: 'cursor', message: 'Cursor does not match a known holder' },
+               {
+                  field: 'cursor',
+                  message: 'Cursor does not match a known holder',
+               },
             ]);
          }
 

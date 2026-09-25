@@ -10,9 +10,11 @@ export interface TokenExpiryValidationResult {
    code?: string;
 }
 
-export function validateTokenExpiry(
-   payload: { iat?: number; exp: number; ttlSeconds: number }
-): TokenExpiryValidationResult {
+export function validateTokenExpiry(payload: {
+   iat?: number;
+   exp: number;
+   ttlSeconds: number;
+}): TokenExpiryValidationResult {
    if (payload.iat === undefined) {
       return { valid: false, code: 'missing_iat' };
    }

@@ -145,7 +145,7 @@ export interface CheckpointCallbacks {
  * Events without a `ledger` field are processed but not checkpointed.
  */
 export async function processIndexerChainEventsWithCheckpointing<
-   T extends IndexerChainEvent
+   T extends IndexerChainEvent,
 >(
    events: T[],
    handler: (event: T) => Promise<void>,

@@ -87,21 +87,23 @@ function readConfiguredMilestones(): Milestone[] {
 
       const entries =
          typeof parsed === 'object' && parsed !== null
-            ? (
-                 'supplyMilestones' in parsed
-                    ? (parsed as { supplyMilestones?: unknown }).supplyMilestones
-                    : 'milestones' in parsed
-                      ? (parsed as { milestones?: unknown }).milestones
-                      : 'thresholds' in parsed
-                        ? (parsed as { thresholds?: unknown }).thresholds
-                        : 'milestoneThresholds' in parsed
-                          ? (parsed as { milestoneThresholds?: unknown }).milestoneThresholds
-                          : null
-              )
+            ? 'supplyMilestones' in parsed
+               ? (parsed as { supplyMilestones?: unknown }).supplyMilestones
+               : 'milestones' in parsed
+                 ? (parsed as { milestones?: unknown }).milestones
+                 : 'thresholds' in parsed
+                   ? (parsed as { thresholds?: unknown }).thresholds
+                   : 'milestoneThresholds' in parsed
+                     ? (parsed as { milestoneThresholds?: unknown })
+                          .milestoneThresholds
+                     : null
             : null;
 
       const normalized = normalizeMilestones(entries ?? parsed);
-      if (normalized.length > 0 && normalized.some(item => item.threshold >= 0)) {
+      if (
+         normalized.length > 0 &&
+         normalized.some(item => item.threshold >= 0)
+      ) {
          return normalized;
       }
    }

@@ -9,10 +9,7 @@
 
 import type { Response } from 'express';
 import { logger } from '../../utils/logger.utils';
-import {
-   buildErrorResponse,
-   ErrorCode,
-} from '../../utils/api-response.utils';
+import { buildErrorResponse, ErrorCode } from '../../utils/api-response.utils';
 
 export type TradeSide = 'buy' | 'sell';
 

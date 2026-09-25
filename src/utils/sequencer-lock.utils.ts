@@ -35,7 +35,13 @@ export async function acquireSequencerLock(
    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;
 
    while (Date.now() < deadline) {
-      const acquired = await redis.set(key, lockValue, 'EX', LOCK_TTL_SECONDS, 'NX');
+      const acquired = await redis.set(
+         key,
+         lockValue,
+         'EX',
+         LOCK_TTL_SECONDS,
+         'NX'
+      );
 
       if (acquired === 'OK') {
          let renewalInterval: ReturnType<typeof setInterval> | null = null;
@@ -76,7 +82,7 @@ export async function acquireSequencerLock(
          return { release };
       }
 
-      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+      await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
    }
 
    throw new SequencerContentionError(

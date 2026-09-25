@@ -1,11 +1,11 @@
-import { Router } from "express";
-import { httpGetWalletActivity } from "./wallet-activity.controllers";
-import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
-import { httpGetWalletFollowing } from "./wallet-following.controllers";
-import { cacheControl } from "../../middlewares/cache-control.middleware";
-import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
-import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
-import { jwtAuth } from "../../middlewares/jwt.middleware";
+import { Router } from 'express';
+import { httpGetWalletActivity } from './wallet-activity.controllers';
+import { httpGetWalletHoldings } from './wallet-holdings.controllers';
+import { httpGetWalletFollowing } from './wallet-following.controllers';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import { ACTIVITY_FEED_CACHE_PRESET } from '../../constants/activity-feed-cache.constants';
+import { requireWalletParamMatch } from '../../middlewares/jwt-auth.middleware';
+import { jwtAuth } from '../../middlewares/jwt.middleware';
 
 const walletsRouter = Router();
 
@@ -17,8 +17,8 @@ const walletsRouter = Router();
  * Requires a valid JWT matching the address parameter.
  */
 walletsRouter.get(
-   "/:address/activity",
-   requireWalletParamMatch("address"),
+   '/:address/activity',
+   requireWalletParamMatch('address'),
    cacheControl(ACTIVITY_FEED_CACHE_PRESET),
    httpGetWalletActivity
 );
@@ -28,7 +28,7 @@ walletsRouter.get(
  *
  * Returns all creator key holdings for a given Stellar wallet address.
  */
-walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
+walletsRouter.get('/:address/holdings', httpGetWalletHoldings);
 
 /**
  * GET /api/v1/wallets/:address/following

@@ -1,0 +1,14 @@
+// prisma/schema/registered-key.prisma
+
+model RegisteredKey {
+  id            String   @id @default(cuid())
+  keyAddress    String   @unique @map("key_address")
+  creatorWallet String   @map("creator_wallet")
+  metadata      Json
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([creatorWallet])
+  @@map("registered_keys")
+}

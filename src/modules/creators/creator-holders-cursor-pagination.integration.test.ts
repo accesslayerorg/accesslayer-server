@@ -96,11 +96,13 @@ describe('GET /creators/:id/holders — cursor pagination', () => {
       jest
          .spyOn(holdersService, 'findCreatorByIdOrHandle')
          .mockResolvedValue(CREATOR_STUB);
-      jest.spyOn(holdersService, 'fetchCreatorHoldersByCursor').mockResolvedValue({
-         holders: [makeHolder(3)],
-         nextCursor: null,
-         hasMore: false,
-      });
+      jest
+         .spyOn(holdersService, 'fetchCreatorHoldersByCursor')
+         .mockResolvedValue({
+            holders: [makeHolder(3)],
+            nextCursor: null,
+            hasMore: false,
+         });
 
       const cursor = encodeHoldersCursor(makeHolder(2).wallet_address);
       const req = makeReq({ id: CREATOR_STUB.id }, { cursor });
@@ -157,7 +159,10 @@ describe('GET /creators/:id/holders — cursor pagination', () => {
          'fetchCreatorHoldersByCursor'
       );
 
-      const req = makeReq({ id: CREATOR_STUB.id }, { limit: '20', offset: '0' });
+      const req = makeReq(
+         { id: CREATOR_STUB.id },
+         { limit: '20', offset: '0' }
+      );
       const res = makeRes();
       await httpGetCreatorHolders(req, res, makeNext());
 

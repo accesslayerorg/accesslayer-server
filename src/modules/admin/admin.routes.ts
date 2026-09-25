@@ -8,7 +8,10 @@ import {
    httpGetAuditLog,
 } from './admin.controllers';
 import { httpSyncKeyState } from './key-sync.controllers';
-import { getKeySnapshot, KeySnapshotNotFoundError } from './key-snapshot.service';
+import {
+   getKeySnapshot,
+   KeySnapshotNotFoundError,
+} from './key-snapshot.service';
 import { createAuditEntry } from './audit-log.service';
 import { invalidateProtocolStatusCache } from '../protocol/protocol.routes';
 import {
@@ -58,114 +61,191 @@ adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
  * database values, with a `drift` boolean per field. Requires a valid admin
  * JWT. Returns 404 for unknown key IDs.
  */
-adminRouter.get('/keys/:keyId/snapshot', adminGuard, async (req: AdminRequest, res, next) => {
-   try {
-      const keyId = String(req.params.keyId);
-      const snapshot = await getKeySnapshot(keyId);
-      sendSuccess(res, snapshot);
-   } catch (error) {
-      if (error instanceof KeySnapshotNotFoundError) {
-         sendNotFound(res, 'Key');
-         return;
+adminRouter.get(
+   '/keys/:keyId/snapshot',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const snapshot = await getKeySnapshot(keyId);
+         sendSuccess(res, snapshot);
+      } catch (error) {
+         if (error instanceof KeySnapshotNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key snapshot failed'
+         );
+         next(error);
       }
-      logger.error(
-         { error, keyId: req.params.keyId },
-         'Key snapshot failed'
-      );
-      next(error);
    }
-});
+);
 
 /**
  * POST /api/v1/admin/vesting
  * Add a vesting schedule creation endpoint for admins (#835).
  */
-adminRouter.post('/vesting', adminGuard, async (req: AdminRequest, res, next) => {
-   const { keyId, beneficiary, totalKeys, startLedger } = req.body || {};
+adminRouter.post(
+   '/vesting',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const { keyId, beneficiary, totalKeys, startLedger } = req.body || {};
 
-   if (totalKeys === undefined || totalKeys === null || typeof totalKeys !== 'number' || totalKeys <= 0) {
-      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'totalKeys must be a positive number');
-      return;
+      if (
+         totalKeys === undefined ||
+         totalKeys === null ||
+         typeof totalKeys !== 'number' ||
+         totalKeys <= 0
+      ) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'totalKeys must be a positive number'
+         );
+         return;
+      }
+
+      if (!beneficiary || !isValidStellarAddress(beneficiary)) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'Invalid beneficiary address'
+         );
+         return;
+      }
+
+      if (!keyId || startLedger === undefined) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'keyId and startLedger are required'
+         );
+         return;
+      }
+
+      try {
+         const vestingPeriodSeconds = 90 * 24 * 60 * 60; // 90 days
+         const endLedger =
+            Number(startLedger) + Math.floor(vestingPeriodSeconds / 5);
+         const vestingEndsAt = new Date(
+            Date.now() + vestingPeriodSeconds * 1000
+         );
+
+         const schedule = await prisma.vestingSchedule.create({
+            data: {
+               keyId: String(keyId),
+               wallet: String(beneficiary),
+               totalKeys: new Prisma.Decimal(totalKeys),
+               startLedger: Number(startLedger),
+               endLedger,
+               claimedKeys: new Prisma.Decimal(0),
+            },
+         });
+
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'VESTING_SCHEDULE_CREATED',
+            targetEntity: 'VestingSchedule',
+            targetId: schedule.id,
+            payload: {
+               keyId: String(keyId),
+               beneficiary: String(beneficiary),
+               totalKeys,
+               startLedger,
+               endLedger,
+            },
+         });
+
+         sendSuccess(res, {
+            ...schedule,
+            totalKeys: Number(schedule.totalKeys),
+            claimedKeys: Number(schedule.claimedKeys),
+            vestingEndsAt: vestingEndsAt.toISOString(),
+         });
+      } catch (error) {
+         next(error);
+      }
    }
-
-   if (!beneficiary || !isValidStellarAddress(beneficiary)) {
-      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'Invalid beneficiary address');
-      return;
-   }
-
-   if (!keyId || startLedger === undefined) {
-      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'keyId and startLedger are required');
-      return;
-   }
-
-   try {
-      const vestingPeriodSeconds = 90 * 24 * 60 * 60; // 90 days
-      const endLedger = Number(startLedger) + Math.floor(vestingPeriodSeconds / 5);
-      const vestingEndsAt = new Date(Date.now() + vestingPeriodSeconds * 1000);
-
-      const schedule = await prisma.vestingSchedule.create({
-         data: {
-            keyId: String(keyId),
-            wallet: String(beneficiary),
-            totalKeys: new Prisma.Decimal(totalKeys),
-            startLedger: Number(startLedger),
-            endLedger,
-            claimedKeys: new Prisma.Decimal(0),
-         },
-      });
-
-      sendSuccess(res, {
-         ...schedule,
-         totalKeys: Number(schedule.totalKeys),
-         claimedKeys: Number(schedule.claimedKeys),
-         vestingEndsAt: vestingEndsAt.toISOString(),
-      });
-   } catch (error) {
-      next(error);
-   }
-});
+);
 
 /**
  * POST /api/v1/admin/protocol/fee
  * Add a protocol fee update endpoint for admins (#839).
  */
-adminRouter.post('/protocol/fee', adminGuard, async (req: AdminRequest, res, next) => {
-   const { feeBps, treasuryAddress } = req.body || {};
+adminRouter.post(
+   '/protocol/fee',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const { feeBps, treasuryAddress } = req.body || {};
 
-   if (feeBps === undefined || feeBps === null || typeof feeBps !== 'number' || feeBps < 0 || feeBps > 1000) {
-      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'feeBps must be between 0 and 1000');
-      return;
+      if (
+         feeBps === undefined ||
+         feeBps === null ||
+         typeof feeBps !== 'number' ||
+         feeBps < 0 ||
+         feeBps > 1000
+      ) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'feeBps must be between 0 and 1000'
+         );
+         return;
+      }
+
+      if (!treasuryAddress || !isValidStellarAddress(treasuryAddress)) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'Invalid treasury address'
+         );
+         return;
+      }
+
+      try {
+         const executionNotBefore = new Date(Date.now() + 48 * 60 * 60 * 1000);
+         const proposalId = `tl-fee-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+         const proposal = await prisma.timelockProposal.create({
+            data: {
+               proposalId,
+               changeType: 'update_fee',
+               payload: { feeBps, treasuryAddress },
+               executionNotBefore,
+               status: 'pending',
+            },
+         });
+
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'PROTOCOL_FEE_PROPOSED',
+            targetEntity: 'TimelockProposal',
+            targetId: proposal.proposalId,
+            payload: {
+               feeBps,
+               treasuryAddress,
+               executionNotBefore: executionNotBefore.toISOString(),
+            },
+         });
+
+         sendSuccess(res, {
+            proposalId: proposal.proposalId,
+            executionNotBefore: proposal.executionNotBefore.toISOString(),
+         });
+
+         await invalidateProtocolStatusCache();
+      } catch (error) {
+         next(error);
+      }
    }
-
-   if (!treasuryAddress || !isValidStellarAddress(treasuryAddress)) {
-      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'Invalid treasury address');
-      return;
-   }
-
-   try {
-      const executionNotBefore = new Date(Date.now() + 48 * 60 * 60 * 1000);
-      const proposalId = `tl-fee-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-      const proposal = await prisma.timelockProposal.create({
-         data: {
-            proposalId,
-            changeType: 'update_fee',
-            payload: { feeBps, treasuryAddress },
-            executionNotBefore,
-            status: 'pending',
-         },
-      });
-
-      sendSuccess(res, {
-         proposalId: proposal.proposalId,
-         executionNotBefore: proposal.executionNotBefore.toISOString(),
-      });
-
-      await invalidateProtocolStatusCache();
-   } catch (error) {
-      next(error);
-   }
-});
+);
 
 // ── Oracle approved callers ───────────────────────────────────
 
@@ -230,6 +310,14 @@ adminRouter.post(
          const caller = await prisma.oracleCaller.create({
             data: { address, addedBy: req.adminId },
          });
+
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'ORACLE_CALLER_ADDED',
+            targetEntity: 'OracleCaller',
+            targetId: caller.id || caller.address,
+            payload: { address },
+         });
          sendSuccess(
             res,
             {
@@ -268,6 +356,14 @@ adminRouter.delete(
          // On-chain failure should return 502 before reaching this point.
 
          await prisma.oracleCaller.delete({ where: { address } });
+
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'ORACLE_CALLER_REMOVED',
+            targetEntity: 'OracleCaller',
+            targetId: address,
+            payload: { address },
+         });
          sendSuccess(res, { address, removed: true });
       } catch (error) {
          logger.error(
@@ -330,6 +426,19 @@ adminRouter.post(
          });
 
          // Store timelock-specific metadata via audit log
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'TIMELOCK_PROPOSED',
+            targetEntity: 'GovernanceProposal',
+            targetId: proposal.proposalId,
+            payload: {
+               proposalId: proposal.proposalId,
+               changeType,
+               payload,
+               executionNotBefore: executionNotBefore.toISOString(),
+            },
+         });
+
          await prisma.activity.create({
             data: {
                type: 'CREATOR_REGISTERED', // reuse existing type for timelock events
@@ -409,6 +518,14 @@ adminRouter.post(
             data: { status: 'closed', closedAt: new Date() },
          });
 
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'TIMELOCK_EXECUTED',
+            targetEntity: 'GovernanceProposal',
+            targetId: proposalId,
+            payload: { proposalId, action: 'executed' },
+         });
+
          await prisma.activity.create({
             data: {
                type: 'CREATOR_REGISTERED',
@@ -467,6 +584,14 @@ adminRouter.post(
 
          await prisma.governanceProposal.delete({
             where: { keyId_proposalId: { keyId: 'timelock', proposalId } },
+         });
+
+         await createAuditEntry({
+            actorWallet: req.adminId || 'unknown',
+            actionType: 'TIMELOCK_CANCELLED',
+            targetEntity: 'GovernanceProposal',
+            targetId: proposalId,
+            payload: { proposalId, action: 'cancelled' },
          });
 
          await prisma.activity.create({
@@ -582,6 +707,19 @@ adminRouter.post(
             data: { supplyCap: cap },
          });
 
+         await createAuditEntry({
+            actorWallet: req.user!.wallet,
+            actionType: 'SUPPLY_CAP_SET',
+            targetEntity: 'CreatorProfile',
+            targetId: keyId,
+            payload: {
+               keyId,
+               previousCap: creator.supplyCap,
+               newCap: cap,
+               circulatingSupply: circulating,
+            },
+         });
+
          await prisma.activity.create({
             data: {
                type: 'SUPPLY_CAP_SET',
@@ -643,6 +781,17 @@ adminRouter.post(
                keyId: creator.id,
                proposerWallet,
                status: 'pending',
+            },
+         });
+
+         await createAuditEntry({
+            actorWallet: proposerWallet,
+            actionType: 'TRADING_PAUSE_PROPOSED',
+            targetEntity: 'CreatorProfile',
+            targetId: creator.id,
+            payload: {
+               proposalId,
+               keyId: creator.id,
             },
          });
 
@@ -737,6 +886,17 @@ adminRouter.post(
          await prisma.creatorProfile.update({
             where: { id: creator.id },
             data: { tradingPaused: true },
+         });
+
+         await createAuditEntry({
+            actorWallet: approverWallet,
+            actionType: 'TRADING_PAUSE_APPROVED',
+            targetEntity: 'CreatorProfile',
+            targetId: creator.id,
+            payload: {
+               proposalId: proposal.proposalId,
+               keyId: creator.id,
+            },
          });
 
          // Record approval in activity
@@ -849,6 +1009,7 @@ adminRouter.post(
          await createAuditEntry({
             actorWallet: req.adminId || 'unknown',
             actionType: 'TIMELOCK_LOCKUP_PROPOSED',
+            targetEntity: 'TimelockProposal',
             targetId: proposalId,
             payload: {
                proposalId,
@@ -958,6 +1119,7 @@ adminRouter.post(
          await createAuditEntry({
             actorWallet: req.adminId || 'unknown',
             actionType: 'CIRCUIT_BREAKER_THRESHOLD_UPDATED',
+            targetEntity: 'CreatorProfile',
             targetId: creator.id,
             payload: {
                keyId: creator.id,

@@ -30,7 +30,7 @@ export async function submitTransaction(
          },
          'Stellar transaction submission failed'
       );
-      
+
       return {
          success: false,
          error_code: error.message || 'unknown_error',

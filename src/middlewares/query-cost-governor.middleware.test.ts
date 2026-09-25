@@ -19,28 +19,44 @@ jest.mock('../config', () => ({
 }));
 
 jest.mock('../utils/logger.utils', () => ({
-   logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
+   logger: {
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+   },
 }));
 
 function buildFakeRedis() {
    const store = new Map<string, Array<{ score: number; member: string }>>();
 
    return {
-      zremrangebyscore: jest.fn(async (key: string, _min: number, max: number) => {
-         const entries = store.get(key) ?? [];
-         store.set(
-            key,
-            entries.filter(entry => entry.score > max)
-         );
-      }),
-      zrange: jest.fn(async (key: string, _start: number, _stop: number, withScores?: string) => {
-         const entries = (store.get(key) ?? []).sort((a, b) => a.score - b.score);
-         if (withScores === 'WITHSCORES') {
-            const first = entries[0];
-            return first ? [first.member, String(first.score)] : [];
+      zremrangebyscore: jest.fn(
+         async (key: string, _min: number, max: number) => {
+            const entries = store.get(key) ?? [];
+            store.set(
+               key,
+               entries.filter(entry => entry.score > max)
+            );
          }
-         return entries.map(entry => entry.member);
-      }),
+      ),
+      zrange: jest.fn(
+         async (
+            key: string,
+            _start: number,
+            _stop: number,
+            withScores?: string
+         ) => {
+            const entries = (store.get(key) ?? []).sort(
+               (a, b) => a.score - b.score
+            );
+            if (withScores === 'WITHSCORES') {
+               const first = entries[0];
+               return first ? [first.member, String(first.score)] : [];
+            }
+            return entries.map(entry => entry.member);
+         }
+      ),
       zadd: jest.fn(async (key: string, score: number, member: string) => {
          const entries = store.get(key) ?? [];
          entries.push({ score, member });
@@ -64,7 +80,8 @@ jest.mock('../utils/jwt.utils', () => ({
       typeof header === 'string' && header.startsWith('Bearer ')
          ? header.slice(7)
          : undefined,
-   verifyWalletAccessToken: (token: string) => mockVerifyWalletAccessToken(token),
+   verifyWalletAccessToken: (token: string) =>
+      mockVerifyWalletAccessToken(token),
 }));
 
 import { getRedis } from '../utils/redis.utils';
@@ -169,7 +186,10 @@ describe('queryCostGovernor', () => {
       mockGetRedis.mockReturnValue(redis);
       const governor = queryCostGovernor();
 
-      const req = makeReq({ path: '/creators/abc/holders', query: { limit: '10' } });
+      const req = makeReq({
+         path: '/creators/abc/holders',
+         query: { limit: '10' },
+      });
       const res = makeRes();
       await governor(req, res, jest.fn());
 
@@ -229,7 +249,9 @@ describe('queryCostGovernor', () => {
       mockEnvConfig.INTERNAL_SERVICE_KEY = 'internal-secret';
       const governor = queryCostGovernor();
 
-      const req = makeReq({ headers: { 'x-internal-service-key': 'internal-secret' } });
+      const req = makeReq({
+         headers: { 'x-internal-service-key': 'internal-secret' },
+      });
       const res = makeRes();
       const next = jest.fn();
       await governor(req, res, next);
@@ -270,7 +292,9 @@ describe('queryCostGovernor', () => {
 
    it('fails open when a Redis command throws', async () => {
       const redis = buildFakeRedis();
-      redis.zremrangebyscore.mockRejectedValueOnce(new Error('connection reset'));
+      redis.zremrangebyscore.mockRejectedValueOnce(
+         new Error('connection reset')
+      );
       mockGetRedis.mockReturnValue(redis);
       const governor = queryCostGovernor();
 

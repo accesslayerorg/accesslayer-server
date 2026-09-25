@@ -29,11 +29,10 @@ describe('rate-limit-tracking.utils', () => {
       resetRateLimitState();
    });
 
-
-
    describe('checkRateLimitThresholds() — 80% threshold', () => {
       it('emits warn log when crossing 80% threshold', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -52,7 +51,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('emits log only once per window at 80% threshold', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -70,7 +70,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('emits log again in a new window', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset1 = new Date('2026-01-15T13:00:00Z');
          const windowReset2 = new Date('2026-01-15T13:15:00Z');
@@ -87,7 +88,8 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('checkRateLimitThresholds() — 100% threshold', () => {
       it('emits warn log when hitting 100% of limit', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -105,7 +107,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('emits log only once per window at 100% threshold', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -125,7 +128,8 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('checkRateLimitThresholds() — both thresholds', () => {
       it('emits both 80% and 100% logs when crossing 100%', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -140,7 +144,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('logs only 80% if request count goes from 80 to 99', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -154,7 +159,8 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('checkRateLimitThresholds() — log fields', () => {
       it('includes all five required fields in the warn log', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -169,7 +175,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('wallet_address is truncated in the log', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -181,7 +188,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('window_reset_at is in ISO format', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -220,7 +228,8 @@ describe('rate-limit-tracking.utils', () => {
       });
 
       it('handles fractional percentages (e.g., 80.5%)', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 1000;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
@@ -234,7 +243,8 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('cleanupRateLimitState()', () => {
       it('removes old entries from tracking state', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const oldWindow = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
          const recentWindow = new Date();
@@ -259,7 +269,8 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('resetRateLimitState()', () => {
       it('clears all tracking state', () => {
-         const wallet = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+         const wallet =
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
          const limit = 100;
          const windowReset = new Date();
 
@@ -277,8 +288,10 @@ describe('rate-limit-tracking.utils', () => {
 
    describe('different wallets tracked independently', () => {
       it('tracks different wallets separately', () => {
-         const wallet1 = 'GAAA1111111111111111111111111111111111111111111111111111';
-         const wallet2 = 'GBBB2222222222222222222222222222222222222222222222222222';
+         const wallet1 =
+            'GAAA1111111111111111111111111111111111111111111111111111';
+         const wallet2 =
+            'GBBB2222222222222222222222222222222222222222222222222222';
          const limit = 100;
          const windowReset = new Date();
 

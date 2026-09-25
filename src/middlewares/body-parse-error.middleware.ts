@@ -53,17 +53,13 @@ export const bodyParseErrorMiddleware = (
    });
 
    if (isEntityTooLarge) {
-      res
-         .status(413)
-         .json(
-            buildErrorResponse(ErrorCode.BAD_REQUEST, 'Request payload too large')
-         );
+      res.status(413).json(
+         buildErrorResponse(ErrorCode.BAD_REQUEST, 'Request payload too large')
+      );
       return;
    }
 
-   res
-      .status(400)
-      .json(
-         buildErrorResponse(ErrorCode.BAD_REQUEST, 'Invalid JSON in request body')
-      );
+   res.status(400).json(
+      buildErrorResponse(ErrorCode.BAD_REQUEST, 'Invalid JSON in request body')
+   );
 };

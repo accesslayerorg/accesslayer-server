@@ -32,7 +32,9 @@ describe('#630 Integration test: creator detail holder count after sequential bu
 
    it('holder count updates accurately across sequential buys and sells across multiple wallets', async () => {
       const ownershipStore = new Map<string, number>();
-      (prisma.creatorProfile.findFirst as any) = jest.fn(async () => ({ id: creatorId }));
+      (prisma.creatorProfile.findFirst as any) = jest.fn(async () => ({
+         id: creatorId,
+      }));
       (prisma.keyOwnership.count as any) = jest.fn(async (_args: any) => {
          let count = 0;
          for (const [key, bal] of ownershipStore.entries()) {
@@ -59,8 +61,6 @@ describe('#630 Integration test: creator detail holder count after sequential bu
          ownershipStore.set(key, newBal);
          return { ownerAddress, creatorId, balance: newBal } as any;
       });
-
-
 
       // Step 0: Initial state - 0 holders
       const req0 = makeReq(creatorId);

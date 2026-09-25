@@ -8,10 +8,7 @@ import {
    GetWhitelistStatusQuery,
    GetWhitelistStatusQuerySchema,
 } from './whitelist.schemas';
-import {
-   getWhitelistStatus,
-   creatorExists,
-} from './whitelist.service';
+import { getWhitelistStatus, creatorExists } from './whitelist.service';
 
 /**
  * GET /keys/:keyId/whitelist

@@ -112,10 +112,7 @@ describe('fetchCreatorHolders – cursor pagination with tied holder counts', ()
    });
 
    it('orders tied holders (same key count) alphabetically by wallet address', async () => {
-      const [holders] = await fetchCreatorHolders(
-         CREATOR_ID,
-         makeQuery(5, 0)
-      );
+      const [holders] = await fetchCreatorHolders(CREATOR_ID, makeQuery(5, 0));
 
       expect(holders.map(h => h.wallet_address)).toEqual(
          EXPECTED_ORDER.map(r => r.ownerAddress)
@@ -140,10 +137,7 @@ describe('fetchCreatorHolders – cursor pagination with tied holder counts', ()
    });
 
    it('applying the page-1 cursor (offset) returns the remaining holders on page 2 with no duplicates', async () => {
-      const [pageOne] = await fetchCreatorHolders(
-         CREATOR_ID,
-         makeQuery(3, 0)
-      );
+      const [pageOne] = await fetchCreatorHolders(CREATOR_ID, makeQuery(3, 0));
       const [pageTwo] = await fetchCreatorHolders(
          CREATOR_ID,
          makeQuery(3, pageOne.length)
@@ -172,10 +166,7 @@ describe('fetchCreatorHolders – cursor pagination with tied holder counts', ()
    it('a cursor derived from a tied row produces a stable, repeatable next page', async () => {
       // The last row of page 1 (W3) is itself part of the tied group, so the
       // "cursor" for page 2 is derived from a tied row.
-      const [pageOne] = await fetchCreatorHolders(
-         CREATOR_ID,
-         makeQuery(3, 0)
-      );
+      const [pageOne] = await fetchCreatorHolders(CREATOR_ID, makeQuery(3, 0));
       const lastRowOfPageOne = pageOne[pageOne.length - 1];
       expect(lastRowOfPageOne.wallet_address).toBe(W3.ownerAddress);
 

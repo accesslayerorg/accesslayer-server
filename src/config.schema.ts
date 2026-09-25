@@ -243,16 +243,13 @@ export const envSchema = z
       // Left unset by default, so no caller is trusted unless configured.
       TRACE_ID_TRUSTED_TOKEN: optionalNonEmptyString,
       INTERNAL_SERVICE_KEY: optionalNonEmptyString,
+      INDEXER_API_KEY: optionalNonEmptyString,
 
       // Query cost governor (#755): rolling per-wallet (or per-IP, when
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
       QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
-      QUERY_COST_WINDOW_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(60_000),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
       // JSON object overriding/extending the default route->cost map in
       // src/constants/query-cost.constants.ts, e.g.
       // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
@@ -303,7 +300,6 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
-
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {

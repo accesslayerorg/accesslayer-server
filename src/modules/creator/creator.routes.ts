@@ -1,11 +1,17 @@
 import { Router } from 'express';
-import { httpListCreators, httpGetCreatorStats } from '../creators/creators.controllers';
+import {
+   httpListCreators,
+   httpGetCreatorStats,
+} from '../creators/creators.controllers';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
 import { CREATOR_PUBLIC_ROUTE_NAMES } from '../../constants/creator-public-routes.constants';
 import { createCreatorReadMetricsMiddleware } from '../../utils/creator-read-metrics.utils';
 import { normalizeTrailingSlash } from '../../middlewares/trailing-slash-normalizer.middleware';
-import { requireKeyCreator, AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
+import {
+   requireKeyCreator,
+   AuthenticatedRequest,
+} from '../../middlewares/jwt-auth.middleware';
 import { sendError, sendSuccess } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import { prisma } from '../../utils/prisma.utils';
@@ -26,7 +32,9 @@ creatorsRouter.use(normalizeTrailingSlash);
 creatorsRouter.get(
    '/',
    createCreatorReadMetricsMiddleware('list'),
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.LIST]
+   ),
    httpListCreators
 );
 // 405 handler for /
@@ -43,7 +51,9 @@ creatorsRouter.all('/', (_req, res) => {
 creatorsRouter.get(
    '/:id/stats',
    createCreatorReadMetricsMiddleware('detail'),
-   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_STATS]
+   ),
    httpGetCreatorStats
 );
 // 405 handler for /:id/stats

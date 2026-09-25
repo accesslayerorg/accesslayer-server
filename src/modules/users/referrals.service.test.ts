@@ -40,10 +40,7 @@ import {
    httpGetWalletReferrals,
 } from './referrals.controller';
 import { buildReferralSummaryCacheKey } from './referrals.constants';
-import {
-   getReferralBreakdown,
-   getReferralSummary,
-} from './referrals.service';
+import { getReferralBreakdown, getReferralSummary } from './referrals.service';
 import { encodeCursor } from '../../utils/cursor.utils';
 
 const aggregate = prisma.referralEvent.aggregate as jest.Mock;
@@ -73,7 +70,7 @@ function makeRes() {
 
 describe('referrals.service', () => {
    beforeEach(() => {
-       store.clear();
+      store.clear();
       jest.clearAllMocks();
    });
 
@@ -95,7 +92,10 @@ describe('referrals.service', () => {
       });
 
       it('returns zeros when the wallet has no referrals', async () => {
-         aggregate.mockResolvedValue({ _sum: { amount: null }, _count: { _all: 0 } });
+         aggregate.mockResolvedValue({
+            _sum: { amount: null },
+            _count: { _all: 0 },
+         });
 
          const summary = await getReferralSummary(WALLET);
 
@@ -157,9 +157,13 @@ describe('referrals.service', () => {
                where: {
                   walletAddress: WALLET,
                   OR: [
-                     { createdAt: { lt: new Date('2026-08-20T10:00:00.000Z') } },
                      {
-                        createdAt: { lte: new Date('2026-08-20T10:00:00.000Z') },
+                        createdAt: { lt: new Date('2026-08-20T10:00:00.000Z') },
+                     },
+                     {
+                        createdAt: {
+                           lte: new Date('2026-08-20T10:00:00.000Z'),
+                        },
                         id: { lt: 'evt-1' },
                      },
                   ],
@@ -200,7 +204,10 @@ describe('httpGetWalletReferrals controller', () => {
    });
 
    it('caches a freshly computed summary with a 2-minute TTL', async () => {
-      aggregate.mockResolvedValue({ _sum: { amount: '9' }, _count: { _all: 2 } });
+      aggregate.mockResolvedValue({
+         _sum: { amount: '9' },
+         _count: { _all: 2 },
+      });
       findMany.mockResolvedValue([]);
 
       await httpGetWalletReferrals(makeReq(), makeRes());
@@ -211,7 +218,10 @@ describe('httpGetWalletReferrals controller', () => {
    });
 
    it('rejects an invalid cursor with a validation error', async () => {
-      aggregate.mockResolvedValue({ _sum: { amount: null }, _count: { _all: 0 } });
+      aggregate.mockResolvedValue({
+         _sum: { amount: null },
+         _count: { _all: 0 },
+      });
       findMany.mockResolvedValue([]);
 
       const res = makeRes();

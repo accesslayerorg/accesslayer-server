@@ -19,7 +19,10 @@
  */
 
 import { guardChainEvent, ChainEvent } from '../../utils/indexer-dedupe.utils';
-import { processIndexerChainEvents, IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
+import {
+   processIndexerChainEvents,
+   IndexerChainEvent,
+} from '../../utils/indexer-event-processor.utils';
 
 jest.mock('../../utils/logger.utils', () => ({
    logger: { info: jest.fn(), debug: jest.fn(), warn: jest.fn() },
@@ -31,16 +34,20 @@ jest.mock('../../utils/logger.utils', () => ({
 
 function makeChainEvent(overrides: Partial<ChainEvent> = {}): ChainEvent {
    return {
-      txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      txHash:
+         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       eventIndex: 0,
       ledger: 1000,
       ...overrides,
    };
 }
 
-function makeIndexerEvent(overrides: Partial<IndexerChainEvent> = {}): IndexerChainEvent {
+function makeIndexerEvent(
+   overrides: Partial<IndexerChainEvent> = {}
+): IndexerChainEvent {
    return {
-      txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      txHash:
+         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       eventIndex: 0,
       eventType: 'KEY_BOUGHT',
       ledger: 1000,
@@ -56,13 +63,19 @@ describe('guardChainEvent()', () => {
    describe('AC-1 — new (txHash, eventIndex) pair is processed', () => {
       it('returns { skipped: false } for a brand-new event', () => {
          const seen = new Set<string>();
-         const result = guardChainEvent(makeChainEvent({ txHash: '0xaaa', eventIndex: 0 }), seen);
+         const result = guardChainEvent(
+            makeChainEvent({ txHash: '0xaaa', eventIndex: 0 }),
+            seen
+         );
          expect(result.skipped).toBe(false);
       });
 
       it('adds the composite key to the seen set on first encounter', () => {
          const seen = new Set<string>();
-         guardChainEvent(makeChainEvent({ txHash: '0xbbb', eventIndex: 2 }), seen);
+         guardChainEvent(
+            makeChainEvent({ txHash: '0xbbb', eventIndex: 2 }),
+            seen
+         );
          expect(seen.has('0xbbb:2')).toBe(true);
       });
 
@@ -120,8 +133,14 @@ describe('guardChainEvent()', () => {
    describe('AC-3 — same txHash with different eventIndex are two distinct events', () => {
       it('returns { skipped: false } for both when eventIndex differs', () => {
          const seen = new Set<string>();
-         const r0 = guardChainEvent(makeChainEvent({ txHash: '0x111', eventIndex: 0 }), seen);
-         const r1 = guardChainEvent(makeChainEvent({ txHash: '0x111', eventIndex: 1 }), seen);
+         const r0 = guardChainEvent(
+            makeChainEvent({ txHash: '0x111', eventIndex: 0 }),
+            seen
+         );
+         const r1 = guardChainEvent(
+            makeChainEvent({ txHash: '0x111', eventIndex: 1 }),
+            seen
+         );
 
          expect(r0.skipped).toBe(false);
          expect(r1.skipped).toBe(false);
@@ -130,8 +149,14 @@ describe('guardChainEvent()', () => {
 
       it('returns { skipped: false } for events with different txHash but same eventIndex', () => {
          const seen = new Set<string>();
-         const rA = guardChainEvent(makeChainEvent({ txHash: '0xAAA', eventIndex: 3 }), seen);
-         const rB = guardChainEvent(makeChainEvent({ txHash: '0xBBB', eventIndex: 3 }), seen);
+         const rA = guardChainEvent(
+            makeChainEvent({ txHash: '0xAAA', eventIndex: 3 }),
+            seen
+         );
+         const rB = guardChainEvent(
+            makeChainEvent({ txHash: '0xBBB', eventIndex: 3 }),
+            seen
+         );
 
          expect(rA.skipped).toBe(false);
          expect(rB.skipped).toBe(false);
@@ -139,8 +164,14 @@ describe('guardChainEvent()', () => {
 
       it('adds two separate keys when txHash is the same but eventIndex differs', () => {
          const seen = new Set<string>();
-         guardChainEvent(makeChainEvent({ txHash: 'shared', eventIndex: 0 }), seen);
-         guardChainEvent(makeChainEvent({ txHash: 'shared', eventIndex: 1 }), seen);
+         guardChainEvent(
+            makeChainEvent({ txHash: 'shared', eventIndex: 0 }),
+            seen
+         );
+         guardChainEvent(
+            makeChainEvent({ txHash: 'shared', eventIndex: 1 }),
+            seen
+         );
 
          expect(seen.has('shared:0')).toBe(true);
          expect(seen.has('shared:1')).toBe(true);
@@ -150,8 +181,14 @@ describe('guardChainEvent()', () => {
    describe('composite key correctness', () => {
       it('deduplication key is case-sensitive for txHash', () => {
          const seen = new Set<string>();
-         const rUpper = guardChainEvent(makeChainEvent({ txHash: '0xABC', eventIndex: 0 }), seen);
-         const rLower = guardChainEvent(makeChainEvent({ txHash: '0xabc', eventIndex: 0 }), seen);
+         const rUpper = guardChainEvent(
+            makeChainEvent({ txHash: '0xABC', eventIndex: 0 }),
+            seen
+         );
+         const rLower = guardChainEvent(
+            makeChainEvent({ txHash: '0xabc', eventIndex: 0 }),
+            seen
+         );
 
          expect(rUpper.skipped).toBe(false);
          expect(rLower.skipped).toBe(false); // different case = different key
@@ -159,16 +196,28 @@ describe('guardChainEvent()', () => {
 
       it('treats eventIndex 0 correctly — does not confuse falsy value with absent key', () => {
          const seen = new Set<string>();
-         guardChainEvent(makeChainEvent({ txHash: '0xzero', eventIndex: 0 }), seen);
-         const second = guardChainEvent(makeChainEvent({ txHash: '0xzero', eventIndex: 0 }), seen);
+         guardChainEvent(
+            makeChainEvent({ txHash: '0xzero', eventIndex: 0 }),
+            seen
+         );
+         const second = guardChainEvent(
+            makeChainEvent({ txHash: '0xzero', eventIndex: 0 }),
+            seen
+         );
 
          expect(second.skipped).toBe(true);
       });
 
       it('handles very large eventIndex values without key collision', () => {
          const seen = new Set<string>();
-         const r1 = guardChainEvent(makeChainEvent({ txHash: 'tx1', eventIndex: 999999999 }), seen);
-         const r2 = guardChainEvent(makeChainEvent({ txHash: 'tx1', eventIndex: 999999999 }), seen);
+         const r1 = guardChainEvent(
+            makeChainEvent({ txHash: 'tx1', eventIndex: 999999999 }),
+            seen
+         );
+         const r2 = guardChainEvent(
+            makeChainEvent({ txHash: 'tx1', eventIndex: 999999999 }),
+            seen
+         );
 
          expect(r1.skipped).toBe(false);
          expect(r2.skipped).toBe(true);
@@ -202,13 +251,17 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
          const handler = jest.fn().mockResolvedValue(undefined);
          await processIndexerChainEvents(
             [makeIndexerEvent({ txHash: '0xnew', eventIndex: 0 })],
-            handler,
+            handler
          );
          expect(handler).toHaveBeenCalledTimes(1);
       });
 
       it('passes the full event object to the handler unchanged', async () => {
-         const event = makeIndexerEvent({ txHash: '0xfull', eventIndex: 7, ledger: 9999 });
+         const event = makeIndexerEvent({
+            txHash: '0xfull',
+            eventIndex: 7,
+            ledger: 9999,
+         });
          const handler = jest.fn().mockResolvedValue(undefined);
          await processIndexerChainEvents([event], handler);
          expect(handler).toHaveBeenCalledWith(event);
@@ -218,7 +271,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
          const db: IndexerChainEvent[] = [];
          await processIndexerChainEvents(
             [makeIndexerEvent({ txHash: '0xwrite', eventIndex: 0 })],
-            async e => { db.push(e); },
+            async e => {
+               db.push(e);
+            }
          );
          expect(db).toHaveLength(1);
          expect(db[0].txHash).toBe('0xwrite');
@@ -233,7 +288,7 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0xdup', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0xdup', eventIndex: 0 }),
             ],
-            handler,
+            handler
          );
          expect(handler).toHaveBeenCalledTimes(1);
       });
@@ -246,7 +301,7 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: 'tx-triple', eventIndex: 0 }),
                makeIndexerEvent({ txHash: 'tx-triple', eventIndex: 0 }),
             ],
-            handler,
+            handler
          );
          expect(handler).toHaveBeenCalledTimes(1);
       });
@@ -260,11 +315,17 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0x555', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0x555', eventIndex: 1 }),
             ],
-            handler,
+            handler
          );
          expect(handler).toHaveBeenCalledTimes(2);
-         expect(handler).toHaveBeenNthCalledWith(1, expect.objectContaining({ eventIndex: 0 }));
-         expect(handler).toHaveBeenNthCalledWith(2, expect.objectContaining({ eventIndex: 1 }));
+         expect(handler).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ eventIndex: 0 })
+         );
+         expect(handler).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ eventIndex: 1 })
+         );
       });
 
       it('writes two DB records when txHash is shared but eventIndex differs', async () => {
@@ -274,7 +335,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0x666', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0x666', eventIndex: 1 }),
             ],
-            async e => { db.push(e); },
+            async e => {
+               db.push(e);
+            }
          );
          expect(db).toHaveLength(2);
          expect(db.map(r => r.eventIndex).sort()).toEqual([0, 1]);
@@ -289,7 +352,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0x777', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0x777', eventIndex: 0 }),
             ],
-            async () => { balanceUpdate(); },
+            async () => {
+               balanceUpdate();
+            }
          );
          expect(balanceUpdate).toHaveBeenCalledTimes(1);
       });
@@ -301,7 +366,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0x888', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0x888', eventIndex: 0 }),
             ],
-            async () => { priceSnapshot(); },
+            async () => {
+               priceSnapshot();
+            }
          );
          expect(priceSnapshot).toHaveBeenCalledTimes(1);
       });
@@ -314,7 +381,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: 'only-one', eventIndex: 0 }),
                makeIndexerEvent({ txHash: 'only-one', eventIndex: 0 }),
             ],
-            async () => { sideEffect(); },
+            async () => {
+               sideEffect();
+            }
          );
          expect(sideEffect).toHaveBeenCalledTimes(1);
       });
@@ -328,7 +397,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: '0x999', eventIndex: 0 }),
                makeIndexerEvent({ txHash: '0x999', eventIndex: 0 }),
             ],
-            async e => { db.push(e); },
+            async e => {
+               db.push(e);
+            }
          );
          expect(db).toHaveLength(1);
       });
@@ -344,7 +415,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: 'tb', eventIndex: 0 }), // duplicate
                makeIndexerEvent({ txHash: 'ta', eventIndex: 1 }), // duplicate
             ],
-            async e => { db.push(e); },
+            async e => {
+               db.push(e);
+            }
          );
          // 6 events in, 3 unique pairs → exactly 3 records in DB
          expect(db).toHaveLength(3);
@@ -352,12 +425,14 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
 
       it('does not grow the DB record count on any subsequent duplicate submission', async () => {
          const db: IndexerChainEvent[] = [];
-         const handler = async (e: IndexerChainEvent) => { db.push(e); };
+         const handler = async (e: IndexerChainEvent) => {
+            db.push(e);
+         };
 
          // First batch: admit the event
          await processIndexerChainEvents(
             [makeIndexerEvent({ txHash: 'stable', eventIndex: 0 })],
-            handler,
+            handler
          );
          expect(db).toHaveLength(1);
 
@@ -365,7 +440,7 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
          // so this tests the per-batch guard, not a cross-batch persistent store.
          await processIndexerChainEvents(
             [makeIndexerEvent({ txHash: 'different', eventIndex: 0 })],
-            handler,
+            handler
          );
          expect(db).toHaveLength(2); // second is a new pair, so it is admitted
       });
@@ -382,7 +457,7 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: 'tx3', eventIndex: 0 }),
                makeIndexerEvent({ txHash: 'tx2', eventIndex: 0 }), // dup
             ],
-            handler,
+            handler
          );
          expect(handler).toHaveBeenCalledTimes(3);
       });
@@ -396,7 +471,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
                makeIndexerEvent({ txHash: 'txZ', eventIndex: 0 }), // dup
                makeIndexerEvent({ txHash: 'txM', eventIndex: 0 }),
             ],
-            async e => { processed.push(`${e.txHash}:${e.eventIndex}`); },
+            async e => {
+               processed.push(`${e.txHash}:${e.eventIndex}`);
+            }
          );
          expect(processed).toEqual(['txZ:0', 'txA:0', 'txM:0']);
       });
@@ -405,7 +482,9 @@ describe('processIndexerChainEvents() — dedup guard in the batch pipeline', ()
    describe('edge cases', () => {
       it('handles an empty batch without error and without calling the handler', async () => {
          const handler = jest.fn();
-         await expect(processIndexerChainEvents([], handler)).resolves.not.toThrow();
+         await expect(
+            processIndexerChainEvents([], handler)
+         ).resolves.not.toThrow();
          expect(handler).not.toHaveBeenCalled();
       });
 

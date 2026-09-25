@@ -7,27 +7,27 @@ const SIGNATURE_HEADER_PATTERN = /^sha256=([0-9a-f]+)$/i;
  * the raw request payload using a constant-time comparison.
  */
 export function verifyWebhookSignature(
-  payload: Buffer,
-  header: string,
-  secret: string
+   payload: Buffer,
+   header: string,
+   secret: string
 ): boolean {
-  if (!header) return false;
+   if (!header) return false;
 
-  const match = SIGNATURE_HEADER_PATTERN.exec(header.trim());
-  if (!match) return false;
+   const match = SIGNATURE_HEADER_PATTERN.exec(header.trim());
+   if (!match) return false;
 
-  const providedSignature = match[1];
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+   const providedSignature = match[1];
+   const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
 
-  const providedBuffer = Buffer.from(providedSignature, 'utf8');
-  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+   const providedBuffer = Buffer.from(providedSignature, 'utf8');
+   const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
 
-  if (providedBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
+   if (providedBuffer.length !== expectedBuffer.length) {
+      return false;
+   }
 
-  return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+   return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }

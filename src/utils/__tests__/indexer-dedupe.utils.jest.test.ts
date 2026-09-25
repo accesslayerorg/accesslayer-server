@@ -94,7 +94,12 @@ describe('indexer-dedupe.utils — dedupeChainEvents()', () => {
          const deduped = dedupeChainEvents(events);
 
          expect(deduped).toHaveLength(4);
-         expect(deduped.map(e => e.txHash)).toEqual(['tx1', 'tx2', 'tx3', 'tx4']);
+         expect(deduped.map(e => e.txHash)).toEqual([
+            'tx1',
+            'tx2',
+            'tx3',
+            'tx4',
+         ]);
       });
 
       it('preserves order of first occurrences', () => {

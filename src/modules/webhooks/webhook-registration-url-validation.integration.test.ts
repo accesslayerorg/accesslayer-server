@@ -57,7 +57,9 @@ beforeAll(async () => {
 afterAll(async () => {
    await prisma.webhookEvent.deleteMany({ where: { webhook: { creatorId } } });
    await prisma.webhook.deleteMany({ where: { creatorId } });
-   await prisma.creatorProfile.delete({ where: { id: creatorId } }).catch(() => {});
+   await prisma.creatorProfile
+      .delete({ where: { id: creatorId } })
+      .catch(() => {});
    await prisma.stellarWallet
       .delete({ where: { address: walletAddress } })
       .catch(() => {});

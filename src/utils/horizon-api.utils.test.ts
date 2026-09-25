@@ -1,9 +1,6 @@
 // Unit tests for #681 — structured logs for outbound Horizon API calls.
 
-import {
-   horizonRequest,
-   normalizeHorizonEndpoint,
-} from './horizon-api.utils';
+import { horizonRequest, normalizeHorizonEndpoint } from './horizon-api.utils';
 import { logger } from './logger.utils';
 import { RpcTimeoutError, withRpcTimeout } from './rpc-timeout.utils';
 

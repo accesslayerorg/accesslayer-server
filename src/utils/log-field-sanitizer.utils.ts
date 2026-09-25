@@ -106,17 +106,24 @@ export function sanitizeLogObject(obj: unknown): unknown {
  * Masks sensitive fields in an object by replacing their values with [REDACTED].
  * Works recursively for nested objects. Does not mutate the original object.
  */
-export function maskFields(obj: Record<string, unknown>, fields: string[]): Record<string, unknown> {
-  const fieldSet = new Set(fields);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (fieldSet.has(key)) {
-      result[key] = '[REDACTED]';
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      result[key] = maskFields(value as Record<string, unknown>, fields);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
+export function maskFields(
+   obj: Record<string, unknown>,
+   fields: string[]
+): Record<string, unknown> {
+   const fieldSet = new Set(fields);
+   const result: Record<string, unknown> = {};
+   for (const [key, value] of Object.entries(obj)) {
+      if (fieldSet.has(key)) {
+         result[key] = '[REDACTED]';
+      } else if (
+         typeof value === 'object' &&
+         value !== null &&
+         !Array.isArray(value)
+      ) {
+         result[key] = maskFields(value as Record<string, unknown>, fields);
+      } else {
+         result[key] = value;
+      }
+   }
+   return result;
 }

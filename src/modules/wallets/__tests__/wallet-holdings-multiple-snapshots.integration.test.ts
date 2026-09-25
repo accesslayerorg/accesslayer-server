@@ -75,7 +75,9 @@ describe('GET /api/v1/wallets/:address/holdings - multiple price snapshot update
       // Second snapshot update
       await upsertCreatorPriceSnapshot(prisma, creatorId, 250n);
 
-      res = await supertest(app).get(`/api/v1/wallets/${WALLET_ADDRESS}/holdings`);
+      res = await supertest(app).get(
+         `/api/v1/wallets/${WALLET_ADDRESS}/holdings`
+      );
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       items = res.body.data.items;
@@ -86,7 +88,9 @@ describe('GET /api/v1/wallets/:address/holdings - multiple price snapshot update
       // Third snapshot update
       await upsertCreatorPriceSnapshot(prisma, creatorId, 300n);
 
-      res = await supertest(app).get(`/api/v1/wallets/${WALLET_ADDRESS}/holdings`);
+      res = await supertest(app).get(
+         `/api/v1/wallets/${WALLET_ADDRESS}/holdings`
+      );
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       items = res.body.data.items;

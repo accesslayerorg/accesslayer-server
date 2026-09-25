@@ -2,7 +2,11 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { CreatorHoldersQueryType } from './creator-holders.schemas';
-import { encodeCursor, decodeCursor, CursorChecksumError } from '../../utils/cursor.utils';
+import {
+   encodeCursor,
+   decodeCursor,
+   CursorChecksumError,
+} from '../../utils/cursor.utils';
 
 /**
  * Public-facing holder record returned by the holders endpoint.

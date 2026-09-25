@@ -1,10 +1,10 @@
-import { prisma } from "../../utils/prisma.utils";
+import { prisma } from '../../utils/prisma.utils';
 import {
    WalletActivityItem,
    WalletActivityQueryType,
    UnifiedActivityType,
-} from "./wallet-activity.schemas";
-import { decodeCursor, encodeCursor } from "../../utils/cursor.utils";
+} from './wallet-activity.schemas';
+import { decodeCursor, encodeCursor } from '../../utils/cursor.utils';
 
 export interface ActivityFeedCursorPayload {
    id: string;
@@ -35,32 +35,32 @@ export async function fetchWalletActivity(
 
    // 2. Fetch from legacy Activity table
    const activityTypeMap: Record<string, UnifiedActivityType> = {
-      KEY_BOUGHT: "buy",
-      KEY_SOLD: "sell",
-      KEY_BURNED: "burn",
-      KEY_TRANSFERRED_IN: "transfer_in",
-      KEY_TRANSFERRED_OUT: "transfer_out",
-      DIVIDEND_DISTRIBUTED: "dividend",
+      KEY_BOUGHT: 'buy',
+      KEY_SOLD: 'sell',
+      KEY_BURNED: 'burn',
+      KEY_TRANSFERRED_IN: 'transfer_in',
+      KEY_TRANSFERRED_OUT: 'transfer_out',
+      DIVIDEND_DISTRIBUTED: 'dividend',
    };
 
    const typeFilter =
-      type === "buy"
-         ? "KEY_BOUGHT"
-         : type === "sell"
-         ? "KEY_SOLD"
-         : type === "burn"
-         ? "KEY_BURNED"
-         : type === "transfer_in"
-         ? "KEY_TRANSFERRED_IN"
-         : type === "transfer_out"
-         ? "KEY_TRANSFERRED_OUT"
-         : type === "dividend"
-         ? "DIVIDEND_DISTRIBUTED"
-         : undefined;
+      type === 'buy'
+         ? 'KEY_BOUGHT'
+         : type === 'sell'
+           ? 'KEY_SOLD'
+           : type === 'burn'
+             ? 'KEY_BURNED'
+             : type === 'transfer_in'
+               ? 'KEY_TRANSFERRED_IN'
+               : type === 'transfer_out'
+                 ? 'KEY_TRANSFERRED_OUT'
+                 : type === 'dividend'
+                   ? 'DIVIDEND_DISTRIBUTED'
+                   : undefined;
 
    const activityWhere: any = {
       actor: address,
-      type: typeFilter ? typeFilter : { in: ["KEY_BOUGHT", "KEY_SOLD"] },
+      type: typeFilter ? typeFilter : { in: ['KEY_BOUGHT', 'KEY_SOLD'] },
    };
    if (creator_id) {
       activityWhere.creatorId = creator_id;
@@ -86,14 +86,14 @@ export async function fetchWalletActivity(
       prisma.activityLog?.findMany
          ? prisma.activityLog.findMany({
               where: logWhere,
-              orderBy: [{ timestamp: "desc" }, { id: "desc" }],
+              orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
               take: limit * 3,
            })
          : Promise.resolve([]),
       prisma.activity?.findMany
          ? prisma.activity.findMany({
               where: activityWhere,
-              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+              orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
               skip: prismaCursor ? 1 : offset,
               take: limit,
               ...(prismaCursor ? { cursor: prismaCursor } : {}),
@@ -106,12 +106,12 @@ export async function fetchWalletActivity(
 
    // Also query dividend claims for the address if dividend type matches
    let dividendClaimRows: any[] = [];
-   if (!type || type === "dividend") {
+   if (!type || type === 'dividend') {
       try {
          dividendClaimRows = await prisma.dividendClaim.findMany({
             where: { recipientAddress: address },
             include: { distribution: true },
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: limit * 3,
          });
       } catch (_e) {
@@ -127,7 +127,7 @@ export async function fetchWalletActivity(
    for (const row of logRows) {
       if (seenIds.has(row.id)) continue;
       seenIds.add(row.id);
-      const kId = row.keyId || "";
+      const kId = row.keyId || '';
       unifiedItems.push({
          id: row.id,
          type: row.type as UnifiedActivityType,
@@ -148,12 +148,14 @@ export async function fetchWalletActivity(
       const mappedType = activityTypeMap[row.type];
       if (!mappedType) continue;
       if (type && mappedType !== type) continue;
-      const rowId = row.id || `legacy-act-${i}-${row.createdAt ? new Date(row.createdAt).getTime() : Date.now()}`;
+      const rowId =
+         row.id ||
+         `legacy-act-${i}-${row.createdAt ? new Date(row.createdAt).getTime() : Date.now()}`;
       if (seenIds.has(rowId)) continue;
       seenIds.add(rowId);
 
       const payload = (row.payload as Record<string, any>) || {};
-      const kId = row.creatorId || payload.keyId || "";
+      const kId = row.creatorId || payload.keyId || '';
       unifiedItems.push({
          id: rowId,
          type: mappedType,
@@ -166,7 +168,9 @@ export async function fetchWalletActivity(
          txHash: payload.txHash || null,
          price_at_trade: payload.price_at_trade,
          fee_paid: payload.fee_paid,
-         ledger_sequence: payload.ledger_sequence ? Number(payload.ledger_sequence) : null,
+         ledger_sequence: payload.ledger_sequence
+            ? Number(payload.ledger_sequence)
+            : null,
       });
    }
 
@@ -176,10 +180,10 @@ export async function fetchWalletActivity(
       if (seenIds.has(id)) continue;
       seenIds.add(id);
 
-      const kId = claim.distribution?.creatorId || "";
+      const kId = claim.distribution?.creatorId || '';
       unifiedItems.push({
          id,
-         type: "dividend",
+         type: 'dividend',
          keyId: kId,
          creator_id: kId,
          creatorName: null,
@@ -194,8 +198,12 @@ export async function fetchWalletActivity(
    const missingCreatorIds: string[] = [
       ...new Set(
          unifiedItems
-            .filter((item) => (!item.creatorName || !item.creator_handle) && Boolean(item.keyId))
-            .map((item) => item.keyId as string)
+            .filter(
+               item =>
+                  (!item.creatorName || !item.creator_handle) &&
+                  Boolean(item.keyId)
+            )
+            .map(item => item.keyId as string)
       ),
    ];
 
@@ -234,7 +242,9 @@ export async function fetchWalletActivity(
       try {
          const decoded = decodeCursor<ActivityFeedCursorPayload>(cursor);
          if (decoded && decoded.id) {
-            const foundIdx = unifiedItems.findIndex((item) => item.id === decoded.id);
+            const foundIdx = unifiedItems.findIndex(
+               item => item.id === decoded.id
+            );
             if (foundIdx !== -1) {
                startIndex = foundIdx + 1;
             }
@@ -248,11 +258,10 @@ export async function fetchWalletActivity(
 
    const pageItems = unifiedItems.slice(startIndex, startIndex + limit);
    const lastItem = pageItems[pageItems.length - 1];
-   const hasMore = startIndex + limit < unifiedItems.length || total > startIndex + limit;
+   const hasMore =
+      startIndex + limit < unifiedItems.length || total > startIndex + limit;
    const nextCursor =
-      hasMore && lastItem
-         ? encodeCursor({ id: lastItem.id })
-         : null;
+      hasMore && lastItem ? encodeCursor({ id: lastItem.id }) : null;
 
    return [pageItems, total, nextCursor];
 }

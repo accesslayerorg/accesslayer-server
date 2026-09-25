@@ -2,7 +2,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { WalletFollowingParamsSchema } from './wallet-following.schemas';
 import { fetchWalletFollowing } from './wallet-following.service';
-import { sendSuccess, sendValidationError } from '../../utils/api-response.utils';
+import {
+   sendSuccess,
+   sendValidationError,
+} from '../../utils/api-response.utils';
 
 export async function httpGetWalletFollowing(
    req: Request,

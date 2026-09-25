@@ -20,7 +20,10 @@ export function buildCanonicalParamString(
    return Object.entries(params)
       .filter((entry): entry is [string, unknown] => entry[1] !== undefined)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}:${typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}`)
+      .map(
+         ([key, value]) =>
+            `${key}:${typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}`
+      )
       .join(':');
 }
 
@@ -36,9 +39,14 @@ import { createHash } from 'crypto';
  * @param params - Object containing query parameter key-value pairs
  * @returns A fixed-length string cache key
  */
-export function buildCacheKey(base: string, params: Record<string, unknown>): string {
-    const canonical = buildCanonicalParamString(params);
-    const hash = createHash('sha256').update(canonical).digest('hex').slice(0, 16);
-    return `${base}:${hash}`;
+export function buildCacheKey(
+   base: string,
+   params: Record<string, unknown>
+): string {
+   const canonical = buildCanonicalParamString(params);
+   const hash = createHash('sha256')
+      .update(canonical)
+      .digest('hex')
+      .slice(0, 16);
+   return `${base}:${hash}`;
 }
-
