@@ -194,6 +194,34 @@ export const envSchema = z
          )
          .default('https://soroban-testnet.stellar.org'),
 
+      // Soroban contract interaction service (#899): submission retries with
+      // exponential backoff, confirmation polling, and resolution events.
+      SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      SOROBAN_SUBMIT_BASE_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1000),
+      SOROBAN_SUBMIT_MAX_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(15000),
+      SOROBAN_POLL_INTERVAL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5000),
+      SOROBAN_POLL_TIMEOUT_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120000),
+
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
          .string()

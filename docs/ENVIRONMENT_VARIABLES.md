@@ -88,6 +88,11 @@ Complete reference for all server configuration environment variables.
 | `STELLAR_NETWORK`         | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet` |
 | `STELLAR_HORIZON_URL`     | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                  |
 | `STELLAR_SOROBAN_RPC_URL` | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                          |
+| `SOROBAN_SUBMIT_MAX_ATTEMPTS` | number | No       | `3`     | Max submission attempts for transient failures (#899)  |
+| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number | No       | `1000`  | Exponential backoff base delay between submit attempts (#899) |
+| `SOROBAN_SUBMIT_MAX_DELAY_MS` | number | No       | `15000` | Cap for submit retry backoff delays (#899)             |
+| `SOROBAN_POLL_INTERVAL_MS`    | number | No       | `5000`  | Delay between transaction confirmation polls (#899)    |
+| `SOROBAN_POLL_TIMEOUT_MS`     | number | No       | `120000`| Total polling budget per transaction confirmation (#899) |
 
 ---
 
