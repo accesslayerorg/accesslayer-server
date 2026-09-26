@@ -17,6 +17,7 @@ export const CREATOR_DETAIL_DEFAULT_SELECT = {
    isVerified: true,
    tradingPaused: true,
    currentMilestone: true,
+   relaunchCount: true,
    createdAt: true,
    updatedAt: true,
    priceSnapshot: {

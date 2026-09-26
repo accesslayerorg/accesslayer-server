@@ -35,6 +35,7 @@ model CreatorProfile {
   cooldownLedgers   Int      @default(0)
   perks             Json?
   followersCount    Int      @default(0)
+  relaunchCount     Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -45,8 +46,22 @@ model CreatorProfile {
   posts            CreatorPost[]
   followers        Follow[]
   walletFollowers   WalletCreatorFollow[]
+  relaunches       CreatorKeyRelaunch[]
 
   @@index([userId])
+}
+
+model CreatorKeyRelaunch {
+  id               String   @id @default(cuid())
+  creatorId        String
+  ledger           Int
+  txHash           String
+  timestamp        DateTime
+  configDiff       Json?
+
+  creator          CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
 }
 model PendingKeyPurchase {
   id             String   @id @default(cuid())
