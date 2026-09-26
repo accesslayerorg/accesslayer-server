@@ -243,16 +243,13 @@ export const envSchema = z
       // Left unset by default, so no caller is trusted unless configured.
       TRACE_ID_TRUSTED_TOKEN: optionalNonEmptyString,
       INTERNAL_SERVICE_KEY: optionalNonEmptyString,
+      INDEXER_API_KEY: optionalNonEmptyString,
 
       // Query cost governor (#755): rolling per-wallet (or per-IP, when
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
       QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
-      QUERY_COST_WINDOW_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(60_000),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
       // JSON object overriding/extending the default route->cost map in
       // src/constants/query-cost.constants.ts, e.g.
       // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
@@ -303,23 +300,6 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
-
-      // Oracle price feed staleness threshold and cache TTL.
-      // ORACLE_STALENESS_THRESHOLD_MS: how old an oracle price can be before
-      //   the response includes `isStale: true`. Default: 5 minutes.
-      // ORACLE_CACHE_TTL_MS: how long the oracle-price response is cached in
-      //   Redis. Should match the typical oracle update frequency. Default: 30 s.
-      ORACLE_STALENESS_THRESHOLD_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(300_000),
-      ORACLE_CACHE_TTL_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(30_000),
-
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {

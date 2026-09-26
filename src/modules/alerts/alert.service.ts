@@ -106,8 +106,6 @@ function toNumber(value: number | string | { toString(): string }): number {
    return typeof value === 'number' ? value : Number(value.toString());
 }
 
-
-
 function maskCallbackUrl(callbackUrl: string): string {
    try {
       const url = new URL(callbackUrl);
@@ -138,8 +136,12 @@ async function deliverPriceAlertWebhook(
 ): Promise<void> {
    const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
    const maskedUrl = maskCallbackUrl(alert.callbackUrl);
-   const threshold = toNumber(alert.targetPrice as string | number | { toString(): string });
-   const triggeredPrice = toNumber(payload.current_price as string | number | { toString(): string });
+   const threshold = toNumber(
+      alert.targetPrice as string | number | { toString(): string }
+   );
+   const triggeredPrice = toNumber(
+      payload.current_price as string | number | { toString(): string }
+   );
 
    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const attemptedAt = new Date();

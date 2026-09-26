@@ -40,7 +40,12 @@ const TRADE_BEFORE_1 = {
    type: 'KEY_BOUGHT',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '1', price_at_trade: '100', fee_paid: '1', ledger_sequence: 1 },
+   payload: {
+      amount: '1',
+      price_at_trade: '100',
+      fee_paid: '1',
+      ledger_sequence: 1,
+   },
    createdAt: new Date('2026-01-05T00:00:00Z'),
 };
 const TRADE_BEFORE_2 = {
@@ -48,7 +53,12 @@ const TRADE_BEFORE_2 = {
    type: 'KEY_SOLD',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '2', price_at_trade: '110', fee_paid: '1', ledger_sequence: 2 },
+   payload: {
+      amount: '2',
+      price_at_trade: '110',
+      fee_paid: '1',
+      ledger_sequence: 2,
+   },
    createdAt: new Date('2026-01-09T23:59:59Z'),
 };
 
@@ -58,7 +68,12 @@ const TRADE_INSIDE = {
    type: 'KEY_BOUGHT',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '3', price_at_trade: '150', fee_paid: '2', ledger_sequence: 3 },
+   payload: {
+      amount: '3',
+      price_at_trade: '150',
+      fee_paid: '2',
+      ledger_sequence: 3,
+   },
    createdAt: new Date('2026-01-15T12:00:00Z'),
 };
 
@@ -68,7 +83,12 @@ const TRADE_AFTER_1 = {
    type: 'KEY_BOUGHT',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '4', price_at_trade: '200', fee_paid: '3', ledger_sequence: 4 },
+   payload: {
+      amount: '4',
+      price_at_trade: '200',
+      fee_paid: '3',
+      ledger_sequence: 4,
+   },
    createdAt: new Date('2026-01-20T00:00:01Z'),
 };
 const TRADE_AFTER_2 = {
@@ -76,7 +96,12 @@ const TRADE_AFTER_2 = {
    type: 'KEY_SOLD',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '5', price_at_trade: '210', fee_paid: '3', ledger_sequence: 5 },
+   payload: {
+      amount: '5',
+      price_at_trade: '210',
+      fee_paid: '3',
+      ledger_sequence: 5,
+   },
    createdAt: new Date('2026-01-25T00:00:00Z'),
 };
 
@@ -86,7 +111,12 @@ const TRADE_ON_FROM = {
    type: 'KEY_BOUGHT',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '6', price_at_trade: '120', fee_paid: '1', ledger_sequence: 6 },
+   payload: {
+      amount: '6',
+      price_at_trade: '120',
+      fee_paid: '1',
+      ledger_sequence: 6,
+   },
    createdAt: new Date('2026-01-10T00:00:00Z'),
 };
 const TRADE_ON_TO = {
@@ -94,7 +124,12 @@ const TRADE_ON_TO = {
    type: 'KEY_SOLD',
    actor: WALLET_ADDRESS,
    creatorId: CREATOR_ID,
-   payload: { amount: '7', price_at_trade: '180', fee_paid: '2', ledger_sequence: 7 },
+   payload: {
+      amount: '7',
+      price_at_trade: '180',
+      fee_paid: '2',
+      ledger_sequence: 7,
+   },
    createdAt: new Date('2026-01-20T00:00:00Z'),
 };
 

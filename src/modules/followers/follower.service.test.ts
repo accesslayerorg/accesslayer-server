@@ -17,8 +17,21 @@ jest.mock('../../utils/logger.utils', () => ({
 
 // In-memory mock for Prisma to test CRDT logic isolated from real DB
 jest.mock('../../utils/prisma.utils', () => {
-   const followEvents = new Map<string, { followerWallet: string; creatorWallet: string; direction: string }>();
-   const shards = new Map<string, { id: string; creatorWallet: string; nodeId: string; increments: bigint; decrements: bigint; updatedAt: Date }>();
+   const followEvents = new Map<
+      string,
+      { followerWallet: string; creatorWallet: string; direction: string }
+   >();
+   const shards = new Map<
+      string,
+      {
+         id: string;
+         creatorWallet: string;
+         nodeId: string;
+         increments: bigint;
+         decrements: bigint;
+         updatedAt: Date;
+      }
+   >();
 
    return {
       prisma: {
@@ -27,18 +40,24 @@ jest.mock('../../utils/prisma.utils', () => {
                const key = `${where.followerWallet_creatorWallet.followerWallet}:${where.followerWallet_creatorWallet.creatorWallet}`;
                return followEvents.get(key) || null;
             }),
-            upsert: jest.fn().mockImplementation(async ({ where, update, create }) => {
-               const key = `${where.followerWallet_creatorWallet.followerWallet}:${where.followerWallet_creatorWallet.creatorWallet}`;
-               const existing = followEvents.get(key);
-               const direction = existing ? update.direction : create.direction;
-               const record = {
-                  followerWallet: where.followerWallet_creatorWallet.followerWallet,
-                  creatorWallet: where.followerWallet_creatorWallet.creatorWallet,
-                  direction,
-               };
-               followEvents.set(key, record);
-               return record;
-            }),
+            upsert: jest
+               .fn()
+               .mockImplementation(async ({ where, update, create }) => {
+                  const key = `${where.followerWallet_creatorWallet.followerWallet}:${where.followerWallet_creatorWallet.creatorWallet}`;
+                  const existing = followEvents.get(key);
+                  const direction = existing
+                     ? update.direction
+                     : create.direction;
+                  const record = {
+                     followerWallet:
+                        where.followerWallet_creatorWallet.followerWallet,
+                     creatorWallet:
+                        where.followerWallet_creatorWallet.creatorWallet,
+                     direction,
+                  };
+                  followEvents.set(key, record);
+                  return record;
+               }),
             update: jest.fn().mockImplementation(async ({ where, data }) => {
                const key = `${where.followerWallet_creatorWallet.followerWallet}:${where.followerWallet_creatorWallet.creatorWallet}`;
                const existing = followEvents.get(key);
@@ -67,7 +86,9 @@ jest.mock('../../utils/prisma.utils', () => {
                   s => s.creatorWallet === where.creatorWallet
                );
                if (where.updatedAt?.gte) {
-                  return list.find(s => s.updatedAt >= where.updatedAt.gte) || null;
+                  return (
+                     list.find(s => s.updatedAt >= where.updatedAt.gte) || null
+                  );
                }
                return list[0] || null;
             }),
@@ -122,8 +143,12 @@ jest.mock('../../utils/prisma.utils', () => {
                return { count: 1 };
             }),
          },
-         $executeRaw: jest.fn().mockRejectedValue(new Error('raw query fallback')),
-         $transaction: jest.fn().mockImplementation(async (actions) => Promise.all(actions)),
+         $executeRaw: jest
+            .fn()
+            .mockRejectedValue(new Error('raw query fallback')),
+         $transaction: jest
+            .fn()
+            .mockImplementation(async actions => Promise.all(actions)),
          _reset: () => {
             followEvents.clear();
             shards.clear();
@@ -136,7 +161,11 @@ jest.mock('../../utils/redis.utils', () => {
    const redisStore = new Map<string, string>();
    return {
       getRedis: () => ({
-         get: jest.fn().mockImplementation(async (key: string) => redisStore.get(key) ?? null),
+         get: jest
+            .fn()
+            .mockImplementation(
+               async (key: string) => redisStore.get(key) ?? null
+            ),
          set: jest.fn().mockImplementation(async (key: string, val: string) => {
             redisStore.set(key, val);
             return 'OK';

@@ -2,9 +2,16 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import type { StellarSignedRequest } from '../../middlewares/stellar-signature.middleware';
 import { ErrorCode } from '../../constants/error.constants';
-import { sendError, sendSuccess, sendForbidden } from '../../utils/api-response.utils';
+import {
+   sendError,
+   sendSuccess,
+   sendForbidden,
+} from '../../utils/api-response.utils';
 import { buyGateway } from './buy.service';
-import { assertTradingActive, TradingPausedError } from '../keys/key-trading.service';
+import {
+   assertTradingActive,
+   TradingPausedError,
+} from '../keys/key-trading.service';
 import {
    assertPositionNotFrozen,
    PositionFrozenError,

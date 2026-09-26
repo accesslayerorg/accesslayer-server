@@ -141,13 +141,7 @@ describe('GET /api/v1/wallets/:address/following', () => {
       await prisma.user.deleteMany({
          where: {
             id: {
-               in: [
-                  userIdA,
-                  userIdB,
-                  userIdC,
-                  userIdWalletA,
-                  userIdWalletB,
-               ],
+               in: [userIdA, userIdB, userIdC, userIdWalletA, userIdWalletB],
             },
          },
       });
@@ -192,9 +186,7 @@ describe('GET /api/v1/wallets/:address/following', () => {
       expect(res.body.data).toHaveLength(3);
 
       const ids = res.body.data.map((c: any) => c.id).sort();
-      expect(ids).toEqual(
-         [creatorAId, creatorBId, creatorCId].sort()
-      );
+      expect(ids).toEqual([creatorAId, creatorBId, creatorCId].sort());
    });
 
    // ── Empty array for wallet with no follows ───────────────────────────────

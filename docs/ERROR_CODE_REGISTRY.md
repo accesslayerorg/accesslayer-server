@@ -285,6 +285,7 @@ Error codes are defined in `src/constants/error.constants.ts` and should be trea
 ```
 
 ---
+
 ### TOKEN_EXPIRY_TAMPERED
 
 **HTTP Status:** 401 Unauthorized

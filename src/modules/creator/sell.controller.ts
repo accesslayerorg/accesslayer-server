@@ -18,7 +18,10 @@ import {
 } from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
 import { prisma } from '../../utils/prisma.utils';
-import { assertTradingActive, TradingPausedError } from '../keys/key-trading.service';
+import {
+   assertTradingActive,
+   TradingPausedError,
+} from '../keys/key-trading.service';
 import {
    assertPositionNotFrozen,
    PositionFrozenError,
@@ -247,10 +250,7 @@ export async function httpSellCreatorKey(
          sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
          return;
       }
-      logger.error(
-         { error, keyId, wallet: walletAddress },
-         'Key sell failed'
-      );
+      logger.error({ error, keyId, wallet: walletAddress }, 'Key sell failed');
       throw error;
    }
 }

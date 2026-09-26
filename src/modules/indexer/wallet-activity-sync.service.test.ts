@@ -5,19 +5,20 @@ import {
    ActivitySyncJob,
    TransferChainEvent,
    BurnChainEvent,
-} from "./wallet-activity-sync.service";
-import { prisma } from "../../utils/prisma.utils";
+} from './wallet-activity-sync.service';
+import { prisma } from '../../utils/prisma.utils';
 
-describe("Wallet Activity Sync Job (#818)", () => {
-   const SENDER = "GA2C5RFPE6GCKMY3US5PAB6UZLKIGAHWKXX2GIOVPWW27DD6W4KZYLMI";
-   const RECIPIENT = "GBTESTWALLETADDRESSFORACCESSLAYERTESTINGSTELLARCONTRACT123";
-   const BURNER = "GCBURNERWALLETADDRESSFORACCESSLAYERTESTINGSTELLAR12345678";
+describe('Wallet Activity Sync Job (#818)', () => {
+   const SENDER = 'GA2C5RFPE6GCKMY3US5PAB6UZLKIGAHWKXX2GIOVPWW27DD6W4KZYLMI';
+   const RECIPIENT =
+      'GBTESTWALLETADDRESSFORACCESSLAYERTESTINGSTELLARCONTRACT123';
+   const BURNER = 'GCBURNERWALLETADDRESSFORACCESSLAYERTESTINGSTELLAR12345678';
 
    afterEach(() => {
       jest.restoreAllMocks();
    });
 
-   it("keys_transferred event creates two activity records (sender and recipient)", async () => {
+   it('keys_transferred event creates two activity records (sender and recipient)', async () => {
       const upsertMock = jest.fn().mockImplementation(async (args: any) => {
          return {
             id: `log-${args.create.actor}`,
@@ -27,13 +28,13 @@ describe("Wallet Activity Sync Job (#818)", () => {
       (prisma.activityLog as any).upsert = upsertMock;
 
       const event: TransferChainEvent = {
-         eventType: "keys_transferred",
-         txHash: "0xabcdef1234567890",
+         eventType: 'keys_transferred',
+         txHash: '0xabcdef1234567890',
          fromAddress: SENDER,
          toAddress: RECIPIENT,
-         keyId: "creator-101",
+         keyId: 'creator-101',
          amount: 25,
-         creatorName: "SuperCreator",
+         creatorName: 'SuperCreator',
       };
 
       const result = await processTransferEvent(event);
@@ -45,10 +46,10 @@ describe("Wallet Activity Sync Job (#818)", () => {
       expect(upsertMock).toHaveBeenCalledWith(
          expect.objectContaining({
             create: expect.objectContaining({
-               type: "transfer_out",
+               type: 'transfer_out',
                actor: SENDER,
                target: RECIPIENT,
-               keyId: "creator-101",
+               keyId: 'creator-101',
                amount: 25,
             }),
          })
@@ -58,17 +59,17 @@ describe("Wallet Activity Sync Job (#818)", () => {
       expect(upsertMock).toHaveBeenCalledWith(
          expect.objectContaining({
             create: expect.objectContaining({
-               type: "transfer_in",
+               type: 'transfer_in',
                actor: RECIPIENT,
                target: SENDER,
-               keyId: "creator-101",
+               keyId: 'creator-101',
                amount: 25,
             }),
          })
       );
    });
 
-   it("keys_burned event creates one activity record for the burner", async () => {
+   it('keys_burned event creates one activity record for the burner', async () => {
       const upsertMock = jest.fn().mockImplementation(async (args: any) => {
          return {
             id: `log-burn-${args.create.actor}`,
@@ -78,12 +79,12 @@ describe("Wallet Activity Sync Job (#818)", () => {
       (prisma.activityLog as any).upsert = upsertMock;
 
       const event: BurnChainEvent = {
-         eventType: "keys_burned",
-         txHash: "0xburnhash12345678",
+         eventType: 'keys_burned',
+         txHash: '0xburnhash12345678',
          burnerAddress: BURNER,
-         keyId: "creator-202",
+         keyId: 'creator-202',
          amount: 10,
-         creatorName: "FireCreator",
+         creatorName: 'FireCreator',
       };
 
       const result = await processBurnEvent(event);
@@ -93,47 +94,51 @@ describe("Wallet Activity Sync Job (#818)", () => {
       expect(upsertMock).toHaveBeenCalledWith(
          expect.objectContaining({
             create: expect.objectContaining({
-               type: "burn",
+               type: 'burn',
                actor: BURNER,
-               keyId: "creator-202",
+               keyId: 'creator-202',
                amount: 10,
-               txHash: "0xburnhash12345678",
+               txHash: '0xburnhash12345678',
             }),
          })
       );
    });
 
-   it("retries failed database writes up to 3 times before skipping", async () => {
+   it('retries failed database writes up to 3 times before skipping', async () => {
       let callCount = 0;
       const failingFn = jest.fn().mockImplementation(async () => {
          callCount++;
          if (callCount < 3) {
-            throw new Error("Temporary DB lock");
+            throw new Error('Temporary DB lock');
          }
-         return "success";
+         return 'success';
       });
 
       const res = await executeWithRetry(failingFn, 3, 10);
-      expect(res).toBe("success");
+      expect(res).toBe('success');
       expect(callCount).toBe(3);
 
       // Test complete exhaustion
-      const permanentFail = jest.fn().mockRejectedValue(new Error("Fatal DB error"));
-      await expect(executeWithRetry(permanentFail, 3, 10)).rejects.toThrow("Fatal DB error");
+      const permanentFail = jest
+         .fn()
+         .mockRejectedValue(new Error('Fatal DB error'));
+      await expect(executeWithRetry(permanentFail, 3, 10)).rejects.toThrow(
+         'Fatal DB error'
+      );
       expect(permanentFail).toHaveBeenCalledTimes(3);
    });
 
-   it("handles duplicate events idempotently via txHash", async () => {
+   it('handles duplicate events idempotently via txHash', async () => {
       const upsertMock = jest.fn().mockResolvedValue({
-         id: "existing-log-1",
+         id: 'existing-log-1',
       });
       (prisma.activityLog as any).upsert = upsertMock;
 
       const event: BurnChainEvent = {
-         eventType: "keys_burned",
-         txHash: "0xduplicate123",
+         eventType: 'keys_burned',
+         txHash: '0xduplicate123',
          burnerAddress: BURNER,
-         keyId: "creator-303",
+         keyId: 'creator-303',
          amount: 5,
       };
 
@@ -146,16 +151,16 @@ describe("Wallet Activity Sync Job (#818)", () => {
          expect.objectContaining({
             where: {
                txHash_actor_type: {
-                  txHash: "0xduplicate123",
+                  txHash: '0xduplicate123',
                   actor: BURNER,
-                  type: "burn",
+                  type: 'burn',
                },
             },
          })
       );
    });
 
-   it("reconnects automatically if the Horizon stream drops", () => {
+   it('reconnects automatically if the Horizon stream drops', () => {
       jest.useFakeTimers();
 
       const job = new ActivitySyncJob({ reconnectIntervalMs: 1000 });

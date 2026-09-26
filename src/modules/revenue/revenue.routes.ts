@@ -1,10 +1,7 @@
 // src/modules/revenue/revenue.routes.ts
 // Claim endpoints for the protocol revenue distribution pool (#883).
 import { Router } from 'express';
-import {
-   sendError,
-   sendSuccess,
-} from '../../utils/api-response.utils';
+import { sendError, sendSuccess } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import {
    requireJwtAuth,

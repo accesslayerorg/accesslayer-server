@@ -71,31 +71,29 @@ describe('GET /api/v1/creators — search no-results state', () => {
 
    it('does not include searchTerm when search returns results (non-zero total)', async () => {
       const now = new Date();
-      jest
-         .spyOn(creatorsUtils, 'fetchCreatorList')
-         .mockResolvedValue([
-            [
-               {
-                  id: '1',
-                  userId: 'u1',
-                  handle: 'found1',
-                  displayName: 'Found One',
-                  isVerified: false,
-                  createdAt: now,
-                  updatedAt: now,
-               } as any,
-               {
-                  id: '2',
-                  userId: 'u2',
-                  handle: 'found2',
-                  displayName: 'Found Two',
-                  isVerified: true,
-                  createdAt: now,
-                  updatedAt: now,
-               } as any,
-            ],
-            2,
-         ]);
+      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([
+         [
+            {
+               id: '1',
+               userId: 'u1',
+               handle: 'found1',
+               displayName: 'Found One',
+               isVerified: false,
+               createdAt: now,
+               updatedAt: now,
+            } as any,
+            {
+               id: '2',
+               userId: 'u2',
+               handle: 'found2',
+               displayName: 'Found Two',
+               isVerified: true,
+               createdAt: now,
+               updatedAt: now,
+            } as any,
+         ],
+         2,
+      ]);
 
       const req = makeReq({ search: 'found' });
       const res = makeRes();

@@ -10,7 +10,9 @@ export const GetWhitelistStatusQuerySchema = z.object({
       .max(100, 'Invalid wallet address format'),
 });
 
-export type GetWhitelistStatusQuery = z.infer<typeof GetWhitelistStatusQuerySchema>;
+export type GetWhitelistStatusQuery = z.infer<
+   typeof GetWhitelistStatusQuerySchema
+>;
 
 /**
  * Response schema for whitelist status.
@@ -20,4 +22,6 @@ export const WhitelistStatusResponseSchema = z.object({
    isApproved: z.boolean(),
 });
 
-export type WhitelistStatusResponse = z.infer<typeof WhitelistStatusResponseSchema>;
+export type WhitelistStatusResponse = z.infer<
+   typeof WhitelistStatusResponseSchema
+>;

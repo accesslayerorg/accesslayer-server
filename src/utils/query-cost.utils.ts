@@ -72,7 +72,11 @@ export function compileCostMap(
       for (const [key, value] of Object.entries(
          parsed as Record<string, unknown>
       )) {
-         if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+         if (
+            typeof value !== 'number' ||
+            !Number.isFinite(value) ||
+            value <= 0
+         ) {
             throw new Error(
                `QUERY_COST_MAP_JSON entry "${key}" must map to a positive number`
             );

@@ -29,7 +29,15 @@ dividendRouter.get(
  * POST /keys/:keyId/dividends or /creator/:keyId/dividends
  * Submits distribute_dividend and records the distribution.
  */
-dividendRouter.post("/:keyId/dividends", requireJwtAuth, httpDistributeDividend);
-dividendRouter.post("/creator/:keyId/dividends", requireJwtAuth, httpDistributeDividend);
+dividendRouter.post(
+   '/:keyId/dividends',
+   requireJwtAuth,
+   httpDistributeDividend
+);
+dividendRouter.post(
+   '/creator/:keyId/dividends',
+   requireJwtAuth,
+   httpDistributeDividend
+);
 
 export default dividendRouter;

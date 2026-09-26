@@ -1,6 +1,11 @@
 import { queryTradesPage, TradeRecord } from '../trade-pagination.utils';
 
-function makeTrade(id: string, ledger: number, txHash: string, creatorId = 'creator-1'): TradeRecord {
+function makeTrade(
+   id: string,
+   ledger: number,
+   txHash: string,
+   creatorId = 'creator-1'
+): TradeRecord {
    return {
       id,
       buyer: 'GBUYER123',
@@ -16,26 +21,42 @@ function makeTrade(id: string, ledger: number, txHash: string, creatorId = 'crea
 function makeMockDb(allTrades: TradeRecord[]) {
    return {
       trade: {
-         findMany: jest.fn(async ({ where, _orderBy, take }: { where: any; _orderBy?: any[]; take: number }) => {
-            let filtered = allTrades.filter(t => t.creatorId === where.creatorId);
+         findMany: jest.fn(
+            async ({
+               where,
+               _orderBy,
+               take,
+            }: {
+               where: any;
+               _orderBy?: any[];
+               take: number;
+            }) => {
+               let filtered = allTrades.filter(
+                  t => t.creatorId === where.creatorId
+               );
 
-            if (where.OR) {
-               const [ltLedger, eqLedgerLtHash] = where.OR;
-               filtered = filtered.filter(t => {
-                  if (t.ledger < ltLedger.ledger.lt) return true;
-                  if (t.ledger === eqLedgerLtHash.ledger && t.txHash < eqLedgerLtHash.txHash.lt) return true;
-                  return false;
+               if (where.OR) {
+                  const [ltLedger, eqLedgerLtHash] = where.OR;
+                  filtered = filtered.filter(t => {
+                     if (t.ledger < ltLedger.ledger.lt) return true;
+                     if (
+                        t.ledger === eqLedgerLtHash.ledger &&
+                        t.txHash < eqLedgerLtHash.txHash.lt
+                     )
+                        return true;
+                     return false;
+                  });
+               }
+
+               // Order by ledger desc, txHash desc
+               filtered.sort((a, b) => {
+                  if (b.ledger !== a.ledger) return b.ledger - a.ledger;
+                  return b.txHash.localeCompare(a.txHash);
                });
+
+               return filtered.slice(0, take);
             }
-
-            // Order by ledger desc, txHash desc
-            filtered.sort((a, b) => {
-               if (b.ledger !== a.ledger) return b.ledger - a.ledger;
-               return b.txHash.localeCompare(a.txHash);
-            });
-
-            return filtered.slice(0, take);
-         }),
+         ),
       },
    };
 }

@@ -133,7 +133,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
    try {
       const CACHE_KEY = 'protocol:stats';
       const CACHE_TTL = 300; // 5 minutes
-      
+
       const cached = await cacheGetJson(CACHE_KEY);
       if (cached) {
          sendSuccess(res, cached);
@@ -162,7 +162,9 @@ router.get('/stats', async (_req: Request, res: Response) => {
       const totalHolders = Number(uniqueHoldersRes[0]?.count || 0);
 
       // 4. Current 24h Window (trades & volume)
-      const currentWindowRes = await prisma.$queryRaw<[{ count: bigint; sum: string | null }]>`
+      const currentWindowRes = await prisma.$queryRaw<
+         [{ count: bigint; sum: string | null }]
+      >`
          SELECT COUNT(*) as count, SUM(price::numeric) as sum 
          FROM "Trade" 
          WHERE "timestamp" >= ${oneDayAgo}
@@ -171,7 +173,9 @@ router.get('/stats', async (_req: Request, res: Response) => {
       const volume24h = currentWindowRes[0]?.sum || '0';
 
       // 5. Previous 24h Window (trades & volume)
-      const previousWindowRes = await prisma.$queryRaw<[{ count: bigint; sum: string | null }]>`
+      const previousWindowRes = await prisma.$queryRaw<
+         [{ count: bigint; sum: string | null }]
+      >`
          SELECT COUNT(*) as count, SUM(price::numeric) as sum 
          FROM "Trade" 
          WHERE "timestamp" >= ${twoDaysAgo} AND "timestamp" < ${oneDayAgo}
@@ -186,7 +190,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
       };
 
       const trades24hChange = calcChange(trades24h, prevTrades24h);
-      
+
       const vCurr = Number(volume24h);
       const vPrev = Number(prevVolume24h);
       const volume24hChange = calcChange(vCurr, vPrev);

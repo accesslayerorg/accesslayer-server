@@ -1,7 +1,10 @@
 import { AsyncController } from '../../types/auth.types';
 import { getRedis } from '../../utils/redis.utils';
 import { buildQueryCostRedisKey } from '../../utils/query-cost.utils';
-import { sendSuccess, sendValidationError } from '../../utils/api-response.utils';
+import {
+   sendSuccess,
+   sendValidationError,
+} from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
 
 /**

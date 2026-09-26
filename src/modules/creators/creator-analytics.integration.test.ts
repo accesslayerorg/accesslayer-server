@@ -111,8 +111,11 @@ describe('#708 Integration test: creator analytics endpoint', () => {
    const creatorId = 'creator-analytics-1';
 
    // In-memory trade store
-   const tradeStore: Array<{ buyer: string; creatorId: string; price: string }> =
-      [];
+   const tradeStore: Array<{
+      buyer: string;
+      creatorId: string;
+      price: string;
+   }> = [];
 
    beforeEach(() => {
       jest.clearAllMocks();
@@ -236,9 +239,8 @@ describe('#708 Integration test: creator analytics endpoint', () => {
 
          const data = res.json.mock.calls[0][0].data;
          // 100 + 200 + 300 + 400 + 500 = 1500
-         const expectedVolume = (
-            100n + 200n + 300n + 400n + 500n
-         ) * 10_000_000n;
+         const expectedVolume =
+            (100n + 200n + 300n + 400n + 500n) * 10_000_000n;
          expect(data.buyVolume).toBe(expectedVolume.toString());
          expect(data.uniqueBuyers).toBe(1);
       });

@@ -316,7 +316,8 @@ describe('dispatchWebhookEvent', () => {
       );
       const exhaustionLogCalls = (logger.error as jest.Mock).mock.calls.filter(
          ([, message]) =>
-            message === 'Webhook delivery exhausted all retries, flagged as failing'
+            message ===
+            'Webhook delivery exhausted all retries, flagged as failing'
       );
       expect(exhaustionLogCalls).toHaveLength(1);
 
@@ -335,7 +336,11 @@ describe('dispatchWebhookEvent', () => {
       expect(exhaustionLogFields.callbackUrl).toBeUndefined();
 
       // Verify attempt log was emitted for every retry attempt (success: false, response_status: null)
-      for (let attempt = 1; attempt <= envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS; attempt++) {
+      for (
+         let attempt = 1;
+         attempt <= envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
+         attempt++
+      ) {
          expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                webhook_id: 'wh-1',

@@ -65,11 +65,23 @@ describe('creator-analytics.service', () => {
          activityFindMany.mockResolvedValue(trades);
 
          const firstBuys = [
-            { actor: 'A', _min: { createdAt: new Date(`${TODAY}T09:00:00.000Z`) } },
-            { actor: 'B', _min: { createdAt: new Date(`${TODAY}T11:00:00.000Z`) } },
-            { actor: 'D', _min: { createdAt: new Date(`${FIRST_BUY_DAY}T09:00:00.000Z`) } },
+            {
+               actor: 'A',
+               _min: { createdAt: new Date(`${TODAY}T09:00:00.000Z`) },
+            },
+            {
+               actor: 'B',
+               _min: { createdAt: new Date(`${TODAY}T11:00:00.000Z`) },
+            },
+            {
+               actor: 'D',
+               _min: { createdAt: new Date(`${FIRST_BUY_DAY}T09:00:00.000Z`) },
+            },
             // E bought before the 30-day window: must NOT be a newHolder.
-            { actor: 'E', _min: { createdAt: new Date('2026-07-01T09:00:00.000Z') } },
+            {
+               actor: 'E',
+               _min: { createdAt: new Date('2026-07-01T09:00:00.000Z') },
+            },
          ];
          activityGroupBy.mockResolvedValue(firstBuys);
       }
@@ -78,7 +90,7 @@ describe('creator-analytics.service', () => {
          series: { date: string }[],
          date: string
       ): Record<string, number> {
-         const point = series.find((entry) => entry.date === date);
+         const point = series.find(entry => entry.date === date);
          expect(point).toBeDefined();
          return point as unknown as Record<string, number>;
       }

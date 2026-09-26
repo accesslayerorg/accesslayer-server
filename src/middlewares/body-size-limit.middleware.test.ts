@@ -14,7 +14,7 @@ function loadWithEnvConfig(envConfig: {
 }) {
    jest.resetModules();
    jest.doMock('../config', () => ({ envConfig }));
-    
+
    return require('./body-size-limit.middleware') as typeof import('./body-size-limit.middleware');
 }
 

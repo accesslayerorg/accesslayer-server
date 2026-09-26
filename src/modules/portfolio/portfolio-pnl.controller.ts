@@ -3,7 +3,11 @@
 // live bonding-curve price on every request (explicit no-store, no Redis).
 
 import { Response } from 'express';
-import { ErrorCode, sendError, sendSuccess } from '../../utils/api-response.utils';
+import {
+   ErrorCode,
+   sendError,
+   sendSuccess,
+} from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
 import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
 import { getPortfolioPnl } from './portfolio-pnl.service';
@@ -33,6 +37,11 @@ export async function httpGetPortfolioPnl(
          },
          'Failed to retrieve portfolio P&L'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve portfolio P&L');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve portfolio P&L'
+      );
    }
 }

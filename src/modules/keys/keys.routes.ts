@@ -16,13 +16,6 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
-import {
-   getOraclePrice,
-   KeyNotFoundError as OracleKeyNotFoundError,
-   OraclePriceNotFoundError,
-} from './oracle-price.service';
-import { cacheControl } from '../../middlewares/cache-control.middleware';
-import { envConfig } from '../../config';
 import { getKeyProposals } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
 import {
@@ -41,10 +34,15 @@ import {
    adminGuard,
    AdminRequest,
 } from '../../middlewares/admin-guard.middleware';
+import { requireInternalApiKey } from '../../middlewares/internal-api-key.middleware';
+import { httpRegisterKey } from './key-registration.controller';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
-import { creatorProfileExists, getCreatorProfile } from '../creator/creator-profile.service';
+import {
+   creatorProfileExists,
+   getCreatorProfile,
+} from '../creator/creator-profile.service';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
@@ -197,61 +195,11 @@ router.get('/search', async (req, res, next) => {
 });
 
 /**
- * GET /api/v1/keys/:keyId/oracle-price
- *
- * Returns the current oracle price (synced from OraclePriceUpdated contract
- * events), the bonding-curve spot price, the deviation percentage, and a
- * staleness flag when the oracle feed has not been updated within
- * ORACLE_STALENESS_THRESHOLD_MS.
- *
- * Response is cached in Redis for ORACLE_CACHE_TTL_MS to match the expected
- * oracle update frequency without hammering the database.
- *
- * 404 is returned when either the key or the oracle price row does not exist.
+ * POST /api/v1/keys/register
+ * Accepts newly deployed key contract address from factory indexer and registers it.
+ * Restricted to internal indexer service via API key auth.
  */
-router.get(
-   '/:keyId/oracle-price',
-   cacheControl({
-      maxAge: Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000),
-      type: 'public',
-      mustRevalidate: true,
-   }),
-   async (req, res, next) => {
-      const keyId = String(req.params.keyId);
-      const cacheKey = `oracle-price:${keyId}`;
-      try {
-         const cached = await cacheGetJson<ReturnType<typeof getOraclePrice> extends Promise<infer T> ? T : never>(cacheKey);
-         if (cached !== null) {
-            return sendSuccess(res, cached);
-         }
-
-         const result = await getOraclePrice(keyId);
-
-         // Cache for ORACLE_CACHE_TTL_MS (converted to whole seconds).
-         const ttlSeconds = Math.max(
-            1,
-            Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000)
-         );
-         await cacheSetJson(cacheKey, result, ttlSeconds);
-
-         sendSuccess(res, result);
-      } catch (error) {
-         if (
-            error instanceof OracleKeyNotFoundError ||
-            error instanceof OraclePriceNotFoundError
-         ) {
-            sendNotFound(
-               res,
-               error instanceof OraclePriceNotFoundError
-                  ? 'Oracle price'
-                  : 'Key'
-            );
-            return;
-         }
-         next(error);
-      }
-   }
-);
+router.post('/register', requireInternalApiKey, httpRegisterKey);
 
 /**
  * GET /api/v1/keys/:keyId
@@ -790,7 +738,10 @@ router.post(
             sendForbidden(res, error.message);
             return;
          }
-         logger.error({ error, keyId: req.params.keyId }, 'Key deprecate failed');
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key deprecate failed'
+         );
          next(error);
       }
    }

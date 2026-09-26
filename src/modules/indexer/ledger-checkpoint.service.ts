@@ -161,7 +161,9 @@ export async function validateBatchIntegrity(
  */
 export async function deleteLedgerRecords(ledger: number): Promise<number> {
    const result = await prisma.$transaction([
-      prisma.activity.deleteMany({ where: { payload: { path: ['ledger_sequence'], equals: ledger } } }),
+      prisma.activity.deleteMany({
+         where: { payload: { path: ['ledger_sequence'], equals: ledger } },
+      }),
       prisma.keyOwnership.deleteMany({ where: {} }),
    ]);
 

@@ -32,9 +32,9 @@ Complete reference for all server configuration environment variables.
 
 ## Protocol
 
-| Variable                          | Type   | Required | Default | Description                                                                                       |
-| --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
+| Variable                          | Type   | Required | Default   | Description                                                                                                                                                                                               |
+| --------------------------------- | ------ | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
 | `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
 
 ---

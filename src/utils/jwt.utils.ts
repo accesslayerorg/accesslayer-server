@@ -39,11 +39,10 @@ export function signWalletAccessToken(
       issuer: envConfig.JWT_ISSUER,
    };
 
-   return jwt.sign(
-      { wallet },
-      envConfig.JWT_SECRET,
-      { ...options, subject: subject ?? wallet }
-   );
+   return jwt.sign({ wallet }, envConfig.JWT_SECRET, {
+      ...options,
+      subject: subject ?? wallet,
+   });
 }
 
 /**
@@ -52,7 +51,9 @@ export function signWalletAccessToken(
  * @throws {JwtVerifyError} when the token is missing/malformed/expired or
  *         fails signature or issuer validation.
  */
-export function verifyWalletAccessToken(token: string): WalletAccessTokenPayload {
+export function verifyWalletAccessToken(
+   token: string
+): WalletAccessTokenPayload {
    if (!token || typeof token !== 'string') {
       throw new JwtVerifyError('Missing bearer token');
    }
@@ -69,7 +70,11 @@ export function verifyWalletAccessToken(token: string): WalletAccessTokenPayload
       throw new JwtVerifyError('Invalid access token');
    }
 
-   if (typeof decoded === 'string' || typeof decoded.wallet !== 'string' || !decoded.wallet) {
+   if (
+      typeof decoded === 'string' ||
+      typeof decoded.wallet !== 'string' ||
+      !decoded.wallet
+   ) {
       throw new JwtVerifyError('Access token payload missing wallet claim');
    }
 
@@ -87,8 +92,6 @@ export function extractBearerToken(authHeader: unknown): string | undefined {
    return token.trim() || undefined;
 }
 
-
-
 export function decodeJwt(token: string): any {
    return jwt.decode(token);
 }
@@ -97,10 +100,10 @@ export function signJwt(
    payload: { sub?: string; wallet?: string } | string,
    expiresInSeconds: number = envConfig.JWT_ACCESS_TOKEN_TTL_SECONDS
 ): string {
-   if (typeof payload === "string") {
+   if (typeof payload === 'string') {
       return signWalletAccessToken(payload, undefined, expiresInSeconds);
    }
-   const wallet = payload.wallet || payload.sub || "";
+   const wallet = payload.wallet || payload.sub || '';
    return signWalletAccessToken(wallet, payload.sub, expiresInSeconds);
 }
 

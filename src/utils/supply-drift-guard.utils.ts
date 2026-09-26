@@ -21,7 +21,9 @@ export async function isDriftHalted(creatorWallet: string): Promise<boolean> {
    return exists === 1;
 }
 
-export async function assertNoSupplyDrift(creatorWallet: string): Promise<void> {
+export async function assertNoSupplyDrift(
+   creatorWallet: string
+): Promise<void> {
    const halted = await isDriftHalted(creatorWallet);
    if (halted) {
       throw new SupplyDriftHaltedError(

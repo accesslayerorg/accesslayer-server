@@ -3,7 +3,10 @@
 
 import { z } from 'zod';
 import { safeIntParam } from '../../utils/query.utils';
-import { MIN_PAGE_SIZE, MAX_PAGE_SIZE } from '../../constants/pagination.constants';
+import {
+   MIN_PAGE_SIZE,
+   MAX_PAGE_SIZE,
+} from '../../constants/pagination.constants';
 
 export const DEFAULT_REFERRAL_PAGE_SIZE = 20;
 

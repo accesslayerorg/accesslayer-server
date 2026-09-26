@@ -55,9 +55,7 @@ describe('cache eviction structured log (#737)', () => {
          getCachedCreatorList(BASE_QUERY as any);
 
          const evictions = findEvictionCalls();
-         const ttlEviction = evictions.find(
-            (e) => e.reason === 'ttl_expired'
-         );
+         const ttlEviction = evictions.find(e => e.reason === 'ttl_expired');
 
          expect(ttlEviction).toBeDefined();
          expect(ttlEviction).toHaveProperty('cache_key');
@@ -76,9 +74,7 @@ describe('cache eviction structured log (#737)', () => {
          getCachedCreatorList(BASE_QUERY as any);
 
          const evictions = findEvictionCalls();
-         const ttlEviction = evictions.find(
-            (e) => e.reason === 'ttl_expired'
-         );
+         const ttlEviction = evictions.find(e => e.reason === 'ttl_expired');
 
          expect(ttlEviction!.cache_size_after).toBe(0);
 
@@ -93,9 +89,7 @@ describe('cache eviction structured log (#737)', () => {
          getCachedCreatorList(BASE_QUERY as any);
 
          const evictions = findEvictionCalls();
-         const ttlEviction = evictions.find(
-            (e) => e.reason === 'ttl_expired'
-         );
+         const ttlEviction = evictions.find(e => e.reason === 'ttl_expired');
          const parsed = new Date(ttlEviction!.evicted_at as string);
 
          expect(parsed.toISOString()).toBe(ttlEviction!.evicted_at);
@@ -128,15 +122,12 @@ describe('cache eviction structured log (#737)', () => {
 
          const evictions = findEvictionCalls();
          const overflowEviction = evictions.find(
-            (e) => e.reason === 'capacity_overflow'
+            e => e.reason === 'capacity_overflow'
          );
 
          expect(overflowEviction).toBeDefined();
          expect(overflowEviction).toHaveProperty('cache_key');
-         expect(overflowEviction).toHaveProperty(
-            'reason',
-            'capacity_overflow'
-         );
+         expect(overflowEviction).toHaveProperty('reason', 'capacity_overflow');
          expect(overflowEviction).toHaveProperty('cache_size_after');
          expect(overflowEviction).toHaveProperty('evicted_at');
       });
@@ -149,16 +140,12 @@ describe('cache eviction structured log (#737)', () => {
 
          const evictions = findEvictionCalls();
          const overflowEvictions = evictions.filter(
-            (e) => e.reason === 'capacity_overflow'
+            e => e.reason === 'capacity_overflow'
          );
 
          for (const eviction of overflowEvictions) {
-            expect(
-               typeof eviction.cache_size_after === 'number'
-            ).toBe(true);
-            expect(
-               (eviction.cache_size_after as number) <= 250
-            ).toBe(true);
+            expect(typeof eviction.cache_size_after === 'number').toBe(true);
+            expect((eviction.cache_size_after as number) <= 250).toBe(true);
          }
       });
 
@@ -170,7 +157,7 @@ describe('cache eviction structured log (#737)', () => {
 
          const evictions = findEvictionCalls();
          const overflowEviction = evictions.find(
-            (e) => e.reason === 'capacity_overflow'
+            e => e.reason === 'capacity_overflow'
          );
          const parsed = new Date(overflowEviction!.evicted_at as string);
 

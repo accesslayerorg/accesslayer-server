@@ -9,7 +9,10 @@ import { envConfig } from '../config';
  */
 export type BodySizeLimitGroup = 'auth' | 'admin' | 'creators' | 'default';
 
-const GROUP_OVERRIDES: Record<Exclude<BodySizeLimitGroup, 'default'>, string | undefined> = {
+const GROUP_OVERRIDES: Record<
+   Exclude<BodySizeLimitGroup, 'default'>,
+   string | undefined
+> = {
    auth: envConfig.BODY_SIZE_LIMIT_AUTH,
    admin: envConfig.BODY_SIZE_LIMIT_ADMIN,
    creators: envConfig.BODY_SIZE_LIMIT_CREATORS,

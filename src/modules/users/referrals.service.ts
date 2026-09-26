@@ -105,7 +105,7 @@ export async function getReferralBreakdown(
    const creatorIds = [
       ...new Set(
          rows
-            .map((row) => row.creatorId)
+            .map(row => row.creatorId)
             .filter((id): id is string => Boolean(id))
       ),
    ];
@@ -127,7 +127,7 @@ export async function getReferralBreakdown(
       nameByIdentifier.set(creator.handle, creator.displayName);
    }
 
-   const items: ReferralBreakdownItem[] = rows.map((row) => ({
+   const items: ReferralBreakdownItem[] = rows.map(row => ({
       keyId: row.keyId,
       creatorName:
          (row.creatorId ? nameByIdentifier.get(row.creatorId) : undefined) ??

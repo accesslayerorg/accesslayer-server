@@ -11,7 +11,9 @@ export function getLocalNodeId(): string {
    return envConfig.NODE_ID || 'node-local';
 }
 
-export async function invalidateFollowerCountCache(creatorWallet: string): Promise<void> {
+export async function invalidateFollowerCountCache(
+   creatorWallet: string
+): Promise<void> {
    try {
       const redis = getRedis();
       if (redis) {
@@ -193,7 +195,9 @@ export async function getFollowerCount(creatorWallet: string): Promise<number> {
    return count;
 }
 
-export async function compactShardsForCreator(creatorWallet: string): Promise<boolean> {
+export async function compactShardsForCreator(
+   creatorWallet: string
+): Promise<boolean> {
    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
    const recentActivity = await prisma.followerCounterShard.findFirst({

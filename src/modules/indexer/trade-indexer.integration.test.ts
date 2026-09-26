@@ -7,10 +7,16 @@ function makeMockDb() {
    return {
       store,
       trade: {
-         findUnique: jest.fn(async ({ where }: { where: { ledger_txHash: { ledger: number; txHash: string } } }) => {
-            const key = `${where.ledger_txHash.ledger}:${where.ledger_txHash.txHash}`;
-            return store.has(key) ? store.get(key) : null;
-         }),
+         findUnique: jest.fn(
+            async ({
+               where,
+            }: {
+               where: { ledger_txHash: { ledger: number; txHash: string } };
+            }) => {
+               const key = `${where.ledger_txHash.ledger}:${where.ledger_txHash.txHash}`;
+               return store.has(key) ? store.get(key) : null;
+            }
+         ),
          create: jest.fn(async ({ data }: { data: any }) => {
             const key = `${data.ledger}:${data.txHash}`;
             const record = {
@@ -31,7 +37,9 @@ describe('#619 Trade indexer — persisting Soroban buy events', () => {
 
    beforeEach(() => {
       mockDb = makeMockDb();
-      loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger as any);
+      loggerWarnSpy = jest
+         .spyOn(logger, 'warn')
+         .mockImplementation(() => logger as any);
    });
 
    afterEach(() => {
@@ -58,7 +66,9 @@ describe('#619 Trade indexer — persisting Soroban buy events', () => {
       expect(records).toHaveLength(1);
 
       const record = records[0];
-      expect(record.buyer).toBe('GBUYER11111111111111111111111111111111111111111111111111');
+      expect(record.buyer).toBe(
+         'GBUYER11111111111111111111111111111111111111111111111111'
+      );
       expect(record.creatorId).toBe('creator-xyz');
       expect(record.quantity).toBe('10');
       expect(record.price).toBe('5000');

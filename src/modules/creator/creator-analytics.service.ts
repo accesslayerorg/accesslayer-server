@@ -10,9 +10,7 @@
 
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
-import {
-   ANALYTICS_WINDOW_DAYS,
-} from './creator-analytics.constants';
+import { ANALYTICS_WINDOW_DAYS } from './creator-analytics.constants';
 
 export interface CreatorAnalyticsDayPoint {
    /** UTC calendar day, `YYYY-MM-DD`. */
@@ -127,7 +125,9 @@ export async function getCreatorAnalytics(
    now: Date = new Date()
 ): Promise<CreatorAnalyticsResult> {
    const windowStart = new Date(now);
-   windowStart.setUTCDate(windowStart.getUTCDate() - (ANALYTICS_WINDOW_DAYS - 1));
+   windowStart.setUTCDate(
+      windowStart.getUTCDate() - (ANALYTICS_WINDOW_DAYS - 1)
+   );
    windowStart.setUTCHours(0, 0, 0, 0);
 
    const [trades, firstBuyDays] = await Promise.all([
@@ -150,10 +150,13 @@ export async function getCreatorAnalytics(
    const tradesByDay = indexTradesByDay(trades);
    const newHoldersByDay = new Map<string, number>();
    for (const firstBuyDay of firstBuyDays.values()) {
-      newHoldersByDay.set(firstBuyDay, (newHoldersByDay.get(firstBuyDay) ?? 0) + 1);
+      newHoldersByDay.set(
+         firstBuyDay,
+         (newHoldersByDay.get(firstBuyDay) ?? 0) + 1
+      );
    }
 
-   const series = buildUtcDayWindow(now).map((date) => {
+   const series = buildUtcDayWindow(now).map(date => {
       const dayTrades = tradesByDay.get(date) ?? [];
       const activeWallets = new Set<string>();
       let volume = 0;

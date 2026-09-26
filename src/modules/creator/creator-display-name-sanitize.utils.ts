@@ -1,7 +1,8 @@
 export const DISPLAY_NAME_MAX_LENGTH = 50;
 
 export type DisplayNameValidationError =
-   'display_name_too_long' | 'display_name_empty';
+   | 'display_name_too_long'
+   | 'display_name_empty';
 
 export type DisplayNameSanitizeResult =
    | { success: true; data: string }

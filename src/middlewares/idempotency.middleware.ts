@@ -89,7 +89,9 @@ export async function tryReplayIdempotentResponse(
    wallet: string,
    idempotencyKey: string
 ): Promise<boolean> {
-   const raw = await cacheGetRaw(buildIdempotencyCacheKey(wallet, idempotencyKey));
+   const raw = await cacheGetRaw(
+      buildIdempotencyCacheKey(wallet, idempotencyKey)
+   );
    if (raw === null) return false;
 
    try {

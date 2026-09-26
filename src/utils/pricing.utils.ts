@@ -1,17 +1,21 @@
 /**
  * Helper for computing the XLM cost to buy N keys at the current supply using the bonding curve formula.
  * Note: This is a placeholder implementation since the real bonding curve math is trapped in an unmerged PR.
- * 
+ *
  * @param currentSupply - The current supply of keys
  * @param amount - The number of keys to buy
  * @param feeBps - The protocol fee in basis points (e.g. 500 = 5%)
  * @returns Total XLM cost in stroops as a bigint
  */
-export function computeBuyCost(currentSupply: number, amount: number, feeBps: number): bigint {
+export function computeBuyCost(
+   currentSupply: number,
+   amount: number,
+   feeBps: number
+): bigint {
    if (amount < 0 || currentSupply < 0) {
       throw new Error('Supply and amount must be non-negative');
    }
-   
+
    if (amount === 0) {
       return 0n;
    }
@@ -23,7 +27,7 @@ export function computeBuyCost(currentSupply: number, amount: number, feeBps: nu
    let totalBaseCost = 0n;
    for (let i = 0; i < amount; i++) {
       const supplyAtPurchase = BigInt(currentSupply + i);
-      totalBaseCost += BASE_COST + (supplyAtPurchase * STEP);
+      totalBaseCost += BASE_COST + supplyAtPurchase * STEP;
    }
 
    // Add fee
@@ -47,7 +51,11 @@ export function computeBuyCost(currentSupply: number, amount: number, feeBps: nu
  * @param feeBps - The protocol fee in basis points (e.g. 500 = 5%)
  * @returns Net XLM payout in stroops as a bigint (never negative)
  */
-export function computeSellPayout(currentSupply: number, amount: number, feeBps: number): bigint {
+export function computeSellPayout(
+   currentSupply: number,
+   amount: number,
+   feeBps: number
+): bigint {
    if (amount < 0 || currentSupply < 0) {
       throw new Error('Supply and amount must be non-negative');
    }
@@ -69,7 +77,7 @@ export function computeSellPayout(currentSupply: number, amount: number, feeBps:
    let grossPayout = 0n;
    for (let i = 0; i < amount; i++) {
       const supplyAtSale = BigInt(currentSupply - 1 - i);
-      grossPayout += BASE_COST + (supplyAtSale * STEP);
+      grossPayout += BASE_COST + supplyAtSale * STEP;
    }
 
    const fee = (grossPayout * BigInt(feeBps)) / 10000n;

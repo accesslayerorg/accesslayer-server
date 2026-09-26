@@ -5,9 +5,17 @@
 // `invalidateHoldingsCache`, which buy/sell ingestion paths must call.
 
 import { Response } from 'express';
-import { ErrorCode, sendError, sendSuccess } from '../../utils/api-response.utils';
+import {
+   ErrorCode,
+   sendError,
+   sendSuccess,
+} from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
-import { cacheGetJson, cacheSetJson, cacheInvalidate } from '../../utils/redis.utils';
+import {
+   cacheGetJson,
+   cacheSetJson,
+   cacheInvalidate,
+} from '../../utils/redis.utils';
 import { logger } from '../../utils/logger.utils';
 import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
 import { buildHoldingsCacheKey } from './holdings.constants';
@@ -22,7 +30,9 @@ export async function httpGetWalletHoldings(
 ): Promise<void> {
    try {
       const wallet = (
-         Array.isArray(req.params.wallet) ? req.params.wallet[0] : req.params.wallet
+         Array.isArray(req.params.wallet)
+            ? req.params.wallet[0]
+            : req.params.wallet
       ).trim();
 
       const cacheKey = buildHoldingsCacheKey(wallet);
@@ -49,7 +59,12 @@ export async function httpGetWalletHoldings(
          },
          'Failed to retrieve wallet holdings'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve wallet holdings');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve wallet holdings'
+      );
    }
 }
 

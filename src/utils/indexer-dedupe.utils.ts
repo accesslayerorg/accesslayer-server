@@ -54,7 +54,10 @@ export interface DedupeGuardResult {
  * @param seen  - Mutable Set that tracks already-processed composite keys.
  * @returns `{ skipped: true }` for duplicates, `{ skipped: false }` for new events.
  */
-export function guardChainEvent(event: ChainEvent, seen: Set<string>): DedupeGuardResult {
+export function guardChainEvent(
+   event: ChainEvent,
+   seen: Set<string>
+): DedupeGuardResult {
    const key = `${event.txHash}:${event.eventIndex}`;
    if (seen.has(key)) {
       return { skipped: true };

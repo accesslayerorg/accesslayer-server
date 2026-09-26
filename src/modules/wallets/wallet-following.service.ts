@@ -19,7 +19,7 @@ export async function fetchWalletFollowing(walletAddress: string) {
       return [];
    }
 
-   const creatorIds = follows.map((f) => f.creatorId);
+   const creatorIds = follows.map(f => f.creatorId);
 
    const creators = await prisma.creatorProfile.findMany({
       where: { id: { in: creatorIds } },

@@ -60,7 +60,9 @@ export async function httpGetWalletHoldings(
       // Sum all total_value entries for a portfolio grand total.
       const grand_total = items
          .reduce((sum, item) => {
-            return sum + (item.total_value !== null ? Number(item.total_value) : 0);
+            return (
+               sum + (item.total_value !== null ? Number(item.total_value) : 0)
+            );
          }, 0)
          .toString();
 

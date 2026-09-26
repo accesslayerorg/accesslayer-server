@@ -20,7 +20,9 @@ export const GetDividendClaimsQuerySchema = z.object({
    cursor: z.string().min(1).optional(),
 });
 
-export type GetDividendClaimsQuery = z.infer<typeof GetDividendClaimsQuerySchema>;
+export type GetDividendClaimsQuery = z.infer<
+   typeof GetDividendClaimsQuerySchema
+>;
 
 /**
  * Response schema for a single dividend distribution.
@@ -74,11 +76,10 @@ export const DividendClaimsListResponseSchema = z.object({
    }),
 });
 
-
 export const CreateDividendDistributionSchema = z.object({
    totalAmount: z
-      .number({ required_error: "totalAmount is required" })
-      .positive("totalAmount must be a positive integer"),
+      .number({ required_error: 'totalAmount is required' })
+      .positive('totalAmount must be a positive integer'),
 });
 
 export type CreateDividendDistributionInput = z.infer<

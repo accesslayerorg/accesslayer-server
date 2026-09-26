@@ -43,11 +43,13 @@ function makeRes() {
    res.__json = res.json;
    res.setHeader = jest.fn().mockReturnValue(res);
    res.set = jest.fn().mockReturnValue(res);
-   res.on = jest.fn().mockImplementation((event: string, listener: () => void) => {
-      if (event === 'finish') finishListeners.push(listener);
-      return res;
-   });
-   res.__emitFinish = () => finishListeners.forEach((listener) => listener());
+   res.on = jest
+      .fn()
+      .mockImplementation((event: string, listener: () => void) => {
+         if (event === 'finish') finishListeners.push(listener);
+         return res;
+      });
+   res.__emitFinish = () => finishListeners.forEach(listener => listener());
    return res;
 }
 
@@ -64,7 +66,10 @@ describe('withIdempotency', () => {
       store.clear();
    });
 
-   function call(wrapped: ReturnType<typeof withIdempotency>, headers: Record<string, string>) {
+   function call(
+      wrapped: ReturnType<typeof withIdempotency>,
+      headers: Record<string, string>
+   ) {
       const req = makeReq(headers);
       const res = makeRes();
       const next = jest.fn();
@@ -100,7 +105,10 @@ describe('withIdempotency', () => {
          res.status(201).json({ ok: true });
       };
       const wrapped = withIdempotency(handler);
-      const headers = { 'x-idempotency-key': 'op-1', 'x-wallet-address': 'GABC' };
+      const headers = {
+         'x-idempotency-key': 'op-1',
+         'x-wallet-address': 'GABC',
+      };
 
       const { res, done } = call(wrapped, headers);
       await done;
@@ -123,7 +131,10 @@ describe('withIdempotency', () => {
          res.status(200).json({ ok: true, executions });
       };
       const wrapped = withIdempotency(handler);
-      const headers = { 'x-idempotency-key': 'retry-1', 'x-wallet-address': 'GABC' };
+      const headers = {
+         'x-idempotency-key': 'retry-1',
+         'x-wallet-address': 'GABC',
+      };
 
       // First request executes and stores.
       const first = call(wrapped, headers);
@@ -140,7 +151,10 @@ describe('withIdempotency', () => {
          'true'
       );
       expect((second.res as any).status).toHaveBeenCalledWith(200);
-      expect((second.res as any).json).toHaveBeenCalledWith({ ok: true, executions: 1 });
+      expect((second.res as any).json).toHaveBeenCalledWith({
+         ok: true,
+         executions: 1,
+      });
    });
 
    it('executes fresh when the stored payload is corrupt', async () => {

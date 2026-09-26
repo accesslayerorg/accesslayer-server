@@ -1,6 +1,6 @@
 /**
  * Truncate a Stellar wallet address to the standard display format (first 4 and last 4 characters).
- * 
+ *
  * @param address - The full wallet address
  * @returns Truncated address in format: GABC…WXYZ
  */

@@ -10,9 +10,7 @@ import { logger } from '../../utils/logger.utils';
  * against the address' payload per the Stellar StrKey spec.
  */
 export function isValidStellarAddress(address: string): boolean {
-   return (
-      typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address)
-   );
+   return typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address);
 }
 
 /**

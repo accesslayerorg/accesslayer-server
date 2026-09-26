@@ -96,7 +96,9 @@ describe('Whitelist Endpoint Integration Tests', () => {
       });
 
       it('should reject missing wallet parameter', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/whitelist`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/whitelist`
+         );
 
          expect(response.status).toBe(400);
          expect(response.body.success).toBe(false);
@@ -225,7 +227,9 @@ describe('Whitelist Endpoint Integration Tests', () => {
       });
 
       it('should return properly formatted error response for validation error', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/whitelist`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/whitelist`
+         );
 
          expect(response.status).toBe(400);
          expect(response.body).toHaveProperty('success', false);
@@ -241,8 +245,8 @@ describe('Whitelist Endpoint Integration Tests', () => {
          // Note: This test requires Redis to be available
          // We spy on the caching functions to verify they're called
 
-          const cacheGetSpy = jest.spyOn(cacheUtils, 'cacheGetJson');
-          const cacheSetSpy = jest.spyOn(cacheUtils, 'cacheSetJson');
+         const cacheGetSpy = jest.spyOn(cacheUtils, 'cacheGetJson');
+         const cacheSetSpy = jest.spyOn(cacheUtils, 'cacheSetJson');
 
          // First request should miss cache and populate it
          const response1 = await request(app)

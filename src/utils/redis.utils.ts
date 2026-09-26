@@ -157,7 +157,9 @@ export async function cacheSetRaw(
  * Delete one or more keys. Accepts glob patterns which are expanded via SCAN
  * so invalidation never blocks Redis with KEYS.
  */
-export async function cacheInvalidate(...keysOrPatterns: string[]): Promise<void> {
+export async function cacheInvalidate(
+   ...keysOrPatterns: string[]
+): Promise<void> {
    const client = getRedisClient();
    if (!client || keysOrPatterns.length === 0) return;
 

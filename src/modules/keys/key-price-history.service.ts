@@ -21,10 +21,15 @@ export async function getKeyPriceHistory(
    });
    const buckets = new Map<number, (typeof snapshots)[number]>();
    for (const snapshot of snapshots) {
-      const bucket = Math.floor(snapshot.recordedAt.getTime() / intervalMs[interval]) * intervalMs[interval];
+      const bucket =
+         Math.floor(snapshot.recordedAt.getTime() / intervalMs[interval]) *
+         intervalMs[interval];
       buckets.set(bucket, snapshot);
    }
    return Array.from(buckets.entries())
       .slice(0, 500)
-      .map(([timestamp, snapshot]) => ({ timestamp: new Date(timestamp), price: snapshot.price }));
+      .map(([timestamp, snapshot]) => ({
+         timestamp: new Date(timestamp),
+         price: snapshot.price,
+      }));
 }

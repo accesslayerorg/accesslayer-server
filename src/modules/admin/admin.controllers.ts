@@ -25,9 +25,21 @@ const UpdateCreatorMetadataSchema = z.object({
 type UpdateCreatorMetadataInput = z.infer<typeof UpdateCreatorMetadataSchema>;
 
 const GetAuditLogSchema = z.object({
-   limit: z.coerce.number().int().positive().max(100).optional().default(50),
+   limit: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(50)
+      .transform(val => Math.min(val, 100)),
    cursor: z.string().optional(),
    actionType: z.string().optional(),
+   startDate: z.string().optional(),
+   endDate: z.string().optional(),
+   fromDate: z.string().optional(),
+   toDate: z.string().optional(),
+   from: z.string().optional(),
+   to: z.string().optional(),
 });
 
 type GetAuditLogInput = z.infer<typeof GetAuditLogSchema>;
@@ -99,7 +111,8 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
       if (Object.keys(changes).length > 0) {
          const action =
             'tradingPaused' in changes
-               ? changes.tradingPaused && (changes.tradingPaused as any).after === true
+               ? changes.tradingPaused &&
+                 (changes.tradingPaused as any).after === true
                   ? 'pause_creator_trading'
                   : 'resume_creator_trading'
                : 'update_creator_metadata';
@@ -115,6 +128,7 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
          await createAuditEntry({
             actorWallet: actorId,
             actionType: 'update_creator_metadata',
+            targetEntity: 'CreatorProfile',
             targetId: id,
             payload: changes,
          });
@@ -226,6 +240,7 @@ export const httpReplayIndexerEvents: AsyncController = async (
          await createAuditEntry({
             actorWallet: adminId || 'unknown',
             actionType: 'replay_indexer_events',
+            targetEntity: 'Indexer',
             targetId: String(startLedger),
             payload: { startLedger, endLedger: endLedger || null, dryRun },
          });
@@ -269,6 +284,7 @@ export const httpUpdateProtocolFee = async (
       await createAuditEntry({
          actorWallet: req.adminId || 'unknown',
          actionType: 'protocol_fee_updated',
+         targetEntity: 'ProtocolConfig',
          targetId: 'default',
          payload: { protocolFeeBps: updated.protocolFeeBps },
       });
@@ -314,6 +330,7 @@ export const httpSetKeyTradingPaused = async (
          await createAuditEntry({
             actorWallet: req.adminId!,
             actionType,
+            targetEntity: 'CreatorProfile',
             targetId: creatorId,
             payload: { tradingPaused },
          });
@@ -343,18 +360,23 @@ export const httpGetAuditLog: AsyncController = async (
       const input = parsed.data as GetAuditLogInput;
       const { getAuditLogs } = await import('./audit-log.service');
 
+      const startDate = input.startDate || input.fromDate || input.from;
+      const endDate = input.endDate || input.toDate || input.to;
+
       const result = await getAuditLogs({
          limit: input.limit,
          cursor: input.cursor,
          actionType: input.actionType,
+         startDate,
+         endDate,
       });
 
       sendSuccess(res, {
          entries: result.entries,
          pagination: {
             limit: input.limit,
-            cursor: input.cursor,
-            nextCursor: result.nextCursor,
+            cursor: input.cursor ?? null,
+            nextCursor: result.nextCursor ?? null,
             hasMore: result.hasMore,
          },
       });

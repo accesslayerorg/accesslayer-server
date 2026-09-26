@@ -1,9 +1,9 @@
-import { prisma } from "../../utils/prisma.utils";
-import { logger } from "../../utils/logger.utils";
-import { envConfig } from "../../config";
+import { prisma } from '../../utils/prisma.utils';
+import { logger } from '../../utils/logger.utils';
+import { envConfig } from '../../config';
 
 export interface TransferChainEvent {
-   eventType: "keys_transferred" | "KEY_TRANSFERRED" | "transfer";
+   eventType: 'keys_transferred' | 'KEY_TRANSFERRED' | 'transfer';
    txHash: string;
    eventIndex?: number;
    fromAddress: string;
@@ -16,7 +16,7 @@ export interface TransferChainEvent {
 }
 
 export interface BurnChainEvent {
-   eventType: "keys_burned" | "KEY_BURNED" | "burn";
+   eventType: 'keys_burned' | 'KEY_BURNED' | 'burn';
    txHash: string;
    eventIndex?: number;
    burnerAddress: string;
@@ -47,7 +47,7 @@ export async function executeWithRetry<T>(
             break;
          }
          const delay = baseDelayMs * Math.pow(2, attempt - 1);
-         await new Promise((resolve) => setTimeout(resolve, delay));
+         await new Promise(resolve => setTimeout(resolve, delay));
       }
    }
    throw lastError;
@@ -74,73 +74,77 @@ export async function processTransferEvent(
    const eventTimestamp = timestamp ? new Date(timestamp) : new Date();
    const numericAmount = Number(amount);
 
-   return executeWithRetry(async () => {
-      // 1. Sender record (transfer_out)
-      const senderRecord = await prisma.activityLog.upsert({
-         where: {
-            txHash_actor_type: {
-               txHash,
+   return executeWithRetry(
+      async () => {
+         // 1. Sender record (transfer_out)
+         const senderRecord = await prisma.activityLog.upsert({
+            where: {
+               txHash_actor_type: {
+                  txHash,
+                  actor: fromAddress,
+                  type: 'transfer_out',
+               },
+            },
+            create: {
+               type: 'transfer_out',
                actor: fromAddress,
-               type: "transfer_out",
-            },
-         },
-         create: {
-            type: "transfer_out",
-            actor: fromAddress,
-            target: toAddress,
-            keyId,
-            creatorName: creatorName || null,
-            amount: numericAmount,
-            txHash,
-            timestamp: eventTimestamp,
-            payload: {
-               event: "keys_transferred",
-               from: fromAddress,
-               to: toAddress,
+               target: toAddress,
+               keyId,
+               creatorName: creatorName || null,
                amount: numericAmount,
-            },
-         },
-         update: {},
-      });
-
-      // 2. Recipient record (transfer_in)
-      const recipientRecord = await prisma.activityLog.upsert({
-         where: {
-            txHash_actor_type: {
                txHash,
+               timestamp: eventTimestamp,
+               payload: {
+                  event: 'keys_transferred',
+                  from: fromAddress,
+                  to: toAddress,
+                  amount: numericAmount,
+               },
+            },
+            update: {},
+         });
+
+         // 2. Recipient record (transfer_in)
+         const recipientRecord = await prisma.activityLog.upsert({
+            where: {
+               txHash_actor_type: {
+                  txHash,
+                  actor: toAddress,
+                  type: 'transfer_in',
+               },
+            },
+            create: {
+               type: 'transfer_in',
                actor: toAddress,
-               type: "transfer_in",
-            },
-         },
-         create: {
-            type: "transfer_in",
-            actor: toAddress,
-            target: fromAddress,
-            keyId,
-            creatorName: creatorName || null,
-            amount: numericAmount,
-            txHash,
-            timestamp: eventTimestamp,
-            payload: {
-               event: "keys_transferred",
-               from: fromAddress,
-               to: toAddress,
+               target: fromAddress,
+               keyId,
+               creatorName: creatorName || null,
                amount: numericAmount,
+               txHash,
+               timestamp: eventTimestamp,
+               payload: {
+                  event: 'keys_transferred',
+                  from: fromAddress,
+                  to: toAddress,
+                  amount: numericAmount,
+               },
             },
-         },
-         update: {},
-      });
+            update: {},
+         });
 
-      logger.info(
-         { txHash, fromAddress, toAddress, keyId, amount: numericAmount },
-         "Logged keys_transferred activity records"
-      );
+         logger.info(
+            { txHash, fromAddress, toAddress, keyId, amount: numericAmount },
+            'Logged keys_transferred activity records'
+         );
 
-      return { senderRecord, recipientRecord };
-   }, 3, 50).catch((err) => {
+         return { senderRecord, recipientRecord };
+      },
+      3,
+      50
+   ).catch(err => {
       logger.error(
          { err, txHash, fromAddress, toAddress, keyId },
-         "Failed to write transfer activity records after 3 retries, skipping"
+         'Failed to write transfer activity records after 3 retries, skipping'
       );
       return null;
    });
@@ -155,53 +159,51 @@ export async function processTransferEvent(
 export async function processBurnEvent(
    event: BurnChainEvent
 ): Promise<{ burnerRecord: any } | null> {
-   const {
-      txHash,
-      burnerAddress,
-      keyId,
-      amount,
-      timestamp,
-      creatorName,
-   } = event;
+   const { txHash, burnerAddress, keyId, amount, timestamp, creatorName } =
+      event;
    const eventTimestamp = timestamp ? new Date(timestamp) : new Date();
    const numericAmount = Number(amount);
 
-   return executeWithRetry(async () => {
-      const burnerRecord = await prisma.activityLog.upsert({
-         where: {
-            txHash_actor_type: {
-               txHash,
+   return executeWithRetry(
+      async () => {
+         const burnerRecord = await prisma.activityLog.upsert({
+            where: {
+               txHash_actor_type: {
+                  txHash,
+                  actor: burnerAddress,
+                  type: 'burn',
+               },
+            },
+            create: {
+               type: 'burn',
                actor: burnerAddress,
-               type: "burn",
-            },
-         },
-         create: {
-            type: "burn",
-            actor: burnerAddress,
-            keyId,
-            creatorName: creatorName || null,
-            amount: numericAmount,
-            txHash,
-            timestamp: eventTimestamp,
-            payload: {
-               event: "keys_burned",
-               burner: burnerAddress,
+               keyId,
+               creatorName: creatorName || null,
                amount: numericAmount,
+               txHash,
+               timestamp: eventTimestamp,
+               payload: {
+                  event: 'keys_burned',
+                  burner: burnerAddress,
+                  amount: numericAmount,
+               },
             },
-         },
-         update: {},
-      });
+            update: {},
+         });
 
-      logger.info(
-         { txHash, burnerAddress, keyId, amount: numericAmount },
-         "Logged keys_burned activity record"
-      );
+         logger.info(
+            { txHash, burnerAddress, keyId, amount: numericAmount },
+            'Logged keys_burned activity record'
+         );
 
-      return { burnerRecord };
-   }, 3, 50).catch((err) => {
+         return { burnerRecord };
+      },
+      3,
+      50
+   ).catch(err => {
       logger.error(
          { err, txHash, burnerAddress, keyId },
-         "Failed to write burn activity record after 3 retries, skipping"
+         'Failed to write burn activity record after 3 retries, skipping'
       );
       return null;
    });
@@ -210,17 +212,19 @@ export async function processBurnEvent(
 /**
  * Dispatches an event from stream to appropriate handler
  */
-export async function handleActivitySyncEvent(event: ActivitySyncEvent): Promise<void> {
+export async function handleActivitySyncEvent(
+   event: ActivitySyncEvent
+): Promise<void> {
    if (
-      event.eventType === "keys_transferred" ||
-      event.eventType === "KEY_TRANSFERRED" ||
-      event.eventType === "transfer"
+      event.eventType === 'keys_transferred' ||
+      event.eventType === 'KEY_TRANSFERRED' ||
+      event.eventType === 'transfer'
    ) {
       await processTransferEvent(event as TransferChainEvent);
    } else if (
-      event.eventType === "keys_burned" ||
-      event.eventType === "KEY_BURNED" ||
-      event.eventType === "burn"
+      event.eventType === 'keys_burned' ||
+      event.eventType === 'KEY_BURNED' ||
+      event.eventType === 'burn'
    ) {
       await processBurnEvent(event as BurnChainEvent);
    }
@@ -253,7 +257,7 @@ export class ActivitySyncJob {
    public start(): void {
       if (this.running) return;
       this.running = true;
-      logger.info("Starting ActivitySyncJob Horizon listener...");
+      logger.info('Starting ActivitySyncJob Horizon listener...');
       this.connect();
    }
 
@@ -263,7 +267,7 @@ export class ActivitySyncJob {
          clearTimeout(this.reconnectTimer);
          this.reconnectTimer = null;
       }
-      logger.info("Stopped ActivitySyncJob");
+      logger.info('Stopped ActivitySyncJob');
    }
 
    public isRunning(): boolean {
@@ -272,7 +276,7 @@ export class ActivitySyncJob {
 
    public triggerReconnect(): void {
       if (!this.running) return;
-      logger.warn("Horizon stream connection dropped, scheduling reconnect...");
+      logger.warn('Horizon stream connection dropped, scheduling reconnect...');
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectTimer = setTimeout(() => {
          if (this.running) {
@@ -286,10 +290,10 @@ export class ActivitySyncJob {
          // Horizon SSE subscription placeholder / active stream handler
          logger.info(
             { horizonUrl: this.config.horizonUrl },
-            "ActivitySyncJob connected to Horizon event stream"
+            'ActivitySyncJob connected to Horizon event stream'
          );
       } catch (err) {
-         logger.error({ err }, "Horizon connection error");
+         logger.error({ err }, 'Horizon connection error');
          this.triggerReconnect();
       }
    }

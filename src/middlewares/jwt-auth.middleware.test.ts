@@ -26,7 +26,9 @@ const creatorFindFirst = prisma.creatorProfile.findFirst as jest.Mock;
 const WALLET_A = 'GA5XIGA5C7GTGTW7ZKJ4YV6OEILUY2Q7YIHZQNNDJUWAVES4O7D5SUK9';
 const WALLET_B = 'GBRPYHAL2FCCNNGSJCJ2OOJ6MOL2RLUVTDMYNOOWGGVJXC7UE5ABSCJL';
 
-function makeReq(overrides: Record<string, unknown> = {}): AuthenticatedRequest {
+function makeReq(
+   overrides: Record<string, unknown> = {}
+): AuthenticatedRequest {
    return {
       headers: {},
       params: {},
@@ -149,7 +151,7 @@ describe('requireKeyCreator', () => {
       const res = makeRes();
       const next = jest.fn();
       let resolveDone: () => void = () => undefined;
-      const done = new Promise<void>((resolve) => {
+      const done = new Promise<void>(resolve => {
          resolveDone = resolve;
       });
       // Error paths respond without calling next, so settle on either.

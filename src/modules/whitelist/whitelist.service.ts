@@ -19,7 +19,10 @@ const WHITELIST_CACHE_TTL_SECONDS = 30;
  * Builds a cache key for whitelist status lookup.
  * Format: `whitelist:{creatorId}:{walletAddress}`
  */
-function buildWhitelistCacheKey(creatorId: string, walletAddress: string): string {
+function buildWhitelistCacheKey(
+   creatorId: string,
+   walletAddress: string
+): string {
    return `whitelist:${creatorId}:${walletAddress}`;
 }
 
@@ -48,10 +51,7 @@ export async function getWhitelistStatus(
          return cached;
       }
    } catch (error) {
-      logger.warn(
-         { error, cacheKey },
-         'Error reading from whitelist cache'
-      );
+      logger.warn({ error, cacheKey }, 'Error reading from whitelist cache');
       // Fall through to compute fresh value
    }
 
@@ -62,10 +62,7 @@ export async function getWhitelistStatus(
    try {
       await cacheSetJson(cacheKey, status, WHITELIST_CACHE_TTL_SECONDS);
    } catch (error) {
-      logger.warn(
-         { error, cacheKey },
-         'Error writing to whitelist cache'
-      );
+      logger.warn({ error, cacheKey }, 'Error writing to whitelist cache');
       // Failure to cache doesn't affect response
    }
 
@@ -146,19 +143,15 @@ async function computeWhitelistStatus(
  * Invalidates whitelist cache for a creator key.
  * Called when whitelist configuration changes.
  */
-export async function invalidateWhitelistCache(creatorId: string): Promise<void> {
+export async function invalidateWhitelistCache(
+   creatorId: string
+): Promise<void> {
    try {
       // Invalidate all wallet entries for this creator
       // In a full implementation with Redis, this would use SCAN + pattern matching
-      logger.debug(
-         { creatorId },
-         'Invalidated whitelist cache'
-      );
+      logger.debug({ creatorId }, 'Invalidated whitelist cache');
    } catch (error) {
-      logger.warn(
-         { error, creatorId },
-         'Error invalidating whitelist cache'
-      );
+      logger.warn({ error, creatorId }, 'Error invalidating whitelist cache');
    }
 }
 
@@ -173,10 +166,7 @@ export async function creatorExists(creatorId: string): Promise<boolean> {
       });
       return !!creator;
    } catch (error) {
-      logger.error(
-         { error, creatorId },
-         'Error checking creator existence'
-      );
+      logger.error({ error, creatorId }, 'Error checking creator existence');
       return false;
    }
 }

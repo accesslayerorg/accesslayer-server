@@ -88,7 +88,9 @@ describe('Dividend Endpoints Integration Tests', () => {
 
    describe('GET /keys/:keyId/dividends', () => {
       it('should return 200 with dividend distributions', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          expect(response.body.success).toBe(true);
@@ -97,7 +99,9 @@ describe('Dividend Endpoints Integration Tests', () => {
       });
 
       it('AC1: Returns distributions with all required fields', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          expect(response.body.data.entries.length).toBeGreaterThan(0);
@@ -111,7 +115,9 @@ describe('Dividend Endpoints Integration Tests', () => {
       });
 
       it('AC2: Distributions sorted by distributedAt descending', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends?limit=10`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends?limit=10`
+         );
 
          expect(response.status).toBe(200);
          const entries = response.body.data.entries;
@@ -124,7 +130,9 @@ describe('Dividend Endpoints Integration Tests', () => {
       });
 
       it('AC3: perKeyAmount computed correctly', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          const entries = response.body.data.entries;
@@ -136,20 +144,26 @@ describe('Dividend Endpoints Integration Tests', () => {
       });
 
       it('AC4: 404 returned for unknown key ID', async () => {
-         const response = await request(app).get(`/keys/unknown-key-id/dividends`);
+         const response = await request(app).get(
+            `/keys/unknown-key-id/dividends`
+         );
 
          expect(response.status).toBe(404);
       });
 
       it('should support limit parameter', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends?limit=1`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends?limit=1`
+         );
 
          expect(response.status).toBe(200);
          expect(response.body.data.entries.length).toBeLessThanOrEqual(1);
       });
 
       it('should include pagination metadata', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          expect(response.body.data.pagination).toBeDefined();
@@ -179,7 +193,9 @@ describe('Dividend Endpoints Integration Tests', () => {
 
             expect(page2Entries.length).toBeGreaterThan(0);
             // Verify different entries
-            expect(page1Entries[0].distributionId).not.toBe(page2Entries[0].distributionId);
+            expect(page1Entries[0].distributionId).not.toBe(
+               page2Entries[0].distributionId
+            );
          }
       });
 
@@ -276,7 +292,9 @@ describe('Dividend Endpoints Integration Tests', () => {
 
             expect(page2Entries.length).toBeGreaterThan(0);
             // Verify different entries
-            expect(page1Entries[0].recipientWallet).not.toBe(page2Entries[0].recipientWallet);
+            expect(page1Entries[0].recipientWallet).not.toBe(
+               page2Entries[0].recipientWallet
+            );
          }
       });
 
@@ -311,7 +329,9 @@ describe('Dividend Endpoints Integration Tests', () => {
 
    describe('Acceptance Criteria - All Endpoints', () => {
       it('AC1: Distributions listed with all required fields in descending date order', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          expect(response.body.data.entries.length).toBeGreaterThan(0);
@@ -327,14 +347,18 @@ describe('Dividend Endpoints Integration Tests', () => {
 
          // Verify descending order
          for (let i = 0; i < entries.length - 1; i++) {
-            expect(new Date(entries[i].distributedAt).getTime()).toBeGreaterThanOrEqual(
+            expect(
+               new Date(entries[i].distributedAt).getTime()
+            ).toBeGreaterThanOrEqual(
                new Date(entries[i + 1].distributedAt).getTime()
             );
          }
       });
 
       it('AC2: perKeyAmount computed correctly as totalAmount / holderCount', async () => {
-         const response = await request(app).get(`/keys/${testCreatorId}/dividends`);
+         const response = await request(app).get(
+            `/keys/${testCreatorId}/dividends`
+         );
 
          expect(response.status).toBe(200);
          const entries = response.body.data.entries;
@@ -361,7 +385,9 @@ describe('Dividend Endpoints Integration Tests', () => {
       });
 
       it('AC4: 404 returned for unknown key ID or distribution ID', async () => {
-         const keyResponse = await request(app).get(`/keys/unknown-key/dividends`);
+         const keyResponse = await request(app).get(
+            `/keys/unknown-key/dividends`
+         );
          expect(keyResponse.status).toBe(404);
 
          const distResponse = await request(app).get(
@@ -372,7 +398,9 @@ describe('Dividend Endpoints Integration Tests', () => {
 
       it('AC5: Cursor pagination works correctly on both endpoints', async () => {
          // Test distributions endpoint
-         const distPage1 = await request(app).get(`/keys/${testCreatorId}/dividends?limit=1`);
+         const distPage1 = await request(app).get(
+            `/keys/${testCreatorId}/dividends?limit=1`
+         );
          expect(distPage1.status).toBe(200);
 
          if (distPage1.body.data.pagination.hasMore) {

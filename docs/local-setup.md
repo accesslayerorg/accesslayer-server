@@ -54,6 +54,7 @@ pnpm migrate
 ### 7. Start the Development Server
 
 **API Server:**
+
 ```bash
 pnpm dev
 ```
@@ -61,6 +62,7 @@ pnpm dev
 The server starts on `http://localhost:3000`.
 
 **Indexer (if applicable):**
+
 ```bash
 # Check package.json for indexer-specific scripts
 pnpm start:indexer
@@ -75,17 +77,19 @@ curl http://localhost:3000/api/v1/health
 ```
 
 Expected response:
+
 ```json
 {
-  "success": true,
-  "message": "OK",
-  "timestamp": "2025-01-15T10:30:00.000Z"
+   "success": true,
+   "message": "OK",
+   "timestamp": "2025-01-15T10:30:00.000Z"
 }
 ```
 
 ### API Docs
 
 Open in browser:
+
 ```
 http://localhost:3000/api-docs
 ```
@@ -98,19 +102,20 @@ curl http://localhost:3000/api/v1/creators
 
 ## Database Commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm db:up` | Start PostgreSQL container |
-| `pnpm db:down` | Stop PostgreSQL container |
-| `pnpm db:logs` | View database logs |
-| `pnpm migrate` | Run migrations |
-| `pnpm studio` | Open Prisma Studio |
+| Command        | Description                |
+| -------------- | -------------------------- |
+| `pnpm db:up`   | Start PostgreSQL container |
+| `pnpm db:down` | Stop PostgreSQL container  |
+| `pnpm db:logs` | View database logs         |
+| `pnpm migrate` | Run migrations             |
+| `pnpm studio`  | Open Prisma Studio         |
 
 ## Troubleshooting
 
 ### Port Already in Use
 
 If port 3000 is occupied, update `PORT` in `.env`:
+
 ```
 PORT=3001
 ```

@@ -177,10 +177,7 @@ describe('wallet activity feed — ledger-descending order (#637)', () => {
          id: 'activity-ledger-2000',
       });
 
-      const req = makeReq(
-         { address: WALLET_ADDRESS },
-         { limit: '2', cursor }
-      );
+      const req = makeReq({ address: WALLET_ADDRESS }, { limit: '2', cursor });
       const res = makeRes();
       await httpGetWalletActivity(req, res, makeNext());
 

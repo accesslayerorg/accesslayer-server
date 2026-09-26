@@ -1,4 +1,7 @@
-import { buildCanonicalParamString, buildCacheKey } from './cache-key-params.utils';
+import {
+   buildCanonicalParamString,
+   buildCacheKey,
+} from './cache-key-params.utils';
 
 describe('buildCanonicalParamString()', () => {
    it('produces identical output regardless of input key order', () => {
@@ -81,43 +84,48 @@ describe('buildCanonicalParamString()', () => {
 });
 
 describe('buildCacheKey()', () => {
-    it('produces identical cache keys for identical params in different order', () => {
-        const keyA = buildCacheKey('creator:123', {
-            limit: 20,
-            sort: 'createdAt',
-            order: 'desc',
-        });
-        const keyB = buildCacheKey('creator:123', {
-            order: 'desc',
-            limit: 20,
-            sort: 'createdAt',
-        });
+   it('produces identical cache keys for identical params in different order', () => {
+      const keyA = buildCacheKey('creator:123', {
+         limit: 20,
+         sort: 'createdAt',
+         order: 'desc',
+      });
+      const keyB = buildCacheKey('creator:123', {
+         order: 'desc',
+         limit: 20,
+         sort: 'createdAt',
+      });
 
-        expect(keyA).toBe(keyB);
-    });
+      expect(keyA).toBe(keyB);
+   });
 
-    it('produces different cache keys for different params', () => {
-        const keyA = buildCacheKey('creator:123', { limit: 20, sort: 'createdAt' });
-        const keyB = buildCacheKey('creator:123', { limit: 10, sort: 'createdAt' });
+   it('produces different cache keys for different params', () => {
+      const keyA = buildCacheKey('creator:123', {
+         limit: 20,
+         sort: 'createdAt',
+      });
+      const keyB = buildCacheKey('creator:123', {
+         limit: 10,
+         sort: 'createdAt',
+      });
 
-        expect(keyA).not.toBe(keyB);
-    });
+      expect(keyA).not.toBe(keyB);
+   });
 
-    it('returns a string of fixed length format', () => {
-        const key1 = buildCacheKey('creator:123', { limit: 20 });
-        const key2 = buildCacheKey('creator:123', {
-            limit: 100,
-            offset: 500,
-            sort: 'verylongsortfieldname',
-            search: 'searching for something very long and detailed',
-        });
+   it('returns a string of fixed length format', () => {
+      const key1 = buildCacheKey('creator:123', { limit: 20 });
+      const key2 = buildCacheKey('creator:123', {
+         limit: 100,
+         offset: 500,
+         sort: 'verylongsortfieldname',
+         search: 'searching for something very long and detailed',
+      });
 
-        expect(typeof key1).toBe('string');
-        expect(typeof key2).toBe('string');
-        // Base prefix ('creator:123:') + 16 chars hash hex = 28 length
-        expect(key1.length).toBe(key2.length);
-        expect(key1).toMatch(/^creator:123:[a-f0-9]{16}$/);
-        expect(key2).toMatch(/^creator:123:[a-f0-9]{16}$/);
-    });
+      expect(typeof key1).toBe('string');
+      expect(typeof key2).toBe('string');
+      // Base prefix ('creator:123:') + 16 chars hash hex = 28 length
+      expect(key1.length).toBe(key2.length);
+      expect(key1).toMatch(/^creator:123:[a-f0-9]{16}$/);
+      expect(key2).toMatch(/^creator:123:[a-f0-9]{16}$/);
+   });
 });
-

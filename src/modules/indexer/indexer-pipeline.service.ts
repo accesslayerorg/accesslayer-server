@@ -16,7 +16,6 @@ import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
 import { logSellTransactionConfirmed } from '../../utils/sell-transaction-logger.utils';
 import { persistCirculatingSupply } from './persist-circulating-supply.service';
 import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboard-volume.service';
-import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -32,13 +31,6 @@ export async function processTradeEvents(
    events: IndexerChainEvent[]
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
-      if (event.eventType === 'CREATOR_REGISTERED') {
-         if (typeof event.actor === 'string' && event.actor.length > 0) {
-            await invalidateCreatorPortfolioStatsCache(event.actor);
-         }
-         return;
-      }
-
       // Validate event type
       if (event.eventType !== 'KEY_BOUGHT' && event.eventType !== 'KEY_SOLD') {
          return;

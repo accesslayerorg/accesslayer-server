@@ -18,10 +18,7 @@ jest.mock('../../utils/prisma.utils', () => ({
 }));
 
 import { prisma } from '../../utils/prisma.utils';
-import {
-   computeLockupExpiry,
-   getWalletHoldings,
-} from './holdings.service';
+import { computeLockupExpiry, getWalletHoldings } from './holdings.service';
 
 const ownershipFindMany = prisma.keyOwnership.findMany as jest.Mock;
 const creatorFindMany = prisma.creatorProfile.findMany as jest.Mock;
@@ -91,14 +88,19 @@ describe('getWalletHoldings', () => {
          ownershipRow({ creatorId: 'key-big', balance: 100, costBasis: 5 }),
       ]);
       creatorFindMany.mockResolvedValue([
-         { id: 'key-small', handle: 's', displayName: 'Small', avatarUrl: null },
+         {
+            id: 'key-small',
+            handle: 's',
+            displayName: 'Small',
+            avatarUrl: null,
+         },
          { id: 'key-big', handle: 'b', displayName: 'Big', avatarUrl: null },
       ]);
       activityFindMany.mockResolvedValue([]);
 
       const holdings = await getWalletHoldings(WALLET);
 
-      expect(holdings.map((holding) => holding.keyId)).toEqual([
+      expect(holdings.map(holding => holding.keyId)).toEqual([
          'key-big',
          'key-small',
       ]);
@@ -107,7 +109,12 @@ describe('getWalletHoldings', () => {
    it('uses the latest trade price for currentPrice when available', async () => {
       ownershipFindMany.mockResolvedValue([ownershipRow()]);
       creatorFindMany.mockResolvedValue([
-         { id: 'key-1', handle: 'alice', displayName: 'Alice', avatarUrl: null },
+         {
+            id: 'key-1',
+            handle: 'alice',
+            displayName: 'Alice',
+            avatarUrl: null,
+         },
       ]);
       activityFindMany.mockResolvedValue([
          { creatorId: 'key-1', payload: { amount: '9.5' } },

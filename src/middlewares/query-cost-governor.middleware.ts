@@ -29,7 +29,10 @@ import { randomUUID } from 'crypto';
 import { getRedis } from '../utils/redis.utils';
 import { envConfig } from '../config';
 import { logger } from '../utils/logger.utils';
-import { extractBearerToken, verifyWalletAccessToken } from '../utils/jwt.utils';
+import {
+   extractBearerToken,
+   verifyWalletAccessToken,
+} from '../utils/jwt.utils';
 import {
    buildQueryCostRedisKey,
    compileCostMap,
@@ -186,12 +189,17 @@ export function queryCostGovernor(options: QueryCostGovernorOptions = {}) {
                'Query budget exceeded'
             );
 
-            res
-               .status(429)
+            res.status(429)
                .set('Retry-After', String(retryAfterSeconds))
                .set('X-Query-Cost', String(cost))
-               .set('X-Query-Budget-Remaining', String(Math.max(0, budget - spent)))
-               .set('X-Query-Budget-Reset', String(Math.floor(resetAtMs / 1000)))
+               .set(
+                  'X-Query-Budget-Remaining',
+                  String(Math.max(0, budget - spent))
+               )
+               .set(
+                  'X-Query-Budget-Reset',
+                  String(Math.floor(resetAtMs / 1000))
+               )
                .json({
                   type: 'query_budget_exceeded',
                   message: 'Query budget exceeded for this window.',

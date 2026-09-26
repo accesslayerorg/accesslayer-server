@@ -63,7 +63,11 @@ router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
-router.use('/notifications', routeBodySizeLimit('default'), notificationsRouter);
+router.use(
+   '/notifications',
+   routeBodySizeLimit('default'),
+   notificationsRouter
+);
 router.use('/webhooks', routeBodySizeLimit('default'), horizonWebhookRouter);
 router.use('/vesting', routeBodySizeLimit('default'), vestingRouter);
 router.use('/investor', routeBodySizeLimit('default'), investorRouter);

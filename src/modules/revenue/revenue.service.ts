@@ -55,7 +55,9 @@ export function getCycleWindow(cycleIndex: number): RevenueCycleWindow {
 }
 
 export function getCurrentCycleIndex(now: Date = new Date()): number {
-   return Math.floor((now.getTime() - REVENUE_CYCLE_EPOCH_MS) / getCycleDurationMs());
+   return Math.floor(
+      (now.getTime() - REVENUE_CYCLE_EPOCH_MS) / getCycleDurationMs()
+   );
 }
 
 /** The most recent cycle that has fully ended, or null if none has yet. */
@@ -102,9 +104,7 @@ async function computeCycleFeesXlm(
  * the aggregated fee pool on first call and returns it on subsequent calls.
  * These records are the distribution cycle audit trail.
  */
-export async function finalizeCycle(
-   window: RevenueCycleWindow
-): Promise<{
+export async function finalizeCycle(window: RevenueCycleWindow): Promise<{
    id: string;
    cycleIndex: number;
    startsAt: Date;
@@ -332,6 +332,7 @@ export async function claimRevenue(
       await createAuditEntry({
          actorWallet: wallet,
          actionType: 'revenue_claimed',
+         targetEntity: 'RevenueCycle',
          targetId: cycle.id,
          payload: metadata,
       });

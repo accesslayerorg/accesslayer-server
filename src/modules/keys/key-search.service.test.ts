@@ -6,10 +6,7 @@ jest.mock('../../utils/prisma.utils', () => ({
 }));
 
 import { prisma } from '../../utils/prisma.utils';
-import {
-   KeySearchQueryTooShortError,
-   searchKeys,
-} from './key-search.service';
+import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 
 describe('key-search.service', () => {
    beforeEach(() => {

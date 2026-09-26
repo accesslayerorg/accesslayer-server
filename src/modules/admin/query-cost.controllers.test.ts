@@ -7,7 +7,12 @@ jest.mock('../../utils/redis.utils', () => ({
 }));
 
 jest.mock('../../utils/logger.utils', () => ({
-   logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
+   logger: {
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+   },
 }));
 
 describe('httpResetQueryCost', () => {

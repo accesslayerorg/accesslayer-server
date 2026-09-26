@@ -1,4 +1,7 @@
-import { httpReplayIndexerEvents, httpUpdateCreatorMetadata } from './admin.controllers';
+import {
+   httpReplayIndexerEvents,
+   httpUpdateCreatorMetadata,
+} from './admin.controllers';
 import { emitAuditEvent } from '../../utils/audit.utils';
 import { AdminRequest } from '../../middlewares/admin-guard.middleware';
 import { Response } from 'express';
@@ -155,7 +158,10 @@ describe('httpUpdateCreatorMetadata — tradingPaused', () => {
             action: 'pause_creator_trading',
             targetId: 'creator-1',
             metadata: expect.objectContaining({
-               tradingPaused: expect.objectContaining({ before: false, after: true }),
+               tradingPaused: expect.objectContaining({
+                  before: false,
+                  after: true,
+               }),
             }),
          })
       );
@@ -187,7 +193,10 @@ describe('httpUpdateCreatorMetadata — tradingPaused', () => {
             action: 'resume_creator_trading',
             targetId: 'creator-2',
             metadata: expect.objectContaining({
-               tradingPaused: expect.objectContaining({ before: true, after: false }),
+               tradingPaused: expect.objectContaining({
+                  before: true,
+                  after: false,
+               }),
             }),
          })
       );

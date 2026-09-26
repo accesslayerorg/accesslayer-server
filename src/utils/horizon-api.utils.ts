@@ -30,7 +30,9 @@ function buildHorizonUrl(endpoint: string): string {
    return `${base}${path}`;
 }
 
-function nonNegativeResponseTimeMs(timer: ReturnType<typeof startTimer>): number {
+function nonNegativeResponseTimeMs(
+   timer: ReturnType<typeof startTimer>
+): number {
    return Math.max(0, Math.round(elapsedMs(timer)));
 }
 

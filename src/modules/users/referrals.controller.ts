@@ -14,7 +14,11 @@ import {
    sendValidationError,
 } from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
-import { cacheGetJson, cacheSetJson, cacheInvalidate } from '../../utils/redis.utils';
+import {
+   cacheGetJson,
+   cacheSetJson,
+   cacheInvalidate,
+} from '../../utils/redis.utils';
 import { logger } from '../../utils/logger.utils';
 import { CursorChecksumError } from '../../utils/cursor.utils';
 import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
@@ -35,24 +39,37 @@ export async function httpGetWalletReferrals(
 ): Promise<void> {
    try {
       const wallet = (
-         Array.isArray(req.params.wallet) ? req.params.wallet[0] : req.params.wallet
+         Array.isArray(req.params.wallet)
+            ? req.params.wallet[0]
+            : req.params.wallet
       ).trim();
 
       const parsed = ReferralBreakdownQuerySchema.safeParse(req.query);
       if (!parsed.success) {
-         sendValidationError(res, 'Invalid query parameters', parsed.error.issues.map((issue) => ({
-            field: issue.path.join('.'),
-            message: issue.message,
-         })));
+         sendValidationError(
+            res,
+            'Invalid query parameters',
+            parsed.error.issues.map(issue => ({
+               field: issue.path.join('.'),
+               message: issue.message,
+            }))
+         );
          return;
       }
 
       const cacheKey = buildReferralSummaryCacheKey(wallet);
-      let summary = await cacheGetJson<{ totalEarned: number; referralCount: number }>(cacheKey);
+      let summary = await cacheGetJson<{
+         totalEarned: number;
+         referralCount: number;
+      }>(cacheKey);
 
       if (!summary) {
          summary = await getReferralSummary(wallet);
-         await cacheSetJson(cacheKey, summary, REFERRAL_SUMMARY_CACHE_TTL_SECONDS);
+         await cacheSetJson(
+            cacheKey,
+            summary,
+            REFERRAL_SUMMARY_CACHE_TTL_SECONDS
+         );
       }
 
       const breakdown = await getReferralBreakdown(wallet, parsed.data);
@@ -88,7 +105,12 @@ export async function httpGetWalletReferrals(
          },
          'Failed to retrieve referral earnings'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve referral earnings');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve referral earnings'
+      );
    }
 }
 
@@ -97,7 +119,9 @@ export async function httpGetWalletReferrals(
  * by {@link handleReferralFeePaidEvent}; also safe to call directly wherever
  * referral state changes.
  */
-export async function invalidateReferralSummaryCache(wallet: string): Promise<void> {
+export async function invalidateReferralSummaryCache(
+   wallet: string
+): Promise<void> {
    await cacheInvalidate(buildReferralSummaryCacheKey(wallet));
 }
 

@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { StellarAddressSchema } from "../wallet/wallet.schemas";
-import { safeIntParam } from "../../utils/query.utils";
+import { z } from 'zod';
+import { StellarAddressSchema } from '../wallet/wallet.schemas';
+import { safeIntParam } from '../../utils/query.utils';
 
 export const WalletActivityParamsSchema = z.object({
    address: StellarAddressSchema,
@@ -12,33 +12,33 @@ export const WalletActivityQuerySchema = z
          defaultValue: 20,
          min: 1,
          max: 100,
-         label: "Limit",
+         label: 'Limit',
       }),
       offset: safeIntParam({
          defaultValue: 0,
          min: 0,
          max: Number.MAX_SAFE_INTEGER,
-         label: "Offset",
+         label: 'Offset',
       }),
       type: z
          .enum([
-            "buy",
-            "sell",
-            "transfer_in",
-            "transfer_out",
-            "burn",
-            "dividend",
+            'buy',
+            'sell',
+            'transfer_in',
+            'transfer_out',
+            'burn',
+            'dividend',
          ])
          .optional(),
       creator_id: z.string().optional(),
       cursor: z.string().optional(),
       from: z
          .string()
-         .datetime({ message: "from must be an ISO 8601 datetime string" })
+         .datetime({ message: 'from must be an ISO 8601 datetime string' })
          .optional(),
       to: z
          .string()
-         .datetime({ message: "to must be an ISO 8601 datetime string" })
+         .datetime({ message: 'to must be an ISO 8601 datetime string' })
          .optional(),
    })
    .strict();
@@ -46,12 +46,12 @@ export const WalletActivityQuerySchema = z
 export type WalletActivityQueryType = z.infer<typeof WalletActivityQuerySchema>;
 
 export const UnifiedActivityTypeSchema = z.enum([
-   "buy",
-   "sell",
-   "transfer_in",
-   "transfer_out",
-   "burn",
-   "dividend",
+   'buy',
+   'sell',
+   'transfer_in',
+   'transfer_out',
+   'burn',
+   'dividend',
 ]);
 
 export type UnifiedActivityType = z.infer<typeof UnifiedActivityTypeSchema>;

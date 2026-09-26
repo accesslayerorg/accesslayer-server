@@ -7,7 +7,10 @@ jest.mock('../utils/logger.utils', () => ({
    logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
 }));
 
-const TEST_PAYLOAD: JwtPayload = { walletAddress: 'GTESTWALLET', sub: 'user-1' };
+const TEST_PAYLOAD: JwtPayload = {
+   walletAddress: 'GTESTWALLET',
+   sub: 'user-1',
+};
 
 function makeReq(overrides: Record<string, unknown> = {}): any {
    return {
@@ -68,7 +71,10 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
 
       it('includes endpoint and ip_address', () => {
          jwtAuth(
-            makeReq({ path: '/api/v1/payouts', socket: { remoteAddress: '198.51.100.7' } }),
+            makeReq({
+               path: '/api/v1/payouts',
+               socket: { remoteAddress: '198.51.100.7' },
+            }),
             makeRes(),
             jest.fn()
          );
@@ -90,9 +96,13 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
 
    describe('invalid signature', () => {
       it('emits a warn log with reason invalid_signature for a token signed with the wrong secret', () => {
-         const badToken = jwt.sign(TEST_PAYLOAD, 'a-completely-different-secret-value', {
-            expiresIn: '1h',
-         });
+         const badToken = jwt.sign(
+            TEST_PAYLOAD,
+            'a-completely-different-secret-value',
+            {
+               expiresIn: '1h',
+            }
+         );
          const next = jest.fn();
          jwtAuth(
             makeReq({ headers: { authorization: `Bearer ${badToken}` } }),
@@ -118,7 +128,9 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
       });
 
       it('includes endpoint and ip_address', () => {
-         const badToken = jwt.sign(TEST_PAYLOAD, 'wrong-secret', { expiresIn: '1h' });
+         const badToken = jwt.sign(TEST_PAYLOAD, 'wrong-secret', {
+            expiresIn: '1h',
+         });
          jwtAuth(
             makeReq({
                headers: { authorization: `Bearer ${badToken}` },
@@ -178,7 +190,9 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
          );
 
          jest.clearAllMocks();
-         const badToken = jwt.sign(TEST_PAYLOAD, 'wrong-secret', { expiresIn: '1h' });
+         const badToken = jwt.sign(TEST_PAYLOAD, 'wrong-secret', {
+            expiresIn: '1h',
+         });
          jwtAuth(
             makeReq({ headers: { authorization: `Bearer ${badToken}` } }),
             makeRes(),
@@ -205,7 +219,9 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
       });
 
       it('attaches jwtPayload to the request', () => {
-         const req = makeReq({ headers: { authorization: `Bearer ${signValidToken()}` } });
+         const req = makeReq({
+            headers: { authorization: `Bearer ${signValidToken()}` },
+         });
          jwtAuth(req, makeRes(), jest.fn());
 
          expect(req.jwtPayload).toMatchObject(TEST_PAYLOAD);

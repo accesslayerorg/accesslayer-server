@@ -51,7 +51,10 @@ export const httpRegisterUserWithPassword: AsyncController = async (
          },
       });
    } catch (error) {
-      logger.error({ error, requestId: req.requestId }, 'Failed to register user');
+      logger.error(
+         { error, requestId: req.requestId },
+         'Failed to register user'
+      );
       next(error);
    }
 };
@@ -204,7 +207,10 @@ export const httpGetProfile: AsyncController = async (req, res, next) => {
          },
       });
    } catch (error) {
-      logger.error({ error, requestId: req.requestId }, 'Failed to get profile');
+      logger.error(
+         { error, requestId: req.requestId },
+         'Failed to get profile'
+      );
       next(error);
    }
 };

@@ -1,6 +1,9 @@
 import { AsyncController } from '../../types/auth.types';
 import { clearDrift } from '../../utils/supply-drift-guard.utils';
-import { sendSuccess, sendValidationError } from '../../utils/api-response.utils';
+import {
+   sendSuccess,
+   sendValidationError,
+} from '../../utils/api-response.utils';
 
 export const httpClearDrift: AsyncController = async (req, res, next) => {
    try {

@@ -2,7 +2,8 @@ import { truncateWallet } from './wallet-display.utils';
 
 describe('truncateWallet', () => {
    it('truncates a 56-char Stellar address to 4...4 format', () => {
-      const address = 'GABC111111111111111111111111111111111111111111111111WXYZ';
+      const address =
+         'GABC111111111111111111111111111111111111111111111111WXYZ';
       expect(truncateWallet(address)).toBe('GABC…WXYZ');
    });
 

@@ -37,14 +37,12 @@ jest.mock('../../utils/wallet-ownership.utils', () => ({
 }));
 
 jest.mock('../../middlewares/stellar-signature.middleware', () => ({
-   requireStellarSignature:
-      () => (req: any, _res: any, next: any) => {
-         req.walletAddress =
-            req.headers['x-wallet-address'] ||
-            req.headers['wallet-address'];
-         req.signatureVerified = true;
-         next();
-      },
+   requireStellarSignature: () => (req: any, _res: any, next: any) => {
+      req.walletAddress =
+         req.headers['x-wallet-address'] || req.headers['wallet-address'];
+      req.signatureVerified = true;
+      next();
+   },
 }));
 
 jest.mock('./creator-profile.service', () => ({
@@ -63,11 +61,13 @@ const mockedPrisma = prisma as unknown as {
    creatorProfile: { findUnique: jest.Mock; update: jest.Mock };
    $transaction: jest.Mock;
 };
-const mockedCreatorProfileExists =
-   creatorProfileExists as jest.MockedFunction<typeof creatorProfileExists>;
+const mockedCreatorProfileExists = creatorProfileExists as jest.MockedFunction<
+   typeof creatorProfileExists
+>;
 
 const CREATOR_ID = 'test-creator-follow-1';
-const FOLLOWER_ADDRESS = 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
+const FOLLOWER_ADDRESS =
+   'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
 
 describe('POST/DELETE /api/v1/creators/:creatorId/follow — follower count', () => {
    beforeEach(() => {
@@ -205,8 +205,9 @@ describe('POST/DELETE /api/v1/creators/:creatorId/follow — follower count', ()
    });
 
    it('returns 401 for unauthenticated follow request', async () => {
-      const res = await supertest(app)
-         .post(`/api/v1/creators/${CREATOR_ID}/follow`);
+      const res = await supertest(app).post(
+         `/api/v1/creators/${CREATOR_ID}/follow`
+      );
 
       expect(res.status).toBe(401);
       expect(res.body).toEqual(

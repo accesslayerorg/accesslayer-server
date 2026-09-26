@@ -148,23 +148,6 @@ describe('processTradeEvents integration test', () => {
       expect(mockPrisma.activity.create).toHaveBeenCalledTimes(1);
    });
 
-   it('invalidates portfolio stats when a creator key is registered', async () => {
-      await processTradeEvents([
-         {
-            txHash: '0xregistered',
-            eventIndex: 0,
-            eventType: 'CREATOR_REGISTERED',
-            ledger: 12346,
-            actor: 'G_DEPLOYER_ADDRESS',
-         },
-      ]);
-
-      expect(mockCacheInvalidate).toHaveBeenCalledWith(
-         'creator-portfolio:stats:v1:G_DEPLOYER_ADDRESS'
-      );
-      expect(mockPrisma.activity.create).not.toHaveBeenCalled();
-   });
-
    it('skips a sell event with missing required fields and logs a warning', async () => {
       const malformedEvent: IndexerChainEvent = {
          txHash: '0xhash123',

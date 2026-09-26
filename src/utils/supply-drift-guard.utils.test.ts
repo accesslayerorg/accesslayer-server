@@ -19,7 +19,11 @@ jest.mock('./redis.utils', () => {
    const store = new Map<string, string>();
    return {
       getRedis: () => ({
-         exists: jest.fn().mockImplementation(async (key: string) => (store.has(key) ? 1 : 0)),
+         exists: jest
+            .fn()
+            .mockImplementation(async (key: string) =>
+               store.has(key) ? 1 : 0
+            ),
          set: jest.fn().mockImplementation(async (key: string, val: string) => {
             store.set(key, val);
             return 'OK';

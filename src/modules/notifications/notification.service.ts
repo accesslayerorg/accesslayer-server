@@ -15,9 +15,7 @@ import { NotificationItem } from './notification.types';
 async function getLastReadAt(walletAddress: string): Promise<Date | null> {
    const redis = getRedis();
    if (!redis) return null;
-   const raw = await redis.get(
-      REDIS_KEYS.notificationsReadAt(walletAddress)
-   );
+   const raw = await redis.get(REDIS_KEYS.notificationsReadAt(walletAddress));
    if (!raw) {
       return null;
    }
@@ -129,28 +127,26 @@ async function buildKeyDeprecated(
       },
    });
 
-   return deprecatedKeys.map((key) => {
-         // deprecatedAt is guaranteed non-null by the where: { not: null } filter above
-         const createdAt = key.deprecatedAt!;
-         return {
-            id: `key_deprecated:${key.id}`,
-            type: NOTIFICATION_TYPES.KEY_DEPRECATED,
-            createdAt: createdAt.toISOString(),
-            read: isRead(createdAt, lastReadAt),
-            payload: {
-               keyId: key.id,
-               buybackPriceXlm:
-                  key.buybackPriceXlm !== null &&
-                  key.buybackPriceXlm !== undefined
-                     ? String(key.buybackPriceXlm)
-                     : null,
-               buybackExpiresAt: key.buybackExpiresAt
-                  ? key.buybackExpiresAt.toISOString()
+   return deprecatedKeys.map(key => {
+      // deprecatedAt is guaranteed non-null by the where: { not: null } filter above
+      const createdAt = key.deprecatedAt!;
+      return {
+         id: `key_deprecated:${key.id}`,
+         type: NOTIFICATION_TYPES.KEY_DEPRECATED,
+         createdAt: createdAt.toISOString(),
+         read: isRead(createdAt, lastReadAt),
+         payload: {
+            keyId: key.id,
+            buybackPriceXlm:
+               key.buybackPriceXlm !== null && key.buybackPriceXlm !== undefined
+                  ? String(key.buybackPriceXlm)
                   : null,
-            },
-         };
-      }
-   );
+            buybackExpiresAt: key.buybackExpiresAt
+               ? key.buybackExpiresAt.toISOString()
+               : null,
+         },
+      };
+   });
 }
 
 async function buildPriceMoved(

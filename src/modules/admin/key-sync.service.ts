@@ -52,7 +52,9 @@ export interface KeySyncResult {
  *
  * For now, this is a placeholder that demonstrates the expected return type.
  */
-async function readOnChainState(creatorId: string): Promise<OnChainKeyState | null> {
+async function readOnChainState(
+   creatorId: string
+): Promise<OnChainKeyState | null> {
    try {
       // TODO: Implement Soroban RPC calls to read contract state
       // This would require:
@@ -70,10 +72,7 @@ async function readOnChainState(creatorId: string): Promise<OnChainKeyState | nu
       // Placeholder return - actual implementation would query contract
       return null;
    } catch (error) {
-      logger.error(
-         { error, creatorId },
-         'Failed to read on-chain state'
-      );
+      logger.error({ error, creatorId }, 'Failed to read on-chain state');
       return null;
    }
 }
@@ -114,15 +113,14 @@ async function readDatabaseState(
 
       return {
          circulatingSupply: creator.circulatingSupply,
-         currentPrice: priceSnapshot ? new Decimal(priceSnapshot.currentPrice.toString()) : new Decimal(0),
+         currentPrice: priceSnapshot
+            ? new Decimal(priceSnapshot.currentPrice.toString())
+            : new Decimal(0),
          holderCount,
          tradingPaused: creator.tradingPaused,
       };
    } catch (error) {
-      logger.error(
-         { error, creatorId },
-         'Failed to read database state'
-      );
+      logger.error({ error, creatorId }, 'Failed to read database state');
       return null;
    }
 }
@@ -203,10 +201,7 @@ export async function syncKeyState(creatorId: string): Promise<KeySyncResult> {
       });
 
       if (!creator) {
-         logger.warn(
-            { creatorId },
-            'Attempted to sync non-existent creator'
-         );
+         logger.warn({ creatorId }, 'Attempted to sync non-existent creator');
          throw new Error('Creator not found');
       }
 
@@ -245,7 +240,7 @@ export async function syncKeyState(creatorId: string): Promise<KeySyncResult> {
       }
 
       // Update database within a transaction
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async tx => {
          // Build update data
          const updateData: Record<string, unknown> = {};
 
@@ -266,11 +261,13 @@ export async function syncKeyState(creatorId: string): Promise<KeySyncResult> {
          }
 
          // Update price snapshot if currentPrice changed
-         const priceChange = changes.find((c) => c.field === 'currentPrice');
+         const priceChange = changes.find(c => c.field === 'currentPrice');
          if (priceChange) {
             await tx.creatorPriceSnapshot.upsert({
                where: { creatorId },
-               update: { currentPrice: BigInt(onChainState.currentPrice.toString()) },
+               update: {
+                  currentPrice: BigInt(onChainState.currentPrice.toString()),
+               },
                create: {
                   creatorId,
                   currentPrice: BigInt(onChainState.currentPrice.toString()),
@@ -286,7 +283,7 @@ export async function syncKeyState(creatorId: string): Promise<KeySyncResult> {
          {
             creatorId,
             changedFieldCount: changes.length,
-            changes: changes.map((c) => ({
+            changes: changes.map(c => ({
                field: c.field,
                oldValue: c.oldValue,
                newValue: c.newValue,
@@ -298,10 +295,7 @@ export async function syncKeyState(creatorId: string): Promise<KeySyncResult> {
       result.success = true;
       return result;
    } catch (error) {
-      logger.error(
-         { error, creatorId },
-         'Failed to sync key state'
-      );
+      logger.error({ error, creatorId }, 'Failed to sync key state');
       throw error;
    }
 }

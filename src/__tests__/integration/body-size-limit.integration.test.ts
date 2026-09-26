@@ -10,7 +10,7 @@ import supertest from 'supertest';
 function loadAppWithAuthLimit(limit: string) {
    jest.resetModules();
    process.env.BODY_SIZE_LIMIT_AUTH = limit;
-    
+
    return require('../../app').default;
 }
 
@@ -25,7 +25,7 @@ describe('request body size limits (route-group scoped)', () => {
       }
    });
 
-   it('rejects a request exceeding the auth group\'s configured limit with a clean 413', async () => {
+   it("rejects a request exceeding the auth group's configured limit with a clean 413", async () => {
       const app = loadAppWithAuthLimit('1kb');
 
       // A payload comfortably over 1kb.
@@ -43,7 +43,7 @@ describe('request body size limits (route-group scoped)', () => {
       });
    });
 
-   it('accepts a request within the auth group\'s configured limit (does not reject on size)', async () => {
+   it("accepts a request within the auth group's configured limit (does not reject on size)", async () => {
       const app = loadAppWithAuthLimit('1kb');
 
       const smallPayload = { email: 'user@example.com', password: 'x' };

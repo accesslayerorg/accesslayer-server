@@ -204,7 +204,9 @@ describe('#667 indexer resumes from checkpoint after simulated restart', () => {
          // `any` for the same reason — we are intentionally replacing
          // the implementation here.
          const processedLedgers: number[] = [];
-         jest.spyOn(prisma.activity, 'create').mockImplementation((async ({ data }: any) => {
+         jest.spyOn(prisma.activity, 'create').mockImplementation((async ({
+            data,
+         }: any) => {
             const ledger = data?.payload?.ledger_sequence;
             if (typeof ledger === 'number') {
                processedLedgers.push(ledger);
@@ -216,11 +218,21 @@ describe('#667 indexer resumes from checkpoint after simulated restart', () => {
             // observe writes. test-only.
          }) as any);
 
-         jest.spyOn(prisma.keyOwnership, 'findFirst').mockResolvedValue(null as any);
-         jest.spyOn(prisma.keyOwnership, 'upsert').mockResolvedValue({ balance: 0 } as any);
-         jest.spyOn(prisma.creatorPriceSnapshot, 'findUnique').mockResolvedValue(null as any);
-         jest.spyOn(prisma.creatorPriceSnapshot, 'create').mockResolvedValue({} as any);
-         jest.spyOn(prisma.indexedLedger, 'upsert').mockResolvedValue({} as any);
+         jest
+            .spyOn(prisma.keyOwnership, 'findFirst')
+            .mockResolvedValue(null as any);
+         jest
+            .spyOn(prisma.keyOwnership, 'upsert')
+            .mockResolvedValue({ balance: 0 } as any);
+         jest
+            .spyOn(prisma.creatorPriceSnapshot, 'findUnique')
+            .mockResolvedValue(null as any);
+         jest
+            .spyOn(prisma.creatorPriceSnapshot, 'create')
+            .mockResolvedValue({} as any);
+         jest
+            .spyOn(prisma.indexedLedger, 'upsert')
+            .mockResolvedValue({} as any);
 
          // (a) Simulate restart — read resume point from the
          //     checkpoint table. The value is derived from the DB.

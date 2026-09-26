@@ -45,12 +45,7 @@ export async function httpFollowCreator(
          },
          'Error following creator'
       );
-      sendError(
-         res,
-         500,
-         ErrorCode.INTERNAL_ERROR,
-         'Failed to follow creator'
-      );
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to follow creator');
    }
 }
 

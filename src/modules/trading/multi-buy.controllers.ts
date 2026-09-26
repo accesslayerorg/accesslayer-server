@@ -10,15 +10,15 @@ import {
    ErrorCode,
 } from '../../utils/api-response.utils';
 import { horizonGet } from '../../clients/horizon.client';
-import { assertTradingActive, TradingPausedError } from '../keys/key-trading.service';
+import {
+   assertTradingActive,
+   TradingPausedError,
+} from '../keys/key-trading.service';
 import {
    assertPositionNotFrozen,
    PositionFrozenError,
 } from '../keys/key-freeze.service';
-import {
-   logSlippageRejection,
-   sendSlippageExceeded,
-} from './slippage.service';
+import { logSlippageRejection, sendSlippageExceeded } from './slippage.service';
 
 async function getCurrentLedger(): Promise<number> {
    const res = await horizonGet('/');
@@ -39,7 +39,7 @@ async function getXlmBalance(address: string): Promise<bigint> {
          balance: string;
       }>;
    };
-   const native = data.balances?.find((b) => b.asset_type === 'native');
+   const native = data.balances?.find(b => b.asset_type === 'native');
    if (!native) return 0n;
    const stroops = BigInt(Math.floor(parseFloat(native.balance) * 10_000_000));
    return stroops;
@@ -141,12 +141,7 @@ export const httpMultiBuy: AsyncController = async (req, res, next) => {
             slippage_exceeded: 409,
          };
          const status = statusMap[err.code] ?? 500;
-         sendError(
-            res,
-            status,
-            err.code as any,
-            err.message
-         );
+         sendError(res, status, err.code as any, err.message);
          return;
       }
       next(err);

@@ -9,7 +9,7 @@ describe('computeBuyCost', () => {
 
    it('amount 5 at supply 10 calculates correct base cost without fees', () => {
       const cost = computeBuyCost(10, 5, 0);
-      // Cost of each key: 
+      // Cost of each key:
       // 10: 10_000_000 + 10_000_000 = 20_000_000
       // 11: 10_000_000 + 11_000_000 = 21_000_000
       // 12: 10_000_000 + 12_000_000 = 22_000_000

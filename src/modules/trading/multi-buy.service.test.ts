@@ -13,19 +13,17 @@ const DEFAULT_SUPPLY = 5;
 const CURRENT_LEDGER = 1000;
 const BUYER_BALANCE = 1_000_000_000_000n;
 
-function makeProviders(overrides: {
-   ledger?: number;
-   balance?: bigint;
-   supply?: number | Record<string, number>;
-} = {}) {
+function makeProviders(
+   overrides: {
+      ledger?: number;
+      balance?: bigint;
+      supply?: number | Record<string, number>;
+   } = {}
+) {
    const supplyMap =
-      typeof overrides.supply === 'object'
-         ? overrides.supply
-         : undefined;
+      typeof overrides.supply === 'object' ? overrides.supply : undefined;
    const flatSupply =
-      typeof overrides.supply === 'number'
-         ? overrides.supply
-         : DEFAULT_SUPPLY;
+      typeof overrides.supply === 'number' ? overrides.supply : DEFAULT_SUPPLY;
 
    return {
       ledger: {

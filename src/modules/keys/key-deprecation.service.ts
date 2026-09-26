@@ -271,6 +271,7 @@ export async function deprecateKey(
    await createAuditEntry({
       actorWallet: input.actor,
       actionType: 'key_deprecated',
+      targetEntity: 'CreatorProfile',
       targetId: creator.id,
       payload: metadata,
    });
@@ -333,10 +334,7 @@ export async function processBuyback(
       if (!creator.deprecatedAt) {
          throw new KeyNotDeprecatedError(creator.id);
       }
-      if (
-         creator.buybackExpiresAt &&
-         new Date() > creator.buybackExpiresAt
-      ) {
+      if (creator.buybackExpiresAt && new Date() > creator.buybackExpiresAt) {
          throw new BuybackWindowClosedError(
             creator.id,
             creator.buybackExpiresAt
