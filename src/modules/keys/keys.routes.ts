@@ -13,11 +13,20 @@ import {
 import { ErrorCode } from '../../constants/error.constants';
 import {
    getKeyPriceHistory,
+   getKeyPriceSnapshots,
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
-import { getKeyProposals } from './key-proposals.service';
+import {
+   getOraclePrice,
+   KeyNotFoundError as OracleKeyNotFoundError,
+   OraclePriceNotFoundError,
+} from './oracle-price.service';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import { envConfig } from '../../config';
+import { getKeyProposals, getProposalForVoting } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
+
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
 import dividendRouter from '../dividends/dividend.routes';
@@ -30,16 +39,24 @@ import {
    adminGuard,
    AdminRequest,
 } from '../../middlewares/admin-guard.middleware';
+import { requireInternalApiKey } from '../../middlewares/internal-auth.middleware';
+import {
+   registerKeyContract,
+   DuplicateKeyRegistrationError,
+   InvalidOnChainContractError,
+} from './key-registration.service';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
-import { creatorProfileExists, getCreatorProfile } from '../creator/creator-profile.service';
+import {
+   creatorProfileExists,
+   getCreatorProfile,
+} from '../creator/creator-profile.service';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
 import {
    castKeyProposalVote,
-   getProposalForVoting,
    HolderNotEligibleError,
    DuplicateVoteError,
    OptionIndexOutOfRangeError,
@@ -55,6 +72,7 @@ import {
    processBuyback,
 } from './key-deprecation.service';
 import { getKeyCooldown } from './key-cooldown.service';
+import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
 import {
    freezePosition,
@@ -64,11 +82,30 @@ import {
    PositionNotFoundError,
    unfreezePosition,
 } from './key-freeze.service';
+import {
+   getPriceImpact,
+   KeyNotFoundError as PriceImpactKeyNotFoundError,
+} from './key-price-impact.service';
+import {
+   getBuybackPoolBalance,
+   getBuybackPoolHistory,
+   executeBuybackFromPool,
+   KeyNotFoundError as BuybackPoolKeyNotFoundError,
+} from './buyback-pool.service';
+import {
+   getMultiplierTiers,
+   matchTierForLockPeriod,
+   calculateEffectiveWeight,
+} from '../staking/staking.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
    to: z.string().datetime(),
-   interval: z.enum(PRICE_HISTORY_INTERVALS),
+   // Optional (#893): when omitted, the endpoint returns every raw price
+   // snapshot in range (price, supply, direction, timestamp) — the shape
+   // TWAP calculations need. When provided, it keeps the legacy
+   // fixed-bucket downsampled series for chart consumers.
+   interval: z.enum(PRICE_HISTORY_INTERVALS).optional(),
 });
 
 const searchQuerySchema = z.object({
@@ -83,7 +120,96 @@ const walletQuerySchema = z.object({
    wallet: StellarAddressSchema,
 });
 
+const priceImpactQuerySchema = z.object({
+   quantity: z.string().transform(v => {
+      const num = parseInt(v, 10);
+      if (isNaN(num) || num <= 0) {
+         throw new Error('Quantity must be a positive integer');
+      }
+      return num;
+   }),
+   direction: z.enum(['buy', 'sell']),
+});
+
+const buybackPoolHistoryQuerySchema = z.object({
+   limit: z
+      .string()
+      .transform(v => {
+         const num = parseInt(v, 10);
+         if (isNaN(num) || num < 1 || num > 100) {
+            throw new Error('Limit must be between 1 and 100');
+         }
+         return num;
+      })
+      .optional(),
+   cursor: z.string().optional(),
+});
+
+const buybackExecuteBodySchema = z.object({
+   amountXlm: z
+      .string()
+      .refine(
+         v => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
+         'amountXlm must be a positive number'
+      ),
+});
+
 const router = Router();
+
+const registerKeyBodySchema = z.preprocess(
+   (val: any) => {
+      if (val && typeof val === 'object') {
+         return {
+            keyAddress: val.keyAddress ?? val.key_address,
+            creatorWallet: val.creatorWallet ?? val.creator_wallet,
+            handle: val.handle,
+            displayName: val.displayName ?? val.display_name,
+            metadata: val.metadata ?? val.config_metadata ?? val.configMetadata,
+         };
+      }
+      return val;
+   },
+   z.object({
+      keyAddress: z.string().min(1, 'keyAddress is required'),
+      creatorWallet: z.string().min(1, 'creatorWallet is required'),
+      handle: z.string().optional(),
+      displayName: z.string().optional(),
+      metadata: z.record(z.unknown()).optional(),
+   })
+);
+
+/**
+ * POST /api/v1/keys/register
+ * Receives newly deployed creator key contract addresses from factory indexer
+ * and registers them in the database for API serving.
+ * Restricted to internal indexer service via API key auth.
+ */
+router.post('/register', requireInternalApiKey, async (req, res, next) => {
+   const parsed = registerKeyBodySchema.safeParse(req.body);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid registration request body',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const registered = await registerKeyContract(parsed.data);
+      sendSuccess(res, registered, 201, 'Key contract registered successfully');
+   } catch (error) {
+      if (error instanceof DuplicateKeyRegistrationError) {
+         sendConflict(res, error.message);
+         return;
+      }
+      if (error instanceof InvalidOnChainContractError) {
+         sendValidationError(res, error.message);
+         return;
+      }
+      next(error);
+   }
+});
 
 /**
  * POST /api/v1/keys/batch
@@ -183,6 +309,68 @@ router.get('/search', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * GET /api/v1/keys/:keyId/oracle-price
+ *
+ * Returns the current oracle price (synced from OraclePriceUpdated contract
+ * events), the bonding-curve spot price, the deviation percentage, and a
+ * staleness flag when the oracle feed has not been updated within
+ * ORACLE_STALENESS_THRESHOLD_MS.
+ *
+ * Response is cached in Redis for ORACLE_CACHE_TTL_MS to match the expected
+ * oracle update frequency without hammering the database.
+ *
+ * 404 is returned when either the key or the oracle price row does not exist.
+ */
+router.get(
+   '/:keyId/oracle-price',
+   cacheControl({
+      maxAge: Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000),
+      type: 'public',
+      mustRevalidate: true,
+   }),
+   async (req, res, next) => {
+      const keyId = String(req.params.keyId);
+      const cacheKey = `oracle-price:${keyId}`;
+      try {
+         const cached =
+            await cacheGetJson<
+               ReturnType<typeof getOraclePrice> extends Promise<infer T>
+                  ? T
+                  : never
+            >(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const result = await getOraclePrice(keyId);
+
+         // Cache for ORACLE_CACHE_TTL_MS (converted to whole seconds).
+         const ttlSeconds = Math.max(
+            1,
+            Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000)
+         );
+         await cacheSetJson(cacheKey, result, ttlSeconds);
+
+         sendSuccess(res, result);
+      } catch (error) {
+         if (
+            error instanceof OracleKeyNotFoundError ||
+            error instanceof OraclePriceNotFoundError
+         ) {
+            sendNotFound(
+               res,
+               error instanceof OraclePriceNotFoundError
+                  ? 'Oracle price'
+                  : 'Key'
+            );
+            return;
+         }
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/keys/:keyId
@@ -354,6 +542,163 @@ router.get('/:keyId/supply', async (req, res, next) => {
 });
 
 /**
+ * GET /api/v1/keys/:keyId/price-impact?quantity=&direction=buy|sell
+ * Calculate price impact of a given trade quantity and direction.
+ * Used for frontend warnings and pre-trade validation.
+ * Response cached with 10s TTL per key.
+ * No auth required as a read-only check.
+ */
+router.get('/:keyId/price-impact', async (req, res, next) => {
+   const parsed = priceImpactQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid price-impact query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const { quantity, direction } = parsed.data;
+      const priceImpact = await getPriceImpact(
+         req.params.keyId,
+         quantity,
+         direction
+      );
+      sendSuccess(res, priceImpact);
+   } catch (error) {
+      if (error instanceof PriceImpactKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (error instanceof Error) {
+         sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Price impact calculation failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/buyback-pool
+ * Get current buyback pool balance for a creator key.
+ * Synced from SellTaxCollected contract events.
+ * Cached with 30s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/buyback-pool', async (req, res, next) => {
+   try {
+      const poolBalance = await getBuybackPoolBalance(req.params.keyId);
+      sendSuccess(res, poolBalance);
+   } catch (error) {
+      if (error instanceof BuybackPoolKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Buyback pool fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/buyback-pool/history?limit=&cursor=
+ * Get paginated history of buyback pool contributions.
+ * Returns contributions in reverse chronological order.
+ * Uses cursor-based pagination.
+ * No auth required.
+ */
+router.get('/:keyId/buyback-pool/history', async (req, res, next) => {
+   const parsed = buybackPoolHistoryQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid buyback pool history query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const { limit, cursor } = parsed.data;
+      const history = await getBuybackPoolHistory(
+         req.params.keyId,
+         limit,
+         cursor
+      );
+      sendSuccess(res, history);
+   } catch (error) {
+      if (error instanceof BuybackPoolKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Buyback pool history fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * POST /api/v1/keys/:keyId/buyback-pool/execute
+ * Admin endpoint to trigger manual buyback from pool.
+ * Restricted to admin role.
+ * Creates an execution record for on-chain processing.
+ */
+router.post(
+   '/:keyId/buyback-pool/execute',
+   requireJwtAuth,
+   adminGuard,
+   async (req, res, next) => {
+      const parsed = buybackExecuteBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid buyback execute request',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const { amountXlm } = parsed.data;
+         const { Decimal } = await import('@prisma/client/runtime/library');
+         const keyId = Array.isArray(req.params.keyId)
+            ? req.params.keyId[0]
+            : req.params.keyId;
+         const result = await executeBuybackFromPool(
+            keyId,
+            new Decimal(amountXlm),
+            (req as AdminRequest).adminId || ''
+         );
+         sendSuccess(res, result, 202, 'Buyback execution initiated');
+      } catch (error) {
+         if (error instanceof BuybackPoolKeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof Error) {
+            sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Buyback execution failed'
+         );
+         next(error);
+      }
+   }
+);
+
+/**
  * GET /api/v1/keys/:keyId/freeze-status?wallet=
  * Frozen and liquid balance for a holder on a key.
  */
@@ -409,6 +754,49 @@ router.get('/:keyId/cooldown', async (req, res, next) => {
    }
 });
 
+/**
+ * GET /api/v1/keys/:keyId/price-history?from=&to=[&interval=1h|24h|7d]
+ *
+ * Returns price snapshots recorded for a key within [from, to], indexed on
+ * (creatorId, recordedAt) for fast range scans (#893).
+ *
+ * - Without `interval`: every raw snapshot in range — price, post-trade
+ *   supply, and trade direction — ordered oldest first. This is the input
+ *   TWAP calculations need.
+ * - With `interval`: a downsampled, chart-friendly series (legacy shape).
+ */
+
+/**
+ * GET /api/v1/keys/:keyId/holding-capacity?wallet=
+ * Wallet holding, holder cap, and remaining purchase capacity on a key.
+ */
+router.get('/:keyId/holding-capacity', async (req, res, next) => {
+   const parsed = walletQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyHoldingCapacity(
+            String(req.params.keyId),
+            parsed.data.wallet
+         )
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
 router.get('/:keyId/price-history', async (req, res, next) => {
    const parsed = priceHistoryQuerySchema.safeParse(req.query);
    if (!parsed.success) {
@@ -433,14 +821,28 @@ router.get('/:keyId/price-history', async (req, res, next) => {
       return;
    }
    try {
+      if (parsed.data.interval) {
+         sendSuccess(
+            res,
+            await getKeyPriceHistory(
+               req.params.keyId,
+               from,
+               to,
+               parsed.data.interval
+            )
+         );
+         return;
+      }
+
+      const snapshots = await getKeyPriceSnapshots(req.params.keyId, from, to);
       sendSuccess(
          res,
-         await getKeyPriceHistory(
-            req.params.keyId,
-            from,
-            to,
-            parsed.data.interval
-         )
+         snapshots.map(snapshot => ({
+            timestamp: snapshot.timestamp,
+            price: snapshot.price.toString(),
+            supply: snapshot.supply.toString(),
+            direction: snapshot.direction,
+         }))
       );
    } catch (error) {
       next(error);
@@ -661,7 +1063,10 @@ router.post(
             sendForbidden(res, error.message);
             return;
          }
-         logger.error({ error, keyId: req.params.keyId }, 'Key deprecate failed');
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key deprecate failed'
+         );
          next(error);
       }
    }
@@ -776,6 +1181,20 @@ router.get(
             return;
          }
 
+         const tiers = await getMultiplierTiers();
+         let lockPeriodSeconds = 0;
+         if (ownership.lockupExpiresAt) {
+            const startTime = ownership.lastBuyAt ?? ownership.createdAt;
+            const diffMs =
+               ownership.lockupExpiresAt.getTime() - startTime.getTime();
+            lockPeriodSeconds = Math.max(0, Math.round(diffMs / 1000));
+         }
+         const matchedTier = matchTierForLockPeriod(lockPeriodSeconds, tiers);
+         const effectiveWeight = calculateEffectiveWeight(
+            ownership.balance.toString(),
+            matchedTier.multiplier
+         );
+
          sendSuccess(res, {
             id: ownership.id,
             ownerAddress: ownership.ownerAddress,
@@ -786,6 +1205,10 @@ router.get(
             lockupExpiresAt: ownership.lockupExpiresAt ?? null,
             is_frozen: ownership.frozen,
             frozen_at: ownership.frozenAt ?? null,
+            tier: matchedTier.tier,
+            multiplier: matchedTier.multiplier,
+            effectiveWeight,
+            tierData: matchedTier,
             createdAt: ownership.createdAt,
             updatedAt: ownership.updatedAt,
          });

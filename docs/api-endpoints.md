@@ -13,9 +13,9 @@ Simple health check for load balancers.
 
 ```json
 {
-  "success": true,
-  "message": "OK",
-  "timestamp": "2025-01-15T10:30:00.000Z"
+   "success": true,
+   "message": "OK",
+   "timestamp": "2025-01-15T10:30:00.000Z"
 }
 ```
 
@@ -28,12 +28,12 @@ Readiness check with dependency probes.
 
 ```json
 {
-  "ready": true,
-  "timestamp": "2025-01-15T10:30:00.000Z",
-  "checks": [
-    { "name": "database", "status": "ok", "latencyMs": 12 },
-    { "name": "cache", "status": "ok" }
-  ]
+   "ready": true,
+   "timestamp": "2025-01-15T10:30:00.000Z",
+   "checks": [
+      { "name": "database", "status": "ok", "latencyMs": 12 },
+      { "name": "cache", "status": "ok" }
+   ]
 }
 ```
 
@@ -46,19 +46,19 @@ Full diagnostics including memory and system info.
 
 ```json
 {
-  "success": true,
-  "message": "Access Layer server is running",
-  "timestamp": "2025-01-15T10:30:00.000Z",
-  "version": "1.0.0",
-  "environment": "development",
-  "uptime": 12345.67,
-  "memory": { "used": 45.23, "total": 128.5 },
-  "system": { "platform": "darwin", "nodeVersion": "v20.10.0" },
-  "database": { "status": "connected", "responseTime": 12 },
-  "services": [
-    { "name": "API Server", "status": "healthy" },
-    { "name": "Database", "status": "healthy" }
-  ]
+   "success": true,
+   "message": "Access Layer server is running",
+   "timestamp": "2025-01-15T10:30:00.000Z",
+   "version": "1.0.0",
+   "environment": "development",
+   "uptime": 12345.67,
+   "memory": { "used": 45.23, "total": 128.5 },
+   "system": { "platform": "darwin", "nodeVersion": "v20.10.0" },
+   "database": { "status": "connected", "responseTime": 12 },
+   "services": [
+      { "name": "API Server", "status": "healthy" },
+      { "name": "Database", "status": "healthy" }
+   ]
 }
 ```
 
@@ -75,8 +75,8 @@ Authenticate a user.
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "securepassword"
+   "email": "user@example.com",
+   "password": "securepassword"
 }
 ```
 
@@ -91,9 +91,9 @@ Register a new user.
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "securepassword",
-  "name": "User Name"
+   "email": "user@example.com",
+   "password": "securepassword",
+   "name": "User Name"
 }
 ```
 
@@ -112,8 +112,8 @@ Get protocol bootstrap configuration.
 
 ```json
 {
-  "network": "testnet",
-  "contractAddress": "..."
+   "network": "testnet",
+   "contractAddress": "..."
 }
 ```
 
@@ -127,8 +127,8 @@ List all creators with pagination.
 
 - **Auth:** None
 - **Query Params:**
-  - `page` (number, default: 1)
-  - `limit` (number, default: 10)
+   - `page` (number, default: 1)
+   - `limit` (number, default: 10)
 - **Response:** `200 OK`
 
 ```json
@@ -151,15 +151,32 @@ Get public stats for a specific creator.
 
 ```json
 {
-  "creatorId": "...",
-  "totalSales": 150,
-  "totalEarnings": 12500.50
+   "creatorId": "...",
+   "totalSales": 150,
+   "totalEarnings": 12500.5
 }
 ```
 
 ---
 
 ## Creator Profile Endpoints
+
+### GET /creators/:wallet
+
+Get the public profile associated with a Stellar wallet and aggregated stats
+for every creator key deployed by that wallet.
+
+- **Auth:** None
+- **Stats:** `totalKeys`, `totalHolders`, and `totalTradingVolume` (in stroops)
+- **Stats cache:** 60 seconds; creator registration invalidates the wallet cache
+
+### GET /creators/:wallet/keys
+
+Get creator keys deployed by a Stellar wallet, ordered newest first. Supports
+`limit` (1-100, default 20) and an opaque `cursor` from the prior response.
+
+- **Auth:** None
+- **Pagination:** `items`, `nextCursor`, `hasMore`, and `limit`
 
 ### GET /creators/:creatorId/profile
 
@@ -170,10 +187,10 @@ Get creator profile scaffold payload.
 
 ```json
 {
-  "creatorId": "...",
-  "displayName": "Creator Name",
-  "bio": "...",
-  "avatarUrl": "..."
+   "creatorId": "...",
+   "displayName": "Creator Name",
+   "bio": "...",
+   "avatarUrl": "..."
 }
 ```
 
@@ -183,14 +200,14 @@ Upsert creator profile.
 
 - **Auth:** Wallet ownership required
 - **Headers:**
-  - `x-wallet-address: <wallet_address>` (must match creator)
+   - `x-wallet-address: <wallet_address>` (must match creator)
 - **Body:**
 
 ```json
 {
-  "displayName": "New Name",
-  "bio": "Updated bio",
-  "avatarUrl": "https://..."
+   "displayName": "New Name",
+   "bio": "Updated bio",
+   "avatarUrl": "https://..."
 }
 ```
 
@@ -209,10 +226,10 @@ Queue depth metrics for indexer workers.
 
 ```json
 {
-  "queues": {
-    "indexer": { "depth": 42, "processing": 5 },
-    "notifications": { "depth": 10, "processing": 2 }
-  }
+   "queues": {
+      "indexer": { "depth": 42, "processing": 5 },
+      "notifications": { "depth": 10, "processing": 2 }
+   }
 }
 ```
 
@@ -229,7 +246,7 @@ Update creator metadata.
 
 ```json
 {
-  "metadata": { "key": "value" }
+   "metadata": { "key": "value" }
 }
 ```
 
@@ -246,30 +263,30 @@ Replay indexer events.
 
 ## Common Headers
 
-| Header | Description |
-|--------|-------------|
+| Header             | Description                               |
+| ------------------ | ----------------------------------------- |
 | `x-wallet-address` | Wallet address for ownership verification |
-| `Authorization` | Bearer token for authenticated requests |
-| `Content-Type` | `application/json` |
+| `Authorization`    | Bearer token for authenticated requests   |
+| `Content-Type`     | `application/json`                        |
 
 ## Error Responses
 
 ```json
 {
-  "success": false,
-  "message": "Error description",
-  "error": "Detailed error (dev only)"
+   "success": false,
+   "message": "Error description",
+   "error": "Detailed error (dev only)"
 }
 ```
 
-| Status | Description |
-|--------|-------------|
-| 400 | Bad request / validation error |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not found |
-| 429 | Rate limit exceeded |
-| 500 | Internal server error |
+| Status | Description                    |
+| ------ | ------------------------------ |
+| 400    | Bad request / validation error |
+| 401    | Unauthorized                   |
+| 403    | Forbidden                      |
+| 404    | Not found                      |
+| 429    | Rate limit exceeded            |
+| 500    | Internal server error          |
 
 ---
 

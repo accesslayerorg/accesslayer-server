@@ -4,6 +4,8 @@
 model ProtocolConfig {
   id             String    @id @default("default")
   protocolFeeBps Int       @default(500)
+  /// Fee tier configuration: JSON array of tier thresholds and fee percentages
+  feeTiers       Json      @default("[{\"volumeThreshold\": 0, \"feeBps\": 500}, {\"volumeThreshold\": 1000000000000, \"feeBps\": 400}, {\"volumeThreshold\": 5000000000000, \"feeBps\": 300}]")
   /// Timestamp when global trading was paused, if currently paused.
   pausedAt       DateTime?
   updatedAt      DateTime  @updatedAt
@@ -11,3 +13,4 @@ model ProtocolConfig {
 
   @@map("protocol_config")
 }
+

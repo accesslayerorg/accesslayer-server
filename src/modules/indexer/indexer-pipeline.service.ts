@@ -1,18 +1,22 @@
 import { createHash } from 'crypto';
 import { prisma } from '../../utils/prisma.utils';
 import {
-    recordKeyPurchase,
-    recordKeySale,
-    updateOwnership,
+   recordKeyPurchase,
+   recordKeySale,
+   updateOwnership,
 } from '../ownership/ownership.service';
 import { upsertPriceSnapshot } from './price-snapshot.service';
 import { updateIndexedLedger } from './ledger-gap-detection.service';
 import { logger } from '../../utils/logger.utils';
-import { processIndexerChainEvents, IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
+import {
+   processIndexerChainEvents,
+   IndexerChainEvent,
+} from '../../utils/indexer-event-processor.utils';
 import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
 import { logSellTransactionConfirmed } from '../../utils/sell-transaction-logger.utils';
 import { persistCirculatingSupply } from './persist-circulating-supply.service';
 import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboard-volume.service';
+import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -21,29 +25,57 @@ import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboar
  * - Parses and validates each event.
  * - Creates an Activity record (representing the trade).
  * - Updates the KeyOwnership read model.
- * - Upserts the CreatorPriceSnapshot read model.
+ * - Recomputes circulating supply from the activity log.
+ * - Upserts the CreatorPriceSnapshot read model and appends a
+ *   CreatorPriceHistory row (price, post-trade supply, direction) in the
+ *   same transaction, for TWAP calculations and historical price charts (#893).
  * - Writes a checkpoint record of the highest ledger processed.
  */
-export async function processTradeEvents(events: IndexerChainEvent[]): Promise<void> {
-   await processIndexerChainEvents(events, async (event) => {
+export async function processTradeEvents(
+   events: IndexerChainEvent[]
+): Promise<void> {
+   await processIndexerChainEvents(events, async event => {
+      if (event.eventType === 'CREATOR_REGISTERED') {
+         if (typeof event.actor === 'string' && event.actor.length > 0) {
+            await invalidateCreatorPortfolioStatsCache(event.actor);
+         }
+         return;
+      }
+
       // Validate event type
       if (event.eventType !== 'KEY_BOUGHT' && event.eventType !== 'KEY_SOLD') {
          return;
       }
 
       // Check required fields. Skip with a warn-level log if any is missing.
-      const requiredFields = ['creatorId', 'actor', 'amount', 'price', 'feePaid', 'tradeAt', 'ledger'];
+      const requiredFields = [
+         'creatorId',
+         'actor',
+         'amount',
+         'price',
+         'feePaid',
+         'tradeAt',
+         'ledger',
+      ];
       for (const field of requiredFields) {
-         if (event[field] === undefined || event[field] === null || event[field] === '') {
+         if (
+            event[field] === undefined ||
+            event[field] === null ||
+            event[field] === ''
+         ) {
             logger.warn(
-               { eventId: `${event.txHash}:${event.eventIndex}`, missingField: field },
+               {
+                  eventId: `${event.txHash}:${event.eventIndex}`,
+                  missingField: field,
+               },
                'Skipping trade event due to missing required field'
             );
             return;
          }
       }
 
-      const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } = event;
+      const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } =
+         event;
 
       // 1. Create corresponding Activity record
       await prisma.activity.create({
@@ -104,22 +136,32 @@ export async function processTradeEvents(events: IndexerChainEvent[]): Promise<v
          }
       }
 
-      // 3. upsertPriceSnapshot
+      // 3. Recompute circulating supply first so the price snapshot/history
+      // row records the supply *after* this trade (#893).
+      const supplyAfterTrade = await persistCirculatingSupply(creatorId);
+
+      // 4. upsertPriceSnapshot — records the price snapshot atomically with
+      // the post-trade supply and trade direction, for TWAP and historical
+      // price charts (#893).
       await upsertPriceSnapshot({
          creatorId,
          price: BigInt(price),
          tradeAt: new Date(tradeAt),
          ledger: Number(ledger),
+         supply: BigInt(supplyAfterTrade),
+         direction: event.eventType === 'KEY_BOUGHT' ? 'BUY' : 'SELL',
       });
 
-      await persistCirculatingSupply(creatorId);
-
-      // 4. Emit a structured log for confirmed sells, mirroring buy-side logging.
+      // 5. Emit a structured log for confirmed sells, mirroring buy-side logging.
       if (event.eventType === 'KEY_SOLD') {
          const [creatorProfile, supplyAggregate] = await Promise.all([
             prisma.creatorProfile.findUnique({
                where: { id: creatorId },
-               select: { user: { select: { stellarWallet: { select: { address: true } } } } },
+               select: {
+                  user: {
+                     select: { stellarWallet: { select: { address: true } } },
+                  },
+               },
             }),
             prisma.keyOwnership.aggregate({
                where: { creatorId },
@@ -153,10 +195,15 @@ export async function processTradeEvents(events: IndexerChainEvent[]): Promise<v
    }
 }
 
-function computeBatchHash(events: Array<{ txHash: string; eventIndex: number }>): string {
+function computeBatchHash(
+   events: Array<{ txHash: string; eventIndex: number }>
+): string {
    const identifiers = events
       .map(e => `${e.txHash}:${e.eventIndex}`)
       .sort()
       .join('|');
-   return createHash('sha256').update(identifiers, 'utf8').digest('hex').slice(0, 16);
+   return createHash('sha256')
+      .update(identifiers, 'utf8')
+      .digest('hex')
+      .slice(0, 16);
 }

@@ -14,5 +14,3 @@ datasource db {
   provider          = "postgres"
    url      = env("DATABASE_URL") // You can safely ignore the error on this line.
 }
-
-

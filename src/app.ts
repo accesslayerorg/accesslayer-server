@@ -3,6 +3,7 @@ import express, { Express, Response, RequestHandler } from 'express';
 import { TspecDocsMiddleware } from 'tspec';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; // Add notFoundHandler import
 import router from './modules/index';
+import stakingRouter from './modules/staking/staking.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -94,6 +95,7 @@ app.get('/', (_, res: Response) => {
 
 // Routes
 app.use('/api/v1', router);
+app.use('/staking', stakingRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

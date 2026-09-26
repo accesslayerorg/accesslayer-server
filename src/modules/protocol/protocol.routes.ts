@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '../../utils/prisma.utils';
 import {
    cacheGetJson,
@@ -8,11 +9,41 @@ import {
 import {
    sendSuccess,
    sendError,
+   sendValidationError,
    ErrorCode,
+   zodIssuesToDetails,
 } from '../../utils/api-response.utils';
+import { requireJwtAuth } from '../../middlewares/jwt-auth.middleware';
+import {
+   adminGuard,
+   AdminRequest,
+} from '../../middlewares/admin-guard.middleware';
+import {
+   getCurrentFeeTier,
+   updateFeeTierConfig,
+   loadFeeTierConfig,
+} from './fee-tier.service';
 import { logger } from '../../utils/logger.utils';
 
 const router = Router();
+
+const updateFeeTierBodySchema = z.object({
+   tiers: z
+      .array(
+         z.object({
+            volumeThreshold: z
+               .number()
+               .nonnegative('volumeThreshold must be non-negative'),
+            feeBps: z
+               .number()
+               .int()
+               .min(1, 'feeBps must be at least 1')
+               .max(10000, 'feeBps must not exceed 10000'),
+            label: z.string().optional(),
+         })
+      )
+      .min(1, 'At least one tier is required'),
+});
 
 const PROTOCOL_STATUS_CACHE_KEY = 'protocol:status';
 const PROTOCOL_STATUS_CACHE_TTL = 30;
@@ -133,7 +164,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
    try {
       const CACHE_KEY = 'protocol:stats';
       const CACHE_TTL = 300; // 5 minutes
-      
+
       const cached = await cacheGetJson(CACHE_KEY);
       if (cached) {
          sendSuccess(res, cached);
@@ -162,7 +193,9 @@ router.get('/stats', async (_req: Request, res: Response) => {
       const totalHolders = Number(uniqueHoldersRes[0]?.count || 0);
 
       // 4. Current 24h Window (trades & volume)
-      const currentWindowRes = await prisma.$queryRaw<[{ count: bigint; sum: string | null }]>`
+      const currentWindowRes = await prisma.$queryRaw<
+         [{ count: bigint; sum: string | null }]
+      >`
          SELECT COUNT(*) as count, SUM(price::numeric) as sum 
          FROM "Trade" 
          WHERE "timestamp" >= ${oneDayAgo}
@@ -171,7 +204,9 @@ router.get('/stats', async (_req: Request, res: Response) => {
       const volume24h = currentWindowRes[0]?.sum || '0';
 
       // 5. Previous 24h Window (trades & volume)
-      const previousWindowRes = await prisma.$queryRaw<[{ count: bigint; sum: string | null }]>`
+      const previousWindowRes = await prisma.$queryRaw<
+         [{ count: bigint; sum: string | null }]
+      >`
          SELECT COUNT(*) as count, SUM(price::numeric) as sum 
          FROM "Trade" 
          WHERE "timestamp" >= ${twoDaysAgo} AND "timestamp" < ${oneDayAgo}
@@ -186,7 +221,7 @@ router.get('/stats', async (_req: Request, res: Response) => {
       };
 
       const trades24hChange = calcChange(trades24h, prevTrades24h);
-      
+
       const vCurr = Number(volume24h);
       const vPrev = Number(prevVolume24h);
       const volume24hChange = calcChange(vCurr, vPrev);
@@ -214,5 +249,84 @@ router.get('/stats', async (_req: Request, res: Response) => {
       );
    }
 });
+
+/**
+ * GET /api/v1/fees/current
+ * Get current protocol fee tier based on rolling 24h trading volume.
+ * Returns active fee percentage, tier label, current volume, and volume until next tier.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/fees/current', async (_req: Request, res: Response) => {
+   try {
+      const currentFee = await getCurrentFeeTier();
+      sendSuccess(res, currentFee);
+   } catch (error) {
+      logger.error({ error }, 'Failed to get current fee tier');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to get current fee tier'
+      );
+   }
+});
+
+/**
+ * GET /api/v1/fees/tiers
+ * Get all configured fee tiers.
+ * No auth required.
+ */
+router.get('/fees/tiers', async (_req: Request, res: Response) => {
+   try {
+      const tiers = await loadFeeTierConfig();
+      sendSuccess(res, { tiers });
+   } catch (error) {
+      logger.error({ error }, 'Failed to get fee tiers');
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to get fee tiers');
+   }
+});
+
+/**
+ * PATCH /api/v1/fees/tiers
+ * Admin endpoint to update fee tier configuration.
+ * Restricted to admin role.
+ * Invalidates cache and records audit trail.
+ */
+router.patch(
+   '/fees/tiers',
+   requireJwtAuth,
+   adminGuard,
+   async (req: Request, res: Response, next) => {
+      const parsed = updateFeeTierBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid fee tier update request',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const { tiers } = parsed.data;
+         const adminId = (req as AdminRequest).adminId || '';
+         const updatedTiers = await updateFeeTierConfig(tiers, adminId);
+         sendSuccess(
+            res,
+            { tiers: updatedTiers },
+            200,
+            'Fee tiers updated successfully'
+         );
+      } catch (error) {
+         if (error instanceof Error) {
+            sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+            return;
+         }
+         logger.error({ error }, 'Fee tier update failed');
+         next(error);
+      }
+   }
+);
 
 export default router;
