@@ -1,8 +1,3 @@
-import { processTradeEvents } from './indexer-pipeline.service';
-import { prisma } from '../../utils/prisma.utils';
-import { logger } from '../../utils/logger.utils';
-import { IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
-
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
       activity: {
@@ -32,6 +27,8 @@ jest.mock('../../utils/logger.utils', () => ({
    },
 }));
 
+const mockCacheInvalidate = jest.fn();
+
 // processTradeEvents invalidates the volume leaderboard cache (#785) after
 // creating each Activity row — stub Redis so that call resolves immediately
 // instead of attempting a real connection.
@@ -39,7 +36,13 @@ jest.mock('../../utils/redis.utils', () => ({
    getRedis: jest.fn(() => ({
       del: jest.fn().mockResolvedValue(1),
    })),
+   cacheInvalidate: mockCacheInvalidate,
 }));
+
+import { processTradeEvents } from './indexer-pipeline.service';
+import { prisma } from '../../utils/prisma.utils';
+import { logger } from '../../utils/logger.utils';
+import { IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
 
 describe('processTradeEvents integration test', () => {
    const mockPrisma = prisma as unknown as {

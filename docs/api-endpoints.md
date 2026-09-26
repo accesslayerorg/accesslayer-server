@@ -161,6 +161,23 @@ Get public stats for a specific creator.
 
 ## Creator Profile Endpoints
 
+### GET /creators/:wallet
+
+Get the public profile associated with a Stellar wallet and aggregated stats
+for every creator key deployed by that wallet.
+
+- **Auth:** None
+- **Stats:** `totalKeys`, `totalHolders`, and `totalTradingVolume` (in stroops)
+- **Stats cache:** 60 seconds; creator registration invalidates the wallet cache
+
+### GET /creators/:wallet/keys
+
+Get creator keys deployed by a Stellar wallet, ordered newest first. Supports
+`limit` (1-100, default 20) and an opaque `cursor` from the prior response.
+
+- **Auth:** None
+- **Pagination:** `items`, `nextCursor`, `hasMore`, and `limit`
+
 ### GET /creators/:creatorId/profile
 
 Get creator profile scaffold payload.

@@ -7,3 +7,27 @@ model OracleCaller {
   addedBy   String?
   createdAt DateTime @default(now())
 }
+
+/**
+ * Indexed OraclePriceUpdated contract events.
+ *
+ * The indexer upserts one row per creator whenever an OraclePriceUpdated
+ * event is observed on-chain. The API reads this table to serve the
+ * GET /keys/:id/oracle-price endpoint without needing a Soroban RPC
+ * round-trip.
+ *
+ * One row per creator — updated in place (upsert by creatorId).
+ */
+model OraclePrice {
+  id          String   @id @default(cuid())
+  creatorId   String   @unique
+  price       BigInt
+  ledger      Int
+  txHash      String
+  updatedAt   DateTime @updatedAt
+  eventAt     DateTime
+
+  @@index([creatorId])
+  @@index([eventAt])
+  @@map("oracle_prices")
+}

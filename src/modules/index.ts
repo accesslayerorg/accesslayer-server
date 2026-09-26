@@ -22,6 +22,7 @@ import notificationsRouter from './notifications/notification.routes';
 import horizonWebhookRouter from './webhooks/horizon-webhook.routes';
 import vestingRouter from './vesting/vesting.routes';
 import investorRouter from './investor/investor.routes';
+import watchlistRouter from './investor/watchlist.routes';
 import followerRouter from './followers/follower.routes';
 import protocolRouter from './protocol/protocol.routes';
 import revenueRouter from './revenue/revenue.routes';
@@ -75,5 +76,7 @@ router.use('/protocol', routeBodySizeLimit('default'), protocolRouter);
 router.use('/revenue', routeBodySizeLimit('default'), revenueRouter);
 router.use('/staker', routeBodySizeLimit('default'), stakerRouter);
 router.use('/portfolio', routeBodySizeLimit('default'), portfolioRouter);
+router.use('/watchlist', routeBodySizeLimit('default'), watchlistRouter);
+router.use('/investor/watchlist', routeBodySizeLimit('default'), watchlistRouter);
 
 export default router;

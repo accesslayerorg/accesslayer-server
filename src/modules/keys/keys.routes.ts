@@ -16,8 +16,19 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
+import {
+   getOraclePrice,
+   KeyNotFoundError as OracleKeyNotFoundError,
+   OraclePriceNotFoundError,
+} from './oracle-price.service';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import { envConfig } from '../../config';
 import { getKeyProposals } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
+import {
+   analyticsWindowQuerySchema,
+   getKeyAnalytics,
+} from './key-analytics.service';
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
 import dividendRouter from '../dividends/dividend.routes';
@@ -60,6 +71,7 @@ import {
    processBuyback,
 } from './key-deprecation.service';
 import { getKeyCooldown } from './key-cooldown.service';
+import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
 import {
    freezePosition,
@@ -366,6 +378,35 @@ router.get('/:keyId/supply', async (req, res, next) => {
 });
 
 /**
+ * GET /api/v1/keys/:keyId/analytics?from=&to=
+ * Trade count, unique traders, and total volume for a key, optionally
+ * windowed by trade timestamp. Cached 60s per key/window (#916).
+ */
+router.get('/:keyId/analytics', async (req, res, next) => {
+   const parsed = analyticsWindowQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid analytics query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyAnalytics(String(req.params.keyId), parsed.data)
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
  * GET /api/v1/keys/:keyId/freeze-status?wallet=
  * Frozen and liquid balance for a holder on a key.
  */
@@ -411,6 +452,37 @@ router.get('/:keyId/cooldown', async (req, res, next) => {
       sendSuccess(
          res,
          await getKeyCooldown(String(req.params.keyId), parsed.data.wallet)
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/holding-capacity?wallet=
+ * Wallet holding, holder cap, and remaining purchase capacity on a key.
+ */
+router.get('/:keyId/holding-capacity', async (req, res, next) => {
+   const parsed = walletQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyHoldingCapacity(
+            String(req.params.keyId),
+            parsed.data.wallet
+         )
       );
    } catch (error) {
       if (error instanceof KeyNotFoundError) {

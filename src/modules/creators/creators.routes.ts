@@ -5,6 +5,7 @@ import { sendNotFound, sendSuccess } from '../../utils/api-response.utils';
 import {
    httpListCreators,
    httpGetCreator,
+   httpGetCreatorPortfolioKeys,
    httpGetCreatorStats,
    httpGetTrendingCreators,
    httpGetCreatorLeaderboard,
@@ -199,6 +200,11 @@ creatorsRouter.get(
  * Get public details for a specific creator.
  * Public endpoint with 5-minute cache.
  */
+creatorsRouter.get('/:wallet/keys', httpGetCreatorPortfolioKeys);
+creatorsRouter.all('/:wallet/keys', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
 creatorsRouter.get(
    '/:id',
    validateCreatorParam('id'),

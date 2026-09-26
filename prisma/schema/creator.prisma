@@ -2,7 +2,7 @@
 
 model CreatorProfile {
   id                String   @id @default(cuid())
-  userId            String   @unique
+  userId            String
   handle            String   @unique
   displayName       String
   bio               String?
@@ -45,6 +45,8 @@ model CreatorProfile {
   posts            CreatorPost[]
   followers        Follow[]
   walletFollowers   WalletCreatorFollow[]
+
+  @@index([userId])
 }
 model PendingKeyPurchase {
   id             String   @id @default(cuid())
