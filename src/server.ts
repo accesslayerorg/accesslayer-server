@@ -24,6 +24,10 @@ import {
    startPriceHistoryCleanupJob,
    stopPriceHistoryCleanupJob,
 } from './jobs/price-history-cleanup.job';
+import {
+   startFlashLoanViolationCleanupJob,
+   stopFlashLoanViolationCleanupJob,
+} from './jobs/flash-loan-violation-cleanup.job';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
 import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
@@ -77,6 +81,7 @@ async function startServer() {
       startDetectPriceMovementsJob();
       startGovernanceSyncJob();
       startPriceHistoryCleanupJob();
+      startFlashLoanViolationCleanupJob();
 
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -113,6 +118,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopDetectPriceMovementsJob();
       stopGovernanceSyncJob();
       stopPriceHistoryCleanupJob();
+      stopFlashLoanViolationCleanupJob();
       await prisma.$disconnect();
       logger.info('Database connection closed');
 

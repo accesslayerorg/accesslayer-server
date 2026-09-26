@@ -259,6 +259,56 @@ Replay indexer events.
 - **Auth:** Admin required
 - **Response:** `200 OK`
 
+### GET /admin/flash-loan-violations
+
+Wallets that triggered the on-chain flash loan guard (#938), sorted by
+violation frequency (most attempts first) over the configured cooldown
+window, with alert and auto-suspension state.
+
+- **Auth:** Admin required
+- **Query:** `limit` (default `50`, max `100`), `offset` (default `0`),
+  `include_cleared` (default `false`), `recent_limit` (default `5`, max `25`)
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "threshold": 3,
+      "autoSuspendEnabled": true,
+      "cooldownHours": 24,
+      "total": 1,
+      "limit": 50,
+      "offset": 0,
+      "violations": [
+         {
+            "walletAddress": "GABCD...",
+            "violationCount": 4,
+            "keyIds": ["key-1"],
+            "firstViolationAt": "2026-09-26T09:00:00.000Z",
+            "lastViolationAt": "2026-09-26T11:30:00.000Z",
+            "alerted": true,
+            "alertedAt": "2026-09-26T09:45:00.000Z",
+            "alertCount": 2,
+            "suspended": true,
+            "suspendedAt": "2026-09-26T09:45:00.000Z",
+            "suspensionExpiresAt": null,
+            "recentViolations": [
+               {
+                  "keyId": "key-1",
+                  "ledger": 123456,
+                  "txHash": "abc123",
+                  "eventIndex": 0,
+                  "occurredAt": "2026-09-26T11:30:00.000Z",
+                  "clearedAt": null
+               }
+            ]
+         }
+      ]
+   }
+}
+```
+
 ---
 
 ## Common Headers

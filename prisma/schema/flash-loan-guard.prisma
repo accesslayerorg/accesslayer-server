@@ -1,0 +1,61 @@
+// prisma/schema/flash-loan-guard.prisma
+// Flash loan guard violation tracking (#938).
+//
+// The indexer writes one FlashLoanViolation row per FlashLoanGuardTriggered
+// contract event. When a wallet's uncleared violations reach the configured
+// threshold the wallet is alerted (FlashLoanGuardStatus.alertedAt) and, when
+// FLASH_LOAN_AUTO_SUSPEND_ENABLED is set, suspended until the violation
+// history ages out of FLASH_LOAN_VIOLATION_COOLDOWN_HOURS.
+
+/// One indexed FlashLoanGuardTriggered contract event.
+model FlashLoanViolation {
+  id            String    @id @default(cuid())
+  walletAddress String
+  /// Key the exploit attempt targeted, when the event carries one.
+  keyId         String?
+  ledger        Int
+  txHash        String
+  eventIndex    Int
+  /// When the attempt happened on-chain.
+  occurredAt    DateTime
+  /// Set once the violation ages past the cooldown window; cleared rows no
+  /// longer count towards the violation frequency / threshold.
+  clearedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  /// Idempotency guard: replaying the same chain event is a no-op.
+  @@unique([txHash, eventIndex])
+  @@index([walletAddress, occurredAt])
+  @@index([occurredAt])
+  @@index([clearedAt])
+  @@map("flash_loan_violations")
+}
+
+/// Per-wallet flash loan guard state: violation frequency, alert and
+/// suspension status. One row per wallet, upserted as violations arrive.
+model FlashLoanGuardStatus {
+  id                        String    @id @default(cuid())
+  walletAddress             String    @unique
+  /// Number of uncleared violations inside the cooldown window.
+  violationCount            Int       @default(0)
+  lastViolationAt           DateTime?
+  /// Last time the threshold breach alert fired.
+  alertedAt                 DateTime?
+  alertCount                Int       @default(0)
+  /// Violation count at the time of the last alert, so each new violation
+  /// above the threshold alerts exactly once.
+  lastAlertedViolationCount Int       @default(0)
+  autoSuspended             Boolean   @default(false)
+  suspendedAt               DateTime?
+  /// Null when the suspension is indefinite (lifted once violations age out).
+  suspensionExpiresAt       DateTime?
+  liftedAt                  DateTime?
+  liftedBy                  String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@index([violationCount])
+  @@index([alertedAt])
+  @@index([suspendedAt])
+  @@map("flash_loan_guard_statuses")
+}
