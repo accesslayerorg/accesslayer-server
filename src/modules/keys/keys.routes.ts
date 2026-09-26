@@ -42,6 +42,12 @@ import {
    adminGuard,
    AdminRequest,
 } from '../../middlewares/admin-guard.middleware';
+import { requireInternalApiKey } from '../../middlewares/internal-auth.middleware';
+import {
+   registerKeyContract,
+   DuplicateKeyRegistrationError,
+   InvalidOnChainContractError,
+} from './key-registration.service';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
@@ -109,6 +115,61 @@ const walletQuerySchema = z.object({
 });
 
 const router = Router();
+
+const registerKeyBodySchema = z.preprocess(
+   (val: any) => {
+      if (val && typeof val === 'object') {
+         return {
+            keyAddress: val.keyAddress ?? val.key_address,
+            creatorWallet: val.creatorWallet ?? val.creator_wallet,
+            handle: val.handle,
+            displayName: val.displayName ?? val.display_name,
+            metadata: val.metadata ?? val.config_metadata ?? val.configMetadata,
+         };
+      }
+      return val;
+   },
+   z.object({
+      keyAddress: z.string().min(1, 'keyAddress is required'),
+      creatorWallet: z.string().min(1, 'creatorWallet is required'),
+      handle: z.string().optional(),
+      displayName: z.string().optional(),
+      metadata: z.record(z.unknown()).optional(),
+   })
+);
+
+/**
+ * POST /api/v1/keys/register
+ * Receives newly deployed creator key contract addresses from factory indexer
+ * and registers them in the database for API serving.
+ * Restricted to internal indexer service via API key auth.
+ */
+router.post('/register', requireInternalApiKey, async (req, res, next) => {
+   const parsed = registerKeyBodySchema.safeParse(req.body);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid registration request body',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const registered = await registerKeyContract(parsed.data);
+      sendSuccess(res, registered, 201, 'Key contract registered successfully');
+   } catch (error) {
+      if (error instanceof DuplicateKeyRegistrationError) {
+         sendConflict(res, error.message);
+         return;
+      }
+      if (error instanceof InvalidOnChainContractError) {
+         sendValidationError(res, error.message);
+         return;
+      }
+      next(error);
+   }
+});
 
 /**
  * POST /api/v1/keys/batch
