@@ -34,6 +34,12 @@ export interface GetAuditLogsInput {
    limit?: number;
    cursor?: string; // id of last item from previous page
    actionType?: string;
+   fromDate?: string | Date;
+   toDate?: string | Date;
+   from?: string | Date;
+   to?: string | Date;
+   startDate?: string | Date;
+   endDate?: string | Date;
 }
 
 export interface AuditLogEntry {
@@ -65,6 +71,20 @@ export async function getAuditLogs(
       const where: Record<string, unknown> = {};
       if (input.actionType) {
          where.actionType = input.actionType;
+      }
+
+      const start = input.fromDate || input.from || input.startDate;
+      const end = input.toDate || input.to || input.endDate;
+
+      if (start || end) {
+         const createdAtFilter: Record<string, Date> = {};
+         if (start) {
+            createdAtFilter.gte = new Date(start);
+         }
+         if (end) {
+            createdAtFilter.lte = new Date(end);
+         }
+         where.createdAt = createdAtFilter;
       }
 
       // Cursor-based pagination: fetch by createdAt and id
