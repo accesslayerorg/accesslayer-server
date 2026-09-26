@@ -23,6 +23,10 @@ import {
    assertPositionNotFrozen,
    PositionFrozenError,
 } from '../keys/key-freeze.service';
+import {
+   assertWalletNotSuspended,
+   WalletSuspendedError,
+} from '../indexer/flash-loan-guard-indexer.service';
 import { getKeyFees, KeyNotFoundError } from '../keys/key-fees.service';
 import { computeSellPayout, getSellUnitPrice } from '../../utils/pricing.utils';
 import {
@@ -80,6 +84,18 @@ export async function httpSellCreatorKey(
       await assertPositionNotFrozen(walletAddress, keyId);
    } catch (error) {
       if (error instanceof PositionFrozenError) {
+         sendForbidden(res, error.message);
+         return;
+      }
+      throw error;
+   }
+
+   // Flash loan guard (#938): wallets auto-suspended after repeated guard
+   // violations cannot trade (403).
+   try {
+      await assertWalletNotSuspended(walletAddress);
+   } catch (error) {
+      if (error instanceof WalletSuspendedError) {
          sendForbidden(res, error.message);
          return;
       }

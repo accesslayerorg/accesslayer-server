@@ -16,6 +16,10 @@ import {
    PositionFrozenError,
 } from '../keys/key-freeze.service';
 import {
+   assertWalletNotSuspended,
+   WalletSuspendedError,
+} from '../indexer/flash-loan-guard-indexer.service';
+import {
    logSlippageRejection,
    sendSlippageExceeded,
 } from './slippage.service';
@@ -92,6 +96,18 @@ export const httpMultiBuy: AsyncController = async (req, res, next) => {
             }
             throw error;
          }
+      }
+
+      // Flash loan guard (#938): wallets auto-suspended after repeated guard
+      // violations cannot trade (403).
+      try {
+         await assertWalletNotSuspended(buyerAddress);
+      } catch (error) {
+         if (error instanceof WalletSuspendedError) {
+            sendForbidden(res, error.message);
+            return;
+         }
+         throw error;
       }
 
       const results = await executeMultiBuy(

@@ -32,10 +32,16 @@ Complete reference for all server configuration environment variables.
 
 ## Protocol
 
-| Variable                          | Type   | Required | Default | Description                                                                                       |
-| --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
-| `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
+| -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
+| `ADMIN_MULTISIG_WALLETS`               | string  | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| `FLASH_LOAN_VIOLATION_THRESHOLD`       | number  | No       | `3`       | Uncleared `FlashLoanGuardTriggered` violations before a wallet is alerted and auto-suspended (#938)                                                                                                       |
+| `FLASH_LOAN_AUTO_SUSPEND_ENABLED`      | boolean | No       | `true`    | Auto-suspend wallets that exceed the flash loan violation threshold (#938)                                                                                                                                |
+| `FLASH_LOAN_VIOLATION_COOLDOWN_HOURS`  | number  | No       | `24`      | How long a violation counts towards the threshold before the cooldown cleanup clears it (#938)                                                                                                            |
+| `FLASH_LOAN_SUSPENSION_DURATION_HOURS` | number  | No       | `0`       | Auto-suspension length in hours; `0` suspends until the violation history clears (#938)                                                                                                                   |
+| `FLASH_LOAN_CLEANUP_ENABLED`           | boolean | No       | `true`    | Enables the flash loan violation cooldown cleanup job (#938)                                                                                                                                              |
+| `FLASH_LOAN_CLEANUP_INTERVAL_MINUTES`  | number  | No       | `60`      | Minutes between flash loan violation cooldown cleanup passes (#938)                                                                                                                                       |
 
 ---
 

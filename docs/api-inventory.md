@@ -94,6 +94,7 @@ Restricted administrative endpoints.
 | :------ | :----------------------------- | :-------------------------------------------------- |
 | `PATCH` | `/admin/creators/:id/metadata` | Update creator metadata such as verification state. |
 | `POST`  | `/admin/indexer/replay`        | Trigger an indexer replay job.                      |
+| `GET`   | `/admin/flash-loan-violations` | Flash loan violations by wallet frequency (#938).   |
 
 ## Staking Module
 

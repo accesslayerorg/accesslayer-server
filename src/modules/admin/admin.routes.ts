@@ -15,6 +15,8 @@ import {
    analyticsWindowQuerySchema,
    getPlatformAnalytics,
 } from '../keys/key-analytics.service';
+import { flashLoanViolationsQuerySchema } from './flash-loan-violations.schemas';
+import { getFlashLoanViolations } from './flash-loan-violations.service';
 import {
    adminGuard,
    AdminRequest,
@@ -115,6 +117,36 @@ adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
 adminRouter.patch('/protocol-fee', adminGuard, httpUpdateProtocolFee);
 adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
+
+/**
+ * GET /api/v1/admin/flash-loan-violations?limit=&offset=&include_cleared=&recent_limit=
+ *
+ * Wallets that triggered the on-chain flash loan guard, sorted by violation
+ * frequency (most attempts first) over the cooldown window, with their alert
+ * and auto-suspension state plus the most recent indexed attempts (#938).
+ */
+adminRouter.get(
+   '/flash-loan-violations',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = flashLoanViolationsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid flash loan violations query',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         sendSuccess(res, await getFlashLoanViolations(parsed.data));
+      } catch (error) {
+         logger.error({ error }, 'Flash loan violations lookup failed');
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/admin/analytics?from=&to=

@@ -334,6 +334,37 @@ export const envSchema = z
          .positive()
          .default(30_000),
 
+      // Flash loan guard (#938): violations indexed from
+      // FlashLoanGuardTriggered contract events. A wallet that reaches
+      // FLASH_LOAN_VIOLATION_THRESHOLD uncleared violations is alerted and,
+      // when FLASH_LOAN_AUTO_SUSPEND_ENABLED is true, suspended for
+      // FLASH_LOAN_SUSPENSION_DURATION_HOURS (0 = indefinite, lifted once the
+      // violation history ages out). Violations older than
+      // FLASH_LOAN_VIOLATION_COOLDOWN_HOURS stop counting towards the
+      // threshold and are cleared by the cleanup job.
+      FLASH_LOAN_VIOLATION_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      FLASH_LOAN_AUTO_SUSPEND_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_VIOLATION_COOLDOWN_HOURS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
+      FLASH_LOAN_SUSPENSION_DURATION_HOURS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .default(0),
+      FLASH_LOAN_CLEANUP_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
