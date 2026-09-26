@@ -16,6 +16,7 @@ import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
 import { logSellTransactionConfirmed } from '../../utils/sell-transaction-logger.utils';
 import { persistCirculatingSupply } from './persist-circulating-supply.service';
 import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboard-volume.service';
+import { recordFirstTradeReferralReward } from '../referrals/referrals.service';
 import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 
 /**
@@ -74,6 +75,40 @@ export async function processTradeEvents(
          }
       }
 
+      const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } = event;
+      const tradeQty = Number(amount);
+      let pricePerKeyXlm = 0;
+      try {
+         pricePerKeyXlm = Number(BigInt(price as any)) / 10_000_000;
+      } catch {
+         pricePerKeyXlm = Number(price as any);
+      }
+      if (!Number.isFinite(pricePerKeyXlm) || pricePerKeyXlm < 0) {
+         pricePerKeyXlm = 0;
+      }
+
+      // Run referral bookkeeping before the non-transactional trade writes so
+      // a failure can abort this event and let the indexer retry it.
+      // The conditional claim makes a successful referral write replay-safe.
+      try {
+         await recordFirstTradeReferralReward({
+            refereeAddress: actor,
+            keyId: creatorId,
+            tradeValueXlm: pricePerKeyXlm * tradeQty,
+            txHash: event.txHash,
+            eventIndex: event.eventIndex,
+            tradeAt: new Date(tradeAt),
+         });
+      } catch (error) {
+         logger.warn(
+            {
+               eventId: `${event.txHash}:${event.eventIndex}`,
+               error,
+            },
+            'Failed to record referral first trade reward'
+         );
+         throw error;
+      }
       const { creatorId, actor, amount, price, feePaid, tradeAt, ledger } =
          event;
 
@@ -106,16 +141,6 @@ export async function processTradeEvents(
       //   the pipeline.
       // Event `price` is the unit (per-key) bonding-curve price in stroops,
       // consistent with upsertPriceSnapshot below.
-      const tradeQty = Number(amount);
-      let pricePerKeyXlm = 0;
-      try {
-         pricePerKeyXlm = Number(BigInt(price as any)) / 10_000_000;
-      } catch {
-         pricePerKeyXlm = Number(price as any);
-      }
-      if (!Number.isFinite(pricePerKeyXlm) || pricePerKeyXlm < 0) {
-         pricePerKeyXlm = 0;
-      }
       if (event.eventType === 'KEY_BOUGHT') {
          await recordKeyPurchase(
             actor,

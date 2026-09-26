@@ -35,6 +35,7 @@ Complete reference for all server configuration environment variables.
 | Variable                          | Type   | Required | Default | Description                                                                                       |
 | --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
 | `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
+| `REFERRAL_REWARD_BPS`             | number | No       | `500`   | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910). |
 | `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
 
 ---
