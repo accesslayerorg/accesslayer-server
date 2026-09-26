@@ -16,13 +16,6 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
-import {
-   getOraclePrice,
-   KeyNotFoundError as OracleKeyNotFoundError,
-   OraclePriceNotFoundError,
-} from './oracle-price.service';
-import { cacheControl } from '../../middlewares/cache-control.middleware';
-import { envConfig } from '../../config';
 import { getKeyProposals } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
 import {
