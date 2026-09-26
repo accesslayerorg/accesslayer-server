@@ -1,0 +1,33 @@
+// prisma/schema/staking.prisma
+// Staking reward multiplier tiers and positions configuration (#942).
+
+model StakingMultiplierTier {
+  id                String   @id @default(cuid())
+  tier              Int      @unique
+  name              String?
+  /// Lock period requirement in seconds.
+  lockPeriodSeconds Int
+  /// Multiplier value, e.g. 1.0, 1.25, 1.5, 2.0.
+  multiplier        Decimal  @db.Decimal(10, 4)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("staking_multiplier_tiers")
+}
+
+model StakingPosition {
+  id                String    @id @default(cuid())
+  wallet            String
+  keyId             String?
+  amount            Decimal   @db.Decimal(20, 7)
+  lockPeriodSeconds Int       @default(0)
+  lockedAt          DateTime  @default(now())
+  unlocksAt         DateTime?
+  tier              Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([wallet])
+  @@index([keyId])
+  @@map("staking_positions")
+}

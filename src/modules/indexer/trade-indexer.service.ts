@@ -95,5 +95,13 @@ export async function processTradeEvent(
       // Non-critical cache invalidation failure
    }
 
+   try {
+      const { invalidateKeyAnalyticsCache } =
+         await import('../keys/key-analytics.service');
+      await invalidateKeyAnalyticsCache(event.creator_id);
+   } catch {
+      // Non-critical cache invalidation failure
+   }
+
    return true;
 }

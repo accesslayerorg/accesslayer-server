@@ -95,6 +95,17 @@ Restricted administrative endpoints.
 | `PATCH` | `/admin/creators/:id/metadata` | Update creator metadata such as verification state. |
 | `POST`  | `/admin/indexer/replay`        | Trigger an indexer replay job.                      |
 
+## Staking Module
+
+Staking reward multiplier tiers and position calculations (#942).
+
+| Method | Path                                      | Description                                                                               |
+| :----- | :---------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `GET`  | `/staking/multiplier-tiers`               | Return all staking reward multiplier tiers with lock periods and multipliers (cached 5m). |
+| `GET`  | `/staking/positions/:id/effective-weight` | Return the weighted stake calculation for a specific position.                            |
+| `GET`  | `/staking/positions/:id`                  | Return a single staking position with embedded tier data and effective weight.            |
+| `GET`  | `/staking/positions`                      | List staking positions with embedded tier data.                                           |
+
 ---
 
 ## Root and Miscellaneous

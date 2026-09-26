@@ -16,4 +16,6 @@ export const CREATOR_PUBLIC_ROUTE_NAMES = {
    GET_STATS: 'creators:stats:get',
    /** GET /api/v1/creators/:creatorId/holders - Paginated key holder list */
    GET_HOLDERS: 'creators:holders:get',
+   /** GET /api/v1/creators/:creatorId/keys - Paginated keys issued by a creator */
+   GET_KEYS: 'creators:keys:get',
 } as const;

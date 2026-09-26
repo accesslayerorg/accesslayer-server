@@ -217,6 +217,20 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Price history cleanup job (#893) — prunes creator_price_history rows
+      // older than the retention window so TWAP/range queries stay fast.
+      PRICE_HISTORY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      PRICE_HISTORY_CLEANUP_ENABLED: z.coerce.boolean().default(true),
+      PRICE_HISTORY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
       // Price movement detection job (feeds price_moved notifications)
       DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
       DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce
@@ -308,6 +322,22 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
+
+      // Oracle price feed staleness threshold and cache TTL.
+      // ORACLE_STALENESS_THRESHOLD_MS: how old an oracle price can be before
+      //   the response includes `isStale: true`. Default: 5 minutes.
+      // ORACLE_CACHE_TTL_MS: how long the oracle-price response is cached in
+      //   Redis. Should match the typical oracle update frequency. Default: 30 s.
+      ORACLE_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300_000),
+      ORACLE_CACHE_TTL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30_000),
 
    })
    .superRefine((data, ctx) => {

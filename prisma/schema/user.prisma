@@ -14,5 +14,5 @@ model User {
 	updatedAt			DateTime		@updatedAt
 	
 	stellarWallet		StellarWallet?
-	creatorProfile	CreatorProfile?
+	creatorProfiles	CreatorProfile[]
 }
