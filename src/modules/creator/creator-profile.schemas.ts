@@ -52,6 +52,8 @@ export const CreatorProfileReadResponseSchema = z.object({
    tradingPaused: z.boolean(),
    /** Current milestone tier reached by supply. */
    currentMilestone: z.number(),
+   /** Number of times the bonding curve was reset. */
+   relaunchCount: z.number(),
    /** Current key price in stroops as a string. null when no trade has occurred. */
    currentPrice: z.string().nullable(),
    /** Price 24 h ago in stroops as a string. null when no baseline exists. */

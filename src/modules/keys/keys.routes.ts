@@ -17,6 +17,7 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
+import { getKeyRelaunchHistory } from './key-relaunch.service';
 import {
    getOraclePrice,
    KeyNotFoundError as OracleKeyNotFoundError,
@@ -788,6 +789,23 @@ router.get('/:keyId/holding-capacity', async (req, res, next) => {
             parsed.data.wallet
          )
       );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/relaunch-history
+ * Returns the history of curve resets/relaunches for this key.
+ */
+router.get('/:keyId/relaunch-history', async (req, res, next) => {
+   try {
+      const history = await getKeyRelaunchHistory(req.params.keyId);
+      sendSuccess(res, history);
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
