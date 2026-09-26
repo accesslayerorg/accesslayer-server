@@ -125,6 +125,11 @@ export const envSchema = z
          .positive()
          .default(7),
 
+      // Referral programme (#910): share of a referred wallet's first trade
+      // paid to the referrer, in basis points (500 = 5%). Paid once per
+      // referee, on their first trade only (see src/modules/referrals).
+      REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
+
       // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
       // Stellar addresses of the admin quorum. When unset, deprecation still
       // requires two distinct valid admin signatures but no allowlist is

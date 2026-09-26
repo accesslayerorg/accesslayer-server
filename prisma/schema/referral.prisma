@@ -1,6 +1,54 @@
 // prisma/schema/referral.prisma
 
 /**
+ * Referral code issued once per wallet (#910). Referrers share this code so
+ * new wallets can register as their referees via
+ * `POST /referrals/register`. The code is generated on demand and is stable
+ * for the lifetime of the wallet.
+ */
+model ReferralCode {
+  id            String   @id @default(cuid())
+
+  // Wallet the code belongs to
+  walletAddress String   @unique
+
+  // Public code shared by the referrer
+  code          String   @unique
+
+  createdAt     DateTime @default(now())
+
+  @@index([walletAddress])
+}
+
+/// Links a referee wallet to the referrer that owns its referral code (#910).
+/// A wallet can only ever be referred once (`refereeAddress` is unique), so a
+/// second registration attempt is a 409 conflict.
+model Referral {
+  id              String    @id @default(cuid())
+
+  // Referrer wallet that owns the referral code
+  referrerAddress String
+
+  // Referee wallet that registered with the referrer's code
+  refereeAddress  String    @unique
+
+  // Referral code used at registration time
+  referralCode    String
+
+  // Set once the referee completes their first trade; null until then
+  firstTradeAt    DateTime?
+
+  // Key (creator id) of the trade that triggered the first-trade reward
+  firstTradeKeyId String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([referrerAddress, createdAt])
+  @@index([referrerAddress])
+}
+
+/**
  * Referral fee earnings indexed from the on-chain `referral_fee_paid` event.
  *
  * One row per fee payment. `walletAddress` is the referrer who earned the
@@ -18,6 +66,10 @@ model ReferralEvent {
   // Optional denormalised creator id for joins
   creatorId     String?
 
+  // Referred wallet whose trade generated the fee. Null for fees that were
+  // not attributed to a specific referee (e.g. raw on-chain events).
+  refereeAddress String?
+
   // Fee amount in XLM
   amount        Decimal
 
@@ -29,4 +81,5 @@ model ReferralEvent {
 
   @@index([walletAddress, createdAt])
   @@index([keyId])
+  @@index([refereeAddress])
 }
