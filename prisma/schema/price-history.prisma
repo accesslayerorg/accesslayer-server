@@ -1,15 +1,30 @@
 // prisma/schema/price-history.prisma
 // Historical price data points written on every trade event.
-// Enables computing price change over arbitrary time windows (1h, 24h, 7d, etc.).
+// Enables computing price change over arbitrary time windows (1h, 24h, 7d, etc.)
+// and TWAP-style aggregations that need the traded price plus the supply it was
+// computed against.
+
+/// Direction of the trade that produced a price history row.
+enum TradeDirection {
+   BUY
+   SELL
+}
 
 model CreatorPriceHistory {
   id        String   @id @default(cuid())
   creatorId String
   price     BigInt
+  /// Circulating key supply at the time of the trade. 0 when no supply reading
+  /// was available for that event (rows written before this field existed).
+  supply    BigInt   @default(0)
+  /// Trade side that produced this row.
+  direction TradeDirection @default(BUY)
   recordedAt DateTime @default(now())
 
   creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([creatorId, recordedAt])
+  /// Supports the retention job, which prunes by age across all creators.
+  @@index([recordedAt])
   @@map("creator_price_history")
 }

@@ -136,6 +136,38 @@ describe('#636 price snapshot write debug log', () => {
          data: {
             creatorId: CREATOR_ID,
             price: BigInt(1_100_000),
+            supply: 0n,
+            direction: 'BUY',
+            recordedAt: tradeAt,
+         },
+      });
+   });
+
+   it('stores the supply and the trade direction when the caller provides them', async () => {
+      mockPrisma.creatorPriceSnapshot.findUnique.mockResolvedValue({
+         creatorId: CREATOR_ID,
+         currentPrice: BigInt(1_000_000),
+         price24hAgo: BigInt(900_000),
+         lastTradeAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      mockPrisma.creatorPriceSnapshot.update.mockResolvedValue({});
+      mockPrisma.creatorPriceHistory.create.mockResolvedValue({});
+
+      const tradeAt = new Date('2026-01-02T00:00:00Z');
+      await upsertPriceSnapshot({
+         creatorId: CREATOR_ID,
+         price: BigInt(1_100_000),
+         tradeAt,
+         supply: BigInt(4_200),
+         direction: 'SELL',
+      });
+
+      expect(mockPrisma.creatorPriceHistory.create).toHaveBeenCalledWith({
+         data: {
+            creatorId: CREATOR_ID,
+            price: BigInt(1_100_000),
+            supply: BigInt(4_200),
+            direction: 'SELL',
             recordedAt: tradeAt,
          },
       });

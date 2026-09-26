@@ -212,6 +212,17 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Price history retention job (bounds creator_price_history growth)
+      PRICE_HISTORY_TABLE_NAME: z.string().min(1).default('creator_price_history'),
+      PRICE_HISTORY_CLEANUP_DRY_RUN: z.coerce.boolean().default(true),
+      PRICE_HISTORY_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+      PRICE_HISTORY_CLEANUP_ENABLED: z.coerce.boolean().default(false),
+      PRICE_HISTORY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
       // Price movement detection job (feeds price_moved notifications)
       DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
       DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce

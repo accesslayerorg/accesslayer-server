@@ -7,11 +7,11 @@ function delay(milliseconds: number): Promise<void> {
    return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
-export async function persistCirculatingSupply(creatorId: string): Promise<void> {
+export async function persistCirculatingSupply(creatorId: string): Promise<number> {
    let lastError: unknown;
    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
-         await prisma.$transaction(async (transaction) => {
+         return await prisma.$transaction(async (transaction) => {
             const activities = await transaction.activity.findMany({
                where: { creatorId, type: { in: ['KEY_BOUGHT', 'KEY_SOLD'] } },
                select: { type: true, payload: true },
@@ -52,8 +52,9 @@ export async function persistCirculatingSupply(creatorId: string): Promise<void>
                   },
                });
             }
+
+            return supply;
          });
-         return;
       } catch (error) {
          lastError = error;
          if (attempt < MAX_ATTEMPTS - 1) {
