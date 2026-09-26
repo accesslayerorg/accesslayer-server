@@ -78,6 +78,16 @@ Ownership lookup endpoints.
 | :----- | :----------- | :---------------------------------------------------- |
 | `GET`  | `/ownership` | Look up key ownership by owner address or creator ID. |
 
+## Contracts Module
+
+Centralised Soroban contract interaction service (#899).
+
+- Service reference (retry, error classification, tracking, events): [`docs/soroban-contract-service.md`](./soroban-contract-service.md).
+
+| Method | Path             | Description                                                            |
+| :----- | :--------------- | :--------------------------------------------------------------------- |
+| `POST` | `/contracts/call` | Submit a signed contract transaction through the centralised pipeline. |
+
 ## Metrics Module
 
 Operational metrics for background work.
