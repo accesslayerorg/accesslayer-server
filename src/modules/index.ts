@@ -27,7 +27,6 @@ import followerRouter from './followers/follower.routes';
 import protocolRouter from './protocol/protocol.routes';
 import revenueRouter from './revenue/revenue.routes';
 import stakerRouter from './revenue/staker-revenue.routes';
-import stakingRouter from './staking/vault.routes';
 import portfolioRouter from './portfolio/portfolio.routes';
 import stakingRouter from './staking/staking.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';

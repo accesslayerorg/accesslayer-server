@@ -25,9 +25,19 @@ const UpdateCreatorMetadataSchema = z.object({
 type UpdateCreatorMetadataInput = z.infer<typeof UpdateCreatorMetadataSchema>;
 
 const GetAuditLogSchema = z.object({
-   limit: z.coerce.number().int().positive().max(100).optional().default(50),
+   limit: z
+      .preprocess(
+         (val) => (val === undefined || val === '' ? 50 : Number(val)),
+         z.number().int().positive().transform((val) => Math.min(val, 100))
+      ),
    cursor: z.string().optional(),
    actionType: z.string().optional(),
+   fromDate: z.string().optional(),
+   toDate: z.string().optional(),
+   from: z.string().optional(),
+   to: z.string().optional(),
+   startDate: z.string().optional(),
+   endDate: z.string().optional(),
 });
 
 type GetAuditLogInput = z.infer<typeof GetAuditLogSchema>;
@@ -347,6 +357,8 @@ export const httpGetAuditLog: AsyncController = async (
          limit: input.limit,
          cursor: input.cursor,
          actionType: input.actionType,
+         fromDate: input.fromDate || input.from || input.startDate,
+         toDate: input.toDate || input.to || input.endDate,
       });
 
       sendSuccess(res, {
@@ -354,7 +366,7 @@ export const httpGetAuditLog: AsyncController = async (
          pagination: {
             limit: input.limit,
             cursor: input.cursor,
-            nextCursor: result.nextCursor,
+            nextCursor: result.nextCursor ?? null,
             hasMore: result.hasMore,
          },
       });
