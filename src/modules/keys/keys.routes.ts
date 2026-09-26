@@ -17,6 +17,7 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
+import { getKeyLpStats, getKeyLpHistory } from './key-lp.service';
 import {
    getOraclePrice,
    KeyNotFoundError as OracleKeyNotFoundError,
@@ -118,6 +119,11 @@ const batchKeysBodySchema = z.object({
 
 const walletQuerySchema = z.object({
    wallet: StellarAddressSchema,
+});
+
+const lpHistoryQuerySchema = z.object({
+   limit: z.coerce.number().int().positive().max(100).optional().default(20),
+   cursor: z.string().min(1).optional(),
 });
 
 const priceImpactQuerySchema = z.object({
@@ -396,6 +402,54 @@ router.get('/:keyId', async (req, res, next) => {
 router.get('/:keyId/fees', async (req, res, next) => {
    try {
       sendSuccess(res, await getKeyFees(req.params.keyId));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/lp-stats
+ * Total LP contributed and current LP balance for a key, sourced from
+ * LPAllocationSent contract events. Cached 60s (#943).
+ */
+router.get('/:keyId/lp-stats', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyLpStats(String(req.params.keyId)));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/lp-history?limit=&cursor=
+ * Paginated LP contribution history for a key, newest first (#943).
+ */
+router.get('/:keyId/lp-history', async (req, res, next) => {
+   const parsed = lpHistoryQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid pagination query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyLpHistory({
+            keyId: String(req.params.keyId),
+            ...parsed.data,
+         })
+      );
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
