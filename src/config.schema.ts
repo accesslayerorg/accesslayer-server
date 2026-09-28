@@ -278,6 +278,16 @@ export const envSchema = z
          .positive()
          .default(5),
 
+      // Key sunset watch (#931): number of consecutive inactive days before a
+      // key is considered "near threshold" and surfaced by GET /keys/sunset-watch.
+      // Keys whose on-chain KeySunsetFlagged event has been processed always
+      // appear regardless of this threshold. Defaults to 30 days.
+      KEY_SUNSET_INACTIVITY_THRESHOLD_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+
       // Request body size limits (see docs/body-size-limits.md).
       // Accepts any size string understood by the `bytes` package used
       // internally by body-parser (e.g. '100kb', '1mb', '10mb').

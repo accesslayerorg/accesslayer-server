@@ -105,6 +105,11 @@ import {
    calculateEffectiveWeight,
 } from '../staking/staking.service';
 import { getKeyCurveMilestones } from './key-milestones.service';
+import { getSunsetWatchList } from './key-sunset-watch.service';
+import {
+   getKeyPaymentAssetAnalytics,
+   getPlatformPaymentAssetDistribution,
+} from './key-analytics.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -323,6 +328,128 @@ router.get('/search', async (req, res, next) => {
          sendError(res, 400, ErrorCode.VALIDATION_ERROR, error.message);
          return;
       }
+      next(error);
+   }
+});
+
+// ── Pagination constants ────────────────────────────────────
+const DEFAULT_SUNSET_WATCH_LIMIT = 20;
+const MAX_SUNSET_WATCH_LIMIT = 100;
+
+const sunsetWatchQuerySchema = z.object({
+   limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_SUNSET_WATCH_LIMIT)
+      .default(DEFAULT_SUNSET_WATCH_LIMIT),
+   offset: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * GET /api/v1/keys/sunset-watch
+ *
+ * Admin-only endpoint that returns all creator keys approaching or past the
+ * inactivity sunset threshold, plus any keys already flagged on-chain via a
+ * KeySunsetFlagged event.
+ *
+ * Each item includes:
+ *   - keyId, handle, displayName, circulatingSupply
+ *   - lastTradeAt        — ISO timestamp of the last KEY_BOUGHT/KEY_SOLD, or null
+ *   - daysSinceLastTrade — whole days elapsed since last trade, or null
+ *   - sunsetFlaggedAt    — ISO timestamp the on-chain flag was processed, or null
+ *   - sunsetStatus       — 'sunset_pending' | 'threshold_exceeded' | 'near_threshold'
+ *
+ * Results are sorted by inactivity duration descending (most inactive first).
+ * Keys that have never traded appear after all keys with a known last trade.
+ *
+ * Query parameters:
+ *   - limit  (default 20, max 100)
+ *   - offset (default 0)
+ *
+ * Responses:
+ *   200 — paginated list of sunset-watch items
+ *   400 — invalid query parameters
+ *   401 — missing or invalid admin token
+ *   403 — token present but role !== 'admin'
+ *
+ * Must be registered before /:keyId to avoid route shadowing.
+ */
+router.get(
+   '/sunset-watch',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = sunsetWatchQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid query parameters',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const result = await getSunsetWatchList({
+            limit: parsed.data.limit,
+            offset: parsed.data.offset,
+         });
+         sendSuccess(res, result);
+      } catch (error) {
+         logger.error({ error }, 'GET /keys/sunset-watch failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/analytics/payment-assets
+ *
+ * Admin-only. Returns the platform-wide distribution of payment assets used
+ * across all key purchases — trade count, unique buyers, total price in
+ * stroops, and percentage share per asset.
+ *
+ * Must be registered before /:keyId to avoid route shadowing.
+ *
+ * Responses:
+ *   200 — PlatformPaymentAssetDistribution
+ *   401/403 — missing or invalid admin token
+ */
+router.get(
+   '/analytics/payment-assets',
+   adminGuard,
+   async (_req: AdminRequest, res, next) => {
+      try {
+         sendSuccess(res, await getPlatformPaymentAssetDistribution());
+      } catch (error) {
+         logger.error({ error }, 'GET /keys/analytics/payment-assets failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/analytics
+ *
+ * Returns the payment-asset breakdown for a single key: trade count, unique
+ * buyers, and total price in stroops grouped by paymentAsset.
+ * Resolves keyId by DB id or handle.
+ *
+ * Publicly accessible — the payment-asset mix for a key is not sensitive.
+ *
+ * Responses:
+ *   200 — KeyPaymentAssetAnalytics
+ *   404 — key not found
+ */
+router.get('/:keyId/analytics', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyPaymentAssetAnalytics(String(req.params.keyId)));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId: req.params.keyId }, 'GET /keys/:keyId/analytics failed');
       next(error);
    }
 });

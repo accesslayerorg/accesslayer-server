@@ -11,7 +11,8 @@ jest.mock('../../utils/prisma.utils', () => ({
          create: jest.fn(),
       },
       activity: { create: jest.fn() },
-      keyOwnership: { findUnique: jest.fn() },
+      keyOwnership: { findUnique: jest.fn(), aggregate: jest.fn() },
+      voteDelegation: { findMany: jest.fn(), count: jest.fn() },
       $transaction: jest.fn(),
    },
 }));
@@ -43,7 +44,8 @@ interface MockPrismaClient {
    };
    governanceVote: { findUnique: jest.Mock; create: jest.Mock };
    activity: { create: jest.Mock };
-   keyOwnership: { findUnique: jest.Mock };
+   keyOwnership: { findUnique: jest.Mock; aggregate: jest.Mock };
+   voteDelegation: { findMany: jest.Mock; count: jest.Mock };
    $transaction: jest.Mock;
 }
 
@@ -98,6 +100,9 @@ function wireSupportingMocks(
    mockPrisma.keyOwnership.findUnique.mockResolvedValue({
       balance: balance ?? 0,
    });
+   mockPrisma.keyOwnership.aggregate.mockResolvedValue({ _sum: { balance: 0 } });
+   mockPrisma.voteDelegation.findMany.mockResolvedValue([]);
+   mockPrisma.voteDelegation.count.mockResolvedValue(0);
    mockPrisma.activity.create.mockResolvedValue({});
    mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(mockPrisma));
 }
@@ -204,12 +209,37 @@ describe('castKeyProposalVote tallying', () => {
       expect(mockPrisma.activity.create).toHaveBeenCalledWith(
          expect.objectContaining({
             data: expect.objectContaining({
-               type: 'GOVERNANCE_PROPOSAL_CREATED',
+               type: 'GOVERNANCE_VOTE_CAST',
                actor: 'walletA',
-               payload: expect.objectContaining({ action: 'vote_cast' }),
+               payload: expect.objectContaining({ totalWeight: '5' }),
             }),
          })
       );
+   });
+
+   it('includes active delegators in the persisted vote weight', async () => {
+      const store = makeStore();
+      wireProposalMocks(store);
+      wireSupportingMocks({ voted: false, balance: 5 });
+      mockPrisma.voteDelegation.findMany.mockResolvedValue([
+         { delegatorWallet: 'walletB' },
+         { delegatorWallet: 'walletC' },
+      ]);
+      mockPrisma.voteDelegation.count.mockResolvedValue(2);
+      mockPrisma.keyOwnership.aggregate.mockResolvedValue({
+         _sum: { balance: 7 },
+      });
+
+      const result = await castKeyProposalVote(KEY_ID, PROPOSAL_ID, 0, 'walletA');
+
+      expect(result).toMatchObject({
+         weight: '12',
+         ownWeight: '5',
+         delegatedWeight: '7',
+         delegatorCount: 2,
+      });
+      expect(store.total).toBe('12');
+      expect(store.results).toEqual({ Yes: '12' });
    });
 
    it('accumulates tallies across multiple votes cast by different wallets on different options', async () => {

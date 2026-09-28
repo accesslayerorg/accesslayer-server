@@ -54,6 +54,23 @@ export interface PlatformAnalytics extends TradeStats {
    to: string | null;
 }
 
+export interface PaymentAssetStats {
+   payment_asset: string;
+   trade_count: number;
+   unique_traders: number;
+   total_volume: string;
+   trade_share_percent: number;
+}
+
+export interface KeyPaymentAssetAnalytics {
+   keyId: string;
+   assets: PaymentAssetStats[];
+}
+
+export interface PlatformPaymentAssetDistribution {
+   assets: PaymentAssetStats[];
+}
+
 function windowSuffix(window: AnalyticsWindow): string {
    return `${window.from?.toISOString() ?? '-'}:${window.to?.toISOString() ?? '-'}`;
 }
@@ -78,7 +95,12 @@ export function getPlatformAnalyticsCacheKey(
 export async function invalidateKeyAnalyticsCache(
    keyId: string
 ): Promise<void> {
-   await cacheInvalidate(`key:analytics:${keyId}:*`, 'platform:analytics:*');
+   await cacheInvalidate(
+      `key:analytics:${keyId}:*`,
+      `key:payment-asset-analytics:${keyId}`,
+      'platform:analytics:*',
+      'platform:payment-asset-distribution'
+   );
 }
 
 function buildTimestampFilter(window: AnalyticsWindow) {
@@ -168,4 +190,81 @@ export async function getPlatformAnalytics(
 
    await cacheSetJson(cacheKey, analytics, KEY_ANALYTICS_CACHE_TTL_SECONDS);
    return analytics;
+}
+
+function aggregatePaymentAssets(
+   trades: Array<{
+      buyer: string;
+      price: string;
+      quantity: string;
+      paymentAsset: string;
+   }>
+): PaymentAssetStats[] {
+   const groups = new Map<
+      string,
+      { buyers: Set<string>; tradeCount: number; volume: bigint }
+   >();
+
+   for (const trade of trades) {
+      const asset = trade.paymentAsset || 'XLM';
+      const group = groups.get(asset) ?? {
+         buyers: new Set<string>(),
+         tradeCount: 0,
+         volume: 0n,
+      };
+      group.buyers.add(trade.buyer);
+      group.tradeCount += 1;
+      group.volume += BigInt(trade.price) * BigInt(trade.quantity);
+      groups.set(asset, group);
+   }
+
+   return [...groups.entries()]
+      .map(([payment_asset, group]) => ({
+         payment_asset,
+         trade_count: group.tradeCount,
+         unique_traders: group.buyers.size,
+         total_volume: group.volume.toString(),
+         trade_share_percent: trades.length
+            ? Number((BigInt(group.tradeCount) * 10000n) / BigInt(trades.length)) /
+              100
+            : 0,
+      }))
+      .sort((a, b) => a.payment_asset.localeCompare(b.payment_asset));
+}
+
+export async function getKeyPaymentAssetAnalytics(
+   keyId: string
+): Promise<KeyPaymentAssetAnalytics> {
+   const cacheKey = `key:payment-asset-analytics:${keyId}`;
+   const cached = await cacheGetJson<KeyPaymentAssetAnalytics>(cacheKey);
+   if (cached) return cached;
+
+   const creator = await prisma.creatorProfile.findUnique({
+      where: { id: keyId },
+      select: { id: true },
+   });
+   if (!creator) throw new KeyNotFoundError(keyId);
+
+   const trades = await prisma.trade.findMany({
+      where: { creatorId: creator.id },
+      select: { buyer: true, price: true, quantity: true, paymentAsset: true },
+   });
+   const analytics = { keyId: creator.id, assets: aggregatePaymentAssets(trades) };
+
+   await cacheSetJson(cacheKey, analytics, KEY_ANALYTICS_CACHE_TTL_SECONDS);
+   return analytics;
+}
+
+export async function getPlatformPaymentAssetDistribution(): Promise<PlatformPaymentAssetDistribution> {
+   const cacheKey = 'platform:payment-asset-distribution';
+   const cached = await cacheGetJson<PlatformPaymentAssetDistribution>(cacheKey);
+   if (cached) return cached;
+
+   const trades = await prisma.trade.findMany({
+      select: { buyer: true, price: true, quantity: true, paymentAsset: true },
+   });
+   const distribution = { assets: aggregatePaymentAssets(trades) };
+
+   await cacheSetJson(cacheKey, distribution, KEY_ANALYTICS_CACHE_TTL_SECONDS);
+   return distribution;
 }
