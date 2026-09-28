@@ -1,18 +1,23 @@
 // prisma/schema/trade.prisma
 
 model Trade {
-  id         String   @id @default(cuid())
-  buyer      String
-  creatorId  String
-  quantity   String
-  price      String
-  ledger     Int
-  txHash     String
-  timestamp  DateTime
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  buyer        String
+  creatorId    String
+  quantity     String
+  price        String
+  ledger       Int
+  txHash       String
+  timestamp    DateTime
+  /// Payment asset used for this purchase (e.g. 'XLM', 'USDC').
+  /// Defaults to 'XLM' for trades recorded before multi-currency support (#934).
+  paymentAsset String   @default("XLM")
+  createdAt    DateTime @default(now())
 
   @@unique([ledger, txHash])
   @@index([creatorId])
   @@index([buyer])
   @@index([ledger])
+  @@index([paymentAsset])
+  @@index([creatorId, paymentAsset])
 }

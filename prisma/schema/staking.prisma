@@ -1,5 +1,6 @@
 // prisma/schema/staking.prisma
 // Staking reward multiplier tiers and positions configuration (#942).
+// StakingNft and StakingNftTransfer models (#932) are also defined here.
 
 model StakingMultiplierTier {
   id                String   @id @default(cuid())
@@ -30,4 +31,54 @@ model StakingPosition {
   @@index([wallet])
   @@index([keyId])
   @@map("staking_positions")
+}
+
+/// Tradeable stake receipt NFT (#932).
+model StakingNft {
+  id               String   @id @default(cuid())
+  /// On-chain token ID (unique per network).
+  tokenId          String   @unique
+  /// Current holder wallet.
+  ownerAddress     String
+  /// Creator key the staked tokens belong to.
+  keyId            String
+  /// Number of creator keys locked in this position.
+  stakedAmount     Decimal  @db.Decimal(30, 7)
+  lockExpiryLedger Int?
+  lockExpiresAt    DateTime?
+  burned           Boolean  @default(false)
+  burnedAt         DateTime?
+  mintLedger       Int
+  /// Mint tx hash — idempotency key for the indexer.
+  mintTxHash       String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  transfers        StakingNftTransfer[]
+
+  @@index([ownerAddress])
+  @@index([keyId])
+  @@index([ownerAddress, burned])
+  @@map("staking_nfts")
+}
+
+/// Append-only ownership history for a staking NFT (#932).
+model StakingNftTransfer {
+  id          String   @id @default(cuid())
+  nftId       String
+  /// Null on the initial mint.
+  fromAddress String?
+  toAddress   String
+  ledger      Int
+  txHash      String
+  eventIndex  Int
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  nft         StakingNft @relation(fields: [nftId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@index([nftId, occurredAt(sort: Desc)])
+  @@index([toAddress])
+  @@map("staking_nft_transfers")
 }

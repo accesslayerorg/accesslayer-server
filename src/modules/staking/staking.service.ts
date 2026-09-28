@@ -483,3 +483,19 @@ export async function getPositionEffectiveWeight(
       tier: position.tierData,
    };
 }
+
+// ── NFT cache-key helpers (#932) ─────────────────────────────
+// These are consumed by staking-indexer.service.ts to invalidate the Redis
+// caches used by the staking NFT read endpoints after mint/transfer events.
+
+export function walletNftsCachePattern(wallet: string): string {
+   return `staking:nfts:wallet:${wallet}:*`;
+}
+
+export function nftMetaCachePattern(identifier: string): string {
+   return `staking:nfts:meta:${identifier}`;
+}
+
+export function nftTransfersCachePattern(identifier: string): string {
+   return `staking:nfts:transfers:${identifier}:*`;
+}
