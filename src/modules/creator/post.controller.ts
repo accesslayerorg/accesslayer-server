@@ -77,3 +77,64 @@ export async function httpListPosts(
       posts.map(post => serializePost(post, walletAddress))
    );
 }
+
+export async function httpGetPost(
+   req: Request,
+   res: Response
+): Promise<void> {
+   const creatorId = String(req.params.id);
+   const postId = String(req.params.postId);
+
+   const post = await prisma.creatorPost.findUnique({
+      where: { id: postId },
+      include: { creator: { include: { user: { include: { stellarWallet: true } } } } },
+   });
+
+   if (!post || post.creatorId !== creatorId) {
+      sendError(res, 404, ErrorCode.NOT_FOUND, 'Post not found');
+      return;
+   }
+
+   const walletAddress = post.creator?.user?.stellarWallet?.address ?? null;
+   sendSuccess(res, serializePost(post, walletAddress));
+}
+
+export async function httpDeletePost(
+   req: StellarSignedRequest,
+   res: Response
+): Promise<void> {
+   const creatorId = String(req.params.id);
+   const postId = String(req.params.postId);
+
+   const post = await prisma.creatorPost.findUnique({
+      where: { id: postId },
+   });
+
+   if (!post || post.creatorId !== creatorId) {
+      sendError(res, 404, ErrorCode.NOT_FOUND, 'Post not found');
+      return;
+   }
+
+   const creator = await prisma.creatorProfile.findFirst({
+      where: {
+         id: creatorId,
+         user: { stellarWallet: { address: req.walletAddress } },
+      },
+   });
+
+   if (!creator || post.creatorId !== creator.id) {
+      sendError(
+         res,
+         403,
+         ErrorCode.FORBIDDEN,
+         'forbidden: only the post creator can delete this post'
+      );
+      return;
+   }
+
+   await prisma.creatorPost.delete({
+      where: { id: postId },
+   });
+
+   res.status(204).send();
+}

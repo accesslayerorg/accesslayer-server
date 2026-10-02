@@ -32,6 +32,8 @@ import { platformPauseGuard } from '../../middlewares/platform-pause.middleware'
 import {
    httpCreatePost,
    httpListPosts,
+   httpGetPost,
+   httpDeletePost,
    postSchema,
 } from '../creator/post.controller';
 import { requireKeyCreator } from '../../middlewares/jwt-auth.middleware';
@@ -82,12 +84,19 @@ creatorsRouter.post(
 );
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);
+creatorsRouter.get('/:id/posts/:postId', validateCreatorParam('id'), httpGetPost);
 creatorsRouter.post(
    '/:id/posts',
    validateCreatorParam('id'),
    requireStellarSignature(),
    validateBody(postSchema),
    httpCreatePost
+);
+creatorsRouter.delete(
+   '/:id/posts/:postId',
+   validateCreatorParam('id'),
+   requireStellarSignature(),
+   httpDeletePost
 );
 
 /**
