@@ -28,6 +28,7 @@ import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware'
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
 import { httpSellCreatorKey, sellSchema } from '../creator/sell.controller';
+import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
 import {
    httpCreatePost,
    httpListPosts,
@@ -53,6 +54,9 @@ creatorsRouter.use(normalizeTrailingSlash);
 creatorsRouter.post(
    '/:id/buy',
    validateCreatorParam('id'),
+   // Platform-wide and per-key pause validation (#988) runs before any trade
+   // work so a paused platform/key rejects with 503 immediately.
+   platformPauseGuard(),
    requireStellarSignature(),
    buyKeyRateLimit,
    validateBody(buySchema),
@@ -69,6 +73,8 @@ creatorsRouter.post(
 creatorsRouter.post(
    '/:id/sell',
    validateCreatorParam('id'),
+   // Platform-wide and per-key pause validation (#988).
+   platformPauseGuard(),
    requireStellarSignature(),
    buyKeyRateLimit,
    validateBody(sellSchema),

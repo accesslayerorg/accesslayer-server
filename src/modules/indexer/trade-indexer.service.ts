@@ -104,6 +104,8 @@ export async function processTradeEvent(
       const { invalidateCreatorDashboardCache } =
          await import('../creator/creator-dashboard.service');
       await invalidateCreatorDashboardCache(event.creator_id);
+      const { invalidateKeyTwapCache } = await import('../keys/key-twap-window.service');
+      await invalidateKeyTwapCache(event.creator_id);
    } catch {
       // Non-critical cache invalidation failure
    }

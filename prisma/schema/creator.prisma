@@ -42,6 +42,12 @@ model CreatorProfile {
   cooldownLedgers   Int      @default(0)
   perks             Json?
   followersCount    Int      @default(0)
+  /// Graduated curve milestones configuration (#869).
+  curveMilestones   Json?    @map("curve_milestones")
+  /// Base curve exponent (#869).
+  baseExponent      Int      @default(1) @map("base_exponent")
+  /// Lifecycle status of the creator key, e.g. Active or Deprecated (#872).
+  status            String   @default("Active")
   relaunchCount     Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
