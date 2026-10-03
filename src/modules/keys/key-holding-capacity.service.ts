@@ -16,6 +16,9 @@ export interface KeyHoldingCapacity {
    cap: number;
    remaining: number;
    cap_percentage: number;
+   allowed?: boolean;
+   remaining_capacity?: number;
+   maximum_holding?: number;
 }
 
 /**
@@ -51,9 +54,12 @@ export function computeCapPercentage(holding: number, cap: number): number {
  */
 export async function getKeyHoldingCapacity(
    keyId: string,
-   walletAddress: string
+   walletAddress: string,
+   quantity?: number
 ): Promise<KeyHoldingCapacity> {
-   const cacheKey = `keys:holding-capacity:${keyId}:${walletAddress}`;
+   const cacheKey = `keys:holding-capacity:${keyId}:${walletAddress}${
+      quantity === undefined ? '' : `:${quantity}`
+   }`;
    const cached = await cacheGetJson<KeyHoldingCapacity>(cacheKey);
    if (cached) {
       return cached;
@@ -97,6 +103,12 @@ export async function getKeyHoldingCapacity(
       remaining: Math.max(cap - currentHolding, 0),
       cap_percentage: computeCapPercentage(currentHolding, cap),
    };
+
+   if (quantity !== undefined) {
+      capacity.allowed = quantity <= capacity.remaining;
+      capacity.remaining_capacity = capacity.remaining;
+      capacity.maximum_holding = capacity.cap;
+   }
 
    await cacheSetJson(cacheKey, capacity, HOLDING_CAPACITY_CACHE_TTL_SECONDS);
    return capacity;
