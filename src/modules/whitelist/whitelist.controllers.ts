@@ -32,7 +32,7 @@ export const httpGetWhitelistStatus: AsyncController = async (
 ) => {
    try {
       const { keyId } = req.params as { keyId: string };
-      const { wallet } = req.query;
+      const wallet = req.params.wallet ?? req.query.wallet;
 
       if (!keyId) {
          return sendValidationError(res, 'Missing required parameters', [
