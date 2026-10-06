@@ -1,6 +1,7 @@
 // src/modules/keys/key-transfer.service.ts
 import { prisma } from '../../utils/prisma.utils';
 import { KeyNotFoundError } from './key-fees.service';
+import { PositionFrozenError } from './key-freeze.service';
 
 export async function transferKeys(
   keyId: string,
@@ -26,8 +27,12 @@ export async function transferKeys(
   return prisma.$transaction(async (tx: any) => {
     const sender = await tx.keyOwnership.findUnique({
       where: { ownerAddress_creatorId: { ownerAddress: fromAddress, creatorId: keyId } },
-      select: { balance: true },
+      select: { balance: true, frozen: true },
     });
+    // Self-custody freeze (#885): frozen positions cannot be transferred.
+    if (sender?.frozen) {
+      throw new PositionFrozenError(keyId);
+    }
     const senderBalance = Number(sender?.balance ?? 0);
     if (senderBalance < quantity) {
       throw new Error('Insufficient balance');

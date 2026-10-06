@@ -10,12 +10,17 @@ import {
    GetDividendDistributionsQuerySchema,
    GetDividendClaimsQuery,
    GetDividendClaimsQuerySchema,
+   GetHolderDividendsParamsSchema,
+   ClaimDividendBodySchema,
+   StellarWalletAddressRegex,
 } from './dividend.schemas';
 import {
    getDividendDistributions,
    getDividendClaims,
    getDividendDistributionById,
    creatorExists,
+   getHolderDividends,
+   buildClaimTransaction,
 } from './dividend.service';
 
 /**
@@ -69,7 +74,7 @@ export const httpGetDividendDistributions: AsyncController = async (
          totalAmount: Number(dist.totalAmount),
          holderCount: dist.holderCount,
          perKeyAmount: Number(dist.perKeyAmount),
-         distributedAt: dist.distributedAt.toISOString(),
+         distributedAt: new Date(dist.distributedAt).toISOString(),
       }));
 
       return sendSuccess(res, {
@@ -150,7 +155,7 @@ export const httpGetDividendHolders: AsyncController = async (
       const entries = result.claims.map((claim) => ({
          recipientWallet: claim.recipientAddress,
          amountXlm: Number(claim.amountXlm),
-         claimedAt: claim.claimedAt ? claim.claimedAt.toISOString() : null,
+         claimedAt: claim.claimedAt ? new Date(claim.claimedAt).toISOString() : null,
       }));
 
       return sendSuccess(res, {
@@ -260,6 +265,97 @@ export const httpDistributeDividend: AsyncController = async (
          }
          throw err;
       }
+   } catch (error) {
+      next(error);
+   }
+};
+
+/**
+ * GET /holders/:wallet/dividends
+ * Returns aggregate pending and claimed dividends across all held keys for a wallet.
+ */
+export const httpGetHolderDividends: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const { wallet } = req.params as { wallet: string };
+      const parsed = GetHolderDividendsParamsSchema.safeParse({ wallet });
+      if (!parsed.success) {
+         return sendValidationError(res, 'Invalid Stellar wallet address', [
+            {
+               field: 'wallet',
+               message: 'Wallet must be a valid Stellar public key (G...)',
+            },
+         ]);
+      }
+
+      const result = await getHolderDividends({ wallet: parsed.data.wallet });
+      return sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+};
+
+/**
+ * POST /keys/:keyId/dividends/claim
+ * Builds and returns an unsigned Soroban claim transaction for a key.
+ */
+export const httpBuildClaimTransaction: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const { keyId } = req.params as { keyId: string };
+      if (!keyId) {
+         return sendValidationError(res, 'Key ID is required', [
+            { field: 'keyId', message: 'Key ID is required' },
+         ]);
+      }
+
+      // Verify key / creator exists
+      const exists = await creatorExists(keyId);
+      if (!exists) {
+         return sendNotFound(res, 'Creator');
+      }
+
+      // Extract claimant wallet from JWT or request body
+      let claimantWallet: string | undefined = (req as AuthenticatedRequest)
+         .user?.wallet;
+
+      if (!claimantWallet && req.body) {
+         const parsedBody = ClaimDividendBodySchema.safeParse(req.body);
+         if (parsedBody.success) {
+            claimantWallet = parsedBody.data.wallet || parsedBody.data.claimant;
+         }
+      }
+
+      if (!claimantWallet) {
+         return sendValidationError(res, 'Claimant wallet address is required', [
+            {
+               field: 'wallet',
+               message: 'Wallet address is required (in body or via JWT)',
+            },
+         ]);
+      }
+
+      if (!StellarWalletAddressRegex.test(claimantWallet)) {
+         return sendValidationError(res, 'Invalid Stellar wallet address', [
+            {
+               field: 'wallet',
+               message: 'Wallet must be a valid Stellar public key (G...)',
+            },
+         ]);
+      }
+
+      const result = await buildClaimTransaction({
+         keyId,
+         claimantWallet,
+      });
+
+      return sendSuccess(res, result);
    } catch (error) {
       next(error);
    }

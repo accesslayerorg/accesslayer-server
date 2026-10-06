@@ -10,6 +10,7 @@ export const CREATOR_LIST_PUBLIC_FIELDS = [
    'currentPrice',
    'price24hAgo',
    'priceChange24h',
+   'deprecated',
 ] as const;
 
 export type CreatorListPublicField =

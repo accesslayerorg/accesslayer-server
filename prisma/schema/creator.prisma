@@ -2,7 +2,7 @@
 
 model CreatorProfile {
   id                String   @id @default(cuid())
-  userId            String   @unique
+  userId            String
   handle            String   @unique
   displayName       String
   bio               String?
@@ -15,6 +15,8 @@ model CreatorProfile {
   supplyCap         Int?
   /// Number of keys that have been burned.
   burnedSupply      Int      @default(0)
+  /// Current milestone tier reached by supply.
+  currentMilestone  Int      @default(0) @map("current_milestone")
   /// Creator royalty charged on buys, in basis points (100 = 1%).
   creatorRoyaltyBuyBps  Int @default(0)
   /// Creator royalty charged on sells, in basis points (100 = 1%).
@@ -23,8 +25,30 @@ model CreatorProfile {
   holderCapBps          Int @default(2500) @map("holder_cap_bps")
   /// Circuit breaker price movement threshold in basis points (default 3000 = 30%).
   circuitBreakerThreshold Int @default(3000) @map("circuit_breaker_threshold")
+  /// When the key was deprecated (#882); null while the key is active.
+  deprecatedAt      DateTime?
+  /// Guaranteed holder buyback price per key in XLM, set on deprecation (#882).
+  buybackPriceXlm   Decimal?  @db.Decimal(20, 7)
+  /// Buyback window expiry; buybacks are rejected with 410 after this time (#882).
+  buybackExpiresAt  DateTime?
+  /// Reason for deprecation, set by an admin action or an indexed contract event.
+  reason            String?
+  /// Successor key designated to replace this one on deprecation, if any.
+  successorKeyId    String?
+  /// When the on-chain KeySunsetFlagged event was processed for this key (#931).
+  /// Null while the key has not been flagged for sunset.
+  sunsetFlaggedAt   DateTime?
+  /// Buy cooldown between purchases by the same wallet, in ledgers (0 = no cooldown).
+  cooldownLedgers   Int      @default(0)
   perks             Json?
   followersCount    Int      @default(0)
+  /// Graduated curve milestones configuration (#869).
+  curveMilestones   Json?    @map("curve_milestones")
+  /// Base curve exponent (#869).
+  baseExponent      Int      @default(1) @map("base_exponent")
+  /// Lifecycle status of the creator key, e.g. Active or Deprecated (#872).
+  status            String   @default("Active")
+  relaunchCount     Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -35,6 +59,25 @@ model CreatorProfile {
   posts            CreatorPost[]
   followers        Follow[]
   walletFollowers   WalletCreatorFollow[]
+  relaunches       CreatorKeyRelaunch[]
+  successor        CreatorProfile?        @relation("KeySuccessor", fields: [successorKeyId], references: [id], onDelete: SetNull)
+  supersededKeys   CreatorProfile[]       @relation("KeySuccessor")
+
+  @@index([userId])
+  @@index([successorKeyId])
+}
+
+model CreatorKeyRelaunch {
+  id               String   @id @default(cuid())
+  creatorId        String
+  ledger           Int
+  txHash           String
+  timestamp        DateTime
+  configDiff       Json?
+
+  creator          CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
 }
 model PendingKeyPurchase {
   id             String   @id @default(cuid())

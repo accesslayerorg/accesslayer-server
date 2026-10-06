@@ -29,6 +29,8 @@ export interface HoldingView {
     * is no configured lockup duration or no prior buy.
     */
    lockup_expires_at: string | null;
+   /** Self-custody freeze status: true while the position is frozen (#885). */
+   frozen: boolean;
 }
 
 type KeyOwnershipRow = {
@@ -36,6 +38,7 @@ type KeyOwnershipRow = {
    balance: unknown;
    costBasis: unknown;
    lastBuyAt: Date | null;
+   frozen?: boolean;
 };
 
 function toNumber(value: unknown): number {
@@ -93,6 +96,7 @@ export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> 
          balance: true,
          costBasis: true,
          lastBuyAt: true,
+         frozen: true,
       },
    })) as KeyOwnershipRow[];
 
@@ -141,10 +145,11 @@ export async function getWalletHoldings(wallet: string): Promise<HoldingView[]> 
          last_buy_timestamp: row.lastBuyAt
             ? row.lastBuyAt.toISOString()
             : null,
-         lockup_expires_at: lockupExpiresAt
-            ? lockupExpiresAt.toISOString()
-            : null,
-      };
+          lockup_expires_at: lockupExpiresAt
+             ? lockupExpiresAt.toISOString()
+             : null,
+          frozen: Boolean(row.frozen),
+       };
    });
 
    holdings.sort((left, right) => right.currentValue - left.currentValue);

@@ -6,6 +6,10 @@ export const NOTIFICATION_TYPES = {
    PRICE_MOVED: 'price_moved',
    PAUSE_PROPOSAL_CREATED: 'pause_proposal_created',
    TRADING_PAUSED: 'trading_paused',
+   KEY_DEPRECATED: 'key_deprecated',
+   KEY_SUNSET_FLAGGED: 'key_sunset_flagged',
+   MILESTONE_CROSSED: 'milestone_crossed',
+   CIRCUIT_BREAKER_TRIPPED: 'circuit_breaker_tripped',
 } as const;
 
 export type NotificationType =
@@ -22,11 +26,12 @@ export const REDIS_KEYS = {
    keyFees: (keyId: string) => `key:fees:${keyId}`,
    priceMovedSet: 'price_moved:keys',
    priceMovedDelivered: (keyId: string) => `price_moved:delivered:${keyId}`,
-   keyAuction: (keyId: string) => `key:auction:${keyId}`,
-   keyMetadata: (keyId: string) => `key:metadata:${keyId}`,
-   keyStaking: (keyId: string) => `key:staking:${keyId}`,
-   holderStaking: (keyId: string, holder: string) => `holder:staking:${keyId}:${holder}`,
+   keySunsetEvent: (eventId: string) => `key_sunset:dispatch:${eventId}`,
+   keyDeprecationEvent: (eventId: string) => `key_deprecation:dispatch:${eventId}`,
 } as const;
+
+/** Trips surfaced as circuit_breaker_tripped notifications, newest first (#987). */
+export const CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT = 50;
 
 export const KEY_FEES_CACHE_TTL_SECONDS = 60;
 export const KEY_AUCTION_CACHE_TTL_SECONDS = 30;

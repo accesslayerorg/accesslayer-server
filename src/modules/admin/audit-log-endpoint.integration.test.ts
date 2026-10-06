@@ -1,19 +1,21 @@
 import request from 'supertest';
 import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
-import { signWalletAccessToken } from '../../utils/jwt.utils';
+
+import jwt from 'jsonwebtoken';
+import { envConfig } from '../../config';
 
 describe('GET /admin/audit-log Endpoint Integration Tests', () => {
    let adminToken: string;
 
    beforeAll(async () => {
-      // Create admin token
+      // Create admin token with admin role
       const adminWallet = '0xadmintestwallet1111111111111111111111111';
-      adminToken = signWalletAccessToken(adminWallet, 'admin-sub', 3600);
-
-      // Override token payload to include admin role
-      // In real scenario, JWT would be issued with role: 'admin'
-      // For testing, we mock the verification to allow admin role
+      adminToken = jwt.sign(
+         { wallet: adminWallet, sub: 'admin-sub', role: 'admin', adminId: 'admin-sub' },
+         envConfig.JWT_SECRET,
+         { expiresIn: 3600, issuer: envConfig.JWT_ISSUER }
+      );
    });
 
    afterAll(async () => {
@@ -28,14 +30,14 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
    describe('Authentication and Authorization', () => {
       it('AC4: 403 returned for non-admin callers (missing JWT)', async () => {
-         const response = await request(app).get('/admin/audit-log');
+         const response = await request(app).get('/api/v1/admin/audit-log');
 
          expect(response.status).toBe(401);
       });
 
       it('should require valid admin JWT', async () => {
          const response = await request(app)
-            .get('/admin/audit-log')
+            .get('/api/v1/admin/audit-log')
             .set('Authorization', 'Bearer invalid_token');
 
          expect(response.status).toBe(401);
@@ -75,7 +77,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should return audit log entries', async () => {
          const response = await request(app)
-            .get('/admin/audit-log')
+            .get('/api/v1/admin/audit-log')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -86,7 +88,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('AC3: actionType filter correctly narrows results', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?actionType=protocol_fee_updated')
+            .get('/api/v1/admin/audit-log?actionType=protocol_fee_updated')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -99,7 +101,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should return empty results for non-existent actionType filter', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?actionType=nonexistent_action')
+            .get('/api/v1/admin/audit-log?actionType=nonexistent_action')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -124,7 +126,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should respect limit parameter', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=3')
+            .get('/api/v1/admin/audit-log?limit=3')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -133,7 +135,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should default to limit of 50 if not specified', async () => {
          const response = await request(app)
-            .get('/admin/audit-log')
+            .get('/api/v1/admin/audit-log')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -142,7 +144,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should cap limit at 100', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=200')
+            .get('/api/v1/admin/audit-log?limit=200')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -151,7 +153,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('AC2: Entries returned sorted by createdAt descending', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=10')
+            .get('/api/v1/admin/audit-log?limit=10')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -167,7 +169,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
       it('AC5: Cursor pagination returns correct next page', async () => {
          // First page
          const page1Response = await request(app)
-            .get('/admin/audit-log?limit=3')
+            .get('/api/v1/admin/audit-log?limit=3')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(page1Response.status).toBe(200);
@@ -179,7 +181,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
          if (page1Response.body.data.pagination.hasMore) {
             // Second page with cursor
             const page2Response = await request(app)
-               .get(`/admin/audit-log?limit=3&cursor=${nextCursor}`)
+               .get(`/api/v1/admin/audit-log?limit=3&cursor=${nextCursor}`)
                .set('Authorization', `Bearer ${adminToken}`);
 
             expect(page2Response.status).toBe(200);
@@ -211,7 +213,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('AC4: Returns actorWallet, actionType, targetId, payload, and createdAt per entry', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=1')
+            .get('/api/v1/admin/audit-log?limit=1')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -230,7 +232,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should include pagination metadata', async () => {
          const response = await request(app)
-            .get('/admin/audit-log')
+            .get('/api/v1/admin/audit-log')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -244,7 +246,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
    describe('Error Handling', () => {
       it('should reject invalid limit parameter', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=invalid')
+            .get('/api/v1/admin/audit-log?limit=invalid')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(400);
@@ -252,7 +254,7 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should reject negative limit', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=-5')
+            .get('/api/v1/admin/audit-log?limit=-5')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(400);
@@ -260,10 +262,64 @@ describe('GET /admin/audit-log Endpoint Integration Tests', () => {
 
       it('should reject zero limit', async () => {
          const response = await request(app)
-            .get('/admin/audit-log?limit=0')
+            .get('/api/v1/admin/audit-log?limit=0')
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(400);
+      });
+   });
+
+   describe('Date Range Filtering and Immutability', () => {
+      beforeEach(async () => {
+         await prisma.auditLog.create({
+            data: {
+               actorWallet: '0xadmin1',
+               actionType: 'key_deprecated',
+               targetId: 'key_old',
+               createdAt: new Date('2026-01-01T00:00:00.000Z'),
+            },
+         });
+
+         await prisma.auditLog.create({
+            data: {
+               actorWallet: '0xadmin1',
+               actionType: 'key_trading_paused',
+               targetId: 'key_mid',
+               createdAt: new Date('2026-06-01T00:00:00.000Z'),
+            },
+         });
+
+         await prisma.auditLog.create({
+            data: {
+               actorWallet: '0xadmin1',
+               actionType: 'position_frozen',
+               targetId: 'key_new',
+               createdAt: new Date('2026-09-01T00:00:00.000Z'),
+            },
+         });
+      });
+
+      it('filters audit log entries by date range (fromDate and toDate)', async () => {
+         const response = await request(app)
+            .get('/api/v1/admin/audit-log?fromDate=2026-05-01T00:00:00.000Z&toDate=2026-07-01T00:00:00.000Z')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+         expect(response.status).toBe(200);
+         expect(response.body.data.entries.length).toBe(1);
+         expect(response.body.data.entries[0].actionType).toBe('key_trading_paused');
+      });
+
+      it('enforces immutability: returns 404/405 for POST, PUT, DELETE routes on audit-log', async () => {
+         const postRes = await request(app)
+            .post('/api/v1/admin/audit-log')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ actionType: 'test' });
+         expect([404, 405]).toContain(postRes.status);
+
+         const deleteRes = await request(app)
+            .delete('/api/v1/admin/audit-log/some-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+         expect([404, 405]).toContain(deleteRes.status);
       });
    });
 });

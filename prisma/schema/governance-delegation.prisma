@@ -1,0 +1,80 @@
+// prisma/schema/governance-delegation.prisma
+// Delegation read model for governance voting (#933).
+//
+// VoteDelegation is the current-state table: one row per (delegator, keyId)
+// pair, tracking the active delegate and whether the delegation has been
+// revoked.  Only rows where isActive = true count toward vote weight.
+//
+// VoteDelegationHistory is the append-only audit log: every DelegationSet and
+// DelegationRevoked on-chain event appends a row so
+// GET /governance/delegation/:wallet/history can return full provenance.
+//
+// Idempotency keys:
+//   DelegationSet    — unique(txHash, eventIndex) on VoteDelegationHistory
+//   DelegationRevoked — same unique(txHash, eventIndex) on VoteDelegationHistory;
+//                       the SET handler also guards on VoteDelegation.txHash
+//                       for the upsert.
+
+model VoteDelegation {
+  id               String   @id @default(cuid())
+
+  /// Wallet that is delegating its vote weight.
+  delegatorWallet  String
+
+  /// Creator key scope this delegation applies to.
+  /// A wallet may hold different keys and delegate each independently.
+  keyId            String
+
+  /// Wallet receiving the delegated weight.
+  delegateeWallet  String
+
+  /// False once a DelegationRevoked event has been processed.
+  isActive         Boolean  @default(true)
+
+  /// Ledger of the most recent state-changing event (set or revoke).
+  ledger           Int
+
+  /// Transaction hash of the most recent state-changing event.
+  /// Used as an optimistic concurrency guard so out-of-order replays
+  /// cannot clobber a newer state with an older one.
+  txHash           String
+
+  /// On-chain timestamp of the most recent state-changing event.
+  occurredAt       DateTime
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([delegatorWallet, keyId])
+  @@index([delegateeWallet, isActive])
+  @@index([delegatorWallet])
+  @@index([keyId, isActive])
+  @@map("vote_delegations")
+}
+
+/// Append-only log of every delegation change event.
+/// One row per DelegationSet or DelegationRevoked contract event.
+model VoteDelegationHistory {
+  id               String   @id @default(cuid())
+
+  delegatorWallet  String
+  keyId            String
+
+  /// For DelegationSet events; null for DelegationRevoked entries.
+  delegateeWallet  String?
+
+  /// 'set' | 'revoked'
+  action           String
+
+  ledger           Int
+  txHash           String
+  eventIndex       Int
+  occurredAt       DateTime
+  createdAt        DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([delegatorWallet, occurredAt(sort: Desc)])
+  @@index([delegateeWallet, occurredAt(sort: Desc)])
+  @@index([keyId])
+  @@map("vote_delegation_history")
+}

@@ -6,38 +6,144 @@ import {
    sendNotFound,
    sendSuccess,
    sendValidationError,
+   sendForbidden,
+   sendConflict,
    zodIssuesToDetails,
 } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import {
    getKeyPriceHistory,
+   getKeyPriceSnapshots,
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
-import { getKeyProposals } from './key-proposals.service';
+import { getKeyLpStats, getKeyLpHistory } from './key-lp.service';
+import { getKeyRelaunchHistory } from './key-relaunch.service';
+import {
+   getOraclePrice,
+   KeyNotFoundError as OracleKeyNotFoundError,
+   OraclePriceNotFoundError,
+} from './oracle-price.service';
+import {
+   getTwapPrice,
+   KeyNotFoundError as TwapKeyNotFoundError,
+} from './key-twap.service';
+import {
+   getKeyMetadata,
+   KeyMetadataNotFoundError,
+} from './key-metadata-sync.service';
+import { TWAP_WINDOWS } from '../../constants/redis.constants';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import { envConfig } from '../../config';
+import { getKeyProposals, getProposalForVoting } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
-import { getKeyAuction, KeyNotFoundError as AuctionKeyNotFoundError } from './key-auction.service';
-import { getKeyMetadata, KeyNotFoundError as MetadataKeyNotFoundError } from './key-metadata.service';
-import { getKeyStaking, KeyNotFoundError as StakingKeyNotFoundError } from './key-staking.service';
+import { httpGetKeyLeaderboard } from './key-leaderboard.controller';
+
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
 import dividendRouter from '../dividends/dividend.routes';
 import whitelistRouter from '../whitelist/whitelist.routes';
 import {
    requireJwtAuth,
+   requireKeyCreator,
    AuthenticatedRequest,
 } from '../../middlewares/jwt-auth.middleware';
+import {
+   adminGuard,
+   AdminRequest,
+} from '../../middlewares/admin-guard.middleware';
+import { requireInternalApiKey } from '../../middlewares/internal-auth.middleware';
+import {
+   registerKeyContract,
+   DuplicateKeyRegistrationError,
+   InvalidOnChainContractError,
+} from './key-registration.service';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
+import {
+   creatorProfileExists,
+   getCreatorProfile,
+} from '../creator/creator-profile.service';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
+import {
+   getKeyVestingHistory,
+   getKeyVestingSummary,
+   KeyVestingNotFoundError,
+} from '../vesting/vesting.service';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
+import {
+   castKeyProposalVote,
+   HolderNotEligibleError,
+   DuplicateVoteError,
+   OptionIndexOutOfRangeError,
+} from './key-proposal-votes.service';
+import {
+   BuybackPriceNotSetError,
+   BuybackWindowClosedError,
+   deprecateKey,
+   getKeyDeprecationStatus,
+   InsufficientPositionError,
+   KeyAlreadyDeprecatedError,
+   KeyNotDeprecatedError,
+   MultisigVerificationError,
+   processBuyback,
+} from './key-deprecation.service';
+import { getKeyCooldown } from './key-cooldown.service';
+import { getKeyHoldingCapacity } from './key-holding-capacity.service';
+import { StellarAddressSchema } from '../wallet/wallet.schemas';
+import {
+   freezePosition,
+   getFreezeStatus,
+   PositionAlreadyFrozenError,
+   PositionNotFrozenError,
+   PositionNotFoundError,
+   unfreezePosition,
+} from './key-freeze.service';
+import {
+   getPriceImpact,
+   KeyNotFoundError as PriceImpactKeyNotFoundError,
+} from './key-price-impact.service';
+import {
+   getBuybackPoolBalance,
+   getBuybackPoolHistory,
+   executeBuybackFromPool,
+   KeyNotFoundError as BuybackPoolKeyNotFoundError,
+} from './buyback-pool.service';
+import {
+   getMultiplierTiers,
+   matchTierForLockPeriod,
+   calculateEffectiveWeight,
+} from '../staking/staking.service';
+import { getKeyCurveMilestones } from './key-milestones.service';
+import { getSunsetWatchList } from './key-sunset-watch.service';
+import {
+   getKeyPaymentAssetAnalytics,
+   getPlatformPaymentAssetDistribution,
+} from './key-analytics.service';
+import {
+   getCircuitBreakerState,
+   KeyNotFoundError as CircuitBreakerKeyNotFoundError,
+} from './circuit-breaker.service';
+import { circuitBreakerQuerySchema } from './circuit-breaker.schemas';
+import {
+   simulateKeyTrade,
+   type SimulateSide,
+   InsufficientCirculatingSupplyError,
+   QuantityExceedsLimitError,
+   BatchSizeExceedsLimitError,
+} from './key-simulate.service';
+import { getKeyTwap } from './key-twap-window.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
    to: z.string().datetime(),
-   interval: z.enum(PRICE_HISTORY_INTERVALS),
+   // Optional (#893): when omitted, the endpoint returns every raw price
+   // snapshot in range (price, supply, direction, timestamp) — the shape
+   // TWAP calculations need. When provided, it keeps the legacy
+   // fixed-bucket downsampled series for chart consumers.
+   interval: z.enum(PRICE_HISTORY_INTERVALS).optional(),
 });
 
 const searchQuerySchema = z.object({
@@ -48,7 +154,109 @@ const batchKeysBodySchema = z.object({
    ids: z.array(z.string()).min(1, 'Empty array').max(20, 'More than 20 IDs'),
 });
 
+const walletQuerySchema = z.object({
+   wallet: StellarAddressSchema,
+});
+
+const lpHistoryQuerySchema = z.object({
+   limit: z.coerce.number().int().positive().max(100).optional().default(20),
+   cursor: z.string().min(1).optional(),
+});
+
+const priceImpactQuerySchema = z.object({
+   quantity: z.string().transform(v => {
+      const num = parseInt(v, 10);
+      if (isNaN(num) || num <= 0) {
+         throw new Error('Quantity must be a positive integer');
+      }
+      return num;
+   }),
+   direction: z.enum(['buy', 'sell']),
+});
+
+const twapQuerySchema = z.object({
+   window: z.enum(TWAP_WINDOWS).optional(),
+});
+
+const buybackPoolHistoryQuerySchema = z.object({
+   limit: z
+      .string()
+      .transform(v => {
+         const num = parseInt(v, 10);
+         if (isNaN(num) || num < 1 || num > 100) {
+            throw new Error('Limit must be between 1 and 100');
+         }
+         return num;
+      })
+      .optional(),
+   cursor: z.string().optional(),
+});
+
+const buybackExecuteBodySchema = z.object({
+   amountXlm: z
+      .string()
+      .refine(
+         v => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
+         'amountXlm must be a positive number'
+      ),
+});
+
 const router = Router();
+
+const registerKeyBodySchema = z.preprocess(
+   (val: any) => {
+      if (val && typeof val === 'object') {
+         return {
+            keyAddress: val.keyAddress ?? val.key_address,
+            creatorWallet: val.creatorWallet ?? val.creator_wallet,
+            handle: val.handle,
+            displayName: val.displayName ?? val.display_name,
+            metadata: val.metadata ?? val.config_metadata ?? val.configMetadata,
+         };
+      }
+      return val;
+   },
+   z.object({
+      keyAddress: z.string().min(1, 'keyAddress is required'),
+      creatorWallet: z.string().min(1, 'creatorWallet is required'),
+      handle: z.string().optional(),
+      displayName: z.string().optional(),
+      metadata: z.record(z.unknown()).optional(),
+   })
+);
+
+/**
+ * POST /api/v1/keys/register
+ * Receives newly deployed creator key contract addresses from factory indexer
+ * and registers them in the database for API serving.
+ * Restricted to internal indexer service via API key auth.
+ */
+router.post('/register', requireInternalApiKey, async (req, res, next) => {
+   const parsed = registerKeyBodySchema.safeParse(req.body);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid registration request body',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const registered = await registerKeyContract(parsed.data);
+      sendSuccess(res, registered, 201, 'Key contract registered successfully');
+   } catch (error) {
+      if (error instanceof DuplicateKeyRegistrationError) {
+         sendConflict(res, error.message);
+         return;
+      }
+      if (error instanceof InvalidOnChainContractError) {
+         sendValidationError(res, error.message);
+         return;
+      }
+      next(error);
+   }
+});
 
 /**
  * POST /api/v1/keys/batch
@@ -112,6 +320,12 @@ router.post('/batch', async (req, res, next) => {
 });
 
 /**
+ * GET /api/v1/keys/leaderboard
+ * Ranks creator keys by holder count, trading volume, or price performance.
+ */
+router.get('/leaderboard', httpGetKeyLeaderboard);
+
+/**
  * GET /api/v1/keys/search?q=
  * Full-text search over creator name and description.
  * Must be registered before /:keyId routes.
@@ -149,6 +363,368 @@ router.get('/search', async (req, res, next) => {
    }
 });
 
+// ── Pagination constants ────────────────────────────────────
+const DEFAULT_SUNSET_WATCH_LIMIT = 20;
+const MAX_SUNSET_WATCH_LIMIT = 100;
+
+const sunsetWatchQuerySchema = z.object({
+   limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_SUNSET_WATCH_LIMIT)
+      .default(DEFAULT_SUNSET_WATCH_LIMIT),
+   offset: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * GET /api/v1/keys/sunset-watch
+ *
+ * Admin-only endpoint that returns all creator keys approaching or past the
+ * inactivity sunset threshold, plus any keys already flagged on-chain via a
+ * KeySunsetFlagged event.
+ *
+ * Each item includes:
+ *   - keyId, handle, displayName, circulatingSupply
+ *   - lastTradeAt        — ISO timestamp of the last KEY_BOUGHT/KEY_SOLD, or null
+ *   - daysSinceLastTrade — whole days elapsed since last trade, or null
+ *   - sunsetFlaggedAt    — ISO timestamp the on-chain flag was processed, or null
+ *   - sunsetStatus       — 'sunset_pending' | 'threshold_exceeded' | 'near_threshold'
+ *
+ * Results are sorted by inactivity duration descending (most inactive first).
+ * Keys that have never traded appear after all keys with a known last trade.
+ *
+ * Query parameters:
+ *   - limit  (default 20, max 100)
+ *   - offset (default 0)
+ *
+ * Responses:
+ *   200 — paginated list of sunset-watch items
+ *   400 — invalid query parameters
+ *   401 — missing or invalid admin token
+ *   403 — token present but role !== 'admin'
+ *
+ * Must be registered before /:keyId to avoid route shadowing.
+ */
+router.get(
+   '/sunset-watch',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = sunsetWatchQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid query parameters',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const result = await getSunsetWatchList({
+            limit: parsed.data.limit,
+            offset: parsed.data.offset,
+         });
+         sendSuccess(res, result);
+      } catch (error) {
+         logger.error({ error }, 'GET /keys/sunset-watch failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/analytics/payment-assets
+ *
+ * Admin-only. Returns the platform-wide distribution of payment assets used
+ * across all key purchases — trade count, unique buyers, total price in
+ * stroops, and percentage share per asset.
+ *
+ * Must be registered before /:keyId to avoid route shadowing.
+ *
+ * Responses:
+ *   200 — PlatformPaymentAssetDistribution
+ *   401/403 — missing or invalid admin token
+ */
+router.get(
+   '/analytics/payment-assets',
+   adminGuard,
+   async (_req: AdminRequest, res, next) => {
+      try {
+         sendSuccess(res, await getPlatformPaymentAssetDistribution());
+      } catch (error) {
+         logger.error({ error }, 'GET /keys/analytics/payment-assets failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/analytics
+ *
+ * Returns the payment-asset breakdown for a single key: trade count, unique
+ * buyers, and total price in stroops grouped by paymentAsset.
+ * Resolves keyId by DB id or handle.
+ *
+ * Publicly accessible — the payment-asset mix for a key is not sensitive.
+ *
+ * Responses:
+ *   200 — KeyPaymentAssetAnalytics
+ *   404 — key not found
+ */
+router.get('/:keyId/analytics', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyPaymentAssetAnalytics(String(req.params.keyId)));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId: req.params.keyId }, 'GET /keys/:keyId/analytics failed');
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/circuit-breaker?limit=&offset=
+ *
+ * Returns the key's circuit breaker state: the configured max_bps (read from
+ * the contract and cached for 5 minutes, falling back to the indexed value),
+ * whether the breaker is currently active (the latest trip's actual bps met or
+ * exceeded the threshold), and the paginated trip history, newest first
+ * (50 per page by default). Resolves keyId by DB id or handle.
+ *
+ * Responses:
+ *   200 — { keyId, maxBps, active, config, tripCount, limit, offset, trips }
+ *   400 — invalid pagination query
+ *   404 — key not found
+ */
+router.get('/:keyId/circuit-breaker', async (req, res, next) => {
+   const parsed = circuitBreakerQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid circuit breaker query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const keyId = String(req.params.keyId);
+      sendSuccess(res, await getCircuitBreakerState(keyId, parsed.data));
+   } catch (error) {
+      if (error instanceof CircuitBreakerKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'GET /keys/:keyId/circuit-breaker failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/oracle-price
+ *
+ * Returns the current oracle price (synced from OraclePriceUpdated contract
+ * events), the bonding-curve spot price, the deviation percentage, and a
+ * staleness flag when the oracle feed has not been updated within
+ * ORACLE_STALENESS_THRESHOLD_MS.
+ *
+ * Response is cached in Redis for ORACLE_CACHE_TTL_MS to match the expected
+ * oracle update frequency without hammering the database.
+ *
+ * 404 is returned when either the key or the oracle price row does not exist.
+ */
+router.get(
+   '/:keyId/oracle-price',
+   cacheControl({
+      maxAge: Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000),
+      type: 'public',
+      mustRevalidate: true,
+   }),
+   async (req, res, next) => {
+      const keyId = String(req.params.keyId);
+      const cacheKey = `oracle-price:${keyId}`;
+      try {
+         const cached =
+            await cacheGetJson<
+               ReturnType<typeof getOraclePrice> extends Promise<infer T>
+                  ? T
+                  : never
+            >(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const result = await getOraclePrice(keyId);
+
+         // Cache for ORACLE_CACHE_TTL_MS (converted to whole seconds).
+         const ttlSeconds = Math.max(
+            1,
+            Math.floor(envConfig.ORACLE_CACHE_TTL_MS / 1000)
+         );
+         await cacheSetJson(cacheKey, result, ttlSeconds);
+
+         sendSuccess(res, result);
+      } catch (error) {
+         if (
+            error instanceof OracleKeyNotFoundError ||
+            error instanceof OraclePriceNotFoundError
+         ) {
+            sendNotFound(
+               res,
+               error instanceof OraclePriceNotFoundError
+                  ? 'Oracle price'
+                  : 'Key'
+            );
+            return;
+         }
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/metadata
+ *
+ * Returns synced on-chain creator key metadata (name, symbol, description,
+ * imageCid, imageUrl) along with a `stale` flag when synchronization is
+ * delayed by more than 10 minutes (#986).
+ */
+router.get('/:keyId/metadata', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   try {
+      const metadata = await getKeyMetadata(keyId);
+      sendSuccess(res, metadata);
+   } catch (error) {
+      if (error instanceof KeyMetadataNotFoundError) {
+         sendNotFound(res, 'Key metadata');
+         return;
+      }
+      next(error);
+   }
+});
+
+
+/**
+ * GET /api/v1/keys/:keyId/price/twap?window=1h|4h|24h
+ *
+ * Returns the cached TWAP for the requested window, the bonding-curve
+ * spot price, the spot-vs-TWAP delta percentage, and a stale flag when
+ * the computation job is behind (>10 minutes since computedAt).
+ * Read-through: a cold cache is computed on demand and cached with
+ * a TTL matching the window size.
+ */
+router.get('/:keyId/price/twap', async (req, res, next) => {
+   const parsed = twapQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid twap query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      const keyId = String(req.params.keyId);
+      const window = parsed.data.window ?? '1h';
+      sendSuccess(res, await getTwapPrice(keyId, window));
+   } catch (error) {
+      if (error instanceof TwapKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId
+ * Public key detail response includes supply milestone metadata.
+ */
+router.get('/:keyId', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      if (!(await creatorProfileExists(keyId))) {
+         return sendNotFound(res, 'Key');
+      }
+      const profile = await getCreatorProfile(keyId);
+      sendSuccess(res, profile, 200, 'Key retrieved successfully');
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/curve-config ──────────────────────────────────
+
+router.get('/:keyId/curve-config', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true, curveMilestones: true, baseExponent: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      sendSuccess(res, {
+         keyId: creator.id,
+         milestones: (creator.curveMilestones as any) ?? [],
+         baseExponent: creator.baseExponent ?? 1,
+      });
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/twap (#866) ───────────────────────────────────
+// Distinct from GET /:keyId/price/twap (#963): this endpoint serves the
+// 1h/24h/7d window set and returns twapPrice/windowLedgers/snapshotCount,
+// with twapPrice null when fewer than two snapshots fall in the window.
+
+const twapWindowQuerySchema = z.object({
+   window: z.enum(['1h', '24h', '7d'], {
+      errorMap: () => ({ message: 'Invalid window param. Must be 1h, 24h, or 7d' }),
+   }),
+});
+
+router.get('/:keyId/twap', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const parsed = twapWindowQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'Invalid window param. Must be 1h, 24h, or 7d',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const result = await getKeyTwap(creator.id, parsed.data.window);
+      sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+});
+
 /**
  * GET /api/v1/keys/:keyId/fees
  * Protocol fee + creator royalty BPS for the buy confirmation modal.
@@ -164,6 +740,163 @@ router.get('/:keyId/fees', async (req, res, next) => {
       next(error);
    }
 });
+
+const dynamicFeeQuerySchema = z.object({
+   amount: z.coerce.number().int().nonnegative(),
+   direction: z.enum(['buy', 'sell']),
+   wallet: StellarAddressSchema.optional(),
+});
+
+/**
+ * GET /api/v1/keys/:keyId/fee
+ * Computes the effective dynamic fee rate for a given trade, factoring in base fee,
+ * volume-tier discount, protocol fee, and creator royalty (#962).
+ */
+router.get('/:keyId/fee', async (req, res, next) => {
+   const parsed = dynamicFeeQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid dynamic fee query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      // We dynamically load the service here to avoid massive circular imports if any
+      const { getDynamicFeeRate } = await import('./key-dynamic-fee.service');
+      
+      // If the request is authenticated, we use the user's wallet for the volume discount
+      // In a real implementation we would extract the wallet from the JWT middleware (req.user),
+      // but this endpoint is public. We optionally accept a wallet address to preview discount.
+      const wallet = parsed.data.wallet;
+
+      sendSuccess(
+         res,
+         await getDynamicFeeRate(
+            req.params.keyId,
+            parsed.data.amount,
+            parsed.data.direction,
+            wallet
+         )
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/lp-stats
+ * Total LP contributed and current LP balance for a key, sourced from
+ * LPAllocationSent contract events. Cached 60s (#943).
+ */
+router.get('/:keyId/lp-stats', async (req, res, next) => {
+   try {
+      sendSuccess(res, await getKeyLpStats(String(req.params.keyId)));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/lp-history?limit=&cursor=
+ * Paginated LP contribution history for a key, newest first (#943).
+ */
+router.get('/:keyId/lp-history', async (req, res, next) => {
+   const parsed = lpHistoryQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid pagination query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyLpHistory({
+            keyId: String(req.params.keyId),
+            ...parsed.data,
+         })
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/vesting
+ * Creator-only: returns the creator key vesting summary for all beneficiaries.
+ */
+router.get(
+   '/:keyId/vesting',
+   requireKeyCreator('keyId'),
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const cacheKey = `key:vesting:${keyId}`;
+         const cached = await cacheGetJson<any>(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const ledger = await prisma.indexedLedger.findFirst({
+            orderBy: { updatedAt: 'desc' },
+            select: { ledger: true },
+         });
+         const currentLedger = ledger?.ledger ?? 0;
+
+         const result = await getKeyVestingSummary(keyId, currentLedger);
+         await cacheSetJson(cacheKey, result, 60);
+         sendSuccess(res, result);
+      } catch (error) {
+         if (error instanceof KeyVestingNotFoundError) {
+            sendNotFound(res, 'Vesting schedule');
+            return;
+         }
+         next(error);
+      }
+   }
+);
+
+router.get(
+   '/:keyId/vesting/history',
+   requireKeyCreator('keyId'),
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const limitParam = req.query.limit;
+         const limit = Array.isArray(limitParam)
+            ? Number(limitParam[0] ?? 20)
+            : Number(limitParam ?? 20);
+         const cacheKey = `key:vesting:${keyId}:history`;
+         const cached = await cacheGetJson<any>(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const history = await getKeyVestingHistory(keyId, Number.isFinite(limit) ? limit : 20);
+         await cacheSetJson(cacheKey, history, 60);
+         sendSuccess(res, history);
+      } catch (error) {
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/keys/:keyId/proposals?status=active|closed
@@ -200,12 +933,400 @@ router.get('/:keyId/proposals', async (req, res, next) => {
 });
 
 /**
+ * POST /api/v1/keys/:keyId/proposals/:proposalId/vote
+ * Cast a governance vote on a proposal by a key holder.
+ *
+ * - Requires a valid JWT (holder wallet from the token)
+ * - Accepts optionIndex in the request body, validated within option range
+ * - Returns 409 if the wallet has already voted
+ * - Returns 404 if the proposal does not exist or is already closed
+ * - Returns 422 if optionIndex is out of range
+ * - Returns 403 if the JWT wallet holds no keys (non-holder)
+ */
+const voteBodySchema = z.object({
+   optionIndex: z.number().int().nonnegative(),
+});
+
+router.post(
+   '/:keyId/proposals/:proposalId/vote',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const proposalId = String(req.params.proposalId);
+         const wallet = req.user!.wallet;
+
+         const parsed = voteBodySchema.safeParse(req.body);
+         if (!parsed.success) {
+            sendValidationError(
+               res,
+               'Invalid request body',
+               zodIssuesToDetails(parsed.error.issues)
+            );
+            return;
+         }
+
+         const { optionIndex } = parsed.data;
+
+         const check = await getProposalForVoting(keyId, proposalId);
+         if (!check.exists) {
+            sendNotFound(res, 'Proposal');
+            return;
+         }
+         if (check.status !== 'active') {
+            sendNotFound(res, 'Proposal');
+            return;
+         }
+
+         if (optionIndex >= (check.options ?? []).length) {
+            sendError(
+               res,
+               422,
+               ErrorCode.UNPROCESSABLE_ENTITY,
+               `optionIndex ${optionIndex} is out of range`
+            );
+            return;
+         }
+
+         const result = await castKeyProposalVote(
+            keyId,
+            proposalId,
+            optionIndex,
+            wallet
+         );
+
+         sendSuccess(res, result, 200);
+      } catch (error) {
+         if (error instanceof HolderNotEligibleError) {
+            sendForbidden(res, error.message);
+            return;
+         }
+         if (error instanceof DuplicateVoteError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         if (error instanceof OptionIndexOutOfRangeError) {
+            sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key proposal vote failed'
+         );
+         next(error);
+      }
+   }
+);
+
+/**
  * GET /api/v1/keys/:keyId/supply
  * Return supply cap, circulating supply, burned supply, and remaining mintable.
  */
 router.get('/:keyId/supply', async (req, res, next) => {
    try {
       sendSuccess(res, await getKeySupply(req.params.keyId));
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/curve/milestones
+ * Return all milestones, current progress, and graduation status.
+ */
+router.get(
+   '/:keyId/curve/milestones',
+   cacheControl({ maxAge: 30, type: 'public', mustRevalidate: true }),
+   async (req, res, next) => {
+      const keyId = String(req.params.keyId);
+      const cacheKey = `curve-milestones:${keyId}`;
+      try {
+         const cached = await cacheGetJson<any>(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const result = await getKeyCurveMilestones(keyId);
+         await cacheSetJson(cacheKey, result, 30);
+         sendSuccess(res, result);
+      } catch (error) {
+         if (error instanceof Error && error.name === 'KeyNotFoundError') {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/price-impact?quantity=&direction=buy|sell
+ * Calculate price impact of a given trade quantity and direction.
+ * Used for frontend warnings and pre-trade validation.
+ * Response cached with 10s TTL per key.
+ * No auth required as a read-only check.
+ */
+router.get('/:keyId/price-impact', async (req, res, next) => {
+   const parsed = priceImpactQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid price-impact query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const { quantity, direction } = parsed.data;
+      const priceImpact = await getPriceImpact(
+         req.params.keyId,
+         quantity,
+         direction
+      );
+      sendSuccess(res, priceImpact);
+   } catch (error) {
+      if (error instanceof PriceImpactKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (error instanceof Error) {
+         sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Price impact calculation failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/buyback-pool
+ * Get current buyback pool balance for a creator key.
+ * Synced from SellTaxCollected contract events.
+ * Cached with 30s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/buyback-pool', async (req, res, next) => {
+   try {
+      const poolBalance = await getBuybackPoolBalance(req.params.keyId);
+      sendSuccess(res, poolBalance);
+   } catch (error) {
+      if (error instanceof BuybackPoolKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Buyback pool fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/buyback-pool/history?limit=&cursor=
+ * Get paginated history of buyback pool contributions.
+ * Returns contributions in reverse chronological order.
+ * Uses cursor-based pagination.
+ * No auth required.
+ */
+router.get('/:keyId/buyback-pool/history', async (req, res, next) => {
+   const parsed = buybackPoolHistoryQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid buyback pool history query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const { limit, cursor } = parsed.data;
+      const history = await getBuybackPoolHistory(
+         req.params.keyId,
+         limit,
+         cursor
+      );
+      sendSuccess(res, history);
+   } catch (error) {
+      if (error instanceof BuybackPoolKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Buyback pool history fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * POST /api/v1/keys/:keyId/buyback-pool/execute
+ * Admin endpoint to trigger manual buyback from pool.
+ * Restricted to admin role.
+ * Creates an execution record for on-chain processing.
+ */
+router.post(
+   '/:keyId/buyback-pool/execute',
+   requireJwtAuth,
+   adminGuard,
+   async (req, res, next) => {
+      const parsed = buybackExecuteBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid buyback execute request',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const { amountXlm } = parsed.data;
+         const { Decimal } = await import('@prisma/client/runtime/library');
+         const keyId = Array.isArray(req.params.keyId)
+            ? req.params.keyId[0]
+            : req.params.keyId;
+         const result = await executeBuybackFromPool(
+            keyId,
+            new Decimal(amountXlm),
+            (req as AdminRequest).adminId || ''
+         );
+         sendSuccess(res, result, 202, 'Buyback execution initiated');
+      } catch (error) {
+         if (error instanceof BuybackPoolKeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof Error) {
+            sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Buyback execution failed'
+         );
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/freeze-status?wallet=
+ * Frozen and liquid balance for a holder on a key.
+ */
+router.get('/:keyId/freeze-status', async (req, res, next) => {
+   const parsed = walletQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getFreezeStatus(String(req.params.keyId), parsed.data.wallet)
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/cooldown?wallet=
+ * Remaining buy cooldown for a wallet on a key.
+ */
+router.get('/:keyId/cooldown', async (req, res, next) => {
+   const parsed = walletQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyCooldown(String(req.params.keyId), parsed.data.wallet)
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/price-history?from=&to=[&interval=1h|24h|7d]
+ *
+ * Returns price snapshots recorded for a key within [from, to], indexed on
+ * (creatorId, recordedAt) for fast range scans (#893).
+ *
+ * - Without `interval`: every raw snapshot in range — price, post-trade
+ *   supply, and trade direction — ordered oldest first. This is the input
+ *   TWAP calculations need.
+ * - With `interval`: a downsampled, chart-friendly series (legacy shape).
+ */
+
+/**
+ * GET /api/v1/keys/:keyId/holding-capacity?wallet=
+ * Wallet holding, holder cap, and remaining purchase capacity on a key.
+ */
+router.get('/:keyId/holding-capacity', async (req, res, next) => {
+   const parsed = walletQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyHoldingCapacity(
+            String(req.params.keyId),
+            parsed.data.wallet
+         )
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/relaunch-history
+ * Returns the history of curve resets/relaunches for this key.
+ */
+router.get('/:keyId/relaunch-history', async (req, res, next) => {
+   try {
+      const history = await getKeyRelaunchHistory(req.params.keyId);
+      sendSuccess(res, history);
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
@@ -239,62 +1360,103 @@ router.get('/:keyId/price-history', async (req, res, next) => {
       return;
    }
    try {
+      if (parsed.data.interval) {
+         sendSuccess(
+            res,
+            await getKeyPriceHistory(
+               req.params.keyId,
+               from,
+               to,
+               parsed.data.interval
+            )
+         );
+         return;
+      }
+
+      const snapshots = await getKeyPriceSnapshots(req.params.keyId, from, to);
       sendSuccess(
          res,
-         await getKeyPriceHistory(
-            req.params.keyId,
-            from,
-            to,
-            parsed.data.interval
-         )
+         snapshots.map(snapshot => ({
+            timestamp: snapshot.timestamp,
+            price: snapshot.price.toString(),
+            supply: snapshot.supply.toString(),
+            direction: snapshot.direction,
+         }))
       );
    } catch (error) {
       next(error);
    }
-});
+ });
 
-/**
- * GET /api/v1/keys/:keyId/auction
- * Returns the configured auction price, supply, sold count, and status.
- */
-router.get('/:keyId/auction', async (req, res, next) => {
+// ── GET /:keyId/simulate ──────────────────────────────────────
+
+router.get('/:keyId/simulate', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const rawSide = req.query.side;
+   const rawQty = req.query.quantity ?? req.query.quantities;
+
+   if (rawSide !== 'buy' && rawSide !== 'sell') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         "side must be 'buy' or 'sell'"
+      );
+      return;
+   }
+
+   if (!rawQty || typeof rawQty !== 'string') {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantity is required'
+      );
+      return;
+   }
+
+   const quantities = rawQty
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+      .map((s: string) => Number(s));
+
+   if (
+      quantities.length === 0 ||
+      quantities.some((q: number) => isNaN(q) || !Number.isInteger(q) || q <= 0)
+   ) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'quantities must be positive integers'
+      );
+      return;
+   }
+
    try {
-      sendSuccess(res, await getKeyAuction(req.params.keyId));
+      const result = await simulateKeyTrade(
+         keyId,
+         quantities,
+         rawSide as SimulateSide
+      );
+      sendSuccess(res, result);
    } catch (error) {
-      if (error instanceof AuctionKeyNotFoundError) {
+      if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
          return;
       }
-      next(error);
-   }
-});
-
-/**
- * GET /api/v1/keys/:keyId/metadata
- * Returns on-chain creator metadata: name, bio, avatar_uri, creator address.
- */
-router.get('/:keyId/metadata', async (req, res, next) => {
-   try {
-      sendSuccess(res, await getKeyMetadata(req.params.keyId));
-   } catch (error) {
-      if (error instanceof MetadataKeyNotFoundError) {
-         sendNotFound(res, 'Key');
-         return;
-      }
-      next(error);
-   }
-});
-
-/**
- * GET /api/v1/keys/:keyId/staking
- * Returns staking pool balance, total staked, recent fee inflow, and staker count.
- */
-router.get('/:keyId/staking', async (req, res, next) => {
-   try {
-      sendSuccess(res, await getKeyStaking(req.params.keyId));
-   } catch (error) {
-      if (error instanceof StakingKeyNotFoundError) {
-         sendNotFound(res, 'Key');
+      if (
+         error instanceof InsufficientCirculatingSupplyError ||
+         error instanceof QuantityExceedsLimitError ||
+         error instanceof BatchSizeExceedsLimitError
+      ) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            error.message
+         );
          return;
       }
       next(error);
@@ -421,6 +1583,463 @@ router.post(
 );
 
 router.all('/:keyId/burn', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+// ── POST /:keyId/deprecate ───────────────────────────────────
+// Admin endpoint: deprecate a key with a guaranteed holder buyback price.
+// Requires a 2-of-3 admin multisig (Ed25519 signatures over the canonical
+// deprecation message). Notifies all holders via the notification feed.
+
+const buybackPriceSchema = z
+   .union([z.string(), z.number()])
+   .transform(value => String(value))
+   .refine(
+      value => {
+         const parsed = Number(value);
+         return Number.isFinite(parsed) && parsed > 0;
+      },
+      { message: 'buybackPriceXlm must be a positive number' }
+   );
+
+const deprecateBodySchema = z.object({
+   buybackPriceXlm: buybackPriceSchema,
+   buybackExpiresAt: z.string().datetime({
+      message: 'buybackExpiresAt must be an ISO-8601 datetime string',
+   }),
+   signatures: z
+      .array(
+         z.object({
+            wallet: z
+               .string()
+               .regex(/^G[A-Z2-7]{55}$/, 'Invalid Stellar admin wallet'),
+            signature: z.string().min(1, 'signature is required'),
+         })
+      )
+      .min(2, 'Deprecation requires at least 2 admin signatures')
+      .max(3, 'At most 3 admin signatures are accepted'),
+});
+
+/**
+ * POST /api/v1/keys/:keyId/deprecate
+ *
+ * Sets the deprecation flag, guaranteed buyback price, and buyback expiry on
+ * the key record. Requires admin JWT + 2-of-3 multisig signatures. All
+ * current holders are notified through the key_deprecated notification.
+ */
+router.post(
+   '/:keyId/deprecate',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const actor = req.adminId || 'unknown';
+
+         const parsed = deprecateBodySchema.safeParse(req.body);
+         if (!parsed.success) {
+            sendValidationError(
+               res,
+               'Invalid deprecate request body',
+               zodIssuesToDetails(parsed.error.issues)
+            );
+            return;
+         }
+
+         const buybackExpiresAt = new Date(parsed.data.buybackExpiresAt);
+         if (buybackExpiresAt.getTime() <= Date.now()) {
+            sendError(
+               res,
+               400,
+               ErrorCode.BAD_REQUEST,
+               'buybackExpiresAt must be in the future'
+            );
+            return;
+         }
+
+         const result = await deprecateKey({
+            keyId,
+            buybackPriceXlm: parsed.data.buybackPriceXlm,
+            buybackExpiresAt,
+            signatures: parsed.data.signatures,
+            actor,
+         });
+         sendSuccess(res, result, 201);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof KeyAlreadyDeprecatedError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         if (error instanceof MultisigVerificationError) {
+            sendForbidden(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key deprecate failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/deprecate', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+// ── GET /:keyId/deprecation ───────────────────────────────────
+// Public read of a key's deprecation status: status, reason, deprecatedAt,
+// and an embedded summary of the designated successor key, if any.
+
+/**
+ * GET /api/v1/keys/:keyId/deprecation
+ *
+ * Returns the current deprecation status for a key. `status` is `active`
+ * when `deprecatedAt` is unset, otherwise `deprecated`. `successor` embeds
+ * `{ id, name, avatarUrl, currentPrice }` when a successor key was
+ * designated and still exists; otherwise `null`.
+ */
+router.get('/:keyId/deprecation', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const result = await getKeyDeprecationStatus(keyId);
+      sendSuccess(res, result, 200);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get key deprecation status failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/deprecation', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── POST /:keyId/buyback ─────────────────────────────────────
+// Holder exit at the guaranteed buyback price on a deprecated key.
+// Rejected with 410 Gone after the buyback window expires.
+
+/**
+ * POST /api/v1/keys/:keyId/buyback
+ *
+ * Processes the authenticated holder's full-position buyback atomically:
+ * zeroes the balance, decrements circulating supply, and writes the payment
+ * record in a single transaction.
+ */
+router.post(
+   '/:keyId/buyback',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const wallet = req.user!.wallet;
+         const result = await processBuyback(keyId, wallet);
+         await invalidateCreatorDashboardCache(result.keyId);
+         sendSuccess(res, result, 201);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof KeyNotDeprecatedError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         if (error instanceof BuybackWindowClosedError) {
+            sendError(res, 410, ErrorCode.GONE, error.message);
+            return;
+         }
+         if (
+            error instanceof BuybackPriceNotSetError ||
+            error instanceof InsufficientPositionError
+         ) {
+            sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
+            return;
+         }
+         logger.error({ error, keyId: req.params.keyId }, 'Key buyback failed');
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/buyback', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+// ── GET /:keyId/positions ─────────────────────────────────────
+// Returns the authenticated wallet's position for a key, including freeze
+// status (is_frozen / frozen_at). Requires a valid JWT.
+
+/**
+ * GET /api/v1/keys/:keyId/positions
+ *
+ * Returns the calling wallet's position on the given key including
+ * balance, cost basis, lockup expiry, and freeze status (#894).
+ */
+router.get(
+   '/:keyId/positions',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const wallet = req.user!.wallet;
+
+         const creator = await prisma.creatorProfile.findFirst({
+            where: { OR: [{ id: keyId }, { handle: keyId }] },
+            select: { id: true },
+         });
+         if (!creator) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+
+         const ownership = await prisma.keyOwnership.findUnique({
+            where: {
+               ownerAddress_creatorId: {
+                  ownerAddress: wallet,
+                  creatorId: creator.id,
+               },
+            },
+            select: {
+               id: true,
+               ownerAddress: true,
+               creatorId: true,
+               balance: true,
+               costBasis: true,
+               lastBuyAt: true,
+               lockupExpiresAt: true,
+               frozen: true,
+               frozenAt: true,
+               createdAt: true,
+               updatedAt: true,
+            },
+         });
+
+         if (!ownership) {
+            sendNotFound(res, 'Key position');
+            return;
+         }
+
+         const tiers = await getMultiplierTiers();
+         let lockPeriodSeconds = 0;
+         if (ownership.lockupExpiresAt) {
+            const startTime = ownership.lastBuyAt ?? ownership.createdAt;
+            const diffMs =
+               ownership.lockupExpiresAt.getTime() - startTime.getTime();
+            lockPeriodSeconds = Math.max(0, Math.round(diffMs / 1000));
+         }
+         const matchedTier = matchTierForLockPeriod(lockPeriodSeconds, tiers);
+         const effectiveWeight = calculateEffectiveWeight(
+            ownership.balance.toString(),
+            matchedTier.multiplier
+         );
+
+         sendSuccess(res, {
+            id: ownership.id,
+            ownerAddress: ownership.ownerAddress,
+            creatorId: ownership.creatorId,
+            balance: ownership.balance.toString(),
+            costBasis: ownership.costBasis?.toString() ?? '0',
+            lastBuyAt: ownership.lastBuyAt ?? null,
+            lockupExpiresAt: ownership.lockupExpiresAt ?? null,
+            is_frozen: ownership.frozen,
+            frozen_at: ownership.frozenAt ?? null,
+            tier: matchedTier.tier,
+            multiplier: matchedTier.multiplier,
+            effectiveWeight,
+            tierData: matchedTier,
+            createdAt: ownership.createdAt,
+            updatedAt: ownership.updatedAt,
+         });
+      } catch (error) {
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Get key position failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/positions', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── POST /:keyId/positions/freeze | /:keyId/positions/unfreeze ──────────────
+// Canonical position freeze paths per issue #894. These endpoints are
+// functionally identical to /:keyId/freeze and /:keyId/unfreeze but use
+// the /positions/ sub-resource path specified in the acceptance criteria.
+
+/**
+ * POST /api/v1/keys/:keyId/positions/freeze
+ * Freeze the authenticated wallet's position on a key. Audited (#894).
+ */
+router.post(
+   '/:keyId/positions/freeze',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const result = await freezePosition(
+            String(req.params.keyId),
+            req.user!.wallet
+         );
+         sendSuccess(res, result, 201);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof PositionNotFoundError) {
+            sendNotFound(res, 'Key position');
+            return;
+         }
+         if (error instanceof PositionAlreadyFrozenError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key position freeze failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/positions/freeze', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+/**
+ * POST /api/v1/keys/:keyId/positions/unfreeze
+ * Release the freeze and restore trading/transfer ability. Audited (#894).
+ */
+router.post(
+   '/:keyId/positions/unfreeze',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const result = await unfreezePosition(
+            String(req.params.keyId),
+            req.user!.wallet
+         );
+         sendSuccess(res, result, 200);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof PositionNotFoundError) {
+            sendNotFound(res, 'Key position');
+            return;
+         }
+         if (error instanceof PositionNotFrozenError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key position unfreeze failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/positions/unfreeze', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+// ── POST /:keyId/freeze | /:keyId/unfreeze ───────────────────
+// Self-custody freeze: the holder locks their own position so buys, sells,
+// and transfers of it are rejected with 403 until explicitly unfrozen.
+
+/**
+ * POST /api/v1/keys/:keyId/freeze
+ * Freeze the authenticated wallet's position on a key. Audited.
+ */
+router.post(
+   '/:keyId/freeze',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const result = await freezePosition(
+            String(req.params.keyId),
+            req.user!.wallet
+         );
+         sendSuccess(res, result, 201);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof PositionNotFoundError) {
+            sendNotFound(res, 'Key position');
+            return;
+         }
+         if (error instanceof PositionAlreadyFrozenError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key position freeze failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/freeze', (_req, res) => {
+   res.set('Allow', 'POST').sendStatus(405);
+});
+
+/**
+ * POST /api/v1/keys/:keyId/unfreeze
+ * Release the freeze and restore trading/transfer ability. Audited.
+ */
+router.post(
+   '/:keyId/unfreeze',
+   requireJwtAuth,
+   async (req: AuthenticatedRequest, res, next) => {
+      try {
+         const result = await unfreezePosition(
+            String(req.params.keyId),
+            req.user!.wallet
+         );
+         sendSuccess(res, result, 200);
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof PositionNotFoundError) {
+            sendNotFound(res, 'Key position');
+            return;
+         }
+         if (error instanceof PositionNotFrozenError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId: req.params.keyId },
+            'Key position unfreeze failed'
+         );
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
 });
 

@@ -78,6 +78,16 @@ Ownership lookup endpoints.
 | :----- | :----------- | :---------------------------------------------------- |
 | `GET`  | `/ownership` | Look up key ownership by owner address or creator ID. |
 
+## Contracts Module
+
+Centralised Soroban contract interaction service (#899).
+
+- Service reference (retry, error classification, tracking, events): [`docs/soroban-contract-service.md`](./soroban-contract-service.md).
+
+| Method | Path             | Description                                                            |
+| :----- | :--------------- | :--------------------------------------------------------------------- |
+| `POST` | `/contracts/call` | Submit a signed contract transaction through the centralised pipeline. |
+
 ## Metrics Module
 
 Operational metrics for background work.
@@ -94,6 +104,18 @@ Restricted administrative endpoints.
 | :------ | :----------------------------- | :-------------------------------------------------- |
 | `PATCH` | `/admin/creators/:id/metadata` | Update creator metadata such as verification state. |
 | `POST`  | `/admin/indexer/replay`        | Trigger an indexer replay job.                      |
+| `GET`   | `/admin/flash-loan-violations` | Flash loan violations by wallet frequency (#938).   |
+
+## Staking Module
+
+Staking reward multiplier tiers and position calculations (#942).
+
+| Method | Path                                      | Description                                                                               |
+| :----- | :---------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `GET`  | `/staking/multiplier-tiers`               | Return all staking reward multiplier tiers with lock periods and multipliers (cached 5m). |
+| `GET`  | `/staking/positions/:id/effective-weight` | Return the weighted stake calculation for a specific position.                            |
+| `GET`  | `/staking/positions/:id`                  | Return a single staking position with embedded tier data and effective weight.            |
+| `GET`  | `/staking/positions`                      | List staking positions with embedded tier data.                                           |
 
 ---
 

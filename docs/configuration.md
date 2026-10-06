@@ -136,6 +136,11 @@ These values have defaults and can be overridden:
 | `STELLAR_NETWORK`                             | enum    | `testnet`                     | Stellar network selection     |
 | `STELLAR_HORIZON_URL`                         | URL     | testnet URL                   | Horizon endpoint              |
 | `STELLAR_SOROBAN_RPC_URL`                     | URL     | testnet URL                   | Soroban RPC endpoint          |
+| `SOROBAN_SUBMIT_MAX_ATTEMPTS`                 | number  | 3                             | Max submit attempts for transient failures (#899) |
+| `SOROBAN_SUBMIT_BASE_DELAY_MS`                | number  | 1000                          | Submit retry backoff base delay (#899)            |
+| `SOROBAN_SUBMIT_MAX_DELAY_MS`                 | number  | 15000                         | Submit retry backoff cap (#899)                   |
+| `SOROBAN_POLL_INTERVAL_MS`                    | number  | 5000                          | Confirmation polling interval (#899)              |
+| `SOROBAN_POLL_TIMEOUT_MS`                     | number  | 120000                        | Confirmation polling budget (#899)                |
 | `OWNERSHIP_SNAPSHOT_TABLE_NAME`               | string  | `creator_ownership_snapshots` | Snapshot table name           |
 | `OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN`          | boolean | `true`                        | Log deletes without executing |
 | `OWNERSHIP_SNAPSHOT_RETENTION_DAYS`           | number  | `30`                          | Retention window in days      |

@@ -95,14 +95,20 @@ export async function recordKeyPurchase(
     const currentCostBasis = Number(existing?.costBasis ?? 0);
 
     const newBalance = Math.max(0, currentBalance + quantityBought);
-    // Weighted average cost across the open position; resets when flat.
-    const newCostBasis =
-        newBalance === 0
-            ? 0
-            : (currentCostBasis * currentBalance + pricePerKeyXlm * quantityBought) /
-              newBalance;
+    // Weighted average cost across the open position; resets when flat or
+    // when rebuilding from zero (#897: prior balance 0 => fresh cost basis).
+    let newCostBasis: number;
+    if (newBalance === 0) {
+        newCostBasis = 0;
+    } else if (currentBalance <= 0) {
+        newCostBasis = pricePerKeyXlm;
+    } else {
+        newCostBasis =
+            (currentCostBasis * currentBalance + pricePerKeyXlm * quantityBought) /
+            newBalance;
+    }
 
-    return prisma.keyOwnership.upsert({
+    return (prisma.keyOwnership.upsert({
         where: {
             ownerAddress_creatorId: { ownerAddress, creatorId },
         },
@@ -118,5 +124,84 @@ export async function recordKeyPurchase(
             costBasis: pricePerKeyXlm,
             lastBuyAt: boughtAt,
         },
+    }) as unknown) as Promise<KeyOwnership>;
+}
+
+export class InsufficientKeyBalanceError extends Error {
+    constructor() {
+        super('Insufficient key balance for sell');
+        this.name = 'InsufficientKeyBalanceError';
+    }
+}
+
+/**
+ * Pure realised-P&L math for a sell (#897).
+ * Kept separate so the transactional sell path in
+ * `creator/sell.controller.ts` can reuse it atomically via its `tx` client.
+ */
+export function computeRealisedPnlForSale(
+    costBasisPerKeyXlm: number,
+    sellPricePerKeyXlm: number,
+    quantitySold: number
+): number {
+    return (sellPricePerKeyXlm - costBasisPerKeyXlm) * quantitySold;
+}
+
+/** Cost basis after a sell: unchanged on partial sells, reset when flat. */
+export function computeCostBasisAfterSale(
+    currentCostBasis: number,
+    currentBalance: number,
+    quantitySold: number
+): number {
+    return currentBalance - quantitySold <= 0 ? 0 : currentCostBasis;
+}
+
+/**
+ * Record a key sell, persisting realised P&L at execution time (#897).
+ * Partial sells keep the average cost basis; full sells reset it to zero
+ * while preserving lifetime realised P&L.
+ */
+export async function recordKeySale(
+    ownerAddress: string,
+    creatorId: string,
+    quantitySold: number,
+    pricePerKeyXlm: number
+): Promise<KeyOwnership> {
+    const existing = await prisma.keyOwnership.findUnique({
+        where: {
+            ownerAddress_creatorId: { ownerAddress, creatorId },
+        },
+        select: { balance: true, costBasis: true, realisedPnl: true },
     });
+
+    const currentBalance = Number((existing as any)?.balance ?? 0);
+    const currentCostBasis = Number((existing as any)?.costBasis ?? 0);
+    const currentRealised = Number((existing as any)?.realisedPnl ?? 0);
+
+    if (!existing || currentBalance < quantitySold) {
+        throw new InsufficientKeyBalanceError();
+    }
+
+    const realisedForTrade = computeRealisedPnlForSale(
+        currentCostBasis,
+        pricePerKeyXlm,
+        quantitySold
+    );
+    const newBalance = currentBalance - quantitySold;
+    const newCostBasis = computeCostBasisAfterSale(
+        currentCostBasis,
+        currentBalance,
+        quantitySold
+    );
+
+    return (prisma.keyOwnership.update({
+        where: {
+            ownerAddress_creatorId: { ownerAddress, creatorId },
+        },
+        data: {
+            balance: newBalance,
+            costBasis: newCostBasis,
+            realisedPnl: currentRealised + realisedForTrade,
+        },
+    }) as unknown) as Promise<KeyOwnership>;
 }

@@ -81,3 +81,33 @@ export function computeSellPayout(currentSupply: number, amount: number, feeBps:
 
    return netPayout;
 }
+
+/**
+ * Current unit buy price on the bonding curve (stroops per key), including
+ * the protocol fee. Used for server-side slippage validation on buys (#884).
+ *
+ * @param currentSupply - The current supply of keys
+ * @param feeBps - The protocol fee in basis points (e.g. 500 = 5%)
+ * @returns Unit price in stroops as a bigint
+ */
+export function getBuyUnitPrice(currentSupply: number, feeBps: number): bigint {
+   return computeBuyCost(currentSupply, 1, feeBps);
+}
+
+/**
+ * Current unit sell price on the bonding curve (stroops per key), net of the
+ * protocol fee. Used for server-side slippage validation on sells (#884).
+ *
+ * @param currentSupply - The current supply of keys
+ * @param feeBps - The protocol fee in basis points (e.g. 500 = 5%)
+ * @returns Unit payout in stroops as a bigint; 0 when supply is empty
+ */
+export function getSellUnitPrice(
+   currentSupply: number,
+   feeBps: number
+): bigint {
+   if (currentSupply <= 0) {
+      return 0n;
+   }
+   return computeSellPayout(currentSupply, 1, feeBps);
+}

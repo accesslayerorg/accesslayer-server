@@ -5,11 +5,24 @@ import {
    sendSuccess,
    sendValidationError,
    sendError,
+   sendForbidden,
    zodIssuesToDetails,
    ErrorCode,
 } from '../../utils/api-response.utils';
 import { horizonGet } from '../../clients/horizon.client';
 import { assertTradingActive, TradingPausedError } from '../keys/key-trading.service';
+import {
+   assertPositionNotFrozen,
+   PositionFrozenError,
+} from '../keys/key-freeze.service';
+import {
+   assertWalletNotSuspended,
+   WalletSuspendedError,
+} from '../indexer/flash-loan-guard-indexer.service';
+import {
+   logSlippageRejection,
+   sendSlippageExceeded,
+} from './slippage.service';
 
 async function getCurrentLedger(): Promise<number> {
    const res = await horizonGet('/');
@@ -46,6 +59,7 @@ async function getCreatorSupply(creatorId: string): Promise<number> {
 }
 
 export const httpMultiBuy: AsyncController = async (req, res, next) => {
+   let buyer: string | undefined;
    try {
       const parsed = MultiBuyRequestSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -66,12 +80,38 @@ export const httpMultiBuy: AsyncController = async (req, res, next) => {
          return;
       }
 
-      const { buyer, legs, global_deadline_ledger } = parsed.data;
+      const { buyer: buyerAddress, legs, global_deadline_ledger } = parsed.data;
+      buyer = buyerAddress;
 
       await Promise.all(legs.map(leg => assertTradingActive(leg.creator)));
 
+      // Self-custody freeze (#885): frozen positions cannot trade (403).
+      for (const leg of legs) {
+         try {
+            await assertPositionNotFrozen(buyerAddress, leg.creator);
+         } catch (error) {
+            if (error instanceof PositionFrozenError) {
+               sendForbidden(res, error.message);
+               return;
+            }
+            throw error;
+         }
+      }
+
+      // Flash loan guard (#938): wallets auto-suspended after repeated guard
+      // violations cannot trade (403).
+      try {
+         await assertWalletNotSuspended(buyerAddress);
+      } catch (error) {
+         if (error instanceof WalletSuspendedError) {
+            sendForbidden(res, error.message);
+            return;
+         }
+         throw error;
+      }
+
       const results = await executeMultiBuy(
-         buyer,
+         buyerAddress,
          legs,
          global_deadline_ledger,
          {
@@ -88,6 +128,26 @@ export const httpMultiBuy: AsyncController = async (req, res, next) => {
          return;
       }
       if (err instanceof MultiBuyError) {
+         if (err.code === 'slippage_exceeded') {
+            const currentPrice = err.details?.currentPrice ?? '0';
+            const submittedPrice = err.details?.maxPrice;
+            logSlippageRejection({
+               side: 'buy',
+               wallet: buyer ?? 'unknown',
+               keyId: err.details?.creator ?? 'unknown',
+               currentPrice,
+               submittedPrice: submittedPrice ?? 'unknown',
+               unit: 'stroops',
+               requestId: req.requestId,
+            });
+            sendSlippageExceeded(res, {
+               side: 'buy',
+               currentPrice,
+               submittedPrice,
+               unit: 'stroops',
+            });
+            return;
+         }
          const statusMap: Record<string, number> = {
             legs_empty: 400,
             too_many_legs: 400,

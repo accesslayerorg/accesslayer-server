@@ -1,5 +1,9 @@
 import { prisma } from '../../utils/prisma.utils';
-import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
+import {
+   cacheGetJson,
+   cacheSetJson,
+   cacheInvalidate,
+} from '../../utils/redis.utils';
 import { logger } from '../../utils/logger.utils';
 
 /**
@@ -143,23 +147,96 @@ async function computeWhitelistStatus(
 }
 
 /**
- * Invalidates whitelist cache for a creator key.
- * Called when whitelist configuration changes.
+ * Invalidates cached whitelist status for every wallet of a creator key.
+ * Called whenever the whitelist changes (API write or indexer sync).
  */
 export async function invalidateWhitelistCache(creatorId: string): Promise<void> {
    try {
-      // Invalidate all wallet entries for this creator
-      // In a full implementation with Redis, this would use SCAN + pattern matching
-      logger.debug(
-         { creatorId },
-         'Invalidated whitelist cache'
-      );
+      await cacheInvalidate(`whitelist:${creatorId}:*`);
    } catch (error) {
       logger.warn(
          { error, creatorId },
          'Error invalidating whitelist cache'
       );
    }
+}
+
+/**
+ * Resolves a :keyId path param (creator profile id or handle) to the
+ * creator profile id used as `Whitelist.creatorId`. Null when unknown.
+ */
+export async function resolveCreatorId(keyId: string): Promise<string | null> {
+   const creator = await prisma.creatorProfile.findFirst({
+      where: { OR: [{ id: keyId }, { handle: keyId }] },
+      select: { id: true },
+   });
+   return creator?.id ?? null;
+}
+
+export interface AddWalletsResult {
+   added: string[];
+   alreadyWhitelisted: string[];
+}
+
+/**
+ * Adds wallets to a creator's whitelist. Idempotent: wallets that are
+ * already present are reported in `alreadyWhitelisted` rather than failing.
+ */
+export async function addWalletsToWhitelist(
+   creatorId: string,
+   wallets: string[]
+): Promise<AddWalletsResult> {
+   const existing = await prisma.whitelist.findMany({
+      where: { creatorId, address: { in: wallets } },
+      select: { address: true },
+   });
+   const existingSet = new Set(existing.map(e => e.address));
+   const added = wallets.filter(w => !existingSet.has(w));
+
+   if (added.length > 0) {
+      await prisma.whitelist.createMany({
+         data: added.map(address => ({ address, creatorId })),
+         skipDuplicates: true,
+      });
+      await invalidateWhitelistCache(creatorId);
+   }
+
+   return {
+      added,
+      alreadyWhitelisted: wallets.filter(w => existingSet.has(w)),
+   };
+}
+
+/**
+ * Removes a wallet from a creator's whitelist.
+ * @returns true when an entry was removed, false when it was not whitelisted.
+ */
+export async function removeWalletFromWhitelist(
+   creatorId: string,
+   wallet: string
+): Promise<boolean> {
+   const { count } = await prisma.whitelist.deleteMany({
+      where: { creatorId, address: wallet },
+   });
+   if (count > 0) {
+      await invalidateWhitelistCache(creatorId);
+   }
+   return count > 0;
+}
+
+/**
+ * Returns the whitelist synced into the database for a creator key,
+ * oldest entry first.
+ */
+export async function listWhitelist(
+   creatorId: string
+): Promise<Array<{ address: string; addedAt: Date }>> {
+   const entries = await prisma.whitelist.findMany({
+      where: { creatorId },
+      select: { address: true, createdAt: true },
+      orderBy: [{ createdAt: 'asc' }, { address: 'asc' }],
+   });
+   return entries.map(e => ({ address: e.address, addedAt: e.createdAt }));
 }
 
 /**

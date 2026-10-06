@@ -74,17 +74,27 @@ export async function listAlerts(walletAddress: string) {
 /**
  * Deletes a price alert by id, scoped to the wallet address for authorization.
  * Returns the deleted record id or null if not found.
+ * Throws 403 if the alert belongs to a different wallet.
  */
 export async function deleteAlert(
    id: string,
-   walletAddress: string
+   walletAddress?: string
 ): Promise<{ id: string } | null> {
    const existing = await prisma.priceAlert.findFirst({
-      where: { id, walletAddress },
+      where: { id },
    });
 
    if (!existing) {
       return null;
+   }
+
+   if (walletAddress && existing.walletAddress !== walletAddress) {
+      const error = new Error(
+         'You do not have permission to delete this alert'
+      ) as any;
+      error.statusCode = 403;
+      error.code = 'FORBIDDEN';
+      throw error;
    }
 
    await prisma.priceAlert.delete({ where: { id } });
@@ -100,6 +110,54 @@ export async function deleteAlert(
    );
 
    return { id };
+}
+
+/**
+ * Manually marks a price alert as triggered (inactive, with triggeredAt timestamp).
+ * Scoped to the wallet address for authorization.
+ * Returns the updated record or null if not found.
+ * Throws 403 if the alert belongs to a different wallet.
+ */
+export async function triggerAlert(
+   id: string,
+   walletAddress?: string
+) {
+   const existing = await prisma.priceAlert.findFirst({
+      where: { id },
+   });
+
+   if (!existing) {
+      return null;
+   }
+
+   if (walletAddress && existing.walletAddress !== walletAddress) {
+      const error = new Error(
+         'You do not have permission to modify this alert'
+      ) as any;
+      error.statusCode = 403;
+      error.code = 'FORBIDDEN';
+      throw error;
+   }
+
+   const updated = await prisma.priceAlert.update({
+      where: { id },
+      data: {
+         isActive: false,
+         triggeredAt: new Date(),
+      },
+   });
+
+   logger.info(
+      {
+         alert_id: updated.id,
+         creator_id: updated.creatorId,
+         triggered_at: updated.triggeredAt,
+         wallet_address: truncateWallet(updated.walletAddress),
+      },
+      'Price alert triggered'
+   );
+
+   return updated;
 }
 
 function toNumber(value: number | string | { toString(): string }): number {

@@ -2,6 +2,7 @@
 import { prisma } from '../../utils/prisma.utils';
 import { getRedis } from '../../utils/redis.utils';
 import {
+   CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT,
    LOCKUP_WARNING_WINDOW_MS,
    NOTIFICATION_TYPES,
    REDIS_KEYS,
@@ -106,6 +107,144 @@ async function buildLockupExpiring(
    );
 }
 
+async function buildKeyDeprecated(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const holdings = await prisma.keyOwnership.findMany({
+      where: { ownerAddress: walletAddress, balance: { gt: 0 } },
+      select: { creatorId: true },
+   });
+   if (holdings.length === 0) {
+      return [];
+   }
+
+   const keyIds = holdings.map((h: { creatorId: string }) => h.creatorId);
+   const deprecatedKeys = await prisma.creatorProfile.findMany({
+      where: { id: { in: keyIds }, deprecatedAt: { not: null } },
+      select: {
+         id: true,
+         deprecatedAt: true,
+         buybackPriceXlm: true,
+         buybackExpiresAt: true,
+         reason: true,
+         successorKeyId: true,
+      },
+   });
+
+   return deprecatedKeys.map((key) => {
+         // deprecatedAt is guaranteed non-null by the where: { not: null } filter above
+         const createdAt = key.deprecatedAt!;
+         return {
+            id: `key_deprecated:${key.id}`,
+            type: NOTIFICATION_TYPES.KEY_DEPRECATED,
+            createdAt: createdAt.toISOString(),
+            read: isRead(createdAt, lastReadAt),
+            payload: {
+               keyId: key.id,
+               reason: key.reason ?? null,
+               successorKeyId: key.successorKeyId ?? null,
+               buybackPriceXlm:
+                  key.buybackPriceXlm !== null &&
+                  key.buybackPriceXlm !== undefined
+                     ? String(key.buybackPriceXlm)
+                     : null,
+               buybackExpiresAt: key.buybackExpiresAt
+                  ? key.buybackExpiresAt.toISOString()
+                  : null,
+            },
+         };
+      }
+   );
+}
+
+export async function buildKeySunsetFlagged(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const holdings = await prisma.keyOwnership.findMany({
+      where: { ownerAddress: walletAddress, balance: { gt: 0 } },
+      select: { creatorId: true },
+   });
+   if (holdings.length === 0) {
+      return [];
+   }
+
+   const keyIds = holdings.map((h: { creatorId: string }) => h.creatorId);
+   const sunsetKeys = await prisma.creatorProfile.findMany({
+      where: { id: { in: keyIds }, deprecatedAt: { not: null } },
+      select: {
+         id: true,
+         deprecatedAt: true,
+         buybackPriceXlm: true,
+         buybackExpiresAt: true,
+      },
+   });
+
+   return sunsetKeys.map((key) => {
+      const createdAt = key.deprecatedAt!;
+      return {
+         id: `key_sunset_flagged:${key.id}`,
+         type: NOTIFICATION_TYPES.KEY_SUNSET_FLAGGED,
+         createdAt: createdAt.toISOString(),
+         read: isRead(createdAt, lastReadAt),
+         payload: {
+            keyId: key.id,
+            sunsetDeadline: key.buybackExpiresAt
+               ? key.buybackExpiresAt.toISOString()
+               : null,
+            buybackPriceXlm:
+               key.buybackPriceXlm !== null && key.buybackPriceXlm !== undefined
+                  ? String(key.buybackPriceXlm)
+                  : null,
+         },
+      };
+   });
+}
+
+/**
+ * Notifications for circuit breaker trips on keys the wallet created (#987).
+ *
+ * One item per indexed CircuitBreakerTrip row, newest first. The indexer only
+ * writes a row once per unique (txHash, eventIndex), so each trip event yields
+ * exactly one notification even across indexer replays.
+ */
+async function buildCircuitBreakerTripped(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const trips = await prisma.circuitBreakerTrip.findMany({
+      where: { creatorWallet: walletAddress },
+      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+      take: CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT,
+   });
+
+   return trips.map(
+      (trip: {
+         id: string;
+         keyId: string;
+         actualBps: number;
+         maxBps: number | null;
+         txHash: string;
+         occurredAt: Date;
+      }) => {
+         const createdAt = trip.occurredAt;
+         return {
+            id: `circuit_breaker_tripped:${trip.id}`,
+            type: NOTIFICATION_TYPES.CIRCUIT_BREAKER_TRIPPED,
+            createdAt: createdAt.toISOString(),
+            read: isRead(createdAt, lastReadAt),
+            payload: {
+               keyId: trip.keyId,
+               actualBps: trip.actualBps,
+               maxBps: trip.maxBps,
+               txHash: trip.txHash,
+            },
+         };
+      }
+   );
+}
+
 async function buildPriceMoved(
    walletAddress: string,
    lastReadAt: Date | null,
@@ -168,13 +307,27 @@ export async function listNotifications(
 ): Promise<NotificationItem[]> {
    const lastReadAt = await getLastReadAt(walletAddress);
 
-   const [trades, lockups, priceMoved] = await Promise.all([
+   const [
+      trades,
+      lockups,
+      priceMoved,
+      keyDeprecated,
+      circuitBreakerTrips,
+   ] = await Promise.all([
       buildTradeCompleted(walletAddress, lastReadAt),
       buildLockupExpiring(walletAddress, lastReadAt, now),
       buildPriceMoved(walletAddress, lastReadAt, now),
+      buildKeyDeprecated(walletAddress, lastReadAt),
+      buildCircuitBreakerTripped(walletAddress, lastReadAt),
    ]);
 
-   return [...trades, ...lockups, ...priceMoved].sort(
+   return [
+      ...trades,
+      ...lockups,
+      ...priceMoved,
+      ...keyDeprecated,
+      ...circuitBreakerTrips,
+   ].sort(
       (a, b) =>
          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
    );

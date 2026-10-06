@@ -12,12 +12,34 @@ model GovernanceProposal {
   expiresAt         DateTime
   closedAt          DateTime?
   status            String   @default("active") // active | closed
+
+  // Escalation tracking (#935), synced from ProposalExtended contract events.
+  escalationCount   Int       @default(0)
+  originalDeadline  DateTime?
+  extendedDeadline  DateTime?
+  maxEscalations    Int       @default(3)
+  escalatedAt       DateTime?
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@unique([keyId, proposalId])
   @@index([keyId, status])
   @@index([keyId, expiresAt])
+  @@index([escalationCount, status])
+}
+
+model GovernanceEscalationEventLog {
+  id         String   @id @default(cuid())
+  keyId      String
+  proposalId String
+  ledger     Int?
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, proposalId])
 }
 
 model PauseProposal {
@@ -34,6 +56,20 @@ model PauseProposal {
   @@index([keyId, status])
   @@index([proposerWallet])
   @@map("pause_proposals")
+}
+
+model GovernanceVote {
+  id          String   @id @default(cuid())
+  keyId       String
+  proposalId  String
+  voter       String
+  optionIndex Int
+  weight      Decimal  @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([keyId, proposalId, voter])
+  @@index([keyId, proposalId])
+  @@map("proposal_votes")
 }
 
 model TimelockProposal {

@@ -16,6 +16,7 @@ const sampleItem: CreatorListItem = {
    currentPrice: '1000',
    price24hAgo: '900',
    priceChange24h: 11.11,
+   deprecated: false,
 };
 
 describe('CREATOR_LIST_PUBLIC_FIELDS', () => {
@@ -30,6 +31,7 @@ describe('CREATOR_LIST_PUBLIC_FIELDS', () => {
          'currentPrice',
          'price24hAgo',
          'priceChange24h',
+         'deprecated',
       ];
       for (const field of expected) {
          expect(CREATOR_LIST_PUBLIC_FIELDS).toContain(field);

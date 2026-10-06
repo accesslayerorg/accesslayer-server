@@ -1,15 +1,33 @@
 // prisma/schema/price-history.prisma
-// Historical price data points written on every trade event.
+// Historical price snapshots written atomically on every BUY/SELL trade
+// event (#893). Powers TWAP calculations and historical price charts via
+// GET /keys/:id/price-history.
 // Enables computing price change over arbitrary time windows (1h, 24h, 7d, etc.).
 
+/**
+ * Trade direction recorded alongside each price snapshot.
+ */
+enum PriceSnapshotDirection {
+  BUY
+  SELL
+}
+
 model CreatorPriceHistory {
-  id        String   @id @default(cuid())
-  creatorId String
-  price     BigInt
-  recordedAt DateTime @default(now())
+  id         String                 @id @default(cuid())
+  /** Key ID — the CreatorProfile this snapshot belongs to. */
+  creatorId  String
+  /** Bonding curve price at the moment of the trade, in stroops. */
+  price      BigInt
+  /** Circulating supply immediately after the trade that produced this price. */
+  supply     BigInt                 @default(0)
+  /** Whether the trade that produced this snapshot was a buy or a sell. */
+  direction  PriceSnapshotDirection @default(BUY)
+  recordedAt DateTime               @default(now())
 
-  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creator    CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
+  // Composite index on key ID + timestamp for fast range queries used by
+  // TWAP calculations and GET /keys/:id/price-history (#893).
   @@index([creatorId, recordedAt])
   @@map("creator_price_history")
 }

@@ -142,8 +142,8 @@ describe('Dividend Service Integration Tests', () => {
 
          // Verify descending order
          for (let i = 0; i < result.distributions.length - 1; i++) {
-            expect(result.distributions[i].distributedAt.getTime()).toBeGreaterThanOrEqual(
-               result.distributions[i + 1].distributedAt.getTime()
+            expect(new Date(result.distributions[i].distributedAt).getTime()).toBeGreaterThanOrEqual(
+               new Date(result.distributions[i + 1].distributedAt).getTime()
             );
          }
       });
@@ -288,8 +288,8 @@ describe('Dividend Service Integration Tests', () => {
          });
 
          for (let i = 0; i < result.distributions.length - 1; i++) {
-            const current = result.distributions[i].distributedAt.getTime();
-            const next = result.distributions[i + 1].distributedAt.getTime();
+            const current = new Date(result.distributions[i].distributedAt).getTime();
+            const next = new Date(result.distributions[i + 1].distributedAt).getTime();
             expect(current).toBeGreaterThanOrEqual(next);
          }
       });

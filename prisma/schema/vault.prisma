@@ -1,0 +1,34 @@
+// prisma/schema/vault.prisma
+// Staking vault state, synced from VaultDeposit / VaultWithdraw contract events.
+
+/// Keys of one creator that a wallet currently has deposited in the vault.
+model VaultPosition {
+  id        String   @id @default(cuid())
+  wallet    String
+  creatorId String
+  quantity  Decimal  @default(0) @db.Decimal(20, 7)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([wallet, creatorId])
+  @@index([wallet])
+  @@index([creatorId])
+}
+
+/// Applied VaultDeposit / VaultWithdraw events. The unique (txHash, eventIndex)
+/// makes the indexer idempotent: a replayed event fails to insert here and is
+/// skipped, so quantities are never double-counted.
+model VaultEventLog {
+  id         String   @id @default(cuid())
+  eventType  String
+  wallet     String
+  creatorId  String
+  quantity   Decimal  @db.Decimal(20, 7)
+  ledger     Int
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([ledger])
+}

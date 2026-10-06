@@ -36,7 +36,7 @@ describe('#419 min_price and max_price filtering', () => {
          });
 
          const creator = await prisma.creatorProfile.upsert({
-            where: { userId: USER_IDS[i] },
+            where: { handle: HANDLES[i] },
             create: {
                userId: USER_IDS[i],
                handle: HANDLES[i],

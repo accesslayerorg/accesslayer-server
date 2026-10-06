@@ -11,6 +11,7 @@ export type KeySearchResult = {
    avatarUrl: string | null;
    currentPrice: string | null;
    holderCount: number;
+   deprecated: boolean;
 };
 
 export class KeySearchQueryTooShortError extends Error {
@@ -26,6 +27,7 @@ type SearchRow = {
    avatarUrl: string | null;
    currentPrice: bigint | null;
    holderCount: bigint;
+   deprecatedAt: Date | null;
    rank: number;
 };
 
@@ -44,6 +46,7 @@ export async function searchKeys(query: string): Promise<KeySearchResult[]> {
          c.id AS "keyId",
          c."displayName" AS "creatorName",
          c."avatarUrl" AS "avatarUrl",
+         c."deprecatedAt" AS "deprecatedAt",
          s."currentPrice" AS "currentPrice",
          (
             SELECT COUNT(*)::bigint
@@ -68,5 +71,6 @@ export async function searchKeys(query: string): Promise<KeySearchResult[]> {
             ? null
             : row.currentPrice.toString(),
       holderCount: Number(row.holderCount),
+      deprecated: row.deprecatedAt !== null,
    }));
 }

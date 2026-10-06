@@ -9,6 +9,8 @@ export interface SorobanBuyEvent {
    ledger: number;
    tx_hash: string;
    timestamp: string;
+   /** Payment asset used for this purchase (e.g. 'XLM', 'USDC'). Optional; defaults to 'XLM' (#934). */
+   payment_asset?: string;
 }
 
 const REQUIRED_FIELDS: (keyof SorobanBuyEvent)[] = [
@@ -84,13 +86,42 @@ export async function processTradeEvent(
          ledger: event.ledger,
          txHash: event.tx_hash,
          timestamp: new Date(event.timestamp),
+         paymentAsset:
+            typeof event.payment_asset === 'string' && event.payment_asset.trim() !== ''
+               ? event.payment_asset.trim().toUpperCase()
+               : 'XLM',
       },
    });
+
+   try {
+      const { accrueLpRewards } = await import('./lp-indexer.service');
+      await accrueLpRewards(event.creator_id, Number(event.price));
+   } catch {
+      // Non-critical: LP reward accrual failure shouldn't fail trade indexing
+   }
 
    try {
       const { invalidateCreatorDashboardCache } =
          await import('../creator/creator-dashboard.service');
       await invalidateCreatorDashboardCache(event.creator_id);
+      const { invalidateKeyTwapCache } = await import('../keys/key-twap-window.service');
+      await invalidateKeyTwapCache(event.creator_id);
+   } catch {
+      // Non-critical cache invalidation failure
+   }
+
+   try {
+      const { invalidateKeyAnalyticsCache } =
+         await import('../keys/key-analytics.service');
+      await invalidateKeyAnalyticsCache(event.creator_id);
+   } catch {
+      // Non-critical cache invalidation failure
+   }
+
+   try {
+      const { invalidateCooldownCache } =
+         await import('../keys/key-cooldown.service');
+      await invalidateCooldownCache(event.creator_id, event.buyer);
    } catch {
       // Non-critical cache invalidation failure
    }

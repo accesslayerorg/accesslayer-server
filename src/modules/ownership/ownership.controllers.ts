@@ -28,6 +28,8 @@ export const httpGetOwnership: AsyncController = async (req, res, next) => {
          creatorId: record.creatorId,
          balance: record.balance.toString(),
          currentPrice: '0',
+         // Self-custody freeze status (#885)
+         frozen: Boolean(record.frozen),
          updatedAt: record.updatedAt,
       }));
       sendSuccess(res, {

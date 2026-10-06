@@ -37,7 +37,7 @@ describe('creator detail endpoint — priceChange24h sign (#576)', () => {
       });
 
       const creatorUp = await prisma.creatorProfile.upsert({
-         where: { userId: USER_ID_UP },
+         where: { handle: HANDLE_UP },
          create: {
             userId: USER_ID_UP,
             handle: HANDLE_UP,
@@ -48,7 +48,7 @@ describe('creator detail endpoint — priceChange24h sign (#576)', () => {
       creatorIdUp = creatorUp.id;
 
       const creatorDown = await prisma.creatorProfile.upsert({
-         where: { userId: USER_ID_DOWN },
+         where: { handle: HANDLE_DOWN },
          create: {
             userId: USER_ID_DOWN,
             handle: HANDLE_DOWN,

@@ -13,6 +13,30 @@ app.use(errorHandler);
 const ADMIN_WALLET = 'GAADMINLOCKUPTESTWALLET111111111111111111111111';
 const NON_ADMIN_WALLET = 'GANONADMINUSERWALLET22222222222222222222222222';
 
+Object.assign(prisma as any, {
+   timelockProposal: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+   },
+   governanceProposal: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+   },
+   auditLog: {
+      create: jest.fn(),
+   },
+   activity: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+   },
+});
+
 describe('Admin Protocol Lockup Duration Endpoint (Issue #838) - POST /admin/protocol/lockup', () => {
    let adminToken: string;
    let nonAdminToken: string;
@@ -114,6 +138,107 @@ describe('Admin Protocol Lockup Duration Endpoint (Issue #838) - POST /admin/pro
                status: 'pending',
             }),
          })
+      );
+   });
+
+   it('requires an admin JWT for the pending timelock actions endpoint', async () => {
+      const res = await request(app)
+         .get('/admin/timelock/pending')
+         .set('Authorization', `Bearer ${nonAdminToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+   });
+
+   it('returns pending timelock actions with execution timestamp and countdown metadata', async () => {
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+      const pendingActions = [
+         {
+            id: 'tl-pending-1',
+            proposalId: 'tl-proposal-1',
+            changeType: 'update_lockup',
+            payload: { durationSeconds: 86400 },
+            status: 'pending',
+            executionNotBefore: futureDate,
+            createdAt: new Date('2026-08-26T12:00:00.000Z'),
+            executedAt: null,
+         },
+      ];
+
+      jest.spyOn(prisma.timelockProposal, 'findMany').mockResolvedValue(
+         pendingActions as any
+      );
+
+      const res = await request(app)
+         .get('/admin/timelock/pending')
+         .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.actions).toHaveLength(1);
+      expect(res.body.data.actions[0]).toMatchObject({
+         proposalId: 'tl-proposal-1',
+         changeType: 'update_lockup',
+         status: 'pending',
+         eventType: 'ActionProposed',
+         executionTimestamp: futureDate.toISOString(),
+      });
+      expect(res.body.data.actions[0].countdownMs).toEqual(
+         expect.any(Number)
+      );
+      expect(res.body.data.actions[0].countdown).toEqual(expect.any(String));
+      expect(res.body.data.nextExecutionTimestamp).toBe(futureDate.toISOString());
+   });
+
+   it('returns executed and cancelled timelock actions in the history view', async () => {
+      const executedAt = new Date('2026-08-27T08:00:00.000Z');
+      const cancelledAt = new Date('2026-08-26T12:00:00.000Z');
+
+      jest.spyOn(prisma.timelockProposal, 'findMany').mockResolvedValue([
+         {
+            id: 'tl-executed-1',
+            proposalId: 'tl-proposal-2',
+            changeType: 'update_fee',
+            payload: { feeBps: 100 },
+            status: 'executed',
+            executionNotBefore: new Date('2026-08-27T07:00:00.000Z'),
+            createdAt: new Date('2026-08-26T11:00:00.000Z'),
+            executedAt,
+         },
+         {
+            id: 'tl-cancelled-1',
+            proposalId: 'tl-proposal-3',
+            changeType: 'update_protocol',
+            payload: { enabled: false },
+            status: 'cancelled',
+            executionNotBefore: new Date('2026-08-27T07:00:00.000Z'),
+            createdAt: new Date('2026-08-26T12:00:00.000Z'),
+            executedAt: null,
+         },
+      ] as any);
+
+      const res = await request(app)
+         .get('/admin/timelock/history')
+         .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.history).toHaveLength(2);
+      expect(res.body.data.history).toEqual(
+         expect.arrayContaining([
+            expect.objectContaining({
+               proposalId: 'tl-proposal-2',
+               status: 'executed',
+               eventType: 'ActionExecuted',
+               executionTimestamp: executedAt.toISOString(),
+            }),
+            expect.objectContaining({
+               proposalId: 'tl-proposal-3',
+               status: 'cancelled',
+               eventType: 'ActionCancelled',
+               cancelledAt: cancelledAt.toISOString(),
+            }),
+         ])
       );
    });
 });

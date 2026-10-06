@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { sendNotFound, sendSuccess } from '../../utils/api-response.utils';
 import {
    httpListCreators,
-   httpGetCreator,
+   httpGetCreatorPortfolioKeys,
    httpGetCreatorStats,
    httpGetTrendingCreators,
    httpGetCreatorLeaderboard,
@@ -12,6 +12,10 @@ import {
 } from './creators.controllers';
 import { httpGetCreatorHolders } from './creator-holders.controller';
 import { httpGetVolumeLeaderboard } from './creator-leaderboard-volume.controller';
+import {
+   httpGetCreatorPublicProfile,
+   httpGetCreatorIssuedKeys,
+} from './creator-public-profile.controller';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
 import { CREATOR_PUBLIC_ROUTE_NAMES } from '../../constants/creator-public-routes.constants';
@@ -23,6 +27,8 @@ import { requireStellarSignature } from '../../middlewares/stellar-signature.mid
 import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
+import { httpSellCreatorKey, sellSchema } from '../creator/sell.controller';
+import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
 import {
    httpCreatePost,
    httpListPosts,
@@ -36,6 +42,7 @@ import {
 import { httpGetCreatorDashboard } from '../creator/creator-dashboard.controller';
 import { httpCreateCreatorProposal } from '../creator/creator-proposals.controller';
 import { createProposalSchema } from '../creator/creator-proposals.schemas';
+import reputationRouter from '../creator/creator-reputation.routes';
 
 const creatorsRouter = Router();
 
@@ -47,10 +54,31 @@ creatorsRouter.use(normalizeTrailingSlash);
 creatorsRouter.post(
    '/:id/buy',
    validateCreatorParam('id'),
+   // Platform-wide and per-key pause validation (#988) runs before any trade
+   // work so a paused platform/key rejects with 503 immediately.
+   platformPauseGuard(),
    requireStellarSignature(),
    buyKeyRateLimit,
    validateBody(buySchema),
    httpBuyCreatorKey
+);
+/**
+ * POST /api/v1/creators/:id/sell
+ *
+ * Sell keys from the authenticated wallet's position. Enforces self-custody
+ * freeze (403 when frozen) and server-side slippage protection: the
+ * submitted min_price is validated against the current bonding-curve price
+ * inside the same transaction as the trade execution (#884, #885).
+ */
+creatorsRouter.post(
+   '/:id/sell',
+   validateCreatorParam('id'),
+   // Platform-wide and per-key pause validation (#988).
+   platformPauseGuard(),
+   requireStellarSignature(),
+   buyKeyRateLimit,
+   validateBody(sellSchema),
+   httpSellCreatorKey
 );
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);
@@ -177,10 +205,44 @@ creatorsRouter.get(
 );
 
 /**
+ * GET /api/v1/creators/:id/keys
+ *
+ * Returns a cursor-paginated list of keys issued by the creator identified by
+ * :id (profile ID or handle). Stats include total keys, total holders, and
+ * total trading volume across all keys.
+ * Public endpoint with no authentication required.
+ */
+creatorsRouter.get(
+   '/:id/keys',
+   validateCreatorParam('id'),
+   createCreatorReadMetricsMiddleware('detail'),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_KEYS]
+   ),
+   httpGetCreatorIssuedKeys
+);
+// 405 handler for /:id/keys
+creatorsRouter.all('/:id/keys', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
+ * GET /api/v1/creators/:wallet/keys  (legacy — wallet address lookup)
+ *
+ * Returns keys owned by a wallet. Superseded by GET /creators/:id/keys for
+ * profile-ID / handle-based lookups, but kept for backward compatibility.
+ */
+creatorsRouter.get('/:wallet/portfolio-keys', httpGetCreatorPortfolioKeys);
+creatorsRouter.all('/:wallet/portfolio-keys', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
  * GET /api/v1/creators/:id
  *
- * Get public details for a specific creator.
- * Public endpoint with 5-minute cache.
+ * Returns public profile metadata for a creator together with social stats:
+ * total holders, total trading volume, and follower count.
+ * Public endpoint with 5-minute cache. No authentication required.
  */
 creatorsRouter.get(
    '/:id',
@@ -189,7 +251,7 @@ creatorsRouter.get(
    cacheControl(
       CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
    ),
-   httpGetCreator
+   httpGetCreatorPublicProfile
 );
 // 405 handler for /:id
 creatorsRouter.all('/:id', (_req, res) => {
@@ -254,5 +316,8 @@ creatorsRouter.post(
 creatorsRouter.all('/:keyId/proposals', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
 });
+
+// Mount reputation router for :wallet/reputation endpoints
+creatorsRouter.use(reputationRouter);
 
 export default creatorsRouter;

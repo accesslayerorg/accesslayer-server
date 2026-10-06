@@ -156,7 +156,7 @@ export async function seedCreatorMarketFixture(
    });
 
    const creator = await prisma.creatorProfile.upsert({
-      where: { userId: identity.userId },
+      where: { id: identity.id },
       create: {
          id: identity.id,
          userId: identity.userId,

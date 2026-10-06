@@ -20,6 +20,18 @@ export interface DividendDistributedEvent extends IndexerChainEvent {
 }
 
 /**
+ * Extended chain event interface for dividend claim events.
+ */
+export interface DividendClaimedEvent extends IndexerChainEvent {
+   eventType: 'DIVIDEND_CLAIMED';
+   creatorId: string;
+   claimantAddress: string;
+   amountXlm: string | number;
+   distributionId?: string;
+   claimedAt: string; // ISO timestamp
+}
+
+/**
  * Processes a batch of dividend distribution events (DIVIDEND_DISTRIBUTED).
  *
  * - Deduplicates the events based on txHash and eventIndex.
@@ -34,7 +46,115 @@ export async function processDividendEvents(
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
       // Validate event type
-      if (event.eventType !== 'DIVIDEND_DISTRIBUTED') {
+      if (
+         event.eventType !== 'DIVIDEND_DISTRIBUTED' &&
+         event.eventType !== 'DIVIDEND_CLAIMED'
+      ) {
+         return;
+      }
+
+      if (event.eventType === 'DIVIDEND_CLAIMED') {
+         const typedEvent = event as DividendClaimedEvent;
+         const requiredFields = [
+            'creatorId',
+            'claimantAddress',
+            'amountXlm',
+            'claimedAt',
+            'ledger',
+            'txHash',
+         ];
+
+         for (const field of requiredFields) {
+            if (
+               typedEvent[field as keyof DividendClaimedEvent] === undefined ||
+               typedEvent[field as keyof DividendClaimedEvent] === null ||
+               typedEvent[field as keyof DividendClaimedEvent] === ''
+            ) {
+               logger.warn(
+                  {
+                     eventId: `${event.txHash}:${event.eventIndex}`,
+                     missingField: field,
+                  },
+                  'Skipping dividend claim event due to missing required field'
+               );
+               return;
+            }
+         }
+
+         const {
+            creatorId,
+            claimantAddress,
+            amountXlm,
+            distributionId,
+            claimedAt,
+            ledger,
+            txHash,
+         } = typedEvent;
+
+         const claimedDate = new Date(claimedAt);
+
+         // 1. Mark pending claim(s) as claimed
+         if (distributionId) {
+            await prisma.dividendClaim.updateMany({
+               where: {
+                  distributionId,
+                  recipientAddress: claimantAddress,
+               },
+               data: {
+                  claimedAt: claimedDate,
+               },
+            });
+         } else {
+            await prisma.dividendClaim.updateMany({
+               where: {
+                  recipientAddress: claimantAddress,
+                  distribution: { creatorId },
+                  claimedAt: null,
+               },
+               data: {
+                  claimedAt: claimedDate,
+               },
+            });
+         }
+
+         // 2. Create Activity record
+         await prisma.activity.create({
+            data: {
+               type: 'DIVIDEND_CLAIMED' as any,
+               actor: claimantAddress,
+               creatorId,
+               payload: {
+                  amount_xlm: String(amountXlm),
+                  claimant: claimantAddress,
+                  distribution_id: distributionId || null,
+                  ledger_sequence: Number(ledger),
+                  tx_hash: String(txHash),
+               },
+               createdAt: claimedDate,
+            },
+         });
+
+         // 3. Invalidate dividend cache
+         try {
+            const { invalidateDividendCache } = await import(
+               '../dividends/dividend.service'
+            );
+            await invalidateDividendCache(creatorId, claimantAddress);
+         } catch {
+            // Non-critical cache invalidation failure
+         }
+
+         logger.info(
+            {
+               creatorId,
+               claimantAddress,
+               amountXlm,
+               distributionId,
+               ledger: Number(ledger),
+               txHash: String(txHash),
+            },
+            'Dividend claim event processed'
+         );
          return;
       }
 
@@ -156,6 +276,12 @@ export async function processDividendEvents(
          },
       });
 
+      // Invalidate the platform activity feed's cached first page (#936) so
+      // this new DIVIDEND_DISTRIBUTED ("settlement") activity shows up promptly.
+      const { invalidateActivityFeedCache } =
+         await import('../activity/activity-feed.service');
+      await invalidateActivityFeedCache();
+
       logger.info(
          {
             distributionId: distribution.id,
@@ -173,6 +299,15 @@ export async function processDividendEvents(
          const { invalidateCreatorDashboardCache } =
             await import('../creator/creator-dashboard.service');
          await invalidateCreatorDashboardCache(creatorId);
+      } catch {
+         // Non-critical cache invalidation failure
+      }
+
+      try {
+         const { invalidateDividendCache } = await import(
+            '../dividends/dividend.service'
+         );
+         await invalidateDividendCache(creatorId);
       } catch {
          // Non-critical cache invalidation failure
       }
@@ -198,5 +333,114 @@ export async function processDividendEvents(
          .slice(0, 16);
       const cursor = `${maxLedger}-000`;
       await updateIndexedLedger(maxLedger, cursor, batchHash);
+   }
+}
+
+/**
+ * Raw contract log shape from Soroban RPC or Horizon.
+ */
+export interface DividendContractLog {
+   contractId: string;
+   topics: string[];
+   data?: any;
+   ledger: number;
+   txHash: string;
+   timestamp?: string | number | Date;
+   eventIndex?: number;
+}
+
+/**
+ * Parses raw Soroban contract logs into typed IndexerChainEvents.
+ */
+export function parseDividendContractLog(
+   log: DividendContractLog
+): DividendDistributedEvent | DividendClaimedEvent | null {
+   if (!log.topics || log.topics.length === 0) {
+      return null;
+   }
+
+   const topic0 = String(log.topics[0]).toLowerCase();
+   const timestamp = log.timestamp
+      ? new Date(log.timestamp).toISOString()
+      : new Date().toISOString();
+
+   if (
+      topic0 === 'dividend_distributed' ||
+      topic0 === 'dividenddistributed' ||
+      topic0 === 'distributed'
+   ) {
+      const creatorId = log.topics[1] || log.data?.creatorId || log.contractId;
+      const totalAmountXlm = String(
+         log.data?.totalAmountXlm || log.data?.totalAmount || log.topics[2] || '0'
+      );
+      const holdersCount = Number(
+         log.data?.holdersCount || log.data?.holderCount || log.topics[3] || 0
+      );
+      const distributorAddress = String(
+         log.data?.distributorAddress ||
+            log.data?.distributor ||
+            log.topics[4] ||
+            ''
+      );
+
+      return {
+         eventType: 'DIVIDEND_DISTRIBUTED',
+         creatorId,
+         totalAmountXlm,
+         holdersCount,
+         distributorAddress,
+         distributedAt: timestamp,
+         ledger: log.ledger,
+         txHash: log.txHash,
+         eventIndex: log.eventIndex ?? 0,
+      };
+   }
+
+   if (
+      topic0 === 'dividend_claimed' ||
+      topic0 === 'dividendclaimed' ||
+      topic0 === 'claimed'
+   ) {
+      const creatorId = log.topics[1] || log.data?.creatorId || log.contractId;
+      const claimantAddress = String(
+         log.topics[2] || log.data?.claimantAddress || log.data?.claimant || ''
+      );
+      const amountXlm = String(
+         log.data?.amountXlm || log.data?.amount || log.topics[3] || '0'
+      );
+      const distributionId =
+         log.data?.distributionId || log.topics[4] || undefined;
+
+      return {
+         eventType: 'DIVIDEND_CLAIMED',
+         creatorId,
+         claimantAddress,
+         amountXlm,
+         distributionId,
+         claimedAt: timestamp,
+         ledger: log.ledger,
+         txHash: log.txHash,
+         eventIndex: log.eventIndex ?? 0,
+      };
+   }
+
+   return null;
+}
+
+/**
+ * Indexes dividend events directly from contract logs.
+ */
+export async function processDividendContractLogs(
+   logs: DividendContractLog[]
+): Promise<void> {
+   const events: IndexerChainEvent[] = [];
+   for (const log of logs) {
+      const parsed = parseDividendContractLog(log);
+      if (parsed) {
+         events.push(parsed);
+      }
+   }
+   if (events.length > 0) {
+      await processDividendEvents(events);
    }
 }

@@ -50,12 +50,18 @@ export const CreatorProfileReadResponseSchema = z.object({
    links: z.array(z.object({ label: z.string(), url: z.string().url() })),
    /** Whether trading is temporarily paused for this key by an admin. */
    tradingPaused: z.boolean(),
+   /** Current milestone tier reached by supply. */
+   currentMilestone: z.number(),
+   /** Number of times the bonding curve was reset. */
+   relaunchCount: z.number(),
    /** Current key price in stroops as a string. null when no trade has occurred. */
    currentPrice: z.string().nullable(),
    /** Price 24 h ago in stroops as a string. null when no baseline exists. */
    price24hAgo: z.string().nullable(),
    /** Computed percentage change. null when no baseline exists. */
    priceChange24h: z.number().nullable(),
+   /** Whether this key was deployed through the on-chain key factory (#983). */
+   is_factory_key: z.boolean(),
    metadata: z.object({
       source: z.enum(['placeholder', 'database']),
       isProfileComplete: z.boolean(),

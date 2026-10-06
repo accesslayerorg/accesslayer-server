@@ -20,9 +20,22 @@ import {
    startGovernanceSyncJob,
    stopGovernanceSyncJob,
 } from './jobs/governance-sync.job';
+import {
+   startPriceHistoryCleanupJob,
+   stopPriceHistoryCleanupJob,
+} from './jobs/price-history-cleanup.job';
+import {
+   startTwapComputationJob,
+   stopTwapComputationJob,
+} from './jobs/twap-computation.job';
+import {
+   startFlashLoanViolationCleanupJob,
+   stopFlashLoanViolationCleanupJob,
+} from './jobs/flash-loan-violation-cleanup.job';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
 import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
+import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
 
 async function startServer() {
    try {
@@ -72,6 +85,10 @@ async function startServer() {
 
       startDetectPriceMovementsJob();
       startGovernanceSyncJob();
+      startPriceHistoryCleanupJob();
+      startTwapComputationJob();
+      startFlashLoanViolationCleanupJob();
+      initKeyCreationMetadataSync();
 
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -107,6 +124,9 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopOwnershipSnapshotCleanupJob();
       stopDetectPriceMovementsJob();
       stopGovernanceSyncJob();
+      stopPriceHistoryCleanupJob();
+      stopTwapComputationJob();
+      stopFlashLoanViolationCleanupJob();
       await prisma.$disconnect();
       logger.info('Database connection closed');
 

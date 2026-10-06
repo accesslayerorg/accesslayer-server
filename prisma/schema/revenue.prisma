@@ -1,0 +1,72 @@
+// prisma/schema/revenue.prisma
+// Protocol revenue distribution pool and claim-based dividends (#883).
+
+/// One distribution cycle of the protocol revenue pool. Finalized (snapshot)
+/// when the cycle first ends and is read/claimed — kept as an audit trail of
+/// the fees aggregated into the pool for that window.
+model RevenueCycle {
+  id              String   @id @default(cuid())
+  /// Zero-based index of the cycle since the protocol epoch.
+  cycleIndex      Int      @unique
+  startsAt        DateTime
+  endsAt          DateTime
+  /// Protocol trading fees aggregated into the pool for this cycle.
+  totalFeesXlm    Decimal  @default(0) @db.Decimal(20, 7)
+  /// Running total of amounts claimed out of this cycle's pool.
+  distributedXlm  Decimal  @default(0) @db.Decimal(20, 7)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  claims          RevenueClaim[]
+
+  @@index([startsAt])
+}
+
+/// A wallet's claim against a finalized revenue cycle. The unique
+/// (cycleId, wallet) constraint rejects double-claims within the same cycle.
+model RevenueClaim {
+  id                 String        @id @default(cuid())
+  cycleId            String
+  wallet             String
+  entitledAmountXlm  Decimal       @db.Decimal(20, 7)
+  claimedAt          DateTime?
+  createdAt          DateTime      @default(now())
+
+  cycle              RevenueCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, wallet])
+  @@index([wallet])
+}
+
+/// A protocol revenue distribution recorded from the
+/// protocol_revenue_distributed contract event (#875).
+model ProtocolRevenueDistribution {
+  id               String   @id @default(cuid())
+  distributionId   String   @unique
+  totalDistributed Decimal  @db.Decimal(20, 7)
+  stakerCount      Int
+  snapshotId       String
+  ledger           Int
+  txHash           String
+  distributedAt    DateTime
+  createdAt        DateTime @default(now())
+
+  shares           ProtocolRevenueShare[]
+
+  @@unique([ledger, txHash])
+  @@index([distributedAt(sort: Desc)])
+}
+
+/// The amount a single staker wallet received from a distribution (#875).
+model ProtocolRevenueShare {
+  id             String   @id @default(cuid())
+  distributionId String
+  wallet         String
+  amount         Decimal  @db.Decimal(20, 7)
+  createdAt      DateTime @default(now())
+
+  distribution   ProtocolRevenueDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@unique([distributionId, wallet])
+  @@index([wallet])
+}

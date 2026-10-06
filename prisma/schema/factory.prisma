@@ -1,0 +1,15 @@
+// prisma/schema/factory.prisma
+
+model FactoryDeployedKey {
+  id              String   @id @default(cuid())
+  contractAddress String   @unique
+  creatorWallet   String
+  keyId           String?
+  deployedAt      DateTime
+  txHash          String
+  eventIndex      Int
+  createdAt       DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([creatorWallet])
+}

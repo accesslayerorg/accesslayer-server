@@ -116,6 +116,26 @@ export const envSchema = z
       // Key trade lockup
       LOCKUP_DURATION_SECONDS: z.coerce.number().int().nonnegative().default(0),
 
+      // Protocol revenue distribution (#883): length of each distribution
+      // cycle in days. Trading fees are aggregated into a pool per cycle and
+      // claimed proportionally to stake weight (see src/modules/revenue).
+      REVENUE_DISTRIBUTION_CYCLE_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(7),
+
+      // Referral programme (#910): share of a referred wallet's first trade
+      // paid to the referrer, in basis points (500 = 5%). Paid once per
+      // referee, on their first trade only (see src/modules/referrals).
+      REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
+
+      // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
+      // Stellar addresses of the admin quorum. When unset, deprecation still
+      // requires two distinct valid admin signatures but no allowlist is
+      // enforced (development default).
+      ADMIN_MULTISIG_WALLETS: optionalNonEmptyString,
+
       // Leaderboard volume
       LEADERBOARD_VOLUME_WINDOW_DAYS: z.coerce
          .number()
@@ -179,6 +199,44 @@ export const envSchema = z
          )
          .default('https://soroban-testnet.stellar.org'),
 
+      // Soroban contract interaction service (#899): submission retries with
+      // exponential backoff, confirmation polling, and resolution events.
+      SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      SOROBAN_SUBMIT_BASE_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1000),
+      SOROBAN_SUBMIT_MAX_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(15000),
+      SOROBAN_POLL_INTERVAL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5000),
+      SOROBAN_POLL_TIMEOUT_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120000),
+
+      // Circuit breaker (#987): deployed contract id holding the per-key
+      // max_bps configuration, and the TTL (seconds) for the cached contract
+      // read. Defaults to a 5-minute refresh window.
+      CIRCUIT_BREAKER_CONTRACT_ID: optionalNonEmptyString,
+      CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300),
+
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
          .string()
@@ -197,9 +255,31 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Price history cleanup job (#893) — prunes creator_price_history rows
+      // older than the retention window so TWAP/range queries stay fast.
+      PRICE_HISTORY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      PRICE_HISTORY_CLEANUP_ENABLED: z.coerce.boolean().default(true),
+      PRICE_HISTORY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
       // Price movement detection job (feeds price_moved notifications)
       DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
       DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+
+      // TWAP computation job (#963) — recomputes 1h/4h/24h TWAP per active key.
+      TWAP_COMPUTATION_ENABLED: booleanCoerce.default(true),
+      TWAP_COMPUTATION_INTERVAL_MINUTES: z.coerce
          .number()
          .int()
          .positive()
@@ -212,6 +292,16 @@ export const envSchema = z
          .int()
          .positive()
          .default(5),
+
+      // Key sunset watch (#931): number of consecutive inactive days before a
+      // key is considered "near threshold" and surfaced by GET /keys/sunset-watch.
+      // Keys whose on-chain KeySunsetFlagged event has been processed always
+      // appear regardless of this threshold. Defaults to 30 days.
+      KEY_SUNSET_INACTIVITY_THRESHOLD_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
 
       // Request body size limits (see docs/body-size-limits.md).
       // Accepts any size string understood by the `bytes` package used
@@ -288,6 +378,61 @@ export const envSchema = z
          .int()
          .positive()
          .default(1000),
+
+      // Oracle price feed staleness threshold and cache TTL.
+      // ORACLE_STALENESS_THRESHOLD_MS: how old an oracle price can be before
+      //   the response includes `isStale: true`. Default: 5 minutes.
+      // ORACLE_CACHE_TTL_MS: how long the oracle-price response is cached in
+      //   Redis. Should match the typical oracle update frequency. Default: 30 s.
+      ORACLE_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300_000),
+      ORACLE_CACHE_TTL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30_000),
+
+      // Flash loan guard (#938): violations indexed from
+      // FlashLoanGuardTriggered contract events. A wallet that reaches
+      // FLASH_LOAN_VIOLATION_THRESHOLD uncleared violations is alerted and,
+      // when FLASH_LOAN_AUTO_SUSPEND_ENABLED is true, suspended for
+      // FLASH_LOAN_SUSPENSION_DURATION_HOURS (0 = indefinite, lifted once the
+      // violation history ages out). Violations older than
+      // FLASH_LOAN_VIOLATION_COOLDOWN_HOURS stop counting towards the
+      // threshold and are cleared by the cleanup job.
+      FLASH_LOAN_VIOLATION_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      FLASH_LOAN_AUTO_SUSPEND_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_VIOLATION_COOLDOWN_HOURS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
+      FLASH_LOAN_SUSPENSION_DURATION_HOURS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .default(0),
+      FLASH_LOAN_CLEANUP_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      // Creator key on-chain metadata sync (#986)
+      PINATA_GATEWAY_URL: z.string().default('https://gateway.pinata.cloud/ipfs'),
+      METADATA_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(10 * 60 * 1000), // 10 minutes
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {

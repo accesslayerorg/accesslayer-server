@@ -47,7 +47,7 @@ describe('#418 Stellar signature verification middleware', () => {
       });
 
       const creator = await prisma.creatorProfile.upsert({
-         where: { userId: user.id },
+         where: { handle: HANDLE },
          create: {
             userId: user.id,
             handle: HANDLE,

@@ -285,6 +285,112 @@ Error codes are defined in `src/constants/error.constants.ts` and should be trea
 ```
 
 ---
+### TOKEN_EXPIRY_TAMPERED
+
+**HTTP Status:** 401 Unauthorized
+
+**Meaning:** JWT token expiry has been tampered with. The token's `exp` claim does not match the expected `iat + ttlSeconds`.
+
+**When to use:**
+
+- Token's `exp` is greater than `iat + ttlSeconds` (expiry was extended beyond the valid window)
+- Token's `exp` is less than `iat + ttlSeconds` (expiry was shortened, token revoked early)
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "TOKEN_EXPIRY_TAMPERED",
+      "message": "Token expiry has been tampered with"
+   }
+}
+```
+
+---
+
+### GONE
+
+**HTTP Status:** 410 Gone
+
+**Meaning:** The requested window or resource existed but has permanently expired.
+
+**When to use:**
+
+- A holder submits a buyback after the key's buyback window expiry (#882)
+- A time-bounded resource is no longer available and will not return
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "GONE",
+      "message": "Buyback window for key clxxx closed at 2026-10-01T00:00:00.000Z"
+   }
+}
+```
+
+---
+
+### slippage_exceeded (SLIPPAGE_EXCEEDED)
+
+**HTTP Status:** 409 Conflict
+
+**Meaning:** The current bonding-curve price violates the client's submitted price bound (`max_price` on buys, `min_price` on sells).
+
+**When to use:**
+
+- Buy rejected because the current price exceeds the submitted `max_price` (#884)
+- Sell rejected because the current price is below the submitted `min_price` (#884)
+
+The response body extends the standard error envelope with top-level
+`current_price` and `slippage_exceeded: true` fields for client requote feedback:
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "slippage_exceeded",
+      "message": "Current price exceeds submitted max_price"
+   },
+   "current_price": "1.25",
+   "slippage_exceeded": true,
+   "submitted_price": "1.1",
+   "unit": "XLM"
+}
+```
+
+---
+
+### MISSING_IAT
+
+**HTTP Status:** 401 Unauthorized
+
+**Meaning:** JWT token is missing the `iat` (issued-at) claim. The token cannot have its expiry validated without an issuance timestamp.
+
+**When to use:**
+
+- Token does not include an `iat` claim
+- Token payload is decoded but `iat` is undefined
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "MISSING_IAT",
+      "message": "Token is missing the issued-at (iat) claim"
+   }
+}
+```
+
+---
 
 ## Adding New Error Codes
 

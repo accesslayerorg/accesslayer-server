@@ -41,6 +41,8 @@ export interface CreatorProfile {
    updatedAt: Date;
    /** Price read model — null when no trade has been recorded yet. */
    priceSnapshot?: CreatorPriceSnapshot | null;
+   /** When the key was deprecated (#882); null/undefined while active. */
+   deprecatedAt?: Date | null;
 }
 
 export interface UserSettings {

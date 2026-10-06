@@ -310,4 +310,30 @@ describe('#601 fan portfolio endpoint — aggregated holdings', () => {
       expect(data).toHaveProperty('meta');
       expect(data).toHaveProperty('grand_total');
    });
+
+   it('excludes creators with zero key holdings from the portfolio response', async () => {
+      const zeroHolding: HoldingEntry = {
+         creator_id: 'creator-zero',
+         creator_handle: 'zero',
+         key_count: '0',
+         current_price: '250',
+         total_value: '0',
+      };
+
+      jest
+         .spyOn(walletHoldingsService, 'fetchWalletHoldings')
+         .mockResolvedValue([
+            [HOLDING_CREATOR_A, zeroHolding, HOLDING_CREATOR_B, HOLDING_CREATOR_C],
+            4,
+         ]);
+
+      const req = makeReq({ address: VALID_ADDRESS });
+      const res = makeRes();
+      await httpGetWalletHoldings(req, res, makeNext());
+
+      const body = res.json.mock.calls[0][0];
+      expect(body.data.items.some((item: HoldingEntry) => item.creator_id === 'creator-zero')).toBe(false);
+      expect(body.data.grand_total).toBe(EXPECTED_GRAND_TOTAL);
+   });
+
 });

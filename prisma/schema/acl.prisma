@@ -1,0 +1,37 @@
+// prisma/schema/acl.prisma
+// On-chain ACL whitelist controlling which external contracts are
+// permitted to interact with the platform, and which functions they may
+// call (#966). Mutated only through the admin API, gated by 2-of-3 admin
+// multisig authorization (see acl.service.ts).
+
+/// One row per whitelisted external contract, with the set of functions
+/// it is permitted to call. `contractAddress` is unique — a contract is
+/// either whitelisted (one row) or not.
+model AclWhitelist {
+  id                 String   @id @default(cuid())
+  contractAddress    String   @unique
+  permittedFunctions String[]
+  addedBy            String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("acl_whitelist")
+}
+
+/// Append-only audit trail of ACL whitelist add/remove events, independent
+/// of the current AclWhitelist rows so history survives removal. Powers
+/// GET /admin/acl/history.
+model AclEvent {
+  id                 String   @id @default(cuid())
+  eventType          String // "added" | "removed"
+  contractAddress    String
+  permittedFunctions String[]
+  actor              String
+  signers            String[]
+  createdAt          DateTime @default(now())
+
+  @@index([contractAddress])
+  @@index([createdAt])
+  @@map("acl_events")
+}

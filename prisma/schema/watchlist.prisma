@@ -1,0 +1,17 @@
+// prisma/schema/watchlist.prisma
+
+model InvestorWatchlist {
+  id            String   @id @default(cuid())
+  walletAddress String
+  invoiceId     String
+  lastSeen      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([walletAddress, invoiceId])
+  @@index([walletAddress])
+  @@index([invoiceId])
+  @@map("investor_watchlists")
+}

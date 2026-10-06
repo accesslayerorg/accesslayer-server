@@ -1,0 +1,38 @@
+// prisma/schema/multisig.prisma
+
+model MultisigProposal {
+  id              String   @id @default(cuid())
+  proposalId      String   @unique
+  changeType      String
+  payload         Json
+  status          String   @default("pending") // pending | executed | rejected
+  threshold       Int      @default(2)
+  totalSigners    Int      @default(3)
+  proposedBy      String
+  proposedAt      DateTime @default(now())
+  executedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  signatures      MultisigSignature[]
+
+  @@index([status])
+  @@index([proposedBy])
+  @@map("multisig_proposals")
+}
+
+model MultisigSignature {
+  id          String   @id @default(cuid())
+  proposalId  String
+  signer      String
+  signedAt    DateTime @default(now())
+
+  proposal    MultisigProposal @relation(fields: [proposalId], references: [proposalId], onDelete: Cascade)
+
+  @@unique([proposalId, signer])
+  @@index([signer])
+  @@map("multisig_signatures")
+}

@@ -1,0 +1,21 @@
+// prisma/schema/invoice.prisma
+
+model Invoice {
+  id              String              @id @default(cuid())
+  sellerWallet    String
+  amount          Decimal             @default(0)
+  currency        String              @default("USDC")
+  status          String              @default("PENDING")
+  statusUpdatedAt DateTime            @default(now())
+  rate            Decimal?
+  maturityDate    DateTime?
+  riskRating      String?
+  fundingProgress Decimal?            @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  watchlists      InvestorWatchlist[]
+
+  @@index([sellerWallet])
+  @@index([status])
+}
