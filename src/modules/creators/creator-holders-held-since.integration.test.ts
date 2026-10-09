@@ -43,6 +43,8 @@ const HOLDER_A: HolderRecord = {
    key_count: 30,
    share_percent: 46.15,
    rank: 1,
+   stakedQuantity: 0,
+   liquidQuantity: 30,
 };
 const HOLDER_B: HolderRecord = {
    wallet_address: 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB2',
@@ -51,6 +53,8 @@ const HOLDER_B: HolderRecord = {
    key_count: 20,
    share_percent: 30.77,
    rank: 2,
+   stakedQuantity: 0,
+   liquidQuantity: 20,
 };
 // Wallet C bought twice — held_since is still its FIRST buy (TS_WALLET_C)
 const HOLDER_C: HolderRecord = {
@@ -60,6 +64,8 @@ const HOLDER_C: HolderRecord = {
    key_count: 15,
    share_percent: 23.08,
    rank: 3,
+   stakedQuantity: 0,
+   liquidQuantity: 15,
 };
 
 describe('GET /creators/:id/holders — held_since per wallet (#493)', () => {
