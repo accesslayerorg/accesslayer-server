@@ -158,11 +158,47 @@ const walletQuerySchema = z.object({
    wallet: StellarAddressSchema,
 });
 
+const holdingCapacityQuerySchema = walletQuerySchema.extend({
+   quantity: z.coerce.number().finite().positive().optional(),
+});
+
+/**
+ * Calculate whether a requested buy fits within a creator's per-wallet cap.
+ * Kept as a pure helper for callers and regression tests that use the legacy
+ * basis-point cap representation.
+ */
+export function calculateHoldingCapacity(input: {
+   circulatingSupply: number;
+   holderCapBps: number;
+   currentHolding: number;
+   quantity: number;
+}): {
+   allowed: boolean;
+   remaining_capacity: number;
+   current_holding: number;
+   maximum_holding: number;
+} {
+   const maximumHolding = Math.max(
+      0,
+      input.circulatingSupply * (input.holderCapBps / 10_000)
+   );
+   const remainingCapacity = Math.max(
+      0,
+      maximumHolding - input.currentHolding
+   );
+
+   return {
+      allowed: input.quantity <= remainingCapacity,
+      remaining_capacity: remainingCapacity,
+      current_holding: input.currentHolding,
+      maximum_holding: maximumHolding,
+   };
+}
+
 const lpHistoryQuerySchema = z.object({
    limit: z.coerce.number().int().positive().max(100).optional().default(20),
    cursor: z.string().min(1).optional(),
 });
-
 const priceImpactQuerySchema = z.object({
    quantity: z.string().transform(v => {
       const num = parseInt(v, 10);
@@ -1289,11 +1325,11 @@ router.get('/:keyId/cooldown', async (req, res, next) => {
  */
 
 /**
- * GET /api/v1/keys/:keyId/holding-capacity?wallet=
- * Wallet holding, holder cap, and remaining purchase capacity on a key.
+ * GET /api/v1/keys/:keyId/holding-capacity?wallet=&quantity=
+ * Wallet holding, holder cap, and optional buy pre-check on a key.
  */
 router.get('/:keyId/holding-capacity', async (req, res, next) => {
-   const parsed = walletQuerySchema.safeParse(req.query);
+   const parsed = holdingCapacityQuerySchema.safeParse(req.query);
    if (!parsed.success) {
       sendValidationError(
          res,
@@ -1307,7 +1343,8 @@ router.get('/:keyId/holding-capacity', async (req, res, next) => {
          res,
          await getKeyHoldingCapacity(
             String(req.params.keyId),
-            parsed.data.wallet
+            parsed.data.wallet,
+            parsed.data.quantity
          )
       );
    } catch (error) {

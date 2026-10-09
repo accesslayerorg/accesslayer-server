@@ -101,6 +101,18 @@ describe('key-holding-capacity.service', () => {
       });
    });
 
+   it('reports whether a requested buy fits within the remaining capacity', async () => {
+      mockKey();
+      mockPrisma.keyOwnership.findUnique.mockResolvedValue({ balance: '100' });
+
+      await expect(getKeyHoldingCapacity('key-1', WALLET, 150)).resolves.toMatchObject({
+         allowed: true,
+         current_holding: 100,
+         maximum_holding: 250,
+         remaining_capacity: 150,
+      });
+   });
+
    it('treats a wallet with no position as zero holding', async () => {
       mockKey();
       mockPrisma.keyOwnership.findUnique.mockResolvedValue(null);
