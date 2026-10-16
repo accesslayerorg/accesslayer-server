@@ -14,6 +14,7 @@ export interface DynamicFeeResult {
    components: {
       baseBps: number;
       volumeTierDiscountBps: number;
+      discountTier?: string;
       protocolBps: number;
       royaltyBps: number;
    };
@@ -88,6 +89,7 @@ export async function getDynamicFeeRate(
 
    // 3. Protocol Fee & Volume Tier Discount
    let protocolFeeBps = baseFeeBps;
+   let discountTier = 'TIER_1';
    if (wallet) {
       const volume30d = await computeWallet30dVolume(wallet);
       const tiers = await loadFeeTierConfig();
@@ -97,8 +99,11 @@ export async function getDynamicFeeRate(
          .filter(t => BigInt(t.volumeThreshold) <= volume30d)
          .sort((a, b) => Number(BigInt(b.volumeThreshold) - BigInt(a.volumeThreshold)))[0];
          
-      if (applicableTier && applicableTier.feeBps < baseFeeBps) {
-         protocolFeeBps = applicableTier.feeBps;
+      if (applicableTier) {
+         discountTier = applicableTier.label;
+         if (applicableTier.feeBps < baseFeeBps) {
+            protocolFeeBps = applicableTier.feeBps;
+         }
       }
    }
    
@@ -138,6 +143,7 @@ export async function getDynamicFeeRate(
       components: {
          baseBps: baseFeeBps,
          volumeTierDiscountBps: volumeTierDiscountBps,
+         discountTier,
          protocolBps: protocolFeeBps,
          royaltyBps: royaltyBps,
       },
