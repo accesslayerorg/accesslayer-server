@@ -80,6 +80,47 @@ export async function cleanupExpiredPriceHistory(
    return { cutoffTimestamp, deletedCount, retentionDays };
 }
 
+export type PriceSnapshotWriteResult = {
+   written: boolean;
+};
+
+type PriceSnapshotWriterDeps = {
+   findFirst: typeof prisma.creatorPriceHistory.findFirst;
+   create: typeof prisma.creatorPriceHistory.create;
+};
+
+/**
+ * Persists a price snapshot for a creator, skipping the write when the
+ * new price equals the most recent stored snapshot for that creator.
+ *
+ * The first snapshot for a creator is always written because there is
+ * no previous row to compare against.
+ */
+export async function writePriceSnapshot(
+   creatorId: string,
+   price: number,
+   deps?: Partial<PriceSnapshotWriterDeps>
+): Promise<PriceSnapshotWriteResult> {
+   const findFirst =
+      deps?.findFirst ??
+      prisma.creatorPriceHistory.findFirst.bind(prisma.creatorPriceHistory);
+   const create =
+      deps?.create ?? prisma.creatorPriceHistory.create.bind(prisma.creatorPriceHistory);
+
+   const latest = await findFirst({
+      where: { creatorId },
+      orderBy: { recordedAt: 'desc' },
+      select: { price: true },
+   });
+
+   if (latest && latest.price === price) {
+      return { written: false };
+   }
+
+   await create({ data: { creatorId, price } });
+   return { written: true };
+}
+
 let cleanupTimer: NodeJS.Timeout | null = null;
 
 export function startPriceHistoryCleanupJob() {

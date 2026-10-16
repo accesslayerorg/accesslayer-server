@@ -11,6 +11,8 @@ jest.mock('../utils/prisma.utils', () => ({
       creatorPriceHistory: {
          findMany: jest.fn(),
          deleteMany: jest.fn(),
+         findFirst: jest.fn(),
+         create: jest.fn(),
       },
    },
 }));
@@ -25,7 +27,10 @@ jest.mock('../utils/logger.utils', () => ({
 
 import { envConfig } from '../config';
 import { prisma } from '../utils/prisma.utils';
-import { cleanupExpiredPriceHistory } from './price-history-cleanup.job';
+import {
+   cleanupExpiredPriceHistory,
+   writePriceSnapshot,
+} from './price-history-cleanup.job';
 
 describe('price-history-cleanup.job', () => {
    const mockPrisma = prisma as unknown as {
@@ -61,7 +66,7 @@ describe('price-history-cleanup.job', () => {
       );
 
       expect(mockPrisma.creatorPriceHistory.findMany).toHaveBeenCalledWith(
-         expect.objectContaining({
+         expect.objectContaining( {
             where: { recordedAt: { lt: expectedCutoff } },
          })
       );
@@ -115,5 +120,79 @@ describe('price-history-cleanup.job', () => {
 
       expect(result.deletedCount).toBe(0);
       expect(mockPrisma.creatorPriceHistory.deleteMany).not.toHaveBeenCalled();
+   });
+});
+
+describe('price-snapshot-writer.job', () => {
+   const mockPrisma = prisma as unknown as {
+      creatorPriceHistory: {
+         findFirst: jest.Mock;
+         create: jest.Mock;
+      };
+   };
+
+   beforeEach(() => {
+      jest.clearAllMocks();
+      mockPrisma.creatorPriceHistory.findFirst.mockReset();
+      mockPrisma.creatorPriceHistory.create.mockReset();
+   });
+
+   it('skips the write when the new price equals the previous snapshot', async () => {
+      mockPrisma.creatorPriceHistory.findFirst.mockResolvedValueOnce({
+         id: 'prev-1',
+         creatorId: 'creator-1',
+         price: 100,
+         recordedAt: new Date('2026-01-31T00:00:00.000Z'),
+      });
+
+      const result = await writePriceSnapshot('creator-1', 100);
+
+      expect(mockPrisma.creatorPriceHistory.create).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ written: false });
+   });
+
+   it('writes when the new price differs from the previous snapshot', async () => {
+      mockPrisma.creatorPriceHistory.findFirst.mockResolvedValueOnce({
+         id: 'prev-2',
+         creatorId: 'creator-2',
+         price: 100,
+         recordedAt: new Date('2026-01-31T00:00:00.000Z'),
+      });
+      mockPrisma.creatorPriceHistory.create.mockResolvedValueOnce({
+         id: 'new-2',
+         creatorId: 'creator-2',
+         price: 125,
+         recordedAt: new Date('2026-02-01T00:00:00.000Z'),
+      });
+
+      const result = await writePriceSnapshot('creator-2', 125);
+
+      expect(mockPrisma.creatorPriceHistory.create).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.creatorPriceHistory.create).toHaveBeenCalledWith(
+         expect.objectContaining( {
+            data: expect.objectContaining({ creatorId: 'creator-2', price: 125 }),
+         })
+      );
+      expect(result).toMatchObject({ written: true });
+   });
+
+   it('always writes the first snapshot for a creator', async () => {
+      mockPrisma.creatorPriceHistory.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.creatorPriceHistory.create.mockResolvedValueOnce({
+         id: 'first-3',
+         creatorId: 'creator-3',
+         price: 50,
+         recordedAt: new Date('2026-02-01T00:00:00.000Z'),
+      });
+
+      const result = await writePriceSnapshot('creator-3', 50);
+
+      expect(mockPrisma.creatorPriceHistory.create).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.creatorPriceHistory.create).toHaveBeenCalledWith(
+         expect.objectContaining( {
+            data: expect.objectContaining({ creatorId: 'creator-3', price: 50 }),
+         })
+      );
+      expect(result).toMatchObject({ written: true });
    });
 });
