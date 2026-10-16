@@ -15,6 +15,16 @@ export class MultiBuyError extends Error {
          creator?: string;
          /** Submitted per-unit max_price bound (stroops). */
          maxPrice?: string;
+         /** Maximum available depth when InsufficientDepth occurs (#1038). */
+         max_available?: number;
+         /** Per-order depth errors for batch trades (#1038). */
+         orderErrors?: Array<{
+            keyId: string;
+            side: 'buy' | 'sell';
+            requestedAmount: number;
+            max_available: number;
+            code: 'InsufficientDepth';
+         }>;
       }
    ) {
       super(message);
@@ -34,6 +44,10 @@ interface SupplyProvider {
    getCreatorSupply(creatorId: string): Promise<number>;
 }
 
+interface DepthProvider {
+   getMaxBuy?(creatorId: string): Promise<number>;
+}
+
 export async function executeMultiBuy(
    buyer: string,
    legs: MultiBuyLeg[],
@@ -42,6 +56,7 @@ export async function executeMultiBuy(
       ledger: LedgerProvider;
       balance: BalanceProvider;
       supply: SupplyProvider;
+      depth?: DepthProvider;
    }
 ): Promise<MultiBuyResult[]> {
    if (legs.length === 0) {
@@ -85,6 +100,42 @@ export async function executeMultiBuy(
          'insufficient_funds',
          `Buyer balance ${buyerBalance} is less than worst-case cost ${worstCaseTotal}`
       );
+   }
+
+   if (providers.depth?.getMaxBuy) {
+      const orderErrors: Array<{
+         keyId: string;
+         side: 'buy' | 'sell';
+         requestedAmount: number;
+         max_available: number;
+         code: 'InsufficientDepth';
+      }> = [];
+
+      for (const leg of legs) {
+         const maxAvailable = await providers.depth.getMaxBuy(leg.creator);
+         if (leg.amount > maxAvailable) {
+            orderErrors.push({
+               keyId: leg.creator,
+               side: 'buy',
+               requestedAmount: leg.amount,
+               max_available: maxAvailable,
+               code: 'InsufficientDepth',
+            });
+         }
+      }
+
+      if (orderErrors.length > 0) {
+         const first = orderErrors[0];
+         throw new MultiBuyError(
+            'InsufficientDepth',
+            `Insufficient liquidity depth for ${first.keyId}: requested ${first.requestedAmount}, max_available ${first.max_available}`,
+            {
+               creator: first.keyId,
+               max_available: first.max_available,
+               orderErrors,
+            }
+         );
+      }
    }
 
    const results: MultiBuyResult[] = [];
