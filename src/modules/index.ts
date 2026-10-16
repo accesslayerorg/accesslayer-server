@@ -44,6 +44,7 @@ import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import holdersRouter from './dividends/holders.routes';
+import nonceRouter from './nonce/nonce.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -113,5 +114,6 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
+router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 
 export default router;
