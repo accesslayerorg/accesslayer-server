@@ -16,6 +16,10 @@ import {
 import { getKeyFees } from '../keys/key-fees.service';
 import { prisma } from '../../utils/prisma.utils';
 import { getBuyUnitPrice } from '../../utils/pricing.utils';
+import {
+   getMaxAvailableDepth,
+   LiquidityDepthUnavailableError,
+} from '../trading/liquidity-depth.service';
 import { setBuyCooldownForWallet } from '../keys/key-cooldown.service';
 import {
    logSlippageRejection,
@@ -77,6 +81,27 @@ export async function httpBuyCreatorKey(
          return;
       }
       throw error;
+   }
+
+   let maxAvailable: bigint;
+   try {
+      maxAvailable = await getMaxAvailableDepth(walletAddress, keyId, 'buy');
+   } catch (error) {
+      if (error instanceof LiquidityDepthUnavailableError) {
+         sendError(res, 503, ErrorCode.INTERNAL_ERROR, error.message);
+         return;
+      }
+      throw error;
+   }
+   if (BigInt(body.quantity) > maxAvailable) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'InsufficientDepth',
+         [{ field: 'max_available', message: maxAvailable.toString() }]
+      );
+      return;
    }
 
    const required = body.key_cost_xlm * body.quantity + body.fee_xlm;

@@ -23,6 +23,10 @@ import {
    logSlippageRejection,
    sendSlippageExceeded,
 } from './slippage.service';
+import {
+   getMaxAvailableDepth,
+   LiquidityDepthUnavailableError,
+} from './liquidity-depth.service';
 
 async function getCurrentLedger(): Promise<number> {
    const res = await horizonGet('/');
@@ -118,11 +122,19 @@ export const httpMultiBuy: AsyncController = async (req, res, next) => {
             ledger: { getCurrentLedger },
             balance: { getXlmBalance },
             supply: { getCreatorSupply },
+            depth: {
+               getMaxBuy: (creatorId, wallet) =>
+                  getMaxAvailableDepth(wallet, creatorId, 'buy'),
+            },
          }
       );
 
       sendSuccess(res, results);
    } catch (err) {
+      if (err instanceof LiquidityDepthUnavailableError) {
+         sendError(res, 503, ErrorCode.INTERNAL_ERROR, err.message);
+         return;
+      }
       if (err instanceof TradingPausedError) {
          sendError(res, 503, ErrorCode.INTERNAL_ERROR, err.message);
          return;
