@@ -36,6 +36,7 @@ describe('getCreatorProfile', () => {
          updatedAt: null,
          perks: [],
          links: [],
+         social: null,
          tradingPaused: false,
          currentMilestone: 0,
          currentPrice: null,

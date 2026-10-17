@@ -90,6 +90,12 @@ Complete reference for all server configuration environment variables.
 | `PAYSTACK_SECRET_KEY` | string | Yes      | -       | Paystack secret key for payment processing |
 | `PAYSTACK_PUBLIC_KEY` | string | No       | -       | Paystack public key (optional)             |
 
+### Pinata (IPFS Gateway)
+
+| Variable             | Type         | Required | Default                             | Description                                                                 |
+| -------------------- | ------------ | -------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| `PINATA_GATEWAY_URL` | string (URL) | No       | `https://gateway.pinata.cloud/ipfs` | Base gateway used to resolve IPFS avatar CIDs into public URLs for creators |
+
 ---
 
 ## Stellar Network

@@ -37,10 +37,11 @@ Public creator discovery and stats endpoints.
 
 - Request lifecycle reference: [`docs/creator-request-lifecycle.md`](./creator-request-lifecycle.md).
 
-| Method | Path                  | Description                                  |
-| :----- | :-------------------- | :------------------------------------------- |
-| `GET`  | `/creators`           | List creators with pagination and filtering. |
-| `GET`  | `/creators/:id/stats` | Return public stats for a specific creator.  |
+| Method | Path                       | Description                                           |
+| :----- | :------------------------- | :---------------------------------------------------- |
+| `GET`  | `/creators`                | List creators with pagination and filtering.          |
+| `GET`  | `/creators/:id/stats`      | Return public stats for a specific creator.           |
+| `GET`  | `/creators/:wallet/social` | Return on-chain synced social metadata for a creator. |
 
 ## Search Module
 

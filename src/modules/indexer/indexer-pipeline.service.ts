@@ -19,6 +19,26 @@ import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboar
 import { recordFirstTradeReferralReward } from '../referrals/referrals.service';
 import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 import { invalidateActivityFeedCache } from '../activity/activity-feed.service';
+import {
+   processSocialMetadataEvents,
+   SOCIAL_METADATA_UPDATED_EVENT_TYPE,
+} from './social-metadata-indexer.service';
+
+function isTradeEvent(event: IndexerChainEvent): boolean {
+   return (
+      event.eventType === 'KEY_BOUGHT' || event.eventType === 'KEY_SOLD'
+   );
+}
+
+export interface TradeEventProcessingOptions {
+   /**
+    * Advance the shared ledger cursor after processing the batch.
+    * Defaults to true so direct callers keep the original behavior; the
+    * pipeline dispatcher (`processIndexerEvents`) sets it to false and
+    * advances the cursor once over the whole mixed batch instead.
+    */
+   advanceCursor?: boolean;
+}
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -34,8 +54,11 @@ import { invalidateActivityFeedCache } from '../activity/activity-feed.service';
  * - Writes a checkpoint record of the highest ledger processed.
  */
 export async function processTradeEvents(
-   events: IndexerChainEvent[]
+   events: IndexerChainEvent[],
+   options: TradeEventProcessingOptions = {}
 ): Promise<void> {
+   const { advanceCursor = true } = options;
+
    await processIndexerChainEvents(events, async event => {
       if (event.eventType === 'CREATOR_REGISTERED') {
          if (typeof event.actor === 'string' && event.actor.length > 0) {
@@ -221,6 +244,23 @@ export async function processTradeEvents(
       }
    });
 
+   if (!advanceCursor) {
+      return;
+   }
+
+   await advanceIndexerCursorForBatch(events);
+}
+
+/**
+ * Advances the shared ledger cursor to the highest ledger in the batch.
+ *
+ * The cursor is a single global checkpoint (`IndexedLedger`, id=1) that the
+ * worker uses to resume polling, so it must only move forward over events
+ * that have already been fully processed.
+ */
+export async function advanceIndexerCursorForBatch(
+   events: IndexerChainEvent[]
+): Promise<void> {
    const uniqueEvents = dedupeChainEvents(events);
 
    const processedLedgers = uniqueEvents
@@ -233,6 +273,32 @@ export async function processTradeEvents(
       const cursor = `${maxLedger}-000`;
       await updateIndexedLedger(maxLedger, cursor, batchHash);
    }
+}
+
+/**
+ * Processes a mixed batch of indexer events (trades + social metadata).
+ *
+ * Routes each event type to its handler and advances the ledger cursor
+ * exactly once, over the full batch, so batches containing only social
+ * metadata events still make cursor progress.
+ */
+export async function processIndexerEvents(
+   events: IndexerChainEvent[]
+): Promise<void> {
+   const tradeEvents = events.filter(isTradeEvent);
+   const socialEvents = events.filter(
+      event => event.eventType === SOCIAL_METADATA_UPDATED_EVENT_TYPE
+   );
+
+   if (socialEvents.length > 0) {
+      await processSocialMetadataEvents(socialEvents);
+   }
+
+   if (tradeEvents.length > 0) {
+      await processTradeEvents(tradeEvents, { advanceCursor: false });
+   }
+
+   await advanceIndexerCursorForBatch(events);
 }
 
 function computeBatchHash(

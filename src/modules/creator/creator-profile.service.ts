@@ -11,6 +11,10 @@ import { normalizeSocialLinkUrl } from './creator-social-link-url.utils';
 import { truncateString } from '../../utils/string-truncate.utils';
 import { computePriceChange } from '../../utils/price-change.utils';
 import { sanitizeDisplayName } from './creator-display-name-sanitize.utils';
+import {
+   buildCreatorSocialData,
+   getCreatorSocialSnapshot,
+} from '../creators/creator-social.service';
 import { invalidateKeyFeesCache } from '../keys/key-fees.service';
 import { isFactoryKey } from '../factory/factory.service';
 import { resolvePinataGatewayUrl } from '../keys/key-metadata-sync.service';
@@ -130,6 +134,7 @@ export async function getCreatorProfile(
          updatedAt: null,
          perks: [],
          links: [],
+         social: null,
          tradingPaused: false,
          currentMilestone: 0,
          currentPrice: null,
@@ -151,11 +156,13 @@ export async function getCreatorProfile(
    const ONE_DAY_MS = 86_400_000;
    let priceChange24h: number | null = null;
 
-   const computedChange = await computePriceChange(
-      profile.id,
-      ONE_DAY_MS,
-      prisma
-   );
+   const [socialSnapshot, computedChange] = await Promise.all([
+      getCreatorSocialSnapshot(profile.id),
+      computePriceChange(profile.id, ONE_DAY_MS, prisma),
+   ]);
+
+   const social = buildCreatorSocialData(socialSnapshot);
+
    if (computedChange !== null) {
       priceChange24h = computedChange;
    } else if (snapshot) {
@@ -189,6 +196,8 @@ export async function getCreatorProfile(
    if (website) links.push({ label: 'Website', url: website });
    if (discord) links.push({ label: 'Discord', url: discord });
 
+   const socialLinks = social?.links ?? [];
+
    const response: CreatorProfileReadResponse = {
       creatorId: profile.id,
       walletAddress,
@@ -205,7 +214,8 @@ export async function getCreatorProfile(
       createdAt: formatIsoTimestamp(profile.createdAt),
       updatedAt: formatIsoTimestamp(profile.updatedAt),
       perks: (profile.perks as any) || [],
-      links,
+      links: socialLinks.length > 0 ? socialLinks : links,
+      social,
       tradingPaused: (profile as any).tradingPaused ?? false,
       currentMilestone: (profile as any).currentMilestone ?? 0,
       relaunchCount: (profile as any).relaunchCount ?? 0,
