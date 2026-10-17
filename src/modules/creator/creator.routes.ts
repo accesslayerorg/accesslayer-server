@@ -17,6 +17,7 @@ import { getRedisClient } from '../../utils/redis.utils';
 import { deprecateGateway } from './creator-deprecate.service';
 import {
    getCreatorProfileHandler,
+   getCreatorSocialHandler,
    upsertCreatorProfileHandler,
 } from './creator-profile.handlers';
 import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
@@ -30,6 +31,25 @@ const creatorsRouter = Router();
 // GET /api/v1/creators/ reaches the same handler as GET /api/v1/creators.
 // Scoped to this router to avoid side-effects on other route groups.
 creatorsRouter.use(normalizeTrailingSlash);
+
+/**
+ * GET /api/v1/creators/:wallet/social
+ *
+ * Synced social metadata (display name, bio, resolved avatar URL, social links)
+ * for a creator key profile (#1037).
+ */
+creatorsRouter.get(
+   '/:wallet/social',
+   validateCreatorParam('wallet'),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
+   ),
+   getCreatorSocialHandler
+);
+
+creatorsRouter.all('/:wallet/social', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
 
 /**
  * GET /api/v1/creators/:wallet/profile
@@ -63,6 +83,7 @@ creatorsRouter.put(
 creatorsRouter.all('/:wallet/profile', (_req, res) => {
    res.set('Allow', 'GET, PUT').sendStatus(405);
 });
+
 
 /**
  * GET /api/v1/creators
