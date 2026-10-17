@@ -3,6 +3,7 @@ import { envConfig } from '../../config';
 import { logger } from '../../utils/logger.utils';
 import { CreateAlertInput } from './alert.schemas';
 import { truncateWallet } from '../../utils/wallet-display.utils';
+import { SendMail } from '../../utils/mail.utils';
 
 export type PriceMovement = {
    creatorId: string;
@@ -294,7 +295,19 @@ export async function evaluatePriceAlertsForMovement(
             continue;
          }
 
-         await deliverPriceAlertWebhook(alert, {
+         // Claim the alert atomically before delivery so overlapping indexer
+         // workers cannot notify the same wallet more than once.
+         const claimed = await prisma.priceAlert.updateMany({
+            where: { id: alert.id, isActive: true, triggeredAt: null },
+            data: {
+               isActive: false,
+               triggeredAt: new Date(),
+               triggeredPrice: String(movement.currentPrice),
+            },
+         });
+         if (claimed.count === 0) continue;
+
+         const payload = {
             event_type: 'price_alert',
             alert_id: alert.id,
             creator_id: alert.creatorId,
@@ -302,15 +315,39 @@ export async function evaluatePriceAlertsForMovement(
             target_price: targetPrice,
             current_price: currentPrice,
             direction: alert.direction,
-         });
+         };
 
-         await prisma.priceAlert.update({
-            where: { id: alert.id },
-            data: {
-               isActive: false,
-               triggeredAt: new Date(),
-            },
-         });
+         try {
+            await deliverPriceAlertWebhook(alert, payload);
+         } catch (error) {
+            // The trigger is already durable and visible in the in-app inbox;
+            // a webhook outage must not reactivate it or block other alerts.
+            logger.warn(
+               { alert_id: alert.id, error: getDeliveryErrorCode(error) },
+               'Price alert webhook delivery failed after trigger'
+            );
+         }
+
+         try {
+            const wallet = await prisma.stellarWallet.findUnique({
+               where: { address: alert.walletAddress },
+               select: { user: { select: { email: true, emailVerified: true } } },
+            });
+            if (wallet?.user.emailVerified) {
+               const safeKey = escapeHtml(alert.creatorId);
+               await SendMail({
+                  to: wallet.user.email,
+                  subject: `Price alert triggered for ${alert.creatorId}`,
+                  text: `The ${alert.direction} price alert for key ${alert.creatorId} triggered at ${currentPrice}. Your target was ${targetPrice}.`,
+                  html: `<p>Your ${escapeHtml(alert.direction)} price alert for key <strong>${safeKey}</strong> triggered.</p><p>Current price: <strong>${currentPrice}</strong><br>Alert target: <strong>${targetPrice}</strong></p>`,
+               });
+            }
+         } catch (error) {
+            logger.warn(
+               { alert_id: alert.id, error: (error as Error).message },
+               'Price alert email delivery failed'
+            );
+         }
       }
    } catch (err) {
       logger.error(
@@ -325,4 +362,17 @@ export async function evaluatePriceAlertsForMovement(
       );
       throw err;
    }
+}
+
+function escapeHtml(value: string): string {
+   return value.replace(/[&<>"']/g, character => {
+      const entities: Record<string, string> = {
+         '&': '&amp;',
+         '<': '&lt;',
+         '>': '&gt;',
+         '"': '&quot;',
+         "'": '&#39;',
+      };
+      return entities[character] ?? character;
+   });
 }

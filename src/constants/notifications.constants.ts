@@ -4,6 +4,7 @@ export const NOTIFICATION_TYPES = {
    TRADE_COMPLETED: 'trade_completed',
    LOCKUP_EXPIRING: 'lockup_expiring',
    PRICE_MOVED: 'price_moved',
+   PRICE_ALERT_TRIGGERED: 'price_alert_triggered',
    PAUSE_PROPOSAL_CREATED: 'pause_proposal_created',
    TRADING_PAUSED: 'trading_paused',
    KEY_DEPRECATED: 'key_deprecated',
