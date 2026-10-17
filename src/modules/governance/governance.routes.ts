@@ -4,12 +4,14 @@ import { getEscalatingProposals } from './governance-escalation.service';
 import {
    CastGovernanceVoteSchema,
    CreateGovernanceProposalSchema,
+   GovernanceVoteWeightQuerySchema,
    ListGovernanceProposalsQuerySchema,
 } from './governance-proposals.schemas';
 import {
    castGovernanceVote,
    createGovernanceProposal,
    DuplicateGovernanceVoteError,
+   getProposalVotingWeight,
    GovernanceKeyNotFoundError,
    GovernanceProposalNotFoundError,
    InvalidVoteOptionError,
@@ -59,6 +61,39 @@ router.get('/proposals/escalating', async (req, res, next) => {
       const result = await getEscalatingProposals(parsed.data.cursor);
       sendSuccess(res, result);
    } catch (error) {
+      next(error);
+   }
+});
+
+/**
+ * GET /governance/proposals/:id/weight?wallet=
+ *
+ * Returns the frozen snapshot voting weight for a wallet on the given
+ * proposal (#1036). Live balance changes after the snapshot do not affect the
+ * returned weight.
+ */
+router.get('/proposals/:id/weight', async (req, res, next) => {
+   const parsed = GovernanceVoteWeightQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid query parameters',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const result = await getProposalVotingWeight(
+         String(req.params.id),
+         parsed.data.wallet
+      );
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof GovernanceProposalNotFoundError) {
+         sendNotFound(res, 'Proposal');
+         return;
+      }
       next(error);
    }
 });
@@ -189,3 +224,4 @@ router.post(
 );
 
 export default router;
+

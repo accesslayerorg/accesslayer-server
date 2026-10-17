@@ -76,3 +76,18 @@ export const ListGovernanceProposalsQuerySchema = z
 export type ListGovernanceProposalsQuery = z.infer<
    typeof ListGovernanceProposalsQuerySchema
 >;
+
+/** GET /governance/proposals/:id/weight?wallet= (#1036) */
+export const GovernanceVoteWeightQuerySchema = z
+   .object({
+      wallet: z
+         .string({ required_error: 'wallet query parameter is required' })
+         .trim()
+         .min(1, 'wallet cannot be empty'),
+   })
+   .strict();
+
+export type GovernanceVoteWeightQuery = z.infer<
+   typeof GovernanceVoteWeightQuerySchema
+>;
+

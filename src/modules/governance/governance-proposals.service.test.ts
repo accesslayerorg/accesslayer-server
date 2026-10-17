@@ -11,6 +11,7 @@ jest.mock('../../utils/prisma.utils', () => ({
       governanceVotingSnapshot: {
          findUnique: jest.fn(),
          createMany: jest.fn(),
+         deleteMany: jest.fn(),
       },
       governanceVote: { findUnique: jest.fn(), create: jest.fn() },
       activity: { create: jest.fn() },
@@ -39,15 +40,20 @@ import {
    createGovernanceProposal,
    DuplicateGovernanceVoteError,
    evaluateProposalOutcome,
+   getProposalVotingWeight,
    GovernanceKeyNotFoundError,
    GovernanceProposalNotFoundError,
    InvalidVoteOptionError,
    listGovernanceProposals,
    NoSnapshotVotingPowerError,
    NotKeyCreatorError,
+   pruneProposalSnapshots,
+   recordProposalSnapshot,
+   validateVoteSubmissionWeight,
    VotingPeriodEndedError,
    WalletNotRegisteredError,
 } from './governance-proposals.service';
+
 
 const mockPrisma = prisma as any;
 
@@ -529,3 +535,140 @@ describe('listGovernanceProposals (#878)', () => {
       expect(result.next_cursor).toBeNull();
    });
 });
+
+describe('getProposalVotingWeight (#1036)', () => {
+   it('returns frozen snapshot voting weight for a wallet and is unaffected by live balance changes', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(
+         makeActiveProposal({ snapshotLedger: 4242, snapshotTotalWeight: '100' })
+      );
+      mockPrisma.governanceVotingSnapshot.findUnique.mockResolvedValue({
+         weight: '25',
+      });
+      mockPrisma.governanceVote.findUnique.mockResolvedValue(null);
+
+      // Even if live staking positions changed, getProposalVotingWeight only reads the snapshot
+      mockPrisma.stakingPosition.groupBy.mockResolvedValue([
+         { wallet: 'walletA', _sum: { amount: '999' } },
+      ]);
+
+      const result = await getProposalVotingWeight(PROPOSAL_ID, 'walletA');
+
+      expect(result).toEqual({
+         keyId: KEY_ID,
+         proposalId: PROPOSAL_ID,
+         wallet: 'walletA',
+         weight: '25',
+         snapshotLedger: 4242,
+         snapshotTotalWeight: '100',
+         eligible: true,
+         hasVoted: false,
+         proposalStatus: 'active',
+      });
+      expect(mockPrisma.stakingPosition.groupBy).not.toHaveBeenCalled();
+   });
+
+   it('returns weight 0 and eligible=false when wallet has no snapshot row', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(
+         makeActiveProposal()
+      );
+      mockPrisma.governanceVotingSnapshot.findUnique.mockResolvedValue(null);
+      mockPrisma.governanceVote.findUnique.mockResolvedValue(null);
+
+      const result = await getProposalVotingWeight(PROPOSAL_ID, 'walletNone');
+
+      expect(result.weight).toBe('0');
+      expect(result.eligible).toBe(false);
+      expect(result.hasVoted).toBe(false);
+   });
+
+   it('throws GovernanceProposalNotFoundError when proposal does not exist', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(null);
+
+      await expect(
+         getProposalVotingWeight('missing', 'walletA')
+      ).rejects.toBeInstanceOf(GovernanceProposalNotFoundError);
+   });
+});
+
+describe('validateVoteSubmissionWeight & pruneProposalSnapshots & recordProposalSnapshot (#1036)', () => {
+   it('pre-validates vote submission using snapshot weight', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(
+         makeActiveProposal()
+      );
+      mockPrisma.governanceVotingSnapshot.findUnique.mockResolvedValue({
+         weight: '15',
+      });
+      mockPrisma.governanceVote.findUnique.mockResolvedValue(null);
+
+      const precheck = await validateVoteSubmissionWeight(
+         PROPOSAL_ID,
+         'walletA',
+         1
+      );
+
+      expect(precheck.weight).toBe('15');
+      expect(precheck.proposalId).toBe(PROPOSAL_ID);
+   });
+
+   it('prunes snapshot data when proposals resolve in closeDueProposals', async () => {
+      mockPrisma.governanceProposal.findMany.mockResolvedValue([
+         makeActiveProposal({
+            id: 'p-1',
+            totalVotingWeight: '60',
+            results: { Yes: '60', No: '0' },
+         }),
+      ]);
+      mockPrisma.governanceProposal.update.mockResolvedValue({});
+      mockPrisma.governanceVotingSnapshot.deleteMany.mockResolvedValue({
+         count: 4,
+      });
+
+      const res = await closeDueProposals(new Date());
+
+      expect(res.prunedSnapshots).toBe(4);
+      expect(
+         mockPrisma.governanceVotingSnapshot.deleteMany
+      ).toHaveBeenCalledWith({
+         where: { keyId: KEY_ID, proposalId: PROPOSAL_ID },
+      });
+   });
+
+   it('records SnapshotTaken event balances and updates proposal snapshotTotalWeight', async () => {
+      mockPrisma.governanceProposal.findUnique.mockResolvedValue(
+         makeActiveProposal()
+      );
+      mockPrisma.governanceVotingSnapshot.deleteMany.mockResolvedValue({
+         count: 0,
+      });
+      mockPrisma.governanceVotingSnapshot.createMany.mockResolvedValue({
+         count: 2,
+      });
+      mockPrisma.governanceProposal.update.mockResolvedValue({});
+
+      const indexed = await recordProposalSnapshot({
+         keyId: KEY_ID,
+         proposalId: PROPOSAL_ID,
+         snapshotLedger: 5000,
+         balances: [
+            { wallet: 'walletA', balance: '30' },
+            { wallet: 'walletB', balance: '20' },
+            { wallet: 'walletZero', balance: '0' },
+         ],
+      });
+
+      expect(indexed).toEqual({
+         keyId: KEY_ID,
+         proposalId: PROPOSAL_ID,
+         walletsIndexed: 2,
+         snapshotTotalWeight: '50',
+      });
+      expect(mockPrisma.governanceProposal.update).toHaveBeenCalledWith({
+         where: { keyId_proposalId: { keyId: KEY_ID, proposalId: PROPOSAL_ID } },
+         data: {
+            snapshotTotalWeight: '50',
+            snapshotLedger: 5000,
+         },
+      });
+   });
+});
+
