@@ -278,4 +278,62 @@ describe('Governance proposal endpoints (#878)', () => {
          expect(res.status).toBe(400);
       });
    });
+
+   describe('GET /governance/proposals/:id/weight (#1036)', () => {
+      it('returns the snapshot voting weight for a wallet', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getProposalVotingWeight')
+            .mockResolvedValueOnce({
+               keyId: KEY_ID,
+               proposalId: PROPOSAL_ID,
+               wallet: WALLET,
+               weight: '25',
+               snapshotLedger: 4242,
+               snapshotTotalWeight: '100',
+               eligible: true,
+               hasVoted: false,
+               proposalStatus: 'active',
+            });
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}/weight?wallet=${WALLET}`
+         );
+
+         expect(res.status).toBe(200);
+         expect(res.body.success).toBe(true);
+         expect(res.body.data).toMatchObject({
+            proposalId: PROPOSAL_ID,
+            wallet: WALLET,
+            weight: '25',
+            snapshotLedger: 4242,
+            eligible: true,
+         });
+      });
+
+      it('returns 400 when wallet query parameter is missing', async () => {
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}/weight`
+         );
+
+         expect(res.status).toBe(400);
+         expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('returns 404 when proposal does not exist', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getProposalVotingWeight')
+            .mockRejectedValueOnce(
+               new governanceProposalsService.GovernanceProposalNotFoundError(
+                  'missing'
+               )
+            );
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/missing/weight?wallet=${WALLET}`
+         );
+
+         expect(res.status).toBe(404);
+      });
+   });
 });
+

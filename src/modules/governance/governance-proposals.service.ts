@@ -483,27 +483,105 @@ async function findProposal(proposalIdParam: string) {
    });
 }
 
+export interface GovernanceVotingWeightDto {
+   keyId: string;
+   proposalId: string;
+   wallet: string;
+   weight: string;
+   snapshotLedger: number;
+   snapshotTotalWeight: string;
+   eligible: boolean;
+   hasVoted: boolean;
+   proposalStatus: string;
+}
+
+export interface SnapshotTakenBalanceEntry {
+   wallet: string;
+   balance?: string | number;
+   weight?: string | number;
+}
+
+export interface SnapshotTakenEventInput {
+   keyId?: string;
+   proposalId: string;
+   snapshotLedger?: number;
+   balances: SnapshotTakenBalanceEntry[] | Record<string, string | number>;
+}
+
 /**
- * Cast a governance vote weighted by the wallet's snapshot staked balance.
+ * Look up the frozen snapshot voting weight for `wallet` on a proposal (#1036).
  *
- * @throws {GovernanceProposalNotFoundError} 404 — no such proposal
- * @throws {VotingPeriodEndedError} 409 — proposal closed or past its deadline
- * @throws {InvalidVoteOptionError} 422 — optionIndex out of range
- * @throws {NoSnapshotVotingPowerError} 403 — wallet had no weight at snapshot
- * @throws {DuplicateGovernanceVoteError} 409 — wallet already voted
+ * Reads strictly from `governance_voting_snapshots` so live balance changes
+ * after the snapshot never affect the returned weight.
  */
-export async function castGovernanceVote(
+export async function getProposalVotingWeight(
+   proposalIdParam: string,
+   wallet: string
+): Promise<GovernanceVotingWeightDto> {
+   const proposal = await findProposal(proposalIdParam);
+   if (!proposal) {
+      throw new GovernanceProposalNotFoundError(proposalIdParam);
+   }
+
+   const normalizedWallet = wallet.trim();
+   const { keyId, proposalId } = proposal;
+
+   const [snapshot, existingVote] = await Promise.all([
+      prisma.governanceVotingSnapshot.findUnique({
+         where: {
+            keyId_proposalId_wallet: {
+               keyId,
+               proposalId,
+               wallet: normalizedWallet,
+            },
+         },
+      }),
+      prisma.governanceVote.findUnique({
+         where: {
+            keyId_proposalId_voter: {
+               keyId,
+               proposalId,
+               voter: normalizedWallet,
+            },
+         },
+      }),
+   ]);
+
+   const weight = toIntegerString(snapshot?.weight);
+   const eligible = toBigInt(weight) > 0n;
+
+   return {
+      keyId,
+      proposalId,
+      wallet: normalizedWallet,
+      weight,
+      snapshotLedger: proposal.snapshotLedger,
+      snapshotTotalWeight: proposal.snapshotTotalWeight ?? '0',
+      eligible,
+      hasVoted: Boolean(existingVote),
+      proposalStatus: proposal.status,
+   };
+}
+
+/**
+ * Pre-validate a vote submission against the proposal's frozen snapshot (#1036).
+ *
+ * Ensures the proposal exists, is active and within its voting deadline, the
+ * option index is valid, the wallet has not already voted, and returns the
+ * frozen snapshot voting weight (> 0) for the wallet.
+ */
+export async function validateVoteSubmissionWeight(
    proposalIdParam: string,
    wallet: string,
-   optionIndex: number
-): Promise<CastGovernanceVoteResult> {
+   optionIndex?: number,
+   now: Date = new Date()
+) {
    const proposal = await findProposal(proposalIdParam);
    if (!proposal) {
       throw new GovernanceProposalNotFoundError(proposalIdParam);
    }
 
    const { keyId, proposalId } = proposal;
-   const now = new Date();
 
    if (proposal.status !== 'active' || now >= proposal.expiresAt) {
       throw new VotingPeriodEndedError(proposalId);
@@ -512,7 +590,10 @@ export async function castGovernanceVote(
    const options = Array.isArray(proposal.options)
       ? (proposal.options as string[])
       : [];
-   if (optionIndex < 0 || optionIndex >= options.length) {
+   if (
+      optionIndex !== undefined &&
+      (optionIndex < 0 || optionIndex >= options.length)
+   ) {
       throw new InvalidVoteOptionError(optionIndex, options.length);
    }
 
@@ -535,6 +616,152 @@ export async function castGovernanceVote(
    if (existing) {
       throw new DuplicateGovernanceVoteError();
    }
+
+   return {
+      proposal,
+      keyId,
+      proposalId,
+      options,
+      weight,
+   };
+}
+
+/**
+ * Prunes stored `GovernanceVotingSnapshot` rows for a resolved proposal (#1036).
+ */
+export async function pruneProposalSnapshots(
+   keyId: string,
+   proposalId: string
+): Promise<number> {
+   if (!prisma.governanceVotingSnapshot?.deleteMany) {
+      return 0;
+   }
+   const deleted = await prisma.governanceVotingSnapshot.deleteMany({
+      where: { keyId, proposalId },
+   });
+   return deleted?.count ?? 0;
+}
+
+/**
+ * Indexes a `SnapshotTaken` contract event (#1036), storing per-wallet snapshot
+ * balances for the proposal and updating the proposal's `snapshotTotalWeight`
+ * (and `snapshotLedger` when provided). Idempotent across replays.
+ */
+export async function recordProposalSnapshot(
+   input: SnapshotTakenEventInput
+): Promise<{
+   keyId: string;
+   proposalId: string;
+   walletsIndexed: number;
+   snapshotTotalWeight: string;
+}> {
+   const proposal = input.keyId
+      ? await prisma.governanceProposal.findUnique({
+           where: {
+              keyId_proposalId: {
+                 keyId: input.keyId,
+                 proposalId: input.proposalId,
+              },
+           },
+        })
+      : await findProposal(input.proposalId);
+
+   const resolvedKeyId = proposal?.keyId ?? input.keyId;
+   if (!resolvedKeyId) {
+      throw new GovernanceProposalNotFoundError(input.proposalId);
+   }
+   const resolvedProposalId = proposal?.proposalId ?? input.proposalId;
+
+   const rawEntries: Array<{ wallet: string; weight: string }> = Array.isArray(
+      input.balances
+   )
+      ? input.balances.map(entry => ({
+           wallet: String(entry.wallet ?? '').trim(),
+           weight: toIntegerString(entry.weight ?? entry.balance),
+        }))
+      : Object.entries(input.balances ?? {}).map(([wallet, bal]) => ({
+           wallet: wallet.trim(),
+           weight: toIntegerString(bal),
+        }));
+
+   // Deduplicate by wallet (last entry wins) and filter positive weights
+   const deduped = new Map<string, string>();
+   for (const entry of rawEntries) {
+      if (!entry.wallet) continue;
+      if (toBigInt(entry.weight) > 0n) {
+         deduped.set(entry.wallet, entry.weight);
+      } else {
+         deduped.delete(entry.wallet);
+      }
+   }
+
+   const validEntries = Array.from(deduped.entries()).map(
+      ([wallet, weight]) => ({ wallet, weight })
+   );
+   const snapshotTotalWeight = validEntries
+      .reduce((sum, entry) => sum + toBigInt(entry.weight), 0n)
+      .toString();
+
+   await prisma.$transaction(async tx => {
+      if (tx.governanceVotingSnapshot?.deleteMany) {
+         await tx.governanceVotingSnapshot.deleteMany({
+            where: { keyId: resolvedKeyId, proposalId: resolvedProposalId },
+         });
+      }
+
+      if (validEntries.length > 0) {
+         await tx.governanceVotingSnapshot.createMany({
+            data: validEntries.map(entry => ({
+               keyId: resolvedKeyId,
+               proposalId: resolvedProposalId,
+               wallet: entry.wallet,
+               weight: new Decimal(entry.weight),
+            })),
+         });
+      }
+
+      if (proposal) {
+         await tx.governanceProposal.update({
+            where: {
+               keyId_proposalId: {
+                  keyId: resolvedKeyId,
+                  proposalId: resolvedProposalId,
+               },
+            },
+            data: {
+               snapshotTotalWeight,
+               ...(typeof input.snapshotLedger === 'number'
+                  ? { snapshotLedger: input.snapshotLedger }
+                  : {}),
+            },
+         });
+      }
+   });
+
+   return {
+      keyId: resolvedKeyId,
+      proposalId: resolvedProposalId,
+      walletsIndexed: validEntries.length,
+      snapshotTotalWeight,
+   };
+}
+
+/**
+ * Cast a governance vote weighted by the wallet's snapshot staked balance.
+ *
+ * @throws {GovernanceProposalNotFoundError} 404 — no such proposal
+ * @throws {VotingPeriodEndedError} 409 — proposal closed or past its deadline
+ * @throws {InvalidVoteOptionError} 422 — optionIndex out of range
+ * @throws {NoSnapshotVotingPowerError} 403 — wallet had no weight at snapshot
+ * @throws {DuplicateGovernanceVoteError} 409 — wallet already voted
+ */
+export async function castGovernanceVote(
+   proposalIdParam: string,
+   wallet: string,
+   optionIndex: number
+): Promise<CastGovernanceVoteResult> {
+   const { keyId, proposalId, options, weight } =
+      await validateVoteSubmissionWeight(proposalIdParam, wallet, optionIndex);
 
    const option = options[optionIndex];
 
@@ -638,13 +865,14 @@ export async function castGovernanceVote(
 export interface CloseDueProposalsResult {
    scanned: number;
    closed: number;
+   prunedSnapshots?: number;
    outcomes: Record<ProposalOutcome, number>;
 }
 
 /**
  * Close every active proposal whose deadline has passed, computing the quorum
- * outcome and transitioning its status. Idempotent — already-closed proposals
- * are never revisited.
+ * outcome, transitioning its status, and pruning its snapshot rows (#878, #1036).
+ * Idempotent — already-closed proposals are never revisited.
  */
 export async function closeDueProposals(
    now: Date = new Date()
@@ -658,6 +886,7 @@ export async function closeDueProposals(
       failed: 0,
       quorum_not_met: 0,
    };
+   let prunedSnapshots = 0;
 
    for (const proposal of due) {
       const outcome = evaluateProposalOutcome({
@@ -674,10 +903,19 @@ export async function closeDueProposals(
          where: { id: proposal.id },
          data: { status: outcome, closedAt: now },
       });
+      prunedSnapshots += await pruneProposalSnapshots(
+         proposal.keyId,
+         proposal.proposalId
+      );
       outcomes[outcome] += 1;
    }
 
-   return { scanned: due.length, closed: due.length, outcomes };
+   return {
+      scanned: due.length,
+      closed: due.length,
+      prunedSnapshots,
+      outcomes,
+   };
 }
 
 // ── List ──────────────────────────────────────────────────────
@@ -729,3 +967,4 @@ export async function listGovernanceProposals(
 }
 
 export { proposalToDto };
+
