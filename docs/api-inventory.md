@@ -147,6 +147,14 @@ the status transitions `active` → `passed` / `failed` / `quorum_not_met`.
 | `POST` | `/governance/proposals/:id/vote`   | Cast a vote weighted by the wallet's snapshot staked balance (requires JWT).                 |
 | `GET`  | `/governance/proposals/escalating` | List proposals currently in quorum escalation (#935).                                        |
 
+## Traders Module
+
+Volume fee discount tiers and trader 30-day rolling volume lookups (#1030).
+
+| Method | Path                        | Description                                                                                              |
+| :----- | :-------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/traders/:wallet/discount` | Return current volume discount tier, discount bps, and 30-day rolling volume for any wallet (cached 5m). |
+
 ---
 
 ## Root and Miscellaneous

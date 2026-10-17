@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; 
 import router from './modules/index';
 import stakingRouter from './modules/staking/staking.routes';
 import statusRouter from './modules/status/status.routes';
+import tradersRouter from './modules/traders/traders.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -99,6 +100,7 @@ app.get('/', (_, res: Response) => {
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
+app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

@@ -898,7 +898,8 @@ router.get('/:keyId/twap', async (req, res, next) => {
  */
 router.get('/:keyId/fees', async (req, res, next) => {
    try {
-      sendSuccess(res, await getKeyFees(req.params.keyId));
+      const wallet = typeof req.query.wallet === 'string' ? req.query.wallet : undefined;
+      sendSuccess(res, await getKeyFees(req.params.keyId, wallet));
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');

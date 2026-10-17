@@ -81,8 +81,32 @@ export async function computeWallet30dVolume(wallet: string): Promise<bigint> {
       let totalVolume = 0n;
       for (const trade of trades) {
          const payload = trade.payload as Record<string, any>;
-         if (payload && typeof payload.price !== 'undefined') {
-            totalVolume += BigInt(payload.price);
+         if (payload) {
+            const priceVal = payload.price ?? payload.price_at_trade;
+            if (typeof priceVal !== 'undefined') {
+               totalVolume += BigInt(priceVal);
+            }
+         }
+      }
+
+      // Check Trade table if Activity had no trades or if Trade records exist
+      if (prisma.trade && totalVolume === 0n) {
+         const dbTrades = await prisma.trade.findMany({
+            where: {
+               buyer: wallet,
+               timestamp: {
+                  gte: thirtyDaysAgo,
+                  lte: now,
+               },
+            },
+            select: {
+               price: true,
+            },
+         });
+         for (const t of dbTrades) {
+            if (typeof t.price !== 'undefined') {
+               totalVolume += BigInt(t.price);
+            }
          }
       }
 

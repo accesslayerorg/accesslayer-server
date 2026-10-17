@@ -19,6 +19,11 @@ import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboar
 import { recordFirstTradeReferralReward } from '../referrals/referrals.service';
 import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 import { invalidateActivityFeedCache } from '../activity/activity-feed.service';
+import {
+   processVolumeDiscountTierEvents,
+   VOLUME_DISCOUNT_EVENT_TYPES,
+} from './volume-discount-tier-indexer.service';
+import { invalidateTraderDiscountCache } from '../traders/trader-discount.service';
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -41,6 +46,11 @@ export async function processTradeEvents(
          if (typeof event.actor === 'string' && event.actor.length > 0) {
             await invalidateCreatorPortfolioStatsCache(event.actor);
          }
+         return;
+      }
+
+      if (VOLUME_DISCOUNT_EVENT_TYPES.has(event.eventType)) {
+         await processVolumeDiscountTierEvents([event]);
          return;
       }
 
@@ -139,6 +149,9 @@ export async function processTradeEvents(
       // Invalidate the platform activity feed's cached first page (#936) so
       // this new KEY_BOUGHT ("investment") activity shows up promptly.
       await invalidateActivityFeedCache();
+
+      // Invalidate trader's 30d volume discount cache so subsequent lookups reflect the new trade (#1030).
+      await invalidateTraderDiscountCache(actor);
 
       // 2. Ownership read model (#897):
       // - buys go through recordKeyPurchase so the weighted-average cost
