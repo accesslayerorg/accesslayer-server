@@ -16,7 +16,74 @@ import {
    getCreatorProfile,
    upsertCreatorProfile,
 } from './creator-profile.service';
+import {
+   CreatorSocialProfileNotFoundError,
+   getCreatorSocialMetadata,
+} from './creator-social-metadata-sync.service';
 import { logCreatorRouteColdStart } from './creator-observability.utils';
+
+/**
+ * @route GET /api/v1/creators/:wallet/social
+ * @desc Creator social metadata endpoint (#1037): display name, bio, avatar URL, social links
+ * @access Public
+ */
+export async function getCreatorSocialHandler(req: Request, res: Response) {
+   try {
+      logCreatorRouteColdStart('getCreatorSocialHandler', req.requestId);
+
+      const paramsResult = CreatorProfileParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+         return sendValidationError(
+            res,
+            'Invalid creator social path parameters',
+            zodIssuesToDetails(paramsResult.error.issues)
+         );
+      }
+
+      const rawIdentifier =
+         paramsResult.data.wallet ||
+         paramsResult.data.creatorId ||
+         req.params.wallet ||
+         req.params.creatorId ||
+         req.params.id;
+      const identifier = Array.isArray(rawIdentifier)
+         ? rawIdentifier[0]
+         : String(rawIdentifier);
+
+      const social = await getCreatorSocialMetadata(identifier);
+      attachTimestampHeader(res);
+      return sendSuccess(
+         res,
+         social,
+         200,
+         'Creator social metadata retrieved'
+      );
+   } catch (error) {
+      if (error instanceof CreatorSocialProfileNotFoundError) {
+         return sendError(
+            res,
+            404,
+            ErrorCode.NOT_FOUND,
+            'Creator social profile not found'
+         );
+      }
+      logger.error(
+         {
+            type: 'creator_social_handler_error',
+            handler: 'getCreatorSocialHandler',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            error,
+         },
+         'Error retrieving creator social metadata'
+      );
+      return sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve creator social metadata'
+      );
+   }
+}
 
 /**
  * @route GET /api/v1/creators/:creatorId/profile
@@ -128,3 +195,4 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
       );
    }
 }
+
