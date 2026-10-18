@@ -31,6 +31,7 @@ import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middlew
 import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
+import relayRouter from './modules/relay/relay.routes';
 
 const app: Express = express();
 
@@ -118,6 +119,7 @@ app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 app.use('/keys', routeBodySizeLimit('default'), keysRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
+app.use('/relay', routeBodySizeLimit('default'), relayRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since
