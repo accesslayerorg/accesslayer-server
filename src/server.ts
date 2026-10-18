@@ -40,6 +40,9 @@ import { connectRedis, disconnectRedis } from './utils/redis.utils';
 import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
+import { attachSwapWebSocketGateway } from './modules/realtime/swap-websocket.gateway';
+
+let stopSwapWebSocketGateway: (() => void) | undefined;
 
 async function startServer() {
    try {
@@ -98,6 +101,7 @@ async function startServer() {
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
       });
+      stopSwapWebSocketGateway = attachSwapWebSocketGateway(server);
 
       return server;
    } catch (error) {
@@ -122,6 +126,8 @@ process.on('unhandledRejection', (reason, promise) => {
 function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
    return async () => {
       logger.info('Shutting down SSE connections');
+      stopSwapWebSocketGateway?.();
+      stopSwapWebSocketGateway = undefined;
       broadcastServerClosing();
       await new Promise(resolve => setTimeout(resolve, 1000));
       closeAllConnections();

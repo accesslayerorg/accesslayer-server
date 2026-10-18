@@ -24,6 +24,7 @@ import {
    VOLUME_DISCOUNT_EVENT_TYPES,
 } from './volume-discount-tier-indexer.service';
 import { invalidateTraderDiscountCache } from '../traders/trader-discount.service';
+import { broadcastSwapEvent } from '../realtime/swap-websocket.gateway';
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -203,6 +204,14 @@ export async function processTradeEvents(
          ledger: Number(ledger),
          supply: BigInt(supplyAfterTrade),
          direction: event.eventType === 'KEY_BOUGHT' ? 'BUY' : 'SELL',
+      });
+
+      broadcastSwapEvent({
+         key_id: creatorId,
+         price: String(price),
+         amount: String(amount),
+         direction: event.eventType === 'KEY_BOUGHT' ? 'buy' : 'sell',
+         timestamp: new Date(tradeAt as string).toISOString(),
       });
 
       // 5. Emit a structured log for confirmed sells, mirroring buy-side logging.
