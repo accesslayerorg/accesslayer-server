@@ -26,6 +26,8 @@ export const REDIS_KEYS = {
   notificationsReadAt: (wallet: string) => `notifications:read_at:${wallet}`,
   keyFees: (keyId: string) => `key:fees:${keyId}`,
   keyAuction: (keyId: string) => `key:auction:${keyId}`,
+  keyLaunchAuction: (keyId: string) => `key:launch_auction:${keyId}`,
+  keyLaunchAuctionBids: (keyId: string, page = 1, limit = 20) => `key:launch_auction:bids:${keyId}:${page}:${limit}`,
   keyMetadata: (keyId: string) => `key:metadata:${keyId}`,
   keyStaking: (keyId: string) => `key:staking:${keyId}`,
   holderStaking: (keyId: string, holder: string) => `key:staking:holder:${keyId}:${holder}`,
@@ -40,6 +42,8 @@ export const CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT = 50;
 
 export const KEY_FEES_CACHE_TTL_SECONDS = 60;
 export const KEY_AUCTION_CACHE_TTL_SECONDS = 30;
+export const KEY_LAUNCH_AUCTION_ACTIVE_CACHE_TTL_SECONDS = 10;
+export const KEY_LAUNCH_AUCTION_SETTLED_CACHE_TTL_SECONDS = 300;
 export const KEY_METADATA_CACHE_TTL_SECONDS = 300;
 export const KEY_STAKING_CACHE_TTL_SECONDS = 60;
 export const HOLDER_STAKING_CACHE_TTL_SECONDS = 30;

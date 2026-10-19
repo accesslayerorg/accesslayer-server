@@ -2454,4 +2454,48 @@ router.get('/:keyId/lockup/:wallet', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * GET /api/v1/keys/:key_id/auction
+ * Returns status, highest_bid, reserve, countdown, clearing_price (#1117).
+ */
+router.get('/:keyId/auction', async (req, res, next) => {
+   const keyId = String(req.params.keyId || (req.params as any).key_id);
+   try {
+      const { getKeyLaunchAuctionStatus } = await import('./key-launch-auction.service');
+      const result = await getKeyLaunchAuctionStatus(keyId);
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId }, 'Get key launch auction status failed');
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:key_id/auction/bids
+ * Returns paginated bid list in descending order (#1117).
+ */
+router.get('/:keyId/auction/bids', async (req, res, next) => {
+   const keyId = String(req.params.keyId || (req.params as any).key_id);
+   const page = req.query.page ? parseInt(String(req.query.page), 10) : 1;
+   const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 20;
+
+   try {
+      const { getKeyLaunchAuctionBids } = await import('./key-launch-auction.service');
+      const result = await getKeyLaunchAuctionBids(keyId, { page, limit });
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId }, 'Get key launch auction bids failed');
+      next(error);
+   }
+});
+
 export default router;

@@ -407,6 +407,15 @@ export async function processIndexerEvents(
       await processLpEvents(lpEvents);
    }
 
+   const { isKeyLaunchAuctionEventType, processKeyLaunchAuctionEvents } =
+      await import('./key-launch-auction-indexer.service');
+   const launchAuctionEvents = events.filter(event =>
+      isKeyLaunchAuctionEventType(event.eventType)
+   );
+   if (launchAuctionEvents.length > 0) {
+      await processKeyLaunchAuctionEvents(launchAuctionEvents);
+   }
+
    await advanceIndexerCursorForBatch(events);
 }
 
