@@ -1,0 +1,40 @@
+model KeyAuction {
+  id            String          @id @default(cuid())
+  keyId         String          @unique
+  auctionId     String?         @unique
+  status        String          @default("ACTIVE") // ACTIVE | SETTLED | CANCELLED
+  reservePrice  Decimal         @db.Decimal(20, 7)
+  highestBid    Decimal?        @db.Decimal(20, 7)
+  highestBidder String?
+  clearingPrice Decimal?        @db.Decimal(20, 7)
+  startTime     DateTime        @default(now())
+  endTime       DateTime
+  settledAt     DateTime?
+  winner        String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  bids          KeyAuctionBid[]
+
+  @@index([keyId, status])
+  @@index([status, endTime])
+  @@map("key_auctions")
+}
+
+model KeyAuctionBid {
+  id          String     @id @default(cuid())
+  auctionId   String
+  keyId       String
+  bidder      String
+  amount      Decimal    @db.Decimal(20, 7)
+  txHash      String?
+  blockNumber BigInt?
+  timestamp   DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+
+  auction     KeyAuction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([auctionId, amount(sort: Desc)])
+  @@index([keyId, timestamp(sort: Desc)])
+  @@map("key_auction_bids")
+}
