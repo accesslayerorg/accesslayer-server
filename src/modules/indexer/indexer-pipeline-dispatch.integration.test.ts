@@ -27,6 +27,9 @@ jest.mock('./lp-indexer.service', () => {
 jest.mock('./governance-proposal-indexer.service', () => ({
    processGovernanceProposalEvents: jest.fn(),
 }));
+jest.mock('./key-retirement-indexer.service', () => ({
+   processKeyRetirementEvents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('../ownership/ownership.service', () => ({
    updateOwnership: jest.fn(),
@@ -256,5 +259,35 @@ describe('processIndexerEvents', () => {
 
       expect(processLpEvents).toHaveBeenCalledTimes(1);
       expect(processLpEvents).toHaveBeenCalledWith([lpAdded]);
+   });
+
+   it('routes key retirement and deprecation events to processKeyRetirementEvents', async () => {
+      const { processKeyRetirementEvents } = await import(
+         './key-retirement-indexer.service'
+      );
+      const retEvent = {
+         txHash: 'tx-ret-1',
+         eventIndex: 0,
+         eventType: 'RetirementProposed',
+         ledger: 960,
+         keyId: 'key-ret-1',
+         buybackPrice: '10.0',
+      };
+      const nonRet = {
+         txHash: 'tx-other-2',
+         eventIndex: 0,
+         eventType: 'OTHER_EVENT',
+         ledger: 960,
+      };
+
+      await processIndexerEvents([retEvent, nonRet]);
+
+      expect(processKeyRetirementEvents).toHaveBeenCalledTimes(1);
+      expect(processKeyRetirementEvents).toHaveBeenCalledWith([retEvent]);
+      expect(mockPrisma.indexedLedger.upsert).toHaveBeenCalledWith(
+         expect.objectContaining({
+            update: expect.objectContaining({ ledger: 960 }),
+         })
+      );
    });
 });

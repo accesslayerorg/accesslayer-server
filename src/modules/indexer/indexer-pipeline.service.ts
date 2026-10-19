@@ -41,6 +41,17 @@ function isGovernanceProposalEvent(event: IndexerChainEvent): boolean {
    );
 }
 
+function isRetirementEvent(event: IndexerChainEvent): boolean {
+   return (
+      event.eventType === 'RetirementProposed' ||
+      event.eventType === 'RETIREMENT_PROPOSED' ||
+      event.eventType === 'RetirementExecuted' ||
+      event.eventType === 'RETIREMENT_EXECUTED' ||
+      event.eventType === 'DeprecationExecuted' ||
+      event.eventType === 'DEPRECATION_EXECUTED'
+   );
+}
+
 export interface TradeEventProcessingOptions {
    /**
     * Advance the shared ledger cursor after processing the batch.
@@ -390,6 +401,15 @@ export async function processIndexerEvents(
    const lpEvents = events.filter(event => isLpEventType(event.eventType));
    if (lpEvents.length > 0) {
       await processLpEvents(lpEvents);
+   }
+
+   // Key retirement and deprecation events (#1116)
+   const retirementEvents = events.filter(isRetirementEvent);
+   if (retirementEvents.length > 0) {
+      const { processKeyRetirementEvents } = await import(
+         './key-retirement-indexer.service'
+      );
+      await processKeyRetirementEvents(retirementEvents);
    }
 
    await advanceIndexerCursorForBatch(events);
