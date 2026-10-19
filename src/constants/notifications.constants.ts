@@ -33,6 +33,8 @@ export const REDIS_KEYS = {
   priceMovedDelivered: (keyId: string) => `price_moved:delivered:${keyId}`,
   keySunsetEvent: (eventId: string) => `key_sunset:dispatch:${eventId}`,
   keyDeprecationEvent: (eventId: string) => `key_deprecation:dispatch:${eventId}`,
+  holderMilestonesKey: (keyId: string, wallet: string) => `holder_milestones:${keyId}:${wallet}`,
+  holderMilestonesWallet: (wallet: string) => `holder_milestones:wallet:${wallet}`,
 } as const;
 
 /** Trips surfaced as circuit_breaker_tripped notifications, newest first (#987). */
@@ -40,6 +42,7 @@ export const CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT = 50;
 
 export const KEY_FEES_CACHE_TTL_SECONDS = 60;
 export const KEY_AUCTION_CACHE_TTL_SECONDS = 30;
+export const HOLDER_MILESTONES_CACHE_TTL_SECONDS = 60;
 export const KEY_METADATA_CACHE_TTL_SECONDS = 300;
 export const KEY_STAKING_CACHE_TTL_SECONDS = 60;
 export const HOLDER_STAKING_CACHE_TTL_SECONDS = 30;

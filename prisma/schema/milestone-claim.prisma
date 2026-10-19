@@ -1,0 +1,16 @@
+model MilestoneClaim {
+  id          String   @id @default(cuid())
+  keyId       String
+  wallet      String
+  milestoneId String
+  tier        Int?
+  claimedAt   DateTime @default(now())
+  txHash      String?
+  blockNumber BigInt?
+  createdAt   DateTime @default(now())
+
+  @@unique([keyId, wallet, milestoneId])
+  @@index([wallet])
+  @@index([keyId, wallet])
+  @@map("milestone_claims")
+}
