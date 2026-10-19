@@ -12,6 +12,7 @@
 import { Redis } from 'ioredis';
 import { envConfig } from '../config';
 import { logger } from './logger.utils';
+import { redisCircuitBreaker } from './circuit-breaker.utils';
 
 const globalForRedis = globalThis as unknown as {
    __accesslayerRedis?: Redis | null;
@@ -30,7 +31,12 @@ function createRedisClient(): Redis | null {
          retryStrategy: (attempt: number) => Math.min(attempt * 500, 5000),
       });
 
+      client.on('ready', () => {
+         redisCircuitBreaker.recordSuccess();
+      });
+
       client.on('error', (error: Error) => {
+         redisCircuitBreaker.recordFailure(error);
          logger.error(
             { type: 'redis_error', error: error.message },
             'Redis client error'
@@ -63,11 +69,15 @@ export function getRedisClient(): Redis | null {
  * unavailable so callers treat outages as cache misses.
  */
 export async function cacheGet(key: string): Promise<string | null> {
+   if (redisCircuitBreaker.isOpen()) return null;
    const client = getRedisClient();
    if (!client) return null;
    try {
-      return await client.get(key);
+      const val = await client.get(key);
+      redisCircuitBreaker.recordSuccess();
+      return val;
    } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
       logger.warn(
          {
             type: 'redis_get_failed',
@@ -115,11 +125,14 @@ export async function cacheSetJson(
    value: unknown,
    ttlSeconds: number
 ): Promise<void> {
+   if (redisCircuitBreaker.isOpen()) return;
    const client = getRedisClient();
    if (!client) return;
    try {
       await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+      redisCircuitBreaker.recordSuccess();
    } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
       logger.warn(
          {
             type: 'redis_set_failed',
