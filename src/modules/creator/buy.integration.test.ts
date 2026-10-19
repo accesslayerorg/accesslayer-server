@@ -7,6 +7,15 @@ import { httpBuyCreatorKey, buySchema } from './buy.controller';
 import { buyGateway } from './buy.service';
 import { validateBody } from '../../middlewares/validate-body.middleware';
 
+jest.mock('../trading/liquidity-depth.service', () => ({
+   getMaxAvailableDepth: jest.fn().mockResolvedValue(1000n),
+   LiquidityDepthUnavailableError: class LiquidityDepthUnavailableError extends Error {},
+}));
+jest.mock('../keys/key-trading.service', () => ({
+   assertTradingActive: jest.fn().mockResolvedValue(undefined),
+   TradingPausedError: class TradingPausedError extends Error {},
+}));
+
 const app = express();
 app.use(express.json());
 app.post(

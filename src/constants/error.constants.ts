@@ -25,6 +25,8 @@ export const ErrorCode = {
    MEMO_EMPTY: 'memo_empty',
    MEMO_INVALID_ENCODING: 'memo_invalid_encoding',
    TWAP_INVALID: 'TWAPInvalid',
+   MISSING_IDEMPOTENCY_KEY: 'missing_idempotency_key',
+   REQUEST_IN_PROGRESS: 'request_in_progress',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

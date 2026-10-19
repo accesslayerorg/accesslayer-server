@@ -154,10 +154,39 @@ export async function cacheSetRaw(
 }
 
 /**
+ * Write a raw string value only if the key does not already exist (NX), with a TTL in seconds.
+ * Returns true if the key was set, or false if the key already exists or Redis is unavailable.
+ */
+export async function cacheSetNx(
+   key: string,
+   value: string,
+   ttlSeconds: number
+): Promise<boolean> {
+   const client = getRedisClient();
+   if (!client) return false;
+   try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+   } catch (error) {
+      logger.warn(
+         {
+            type: 'redis_set_nx_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET NX failed'
+      );
+      return false;
+   }
+}
+
+/**
  * Delete one or more keys. Accepts glob patterns which are expanded via SCAN
  * so invalidation never blocks Redis with KEYS.
  */
-export async function cacheInvalidate(...keysOrPatterns: string[]): Promise<void> {
+export async function cacheInvalidate(
+   ...keysOrPatterns: string[]
+): Promise<void> {
    const client = getRedisClient();
    if (!client || keysOrPatterns.length === 0) return;
 
