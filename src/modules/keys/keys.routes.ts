@@ -120,6 +120,10 @@ import {
    matchTierForLockPeriod,
    calculateEffectiveWeight,
 } from '../staking/staking.service';
+import {
+   checkContentAccess,
+   KeyNotFoundError as ContentAccessKeyNotFoundError,
+} from './content-gate.service';
 import { getKeyCurveMilestones } from './key-milestones.service';
 import { getSunsetWatchList } from './key-sunset-watch.service';
 import {
@@ -1408,6 +1412,32 @@ router.get('/:keyId/price', async (req, res, next) => {
       logger.error(
          { error, keyId: req.params.keyId },
          'GET /keys/:keyId/price failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/content-access/:wallet
+ * Check content access permission for a wallet based on key gating rules.
+ * Cached with 30s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/content-access/:wallet', async (req, res, next) => {
+   try {
+      const access = await checkContentAccess(
+         req.params.keyId,
+         req.params.wallet
+      );
+      sendSuccess(res, access);
+   } catch (error) {
+      if (error instanceof ContentAccessKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId, wallet: req.params.wallet },
+         'Content access check failed'
       );
       next(error);
    }

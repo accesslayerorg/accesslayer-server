@@ -1,0 +1,15 @@
+// prisma/schema/content-gate.prisma
+// Content gating rules for key-based content access control.
+
+model KeyContentGate {
+  id          String   @id @default(cuid())
+  keyId       String   @unique @map("key_id")
+  gateType    String   @default("none") @map("gate_type") // none | hold_balance | subscription | nft_pass
+  requirement String   @default("{}")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([keyId])
+  @@map("key_content_gates")
+}
