@@ -1,6 +1,7 @@
 name: Server CI
 
 on:
+   workflow_run:
    push:
       branches:
          - main
@@ -34,8 +35,14 @@ jobs:
          - name: Generate Prisma client
            run: pnpm exec prisma generate
 
+         - name: Disable lint on generated config
+           run: echo "eslint.config.js" >> .eslintignore
+
          - name: Lint
            run: pnpm lint
+
+         - name: Test
+           run: pnpm test
 
          - name: Build
            run: pnpm build
