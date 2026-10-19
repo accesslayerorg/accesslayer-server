@@ -2454,4 +2454,27 @@ router.get('/:keyId/lockup/:wallet', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * GET /api/v1/keys/:key_id/snapshots?range=7d|30d|90d|all
+ * Returns historical daily metric snapshots per key (#1112).
+ */
+router.get('/:keyId/snapshots', async (req, res, next) => {
+   const keyId = String(req.params.keyId || (req.params as any).key_id);
+   const range = String(req.query.range || 'all');
+
+   try {
+      const { getKeySnapshots } = await import('./key-snapshots.service');
+      const result = await getKeySnapshots(keyId, range);
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId, range }, 'Get key snapshots failed');
+      next(error);
+   }
+});
+
 export default router;

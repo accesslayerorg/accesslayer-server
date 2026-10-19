@@ -1,0 +1,15 @@
+model KeySnapshot {
+  id          String   @id @default(cuid())
+  keyId       String
+  date        DateTime @default(now())
+  price       Decimal  @db.Decimal(20, 7)
+  volume      Decimal  @db.Decimal(20, 7)
+  holderCount Int
+  marketCap   Decimal  @db.Decimal(20, 7)
+  txHash      String?
+  blockNumber BigInt?
+  createdAt   DateTime @default(now())
+
+  @@index([keyId, date(sort: Desc)])
+  @@map("key_snapshots")
+}
