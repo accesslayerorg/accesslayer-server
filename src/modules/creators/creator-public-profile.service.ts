@@ -3,6 +3,7 @@
 
 import { prisma } from '../../utils/prisma.utils';
 import { encodeCursor, decodeCursor } from '../../utils/cursor.utils';
+import { resolvePinataGatewayUrl } from '../keys/key-metadata-sync.service';
 
 const DEFAULT_KEYS_PAGE_SIZE = 20;
 const MAX_KEYS_PAGE_SIZE = 100;
@@ -24,6 +25,15 @@ export interface CreatorPublicProfileWithStats {
    displayName: string;
    bio: string | null;
    avatarUrl: string | null;
+   avatarCid?: string | null;
+   twitter?: string | null;
+   website?: string | null;
+   discord?: string | null;
+   socialLinks?: {
+      twitter: string | null;
+      website: string | null;
+      discord: string | null;
+   };
    isVerified: boolean;
    createdAt: string;
    updatedAt: string;
@@ -68,15 +78,39 @@ export interface CreatorIssuedKeysPage {
  */
 async function resolveCreatorProfile(
    creatorId: string
-): Promise<{ id: string; handle: string; displayName: string; bio: string | null; avatarUrl: string | null; isVerified: boolean; followersCount: number; createdAt: Date; updatedAt: Date } | null> {
+): Promise<{
+   id: string;
+   handle: string;
+   displayName: string;
+   bio: string | null;
+   avatarUrl: string | null;
+   avatarCid: string | null;
+   twitter: string | null;
+   website: string | null;
+   discord: string | null;
+   isVerified: boolean;
+   followersCount: number;
+   createdAt: Date;
+   updatedAt: Date;
+} | null> {
    return prisma.creatorProfile.findFirst({
-      where: { OR: [{ id: creatorId }, { handle: creatorId }] },
+      where: {
+         OR: [
+            { id: creatorId },
+            { handle: creatorId },
+            { user: { stellarWallet: { address: creatorId } } },
+         ],
+      },
       select: {
          id: true,
          handle: true,
          displayName: true,
          bio: true,
          avatarUrl: true,
+         avatarCid: true,
+         twitter: true,
+         website: true,
+         discord: true,
          isVerified: true,
          followersCount: true,
          createdAt: true,
@@ -119,7 +153,7 @@ async function computeCreatorKeyStats(
 /**
  * Returns the public profile for a creator including social stats.
  *
- * Resolves by creator ID or handle. Returns null when the creator does not
+ * Resolves by creator ID, handle, or wallet. Returns null when the creator does not
  * exist so callers can send a 404.
  */
 export async function getCreatorPublicProfile(
@@ -131,12 +165,24 @@ export async function getCreatorPublicProfile(
    const { holderCount, totalTradingVolume } =
       await computeCreatorKeyStats(profile.id);
 
+   const resolvedAvatarUrl =
+      resolvePinataGatewayUrl(profile.avatarCid) || profile.avatarUrl;
+
    return {
       id: profile.id,
       handle: profile.handle,
       displayName: profile.displayName,
       bio: profile.bio,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: resolvedAvatarUrl,
+      avatarCid: profile.avatarCid,
+      twitter: profile.twitter,
+      website: profile.website,
+      discord: profile.discord,
+      socialLinks: {
+         twitter: profile.twitter,
+         website: profile.website,
+         discord: profile.discord,
+      },
       isVerified: profile.isVerified,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),

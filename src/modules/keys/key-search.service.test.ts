@@ -34,6 +34,7 @@ describe('key-search.service', () => {
             avatarUrl: null,
             currentPrice: 1000n,
             holderCount: 3n,
+            deprecatedAt: null,
             rank: 0.9,
          },
       ]);
@@ -46,7 +47,25 @@ describe('key-search.service', () => {
             avatarUrl: null,
             currentPrice: '1000',
             holderCount: 3,
+            deprecated: false,
          },
       ]);
+   });
+
+   it('flags a deprecated key in search results', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+         {
+            keyId: 'k2',
+            creatorName: 'Bob',
+            avatarUrl: null,
+            currentPrice: null,
+            holderCount: 0n,
+            deprecatedAt: new Date('2026-01-01T00:00:00.000Z'),
+            rank: 0.5,
+         },
+      ]);
+
+      const results = await searchKeys('bob');
+      expect(results[0].deprecated).toBe(true);
    });
 });

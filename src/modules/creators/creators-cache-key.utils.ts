@@ -81,6 +81,7 @@ export const CREATOR_FEED_CACHE_INVALIDATION_TOUCHPOINTS = {
    CREATOR_VERIFICATION_CHANGED: 'creator:verification:changed',
    CREATOR_KEYS_UPDATED: 'creator:keys:updated',
    CREATOR_STATS_UPDATED: 'creator:stats:updated',
+   CREATOR_SOCIAL_METADATA_UPDATED: 'creator:social:metadata:updated',
 } as const;
 
 /**

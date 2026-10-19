@@ -10,6 +10,12 @@ import {
 const whitelistRouter = Router();
 
 /**
+ * GET /keys/:keyId/whitelist/:wallet
+ * Public endpoint - returns whitelist and wallet approval status.
+ */
+whitelistRouter.get('/:keyId/whitelist/:wallet', httpGetWhitelistStatus);
+
+/**
  * GET /keys/:keyId/whitelist?wallet=<address>
  * Public endpoint - no authentication required
  * Returns whitelist status and wallet approval status

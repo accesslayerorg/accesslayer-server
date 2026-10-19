@@ -116,6 +116,15 @@ export const envSchema = z
       // Key trade lockup
       LOCKUP_DURATION_SECONDS: z.coerce.number().int().nonnegative().default(0),
 
+      // Staking lock period options (#881): comma-separated `name=seconds`
+      // pairs. Clients pick one by name when staking; the lock expires
+      // `seconds` after the stake is created.
+      STAKING_LOCK_PERIOD_OPTIONS: z
+         .string()
+         .default(
+            'flexible=0,30d=2592000,90d=7776000,180d=15552000,365d=31536000'
+         ),
+
       // Protocol revenue distribution (#883): length of each distribution
       // cycle in days. Trading fees are aggregated into a pool per cycle and
       // claimed proportionally to stake weight (see src/modules/revenue).
@@ -124,6 +133,11 @@ export const envSchema = z
          .int()
          .positive()
          .default(7),
+
+      // Referral programme (#910): share of a referred wallet's first trade
+      // paid to the referrer, in basis points (500 = 5%). Paid once per
+      // referee, on their first trade only (see src/modules/referrals).
+      REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
 
       // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
       // Stellar addresses of the admin quorum. When unset, deprecation still
@@ -222,6 +236,32 @@ export const envSchema = z
          .positive()
          .default(120000),
 
+      // Circuit breaker (#987): deployed contract id holding the per-key
+      // max_bps configuration, and the TTL (seconds) for the cached contract
+      // read. Defaults to a 5-minute refresh window.
+      CIRCUIT_BREAKER_CONTRACT_ID: optionalNonEmptyString,
+      CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300),
+
+      // Nonce registry contract (#1039): deployed contract id holding the
+      // on-chain single-use nonce registry, and short TTL for cached nonces.
+      NONCE_REGISTRY_CONTRACT_ID: optionalNonEmptyString,
+      NONCE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(30),
+
+      // LP position registry contract
+      LP_CONTRACT_ID: optionalNonEmptyString,
+
+      // Social metadata sync (Pinata gateway used to resolve avatar CIDs)
+      PINATA_GATEWAY_URL: z
+         .string()
+         .url(
+            'PINATA_GATEWAY_URL must be a valid URL (e.g. https://gateway.pinata.cloud/ipfs)'
+         )
+         .default('https://gateway.pinata.cloud/ipfs'),
+
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
          .string()
@@ -254,6 +294,42 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Session activity logging + anomaly detection (#1035)
+      SESSION_ACTIVITY_LOGGING_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      SESSION_ACTIVITY_CLEANUP_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+      SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+      SESSION_ANOMALY_RATE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120),
+      SESSION_ANOMALY_UNUSUAL_HOUR_START: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(1),
+      SESSION_ANOMALY_UNUSUAL_HOUR_END: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(5),
+
       // Price movement detection job (feeds price_moved notifications)
       DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
       DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce
@@ -269,6 +345,11 @@ export const envSchema = z
          .int()
          .positive()
          .default(5),
+
+      // Minimum number of observations a TWAPUpdated snapshot must carry for
+      // GET /keys/:key_id/twap to treat it as valid (#1082). Below this the
+      // endpoint responds with TWAPInvalid instead of a price.
+      TWAP_MIN_OBSERVATIONS: z.coerce.number().int().positive().default(3),
 
       // Governance proposal sync job
       GOVERNANCE_SYNC_ENABLED: booleanCoerce.default(false),
@@ -308,11 +389,7 @@ export const envSchema = z
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
       QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
-      QUERY_COST_WINDOW_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(60_000),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
       // JSON object overriding/extending the default route->cost map in
       // src/constants/query-cost.constants.ts, e.g.
       // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
@@ -374,11 +451,7 @@ export const envSchema = z
          .int()
          .positive()
          .default(300_000),
-      ORACLE_CACHE_TTL_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(30_000),
+      ORACLE_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
 
       // Flash loan guard (#938): violations indexed from
       // FlashLoanGuardTriggered contract events. A wallet that reaches
@@ -411,6 +484,12 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Creator key on-chain metadata sync (#986)
+      METADATA_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(10 * 60 * 1000), // 10 minutes
    })
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {

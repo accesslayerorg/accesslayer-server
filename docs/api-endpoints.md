@@ -157,6 +157,41 @@ Get public stats for a specific creator.
 }
 ```
 
+### GET /creators/:wallet/social
+
+Get the on-chain synced social metadata for a creator, keyed by wallet
+address, creator id, or handle (`:wallet` accepts any of the three).
+
+- **Auth:** None
+- **Headers:** `Cache-Control: public, max-age=60` (short TTL so on-chain
+  social updates propagate within ~60 seconds)
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "creatorId": "...",
+      "handle": "ada",
+      "wallet": "GWALLET...",
+      "displayName": "Ada Artist",
+      "bio": "On-chain bio",
+      "avatarUrl": "https://gateway.pinata.cloud/ipfs/bafy...",
+      "avatarCid": "bafy...",
+      "links": [{ "label": "X", "url": "https://x.com/ada" }],
+      "synced": true,
+      "updatedAt": "2026-10-17T10:00:00.000Z",
+      "source": { "ledger": 500, "txHash": "tx-social-1", "eventIndex": 0 }
+   }
+}
+```
+
+When no `SocialMetadataUpdated` event has been indexed for the creator yet, the
+endpoint still returns `200 OK` with `synced: false`, `links: []`, and `null`
+display/bio/avatar fields plus a `null` `source`. The avatar is resolved from
+its IPFS CID via `PINATA_GATEWAY_URL`. See
+[social-metadata-sync.md](./social-metadata-sync.md) for the sync details.
+
 ---
 
 ## Creator Profile Endpoints
@@ -235,6 +270,52 @@ Queue depth metrics for indexer workers.
 
 ---
 
+## Invoice Endpoints
+
+### GET /invoices/compare
+
+Compare metrics for up to two invoices in a single request. Accepts a
+comma-separated `ids` query parameter; metrics are returned grouped by invoice
+ID. Responses are cached for 30 seconds per ID combination.
+
+- **Auth:** None
+- **Query:** `ids` - comma-separated invoice IDs (1 or 2; more returns `400`)
+- **Response:** `200 OK`
+
+```
+GET /invoices/compare?ids=cm123,cm456
+```
+
+```json
+{
+   "success": true,
+   "data": {
+      "invoice_ids": ["cm123", "cm456"],
+      "invoices": {
+         "cm123": {
+            "invoice_id": "cm123",
+            "seller_wallet": "GSELLER...",
+            "currency": "USDC",
+            "status": "FUNDED",
+            "amount": "1000",
+            "rate": "0.05",
+            "maturity": "2026-12-31T00:00:00.000Z",
+            "risk_rating": "A",
+            "funding_progress": "1",
+            "seller_stats": {
+               "wallet": "GSELLER...",
+               "invoice_count": 4,
+               "total_amount": "12500",
+               "average_rate": "0.062"
+            }
+         }
+      }
+   }
+}
+```
+
+---
+
 ## Admin Endpoints
 
 ### POST /admin/proposals
@@ -246,10 +327,13 @@ Create a new multisig proposal requiring multi-sig approval.
 
 ```json
 {
-  "changeType": "update_fee",
-  "payload": { "feeBps": 500, "treasuryAddress": "GATREASURYADDRESSFORACCESSLAYERTESTING123456789" },
-  "threshold": 2,
-  "totalSigners": 3
+   "changeType": "update_fee",
+   "payload": {
+      "feeBps": 500,
+      "treasuryAddress": "GATREASURYADDRESSFORACCESSLAYERTESTING123456789"
+   },
+   "threshold": 2,
+   "totalSigners": 3
 }
 ```
 
@@ -257,26 +341,29 @@ Create a new multisig proposal requiring multi-sig approval.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "cm123...",
-    "proposalId": "msig-1234567890-abc123",
-    "changeType": "update_fee",
-    "payload": { "feeBps": 500, "treasuryAddress": "GATREASURYADDRESSFORACCESSLAYERTESTING123456789" },
-    "status": "pending",
-    "threshold": 2,
-    "totalSigners": 3,
-    "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-    "proposedAt": "2026-09-27T10:30:00.000Z",
-    "executedAt": null,
-    "rejectedAt": null,
-    "rejectedBy": null,
-    "rejectionReason": null,
-    "createdAt": "2026-09-27T10:30:00.000Z",
-    "updatedAt": "2026-09-27T10:30:00.000Z",
-    "signatures": [],
-    "approvalCount": 0
-  }
+   "success": true,
+   "data": {
+      "id": "cm123...",
+      "proposalId": "msig-1234567890-abc123",
+      "changeType": "update_fee",
+      "payload": {
+         "feeBps": 500,
+         "treasuryAddress": "GATREASURYADDRESSFORACCESSLAYERTESTING123456789"
+      },
+      "status": "pending",
+      "threshold": 2,
+      "totalSigners": 3,
+      "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+      "proposedAt": "2026-09-27T10:30:00.000Z",
+      "executedAt": null,
+      "rejectedAt": null,
+      "rejectedBy": null,
+      "rejectionReason": null,
+      "createdAt": "2026-09-27T10:30:00.000Z",
+      "updatedAt": "2026-09-27T10:30:00.000Z",
+      "signatures": [],
+      "approvalCount": 0
+   }
 }
 ```
 
@@ -286,52 +373,52 @@ List all multisig proposals with pagination and optional status filter.
 
 - **Auth:** Admin required
 - **Query Params:**
-  - `status` (optional): `pending`, `executed`, or `rejected`
-  - `page` (number, default: 1)
-  - `limit` (number, default: 20, max: 100)
+   - `status` (optional): `pending`, `executed`, or `rejected`
+   - `page` (number, default: 1)
+   - `limit` (number, default: 20, max: 100)
 - **Response:** `200 OK`
 
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "cm123...",
-        "proposalId": "msig-1234567890-abc123",
-        "changeType": "update_fee",
-        "payload": { "feeBps": 500 },
-        "status": "pending",
-        "threshold": 2,
-        "totalSigners": 3,
-        "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-        "proposedAt": "2026-09-27T10:30:00.000Z",
-        "executedAt": null,
-        "rejectedAt": null,
-        "rejectedBy": null,
-        "rejectionReason": null,
-        "createdAt": "2026-09-27T10:30:00.000Z",
-        "updatedAt": "2026-09-27T10:30:00.000Z",
-        "signatures": [
-          {
-            "id": "cm456...",
+   "success": true,
+   "data": {
+      "items": [
+         {
+            "id": "cm123...",
             "proposalId": "msig-1234567890-abc123",
-            "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-            "signedAt": "2026-09-27T10:31:00.000Z"
-          }
-        ],
-        "approvalCount": 1
+            "changeType": "update_fee",
+            "payload": { "feeBps": 500 },
+            "status": "pending",
+            "threshold": 2,
+            "totalSigners": 3,
+            "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+            "proposedAt": "2026-09-27T10:30:00.000Z",
+            "executedAt": null,
+            "rejectedAt": null,
+            "rejectedBy": null,
+            "rejectionReason": null,
+            "createdAt": "2026-09-27T10:30:00.000Z",
+            "updatedAt": "2026-09-27T10:30:00.000Z",
+            "signatures": [
+               {
+                  "id": "cm456...",
+                  "proposalId": "msig-1234567890-abc123",
+                  "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+                  "signedAt": "2026-09-27T10:31:00.000Z"
+               }
+            ],
+            "approvalCount": 1
+         }
+      ],
+      "meta": {
+         "page": 1,
+         "limit": 20,
+         "totalCount": 1,
+         "totalPages": 1,
+         "hasNextPage": false,
+         "hasPrevPage": false
       }
-    ],
-    "meta": {
-      "page": 1,
-      "limit": 20,
-      "totalCount": 1,
-      "totalPages": 1,
-      "hasNextPage": false,
-      "hasPrevPage": false
-    }
-  }
+   }
 }
 ```
 
@@ -344,33 +431,33 @@ Get detailed information for a single multisig proposal including all signatures
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "cm123...",
-    "proposalId": "msig-1234567890-abc123",
-    "changeType": "update_fee",
-    "payload": { "feeBps": 500 },
-    "status": "pending",
-    "threshold": 2,
-    "totalSigners": 3,
-    "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-    "proposedAt": "2026-09-27T10:30:00.000Z",
-    "executedAt": null,
-    "rejectedAt": null,
-    "rejectedBy": null,
-    "rejectionReason": null,
-    "createdAt": "2026-09-27T10:30:00.000Z",
-    "updatedAt": "2026-09-27T10:30:00.000Z",
-    "signatures": [
-      {
-        "id": "cm456...",
-        "proposalId": "msig-1234567890-abc123",
-        "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-        "signedAt": "2026-09-27T10:31:00.000Z"
-      }
-    ],
-    "approvalCount": 1
-  }
+   "success": true,
+   "data": {
+      "id": "cm123...",
+      "proposalId": "msig-1234567890-abc123",
+      "changeType": "update_fee",
+      "payload": { "feeBps": 500 },
+      "status": "pending",
+      "threshold": 2,
+      "totalSigners": 3,
+      "proposedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+      "proposedAt": "2026-09-27T10:30:00.000Z",
+      "executedAt": null,
+      "rejectedAt": null,
+      "rejectedBy": null,
+      "rejectionReason": null,
+      "createdAt": "2026-09-27T10:30:00.000Z",
+      "updatedAt": "2026-09-27T10:30:00.000Z",
+      "signatures": [
+         {
+            "id": "cm456...",
+            "proposalId": "msig-1234567890-abc123",
+            "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+            "signedAt": "2026-09-27T10:31:00.000Z"
+         }
+      ],
+      "approvalCount": 1
+   }
 }
 ```
 
@@ -385,7 +472,7 @@ Submit a signature/approval for a multisig proposal. When the threshold is reach
 
 ```json
 {
-  "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789"
+   "signer": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789"
 }
 ```
 
@@ -393,28 +480,28 @@ Submit a signature/approval for a multisig proposal. When the threshold is reach
 
 ```json
 {
-  "success": true,
-  "data": {
-    "proposalId": "msig-1234567890-abc123",
-    "status": "executed",
-    "approvalCount": 2,
-    "threshold": 2,
-    "executed": true,
-    "signature": {
-      "id": "cm789...",
+   "success": true,
+   "data": {
       "proposalId": "msig-1234567890-abc123",
-      "signer": "GAADMIN2WALLETADDRESSFORACCESSLAYERTESTING987654321",
-      "signedAt": "2026-09-27T10:32:00.000Z"
-    }
-  }
+      "status": "executed",
+      "approvalCount": 2,
+      "threshold": 2,
+      "executed": true,
+      "signature": {
+         "id": "cm789...",
+         "proposalId": "msig-1234567890-abc123",
+         "signer": "GAADMIN2WALLETADDRESSFORACCESSLAYERTESTING987654321",
+         "signedAt": "2026-09-27T10:32:00.000Z"
+      }
+   }
 }
 ```
 
 - **Error Responses:**
-  - `400 Bad Request` if proposal is not in `pending` state
-  - `403 Forbidden` if signer is not authorized
-  - `404 Not Found` if proposal does not exist
-  - `409 Conflict` if signer has already signed
+   - `400 Bad Request` if proposal is not in `pending` state
+   - `403 Forbidden` if signer is not authorized
+   - `404 Not Found` if proposal does not exist
+   - `409 Conflict` if signer has already signed
 
 ### POST /admin/proposals/:id/reject
 
@@ -425,8 +512,8 @@ Reject a multisig proposal.
 
 ```json
 {
-  "rejector": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-  "reason": "Optional rejection reason"
+   "rejector": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+   "reason": "Optional rejection reason"
 }
 ```
 
@@ -434,21 +521,21 @@ Reject a multisig proposal.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "proposalId": "msig-1234567890-abc123",
-    "status": "rejected",
-    "rejectedAt": "2026-09-27T10:33:00.000Z",
-    "rejectedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
-    "rejectionReason": "Optional rejection reason"
-  }
+   "success": true,
+   "data": {
+      "proposalId": "msig-1234567890-abc123",
+      "status": "rejected",
+      "rejectedAt": "2026-09-27T10:33:00.000Z",
+      "rejectedBy": "GAADMIN1WALLETADDRESSFORACCESSLAYERTESTING123456789",
+      "rejectionReason": "Optional rejection reason"
+   }
 }
 ```
 
 - **Error Responses:**
-  - `400 Bad Request` if proposal is not in `pending` state
-  - `403 Forbidden` if rejector is not authorized
-  - `404 Not Found` if proposal does not exist
+   - `400 Bad Request` if proposal is not in `pending` state
+   - `403 Forbidden` if rejector is not authorized
+   - `404 Not Found` if proposal does not exist
 
 ### PATCH /admin/creators/:id/metadata
 
@@ -524,6 +611,48 @@ window, with alert and auto-suspension state.
 
 ---
 
+## Keys Endpoints
+
+### GET /keys/:keyId/price
+
+Returns the current bonding-curve buy and sell price for a given quantity of
+keys. Resolves `keyId` by database id **or** handle. All bigint values are
+serialised as strings. Response is cached in Redis for 10 seconds.
+
+- **Auth:** None
+- **Query Params:**
+   - `quantity` (integer, 1–1 000 000, default `1`) — number of keys to price
+
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "keyId": "cm_creator_abc",
+      "quantity": 5,
+      "currentSupply": "100",
+      "buy": {
+         "unitPrice": "11250000",
+         "totalCost": "56250000"
+      },
+      "sell": {
+         "unitPrice": "10750000",
+         "totalProceeds": "53750000"
+      },
+      "priceImpactPercent": "2.27"
+   }
+}
+```
+
+> `sell` is `null` when `quantity` exceeds the current circulating supply.
+
+- **Error Responses:**
+   - `400 Bad Request` — `quantity` is missing, non-integer, ≤ 0, or > 1 000 000
+   - `404 Not Found` — key does not exist
+
+---
+
 ## Common Headers
 
 | Header             | Description                               |
@@ -554,3 +683,24 @@ window, with alert and auto-suspension state.
 ---
 
 See [Local Setup](./local-setup.md) for development environment configuration.
+
+## Dividend Snapshot Endpoints
+
+### GET /keys/:keyId/dividends
+
+List dividend snapshots for a key, newest first. Use `limit` (1–100, default 50) and the returned `pagination.nextCursor` to request the next page.
+
+Each entry includes `totalDistributed`, `claimWindowStart`, and
+`claimWindowEnd`. The legacy `totalAmount` and `distributionId` fields are
+retained for compatibility.
+
+### GET /keys/:keyId/dividends/:wallet
+
+Return the wallet's dividend amounts for every snapshot of the key. Each
+snapshot includes `claimableAmount`, `claimedAmount`, and the claim window.
+`claimableAmount` is the wallet's unclaimed amount; the claim-window fields
+indicate when the on-chain claim is available.
+
+- **Auth:** None
+- **Response:** `200 OK`; invalid wallet addresses return `400`, and unknown
+  keys return `404`.

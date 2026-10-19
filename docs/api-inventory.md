@@ -37,10 +37,27 @@ Public creator discovery and stats endpoints.
 
 - Request lifecycle reference: [`docs/creator-request-lifecycle.md`](./creator-request-lifecycle.md).
 
-| Method | Path                  | Description                                  |
-| :----- | :-------------------- | :------------------------------------------- |
-| `GET`  | `/creators`           | List creators with pagination and filtering. |
-| `GET`  | `/creators/:id/stats` | Return public stats for a specific creator.  |
+| Method | Path                       | Description                                           |
+| :----- | :------------------------- | :---------------------------------------------------- |
+| `GET`  | `/creators`                | List creators with pagination and filtering.          |
+| `GET`  | `/creators/:id/stats`      | Return public stats for a specific creator.           |
+| `GET`  | `/creators/:wallet/social` | Return on-chain synced social metadata for a creator. |
+
+## Search Module
+
+Global search across creator keys, creator profiles and transaction hashes (#1010).
+
+- `GET /search` returns grouped overlay results: keys (top 3), creators (top 3) and transactions (top 1).
+- Key results match on metadata name, symbol and description.
+- Creator results match on display name and wallet-address prefix.
+- Transaction results require an exact tx-hash match.
+- The full-results endpoints use signed keyset cursors ordered by match relevance.
+
+| Method | Path               | Description                                    |
+| :----- | :----------------- | :--------------------------------------------- |
+| `GET`  | `/search?q=`       | Grouped results for the client search overlay. |
+| `GET`  | `/search/keys`     | Cursor-paginated full key search results.      |
+| `GET`  | `/search/creators` | Cursor-paginated full creator search results.  |
 
 ## Webhooks Module
 
@@ -70,6 +87,18 @@ Wallet activity and trade history endpoints.
 | :----- | :--------------------------- | :------------------------------------------------------------ |
 | `GET`  | `/wallets/:address/activity` | Return paginated trade history (buys and sells) for a wallet. |
 
+## Referrals Module
+
+Wallet-scoped referral reward earnings indexed from `ReferralRewardDistributed`
+events.
+
+- Referral earnings reference: [`docs/referral-earnings.md`](./referral-earnings.md).
+
+| Method | Path                          | Description                                                      |
+| :----- | :---------------------------- | :--------------------------------------------------------------- |
+| `GET`  | `/referrals/:wallet/earnings` | Paginated referral earnings history with an optional date range. |
+| `GET`  | `/referrals/:wallet/summary`  | Total earnings, tier 1/2/3 breakdown, and referred wallet count. |
+
 ## Ownership Module
 
 Ownership lookup endpoints.
@@ -84,8 +113,8 @@ Centralised Soroban contract interaction service (#899).
 
 - Service reference (retry, error classification, tracking, events): [`docs/soroban-contract-service.md`](./soroban-contract-service.md).
 
-| Method | Path             | Description                                                            |
-| :----- | :--------------- | :--------------------------------------------------------------------- |
+| Method | Path              | Description                                                            |
+| :----- | :---------------- | :--------------------------------------------------------------------- |
 | `POST` | `/contracts/call` | Submit a signed contract transaction through the centralised pipeline. |
 
 ## Metrics Module
@@ -116,6 +145,28 @@ Staking reward multiplier tiers and position calculations (#942).
 | `GET`  | `/staking/positions/:id/effective-weight` | Return the weighted stake calculation for a specific position.                            |
 | `GET`  | `/staking/positions/:id`                  | Return a single staking position with embedded tier data and effective weight.            |
 | `GET`  | `/staking/positions`                      | List staking positions with embedded tier data.                                           |
+
+## Governance Module
+
+Snapshot governance proposals (#878). Voting weight is the voter's staked
+balance frozen at the proposal's snapshot block, so keys moved after creation
+cannot change a vote's weight. Quorum is checked when the proposal closes and
+the status transitions `active` → `passed` / `failed` / `quorum_not_met`.
+
+| Method | Path                               | Description                                                                                  |
+| :----- | :--------------------------------- | :------------------------------------------------------------------------------------------- |
+| `GET`  | `/governance/proposals`            | List proposals with vote tallies and status (filter by `status`, `keyId`; cursor-paginated). |
+| `POST` | `/governance/proposals`            | Create a proposal and freeze snapshot voting weights (requires the key creator's JWT).       |
+| `POST` | `/governance/proposals/:id/vote`   | Cast a vote weighted by the wallet's snapshot staked balance (requires JWT).                 |
+| `GET`  | `/governance/proposals/escalating` | List proposals currently in quorum escalation (#935).                                        |
+
+## Traders Module
+
+Volume fee discount tiers and trader 30-day rolling volume lookups (#1030).
+
+| Method | Path                        | Description                                                                                              |
+| :----- | :-------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/traders/:wallet/discount` | Return current volume discount tier, discount bps, and 30-day rolling volume for any wallet (cached 5m). |
 
 ---
 

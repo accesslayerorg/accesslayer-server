@@ -2,6 +2,7 @@ import { Router } from "express";
 import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
 import { httpGetWalletFollowing } from "./wallet-following.controllers";
+import { httpGetWalletFeed } from "./wallet-feed.controllers";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
@@ -37,5 +38,17 @@ walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
  * alphabetically by display name. Requires JWT authentication.
  */
 walletsRouter.get('/:address/following', jwtAuth, httpGetWalletFollowing);
+
+/**
+ * GET /api/v1/wallets/:address/feed
+ *
+ * Returns posts from creators followed by the authenticated wallet,
+ * newest first.
+ */
+walletsRouter.get(
+   '/:address/feed',
+   requireWalletParamMatch('address'),
+   httpGetWalletFeed
+);
 
 export default walletsRouter;

@@ -46,7 +46,11 @@ export async function checkCreatorProfileOwnership(
       }),
       prisma.creatorProfile.findFirst({
          where: {
-            OR: [{ id: creatorIdOrHandle }, { handle: creatorIdOrHandle }],
+            OR: [
+               { id: creatorIdOrHandle },
+               { handle: creatorIdOrHandle },
+               { user: { stellarWallet: { address: creatorIdOrHandle } } },
+            ],
          },
          select: { userId: true },
       }),

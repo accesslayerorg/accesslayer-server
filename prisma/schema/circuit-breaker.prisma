@@ -1,0 +1,33 @@
+// prisma/schema/circuit-breaker.prisma
+// Circuit breaker trip tracking (#987).
+//
+// The indexer writes one CircuitBreakerTrip row per CircuitBreakerTripped
+// contract event. The API reads the latest trips to derive the breaker's
+// current state and surfaces one in-app notification per trip to the key
+// creator.
+
+/// One indexed CircuitBreakerTripped contract event.
+model CircuitBreakerTrip {
+  id            String   @id @default(cuid())
+  /// Creator profile id whose breaker tripped (resolved from the event).
+  keyId         String
+  /// Wallet that owns the creator's key; the notification recipient.
+  creatorWallet String
+  /// Price movement observed on-chain, in basis points.
+  actualBps     Int
+  /// Configured threshold at the time of the trip, in basis points.
+  maxBps        Int?
+  ledger        Int
+  txHash        String
+  eventIndex    Int
+  /// When the trip happened on-chain.
+  occurredAt    DateTime
+  createdAt     DateTime @default(now())
+
+  /// Idempotency guard: replaying the same chain event is a no-op.
+  @@unique([txHash, eventIndex])
+  @@index([keyId, occurredAt])
+  @@index([creatorWallet, occurredAt])
+  @@index([occurredAt])
+  @@map("circuit_breaker_trips")
+}

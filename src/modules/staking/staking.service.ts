@@ -373,7 +373,10 @@ export async function getStakingPositions(filter?: {
    try {
       if (prisma.stakingPosition) {
          const positions = await prisma.stakingPosition.findMany({
-            where: filter?.wallet ? { wallet: filter.wallet } : {},
+            where: {
+               ...(filter?.wallet ? { wallet: filter.wallet } : {}),
+               unstakedAt: null,
+            },
             orderBy: { createdAt: 'desc' },
          });
 

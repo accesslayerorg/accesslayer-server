@@ -78,7 +78,7 @@ describe('key-holding-capacity.service', () => {
       });
    });
 
-   it('returns holding, cap, remaining and cap_percentage', async () => {
+   it('returns holding, cap, remaining_capacity, allowed, and cap_percentage', async () => {
       mockKey();
       mockPrisma.keyOwnership.findUnique.mockResolvedValue({ balance: '100' });
 
@@ -87,8 +87,9 @@ describe('key-holding-capacity.service', () => {
          wallet: WALLET,
          current_holding: 100,
          cap: 250,
-         remaining: 150,
+         remaining_capacity: 150,
          cap_percentage: 40,
+         allowed: true,
       });
       expect(mockPrisma.keyOwnership.findUnique).toHaveBeenCalledWith({
          where: {
@@ -107,17 +108,18 @@ describe('key-holding-capacity.service', () => {
 
       const result = await getKeyHoldingCapacity('key-1', WALLET);
       expect(result.current_holding).toBe(0);
-      expect(result.remaining).toBe(250);
+      expect(result.remaining_capacity).toBe(250);
       expect(result.cap_percentage).toBe(0);
+      expect(result.allowed).toBe(true);
    });
 
-   it('never reports negative remaining when holding exceeds cap', async () => {
+   it('never reports negative remaining_capacity when holding exceeds cap', async () => {
       mockKey({ holderCapBps: 100 });
       mockPrisma.keyOwnership.findUnique.mockResolvedValue({ balance: '50' });
 
       const result = await getKeyHoldingCapacity('key-1', WALLET);
       expect(result.cap).toBe(10);
-      expect(result.remaining).toBe(0);
+      expect(result.remaining_capacity).toBe(0);
       expect(result.cap_percentage).toBe(100);
    });
 
@@ -127,7 +129,7 @@ describe('key-holding-capacity.service', () => {
 
       const result = await getKeyHoldingCapacity('key-1', WALLET);
       expect(result.cap).toBe(50);
-      expect(result.remaining).toBe(40);
+      expect(result.remaining_capacity).toBe(40);
    });
 
    it('throws KeyNotFoundError for an unknown key', async () => {
@@ -152,5 +154,105 @@ describe('key-holding-capacity.service', () => {
       expect(second).toEqual(first);
       expect(mockPrisma.creatorProfile.findFirst).toHaveBeenCalledTimes(1);
       expect(mockPrisma.keyOwnership.findUnique).toHaveBeenCalledTimes(1);
+   });
+
+   // ── quantity / allowed (#913) ──────────────────────────────
+
+   describe('quantity validation (allowed field)', () => {
+      it('allowed=true when quantity defaults to 0 and capacity remains', async () => {
+         mockKey();
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '100',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET);
+         expect(result.allowed).toBe(true);
+      });
+
+      it('allowed=true when current_holding + quantity <= cap', async () => {
+         mockKey(); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '100',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 150);
+         expect(result.current_holding).toBe(100);
+         expect(result.cap).toBe(250);
+         expect(result.allowed).toBe(true);
+      });
+
+      it('allowed=true when quantity exactly fills the remaining capacity', async () => {
+         mockKey(); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '100',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 150);
+         expect(result.allowed).toBe(true);
+      });
+
+      it('allowed=false when quantity exceeds remaining capacity', async () => {
+         mockKey(); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '100',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 151);
+         expect(result.allowed).toBe(false);
+      });
+
+      it('allowed=false when holding already exceeds cap regardless of quantity', async () => {
+         mockKey({ holderCapBps: 100 }); // cap = 10
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '50',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 0);
+         expect(result.remaining_capacity).toBe(0);
+         expect(result.allowed).toBe(false);
+      });
+
+      it('allowed=false for any positive quantity when holding equals cap', async () => {
+         mockKey({ holderCapBps: 2500 }); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '250',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 1);
+         expect(result.remaining_capacity).toBe(0);
+         expect(result.allowed).toBe(false);
+      });
+
+      it('allowed=true for quantity=0 when holding equals cap (boundary)', async () => {
+         mockKey({ holderCapBps: 2500 }); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '250',
+         });
+
+         const result = await getKeyHoldingCapacity('key-1', WALLET, 0);
+         expect(result.remaining_capacity).toBe(0);
+         expect(result.allowed).toBe(true);
+      });
+
+      it('uses cached capacity data and computes allowed per-request', async () => {
+         mockKey(); // cap = 250
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '100',
+         });
+
+         // First call populates cache
+         const first = await getKeyHoldingCapacity('key-1', WALLET, 100);
+         expect(first.allowed).toBe(true);
+
+         // Second call with a different quantity uses cache, recomputes allowed
+         const second = await getKeyHoldingCapacity('key-1', WALLET, 200);
+         expect(second.allowed).toBe(false);
+         expect(second.current_holding).toBe(100);
+         expect(second.cap).toBe(250);
+
+         // Only one DB hit
+         expect(mockPrisma.creatorProfile.findFirst).toHaveBeenCalledTimes(1);
+         expect(mockPrisma.keyOwnership.findUnique).toHaveBeenCalledTimes(1);
+      });
    });
 });
