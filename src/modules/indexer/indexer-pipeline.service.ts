@@ -407,6 +407,15 @@ export async function processIndexerEvents(
       await processLpEvents(lpEvents);
    }
 
+   const { isMultisigActionEventType, processMultisigActionEvents } =
+      await import('./multisig-actions-indexer.service');
+   const multisigEvents = events.filter(event =>
+      isMultisigActionEventType(event.eventType)
+   );
+   if (multisigEvents.length > 0) {
+      await processMultisigActionEvents(multisigEvents);
+   }
+
    await advanceIndexerCursorForBatch(events);
 }
 
