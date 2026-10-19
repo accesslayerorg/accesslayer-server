@@ -94,6 +94,10 @@ import {
    MultisigVerificationError,
    processBuyback,
 } from './key-deprecation.service';
+import {
+   getPendingCurveUpdates,
+   getCurveUpdateHistory,
+} from './key-curve-update.service';
 import { getKeyCooldown } from './key-cooldown.service';
 import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
@@ -2072,6 +2076,61 @@ router.get('/:keyId/deprecation', async (req, res, next) => {
 });
 
 router.all('/:keyId/deprecation', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── GET /:keyId/curve-updates/pending ──────────────────────────
+// Pending bonding curve parameter update proposals with ETA countdown (#1113).
+
+/**
+ * GET /api/v1/keys/:keyId/curve-updates/pending
+ *
+ * Returns pending proposals with eta and proposed params.
+ * ETA countdown is computed at request time.
+ * Cached for 60 seconds; invalidated on new curve update event for key.
+ */
+router.get('/:keyId/curve-updates/pending', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const proposals = await getPendingCurveUpdates(keyId);
+      sendSuccess(res, proposals, 200);
+   } catch (error) {
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get pending curve updates failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/curve-updates/pending', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── GET /:keyId/curve-updates/history ──────────────────────────
+// Completed and cancelled bonding curve parameter updates (#1113).
+
+/**
+ * GET /api/v1/keys/:keyId/curve-updates/history
+ *
+ * Returns completed and cancelled updates with outcomes.
+ * Cached for 60 seconds; invalidated on new curve update event for key.
+ */
+router.get('/:keyId/curve-updates/history', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const history = await getCurveUpdateHistory(keyId);
+      sendSuccess(res, history, 200);
+   } catch (error) {
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get curve update history failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/curve-updates/history', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
 

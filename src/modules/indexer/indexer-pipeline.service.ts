@@ -41,6 +41,17 @@ function isGovernanceProposalEvent(event: IndexerChainEvent): boolean {
    );
 }
 
+function isCurveUpdateEvent(event: IndexerChainEvent): boolean {
+   return (
+      event.eventType === 'CurveUpdateProposed' ||
+      event.eventType === 'CURVE_UPDATE_PROPOSED' ||
+      event.eventType === 'CurveUpdateExecuted' ||
+      event.eventType === 'CURVE_UPDATE_EXECUTED' ||
+      event.eventType === 'CurveUpdateCancelled' ||
+      event.eventType === 'CURVE_UPDATE_CANCELLED'
+   );
+}
+
 export interface TradeEventProcessingOptions {
    /**
     * Advance the shared ledger cursor after processing the batch.
@@ -405,6 +416,15 @@ export async function processIndexerEvents(
    const lpEvents = events.filter(event => isLpEventType(event.eventType));
    if (lpEvents.length > 0) {
       await processLpEvents(lpEvents);
+   }
+
+   // Curve update timelock events (#1113)
+   const curveEvents = events.filter(isCurveUpdateEvent);
+   if (curveEvents.length > 0) {
+      const { processCurveUpdateEvents } = await import(
+         './key-curve-update-indexer.service'
+      );
+      await processCurveUpdateEvents(curveEvents);
    }
 
    await advanceIndexerCursorForBatch(events);

@@ -1,0 +1,27 @@
+// prisma/schema/curve-update.prisma
+// Key curve update timelock proposals and history indexed from contract events (#1113).
+
+model CurveUpdate {
+  id             String    @id @default(cuid())
+  keyId          String    @map("key_id")
+  proposalId     String    @map("proposal_id")
+  eventType      String    @map("event_type")
+  status         String
+  outcome        String?
+  proposedParams Json?     @map("proposed_params")
+  eta            DateTime?
+  proposer       String?
+  executor       String?
+  executedAt     DateTime? @map("executed_at")
+  ledger         Int
+  txHash         String    @map("tx_hash")
+  eventIndex     Int       @map("event_index")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([keyId, proposalId])
+  @@index([keyId, status])
+  @@index([keyId, createdAt(sort: Desc)])
+  @@index([ledger])
+  @@map("curve_updates")
+}
