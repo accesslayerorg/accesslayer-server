@@ -94,6 +94,10 @@ import {
    MultisigVerificationError,
    processBuyback,
 } from './key-deprecation.service';
+import {
+   getKeyRetirementStatus,
+   getKeyRetirementHistory,
+} from './key-retirement.service';
 import { getKeyCooldown } from './key-cooldown.service';
 import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
@@ -2072,6 +2076,61 @@ router.get('/:keyId/deprecation', async (req, res, next) => {
 });
 
 router.all('/:keyId/deprecation', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── GET /:keyId/retirement ─────────────────────────────────────
+// Public read of a key's retirement/deprecation status, buyback price,
+// notice expiry, reason, and computed notice countdown (#1116).
+
+/**
+ * GET /api/v1/keys/:keyId/retirement
+ *
+ * Returns status, buyback_price, notice_expiry, and reason.
+ * Notice period countdown is computed at request time from stored notice_expiry.
+ * Returns status: "none" for keys with no retirement record.
+ */
+router.get('/:keyId/retirement', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const result = await getKeyRetirementStatus(keyId);
+      sendSuccess(res, result, 200);
+   } catch (error) {
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get key retirement status failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/retirement', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── GET /:keyId/retirement/history ─────────────────────────────
+// Full event log of retirement and deprecation events for a key (#1116).
+
+/**
+ * GET /api/v1/keys/:keyId/retirement/history
+ *
+ * Returns full retirement event log.
+ */
+router.get('/:keyId/retirement/history', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const history = await getKeyRetirementHistory(keyId);
+      sendSuccess(res, history, 200);
+   } catch (error) {
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get key retirement history failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/retirement/history', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
 

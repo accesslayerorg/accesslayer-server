@@ -1,0 +1,22 @@
+// prisma/schema/key-retirement.prisma
+// Key retirement and deprecation events indexed from contract events (#1116).
+
+model KeyRetirement {
+  id           String    @id @default(cuid())
+  keyId        String    @map("key_id")
+  eventType    String    @map("event_type")
+  status       String
+  buybackPrice String?   @map("buyback_price")
+  noticeExpiry DateTime? @map("notice_expiry")
+  reason       String?
+  actor        String?
+  ledger       Int
+  txHash       String    @map("tx_hash")
+  eventIndex   Int       @map("event_index")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, createdAt(sort: Desc)])
+  @@index([ledger])
+  @@map("key_retirement")
+}
