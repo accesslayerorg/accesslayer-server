@@ -42,6 +42,7 @@ import {
    httpGetHolderLeaderboard,
    httpGetHolderRank,
 } from './key-holder-leaderboard.controller';
+import { getKeyEpochHistory } from '../staking/staking-epoch.service';
 
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
@@ -2454,4 +2455,19 @@ router.get('/:keyId/lockup/:wallet', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * GET /keys/:key_id/epochs
+ * Returns epoch reward history with total distributed per epoch (#1086).
+ */
+router.get('/:key_id/epochs', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.key_id);
+      const epochs = await getKeyEpochHistory(keyId);
+      sendSuccess(res, epochs);
+   } catch (error) {
+      next(error);
+   }
+});
+
 export default router;

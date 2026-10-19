@@ -31,6 +31,11 @@ import {
    getStakingPositions,
    StakingPositionNotFoundError,
 } from './staking.service';
+import {
+   getWalletActiveStakes,
+   getStakeDetail,
+   StakeNotFoundError,
+} from './staking-epoch.service';
 
 const stakingRouter = Router();
 
@@ -240,6 +245,41 @@ stakingRouter.get(
 
 stakingRouter.all('/positions', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
+ * GET /staking/:wallet/positions
+ * Returns list of active stakes with key, amount, epochs remaining, accrued rewards (#1086).
+ */
+stakingRouter.get('/:wallet/positions', async (req, res, next) => {
+   try {
+      const wallet = String(req.params.wallet);
+      const positions = await getWalletActiveStakes(wallet);
+      sendSuccess(res, positions);
+   } catch (error) {
+      logger.error({ error, wallet: req.params.wallet }, 'Failed to list wallet active stakes');
+      next(error);
+   }
+});
+
+/**
+ * GET /staking/:wallet/positions/:stake_id
+ * Returns single stake detail with epoch breakdown (#1086).
+ */
+stakingRouter.get('/:wallet/positions/:stake_id', async (req, res, next) => {
+   try {
+      const wallet = String(req.params.wallet);
+      const stakeId = String(req.params.stake_id);
+      const detail = await getStakeDetail(wallet, stakeId);
+      sendSuccess(res, detail);
+   } catch (error) {
+      if (error instanceof StakeNotFoundError) {
+         sendNotFound(res, 'Stake position');
+         return;
+      }
+      logger.error({ error, wallet: req.params.wallet, stakeId: req.params.stake_id }, 'Failed to fetch stake detail');
+      next(error);
+   }
 });
 
 export default stakingRouter;
