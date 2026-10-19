@@ -94,6 +94,7 @@ import {
    MultisigVerificationError,
    processBuyback,
 } from './key-deprecation.service';
+import { getKeySpotlightHistory } from '../spotlight/spotlight.service';
 import { getKeyCooldown } from './key-cooldown.service';
 import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
@@ -2072,6 +2073,32 @@ router.get('/:keyId/deprecation', async (req, res, next) => {
 });
 
 router.all('/:keyId/deprecation', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+// ── GET /:keyId/spotlight/history ──────────────────────────────
+// Past spotlight auction wins for a key (#1114).
+
+/**
+ * GET /api/v1/keys/:keyId/spotlight/history
+ *
+ * Returns key's past spotlight wins.
+ */
+router.get('/:keyId/spotlight/history', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const history = await getKeySpotlightHistory(keyId);
+      sendSuccess(res, history, 200);
+   } catch (error) {
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Get key spotlight history failed'
+      );
+      next(error);
+   }
+});
+
+router.all('/:keyId/spotlight/history', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
 

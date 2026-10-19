@@ -1,0 +1,25 @@
+// prisma/schema/spotlight-auction.prisma
+// Key spotlight auctions, bids, and active placements indexed from contract events (#1114).
+
+model SpotlightAuction {
+  id         String    @id @default(cuid())
+  slotId     String    @map("slot_id")
+  eventType  String    @map("event_type") // SpotlightBidPlaced | SpotlightAwarded
+  keyId      String    @map("key_id")
+  bidder     String?
+  bidAmount  String?   @map("bid_amount")
+  isWinning  Boolean   @default(false) @map("is_winning")
+  startsAt   DateTime? @map("starts_at")
+  expiresAt  DateTime? @map("expires_at")
+  ledger     Int
+  txHash     String    @map("tx_hash")
+  eventIndex Int       @map("event_index")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([txHash, eventIndex])
+  @@index([slotId, eventType])
+  @@index([keyId, isWinning])
+  @@index([expiresAt])
+  @@index([ledger])
+  @@map("spotlight_auctions")
+}
