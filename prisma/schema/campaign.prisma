@@ -1,0 +1,40 @@
+// prisma/schema/campaign.prisma
+// Seasonal campaigns and wallet eligibility read model.
+
+model Campaign {
+  id          String   @id @default(cuid())
+  campaignId  String   @unique @map("campaign_id")
+  title       String
+  description String?
+  status      String   @default("active") // upcoming | active | ended
+  criteria    String   @default("{}")
+  rewardPool  Decimal  @default(0) @map("reward_pool") @db.Decimal(20, 7)
+  startsAt    DateTime @default(now()) @map("starts_at")
+  endsAt      DateTime? @map("ends_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  eligibilities CampaignEligibility[]
+
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignEligibility {
+  id               String   @id @default(cuid())
+  campaignId       String   @map("campaign_id")
+  wallet           String
+  isEligible       Boolean  @default(true) @map("is_eligible")
+  criteriaScore    Decimal  @default(0) @map("criteria_score") @db.Decimal(20, 7)
+  criteriaProgress Decimal  @default(0) @map("criteria_progress") @db.Decimal(20, 7)
+  claimableAmount  Decimal  @default(0) @map("claimable_amount") @db.Decimal(20, 7)
+  claimedAmount    Decimal  @default(0) @map("claimed_amount") @db.Decimal(20, 7)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  campaign         Campaign @relation(fields: [campaignId], references: [campaignId], onDelete: Cascade)
+
+  @@unique([campaignId, wallet])
+  @@index([campaignId, criteriaScore])
+  @@map("campaign_eligibility")
+}
