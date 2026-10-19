@@ -407,6 +407,16 @@ export async function processIndexerEvents(
       await processLpEvents(lpEvents);
    }
 
+   const { isKeySnapshotEventType, processKeySnapshotEvents } = await import(
+      './key-snapshots-indexer.service'
+   );
+   const snapshotEvents = events.filter(event =>
+      isKeySnapshotEventType(event.eventType)
+   );
+   if (snapshotEvents.length > 0) {
+      await processKeySnapshotEvents(snapshotEvents);
+   }
+
    await advanceIndexerCursorForBatch(events);
 }
 
