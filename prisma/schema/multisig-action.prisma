@@ -1,0 +1,40 @@
+model MultisigAction {
+  id              String                    @id @default(cuid())
+  actionId        String                    @unique
+  description     String?
+  target          String?
+  functionName    String?
+  params          Json?
+  status          String                    @default("pending") // pending | executed | rejected | expired
+  threshold       Int                       @default(2)
+  totalSigners    Int                       @default(3)
+  proposedBy      String
+  proposedAt      DateTime                  @default(now())
+  executedAt      DateTime?
+  expiredAt       DateTime?
+  outcome         String?
+  txHash          String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  signatures      MultisigActionSignature[]
+
+  @@index([status])
+  @@index([proposedBy])
+  @@map("multisig_actions")
+}
+
+model MultisigActionSignature {
+  id         String         @id @default(cuid())
+  actionId   String
+  signer     String
+  signedAt   DateTime       @default(now())
+  txHash     String?
+  createdAt  DateTime       @default(now())
+
+  action     MultisigAction @relation(fields: [actionId], references: [actionId], onDelete: Cascade)
+
+  @@unique([actionId, signer])
+  @@index([signer])
+  @@map("signatures")
+}
