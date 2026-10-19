@@ -407,6 +407,15 @@ export async function processIndexerEvents(
       await processLpEvents(lpEvents);
    }
 
+   const { isMilestoneClaimEventType, processMilestoneClaimEvents } =
+      await import('./holder-milestones-indexer.service');
+   const milestoneClaimEvents = events.filter(event =>
+      isMilestoneClaimEventType(event.eventType)
+   );
+   if (milestoneClaimEvents.length > 0) {
+      await processMilestoneClaimEvents(milestoneClaimEvents);
+   }
+
    await advanceIndexerCursorForBatch(events);
 }
 

@@ -2454,4 +2454,27 @@ router.get('/:keyId/lockup/:wallet', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * GET /api/v1/keys/:key_id/milestones/:wallet
+ * Returns per-milestone claimed status and days held (#1115).
+ */
+router.get('/:keyId/milestones/:wallet', async (req, res, next) => {
+   const keyId = String(req.params.keyId || (req.params as any).key_id);
+   const wallet = String(req.params.wallet);
+
+   try {
+      const { getKeyHolderMilestones } = await import('../milestones/holder-milestones.service');
+      const result = await getKeyHolderMilestones(keyId, wallet);
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId, wallet }, 'Get key holder milestones failed');
+      next(error);
+   }
+});
+
 export default router;
