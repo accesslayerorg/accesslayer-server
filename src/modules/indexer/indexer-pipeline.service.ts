@@ -407,6 +407,16 @@ export async function processIndexerEvents(
       await processLpEvents(lpEvents);
    }
 
+   const { isStakingEpochEventType, processStakingEpochEvents } = await import(
+      './staking-epoch-indexer.service'
+   );
+   const stakingEpochEvents = events.filter(event =>
+      isStakingEpochEventType(event.eventType)
+   );
+   if (stakingEpochEvents.length > 0) {
+      await processStakingEpochEvents(stakingEpochEvents);
+   }
+
    await advanceIndexerCursorForBatch(events);
 }
 

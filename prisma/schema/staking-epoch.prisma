@@ -1,0 +1,38 @@
+// prisma/schema/staking-epoch.prisma
+// Staking epoch rewards and active stakes (#1086).
+
+model Stake {
+  id            String    @id @default(cuid())
+  stakeId       String    @unique
+  wallet        String
+  keyId         String
+  amount        Decimal   @db.Decimal(20, 7)
+  startEpoch    Int       @default(0)
+  lockEpochs    Int       @default(1)
+  status        String    @default("active") // active | unstaked | closed
+  totalClaimed  Decimal   @default(0) @db.Decimal(20, 7)
+  claimedAt     DateTime?
+  unstakedAt    DateTime?
+  txHash        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([wallet, status])
+  @@index([keyId])
+  @@map("stakes")
+}
+
+model EpochReward {
+  id               String   @id @default(cuid())
+  keyId            String
+  epoch            Int
+  totalDistributed Decimal  @db.Decimal(20, 7)
+  rewardPerToken   Decimal  @default(0) @db.Decimal(20, 7)
+  txHash           String?
+  distributedAt    DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  @@unique([keyId, epoch])
+  @@index([keyId, epoch(sort: Desc)])
+  @@map("epoch_rewards")
+}
