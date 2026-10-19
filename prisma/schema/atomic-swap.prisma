@@ -1,0 +1,30 @@
+// prisma/schema/atomic-swap.prisma
+// Atomic swap indexer models (#1087)
+
+model AtomicSwap {
+  id              String    @id @default(cuid())
+  swapId          String    @unique @map("swap_id")
+  proposer        String    @map("proposer")
+  counterparty    String    @map("counterparty")
+  offeredKey      String    @map("offered_key")
+  offeredAmount   String    @map("offered_amount")
+  requestedKey    String    @map("requested_key")
+  requestedAmount String    @map("requested_amount")
+  status          String    @default("pending") // pending | executed | cancelled | expired
+  expiresAt       DateTime  @map("expires_at")
+  proposedAt      DateTime  @default(now()) @map("proposed_at")
+  executedAt      DateTime? @map("executed_at")
+  cancelledAt     DateTime? @map("cancelled_at")
+  ledger          Int
+  txHash          String    @map("tx_hash")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([proposer])
+  @@index([counterparty])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([proposer, status])
+  @@index([counterparty, status])
+  @@map("atomic_swaps")
+}

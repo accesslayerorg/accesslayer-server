@@ -239,19 +239,23 @@ describe('Governance proposal endpoints (#878)', () => {
                      proposalId: PROPOSAL_ID,
                      title: 'Treasury',
                      options: ['Yes', 'No'],
-                     status: 'passed',
-                     snapshotLedger: 4242,
-                     snapshotTotalWeight: '100',
-                     quorumBps: 3000,
-                     quorumRequired: '30',
-                     quorumMet: true,
-                     winningOption: 'Yes',
-                     totalVotingWeight: '60',
-                     results: { Yes: '60', No: '0' },
-                     participationRate: 0.6,
-                     expiresAt: '2026-10-23T00:00:00.000Z',
-                     closedAt: '2026-10-23T00:00:00.000Z',
-                     createdAt: '2026-10-16T00:00:00.000Z',
+                      status: 'passed',
+                      snapshotLedger: 4242,
+                      snapshotTotalWeight: '100',
+                      quorumBps: 3000,
+                      quorumPercent: 30,
+                      quorumRequired: '30',
+                      quorumMet: true,
+                      winningOption: 'Yes',
+                      totalVotingWeight: '60',
+                      results: { Yes: '60', No: '0' },
+                      participationRate: 0.6,
+                      timeRemaining: 0,
+                      timeRemainingSeconds: 0,
+                      expiresAt: '2026-10-23T00:00:00.000Z',
+                      closedAt: '2026-10-23T00:00:00.000Z',
+                      executedAt: null,
+                      createdAt: '2026-10-16T00:00:00.000Z',
                   },
                ],
                next_cursor: null,
@@ -276,6 +280,145 @@ describe('Governance proposal endpoints (#878)', () => {
          );
 
          expect(res.status).toBe(400);
+      });
+   });
+
+   describe('GET /governance/proposals/:proposal_id', () => {
+      it('returns the single proposal with its full vote breakdown', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getGovernanceProposal')
+            .mockResolvedValueOnce({
+               id: 'gov-db-1',
+               keyId: KEY_ID,
+               proposalId: PROPOSAL_ID,
+               title: 'Treasury',
+               options: ['Yes', 'No'],
+               status: 'passed',
+               snapshotLedger: 4242,
+               snapshotTotalWeight: '100',
+               quorumBps: 3000,
+               quorumPercent: 30,
+               quorumRequired: '30',
+               quorumMet: true,
+               winningOption: 'Yes',
+               totalVotingWeight: '60',
+               results: { Yes: '60', No: '0' },
+               participationRate: 0.6,
+               timeRemaining: 0,
+               timeRemainingSeconds: 0,
+               expiresAt: '2026-10-23T00:00:00.000Z',
+               closedAt: '2026-10-23T00:00:00.000Z',
+               executedAt: null,
+               createdAt: '2026-10-16T00:00:00.000Z',
+               votes: [
+                  {
+                     voter: WALLET,
+                     optionIndex: 0,
+                     option: 'Yes',
+                     weight: '60',
+                     votedAt: '2026-10-17T00:00:00.000Z',
+                  },
+               ],
+               voteBreakdown: [
+                  {
+                     optionIndex: 0,
+                     option: 'Yes',
+                     weight: '60',
+                     voteCount: 1,
+                     percentage: 60 / 60,
+                  },
+                  {
+                     optionIndex: 1,
+                     option: 'No',
+                     weight: '0',
+                     voteCount: 0,
+                     percentage: null,
+                  },
+               ],
+            });
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}`
+         );
+
+         expect(res.status).toBe(200);
+         expect(res.body.data).toMatchObject({
+            proposalId: PROPOSAL_ID,
+            status: 'passed',
+         });
+         expect(res.body.data.voteBreakdown).toHaveLength(2);
+         expect(res.body.data.votes).toHaveLength(1);
+      });
+
+      it('returns 404 when the proposal does not exist', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getGovernanceProposal')
+            .mockRejectedValueOnce(
+               new governanceProposalsService.GovernanceProposalNotFoundError(
+                  PROPOSAL_ID
+               )
+            );
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}`
+         );
+
+         expect(res.status).toBe(404);
+      });
+   });
+
+   describe('GET /governance/proposals/:proposal_id/votes/:wallet', () => {
+      it('returns the wallet vote and weight', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getGovernanceWalletVote')
+            .mockResolvedValueOnce({
+               keyId: KEY_ID,
+               proposalId: PROPOSAL_ID,
+               wallet: WALLET,
+               hasVoted: true,
+               vote: {
+                  optionIndex: 1,
+                  option: 'No',
+                  weight: '10',
+                  votedAt: '2026-10-17T00:00:00.000Z',
+               },
+               weight: '10',
+               snapshotLedger: 4242,
+               snapshotTotalWeight: '100',
+            });
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}/votes/${WALLET}`
+         );
+
+         expect(res.status).toBe(200);
+         expect(res.body.data).toMatchObject({
+            proposalId: PROPOSAL_ID,
+            wallet: WALLET,
+            hasVoted: true,
+            weight: '10',
+         });
+         expect(res.body.data.vote).toMatchObject({
+            optionIndex: 1,
+            option: 'No',
+            weight: '10',
+         });
+      });
+
+      it('returns 404 when the proposal does not exist', async () => {
+         jest
+            .spyOn(governanceProposalsService, 'getGovernanceWalletVote')
+            .mockRejectedValueOnce(
+               new governanceProposalsService.GovernanceProposalNotFoundError(
+                  PROPOSAL_ID
+               )
+            );
+
+         const res = await request(app).get(
+            `/api/v1/governance/proposals/${PROPOSAL_ID}/votes/${WALLET}`
+         );
+
+         expect(res.status).toBe(404);
       });
    });
 });

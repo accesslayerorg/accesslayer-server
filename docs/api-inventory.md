@@ -37,10 +37,11 @@ Public creator discovery and stats endpoints.
 
 - Request lifecycle reference: [`docs/creator-request-lifecycle.md`](./creator-request-lifecycle.md).
 
-| Method | Path                  | Description                                  |
-| :----- | :-------------------- | :------------------------------------------- |
-| `GET`  | `/creators`           | List creators with pagination and filtering. |
-| `GET`  | `/creators/:id/stats` | Return public stats for a specific creator.  |
+| Method | Path                       | Description                                           |
+| :----- | :------------------------- | :---------------------------------------------------- |
+| `GET`  | `/creators`                | List creators with pagination and filtering.          |
+| `GET`  | `/creators/:id/stats`      | Return public stats for a specific creator.           |
+| `GET`  | `/creators/:wallet/social` | Return on-chain synced social metadata for a creator. |
 
 ## Search Module
 
@@ -93,10 +94,10 @@ events.
 
 - Referral earnings reference: [`docs/referral-earnings.md`](./referral-earnings.md).
 
-| Method | Path                          | Description                                                        |
-| :----- | :---------------------------- | :----------------------------------------------------------------- |
-| `GET`  | `/referrals/:wallet/earnings` | Paginated referral earnings history with an optional date range.   |
-| `GET`  | `/referrals/:wallet/summary`  | Total earnings, tier 1/2/3 breakdown, and referred wallet count.   |
+| Method | Path                          | Description                                                      |
+| :----- | :---------------------------- | :--------------------------------------------------------------- |
+| `GET`  | `/referrals/:wallet/earnings` | Paginated referral earnings history with an optional date range. |
+| `GET`  | `/referrals/:wallet/summary`  | Total earnings, tier 1/2/3 breakdown, and referred wallet count. |
 
 ## Ownership Module
 

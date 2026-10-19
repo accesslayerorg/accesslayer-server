@@ -246,6 +246,19 @@ export const envSchema = z
          .positive()
          .default(300),
 
+      // Nonce registry contract (#1039): deployed contract id holding the
+      // on-chain single-use nonce registry, and short TTL for cached nonces.
+      NONCE_REGISTRY_CONTRACT_ID: optionalNonEmptyString,
+      NONCE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(30),
+
+      // Social metadata sync (Pinata gateway used to resolve avatar CIDs)
+      PINATA_GATEWAY_URL: z
+         .string()
+         .url(
+            'PINATA_GATEWAY_URL must be a valid URL (e.g. https://gateway.pinata.cloud/ipfs)'
+         )
+         .default('https://gateway.pinata.cloud/ipfs'),
+
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
          .string()
@@ -278,6 +291,42 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Session activity logging + anomaly detection (#1035)
+      SESSION_ACTIVITY_LOGGING_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      SESSION_ACTIVITY_CLEANUP_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+      SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+      SESSION_ANOMALY_RATE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120),
+      SESSION_ANOMALY_UNUSUAL_HOUR_START: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(1),
+      SESSION_ANOMALY_UNUSUAL_HOUR_END: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(5),
+
       // Price movement detection job (feeds price_moved notifications)
       DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
       DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce
@@ -293,6 +342,11 @@ export const envSchema = z
          .int()
          .positive()
          .default(5),
+
+      // Minimum number of observations a TWAPUpdated snapshot must carry for
+      // GET /keys/:key_id/twap to treat it as valid (#1082). Below this the
+      // endpoint responds with TWAPInvalid instead of a price.
+      TWAP_MIN_OBSERVATIONS: z.coerce.number().int().positive().default(3),
 
       // Governance proposal sync job
       GOVERNANCE_SYNC_ENABLED: booleanCoerce.default(false),
@@ -332,11 +386,7 @@ export const envSchema = z
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
       QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
-      QUERY_COST_WINDOW_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(60_000),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
       // JSON object overriding/extending the default route->cost map in
       // src/constants/query-cost.constants.ts, e.g.
       // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
@@ -398,11 +448,7 @@ export const envSchema = z
          .int()
          .positive()
          .default(300_000),
-      ORACLE_CACHE_TTL_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(30_000),
+      ORACLE_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
 
       // Flash loan guard (#938): violations indexed from
       // FlashLoanGuardTriggered contract events. A wallet that reaches
@@ -436,7 +482,6 @@ export const envSchema = z
          .default(60),
 
       // Creator key on-chain metadata sync (#986)
-      PINATA_GATEWAY_URL: z.string().default('https://gateway.pinata.cloud/ipfs'),
       METADATA_STALENESS_THRESHOLD_MS: z.coerce
          .number()
          .int()

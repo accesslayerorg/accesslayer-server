@@ -35,6 +35,7 @@ import followerRouter from './followers/follower.routes';
 import protocolRouter from './protocol/protocol.routes';
 import revenueRouter from './revenue/revenue.routes';
 import stakerRouter from './revenue/staker-revenue.routes';
+import creatorRevenueRouter from './revenue/creator-revenue.routes';
 import vaultRouter from './staking/vault.routes';
 import portfolioRouter from './portfolio/portfolio.routes';
 import referralRouter from './referrals/referral-earnings.routes';
@@ -46,23 +47,25 @@ import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import holdersRouter from './dividends/holders.routes';
+import discoveryRouter from './keys/discovery.routes';
+import tradesRouter from './trades/trades.routes';
 import tradersRouter from './traders/traders.routes';
+import nonceRouter from './nonce/nonce.routes';
+import swapsRouter from './swaps/swaps.routes';
+
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
 
-// Adaptive per-wallet/per-IP database query cost governor (#755). Mounted
-// ahead of route resolution (so it matches on req.path, not req.route — see
-// query-cost.utils.ts) and ahead of every group below, so it covers the
-// whole API surface rather than needing to be threaded into each route
-// individually. Exempts /health and its own /internal/qcost management
-// routes (see QUERY_COST_EXEMPT_PATH_PREFIXES).
+// Adaptive per-wallet/per-IP database query cost governor (#755).
+// Mounted ahead of route resolution so it matches on req.path, not req.route,
+// and ahead of every group below so it covers the whole API surface.
+// Exempts /health and its own /internal/qcost management routes.
 router.use(queryCostGovernor());
 
 // Each group gets its own JSON body parser so its size limit can be tuned
-// independently via BODY_SIZE_LIMIT_<GROUP> env vars (see
-// docs/body-size-limits.md). Groups without a dedicated override share
-// BODY_SIZE_LIMIT_DEFAULT.
+// independently via BODY_SIZE_LIMIT_<GROUP> environment variables.
+// Groups without a dedicated override share BODY_SIZE_LIMIT_DEFAULT.
 router.use('/health', routeBodySizeLimit('default'), healthRouter);
 router.use('/status', routeBodySizeLimit('default'), statusRouter);
 router.use('/auth', routeBodySizeLimit('auth'), authRouter);
@@ -84,17 +87,16 @@ router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 
-// Keys: existing keysRouter first, then freezeRouter so /:keyId/freeze and
-// /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
-// them. Both share the same body-size group.
+// Keys: mount keysRouter first, then freezeRouter so freeze handlers can
+// handle /:keyId/freeze and /:keyId/unfreeze when needed.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
-   '/notifications',
-   routeBodySizeLimit('default'),
-   notificationsRouter
+  '/notifications',
+  routeBodySizeLimit('default'),
+  notificationsRouter
 );
 router.use('/webhooks', routeBodySizeLimit('default'), horizonWebhookRouter);
 router.use('/vesting', routeBodySizeLimit('default'), vestingRouter);
@@ -102,16 +104,22 @@ router.use('/investor', routeBodySizeLimit('default'), investorRouter);
 router.use('/followers', routeBodySizeLimit('default'), followerRouter);
 router.use('/protocol', routeBodySizeLimit('default'), protocolRouter);
 router.use('/platform', routeBodySizeLimit('default'), platformRouter);
+
 // Global search across keys, creators and transaction hashes (#1010).
 router.use('/search', routeBodySizeLimit('default'), searchRouter);
 router.use('/revenue', routeBodySizeLimit('default'), revenueRouter);
 router.use('/staker', routeBodySizeLimit('default'), stakerRouter);
+router.use('/', routeBodySizeLimit('default'), creatorRevenueRouter);
 router.use('/staking', routeBodySizeLimit('default'), vaultRouter);
 router.use('/portfolio', routeBodySizeLimit('default'), portfolioRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralRouter);
 router.use('/contracts', routeBodySizeLimit('default'), contractsRouter);
 router.use('/watchlist', routeBodySizeLimit('default'), watchlistRouter);
-router.use('/investor/watchlist', routeBodySizeLimit('default'), watchlistRouter);
+router.use(
+  '/investor/watchlist',
+  routeBodySizeLimit('default'),
+  watchlistRouter
+);
 router.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 router.use('/sellers', routeBodySizeLimit('default'), sellersRouter);
 router.use('/governance', routeBodySizeLimit('default'), governanceRouter);
@@ -119,6 +127,11 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
+
+router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
+router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
+router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
+router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 
 export default router;

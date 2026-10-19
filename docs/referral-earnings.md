@@ -11,18 +11,18 @@ wallet-scoped REST endpoints. Implementation lives in
 Rewards are stored in the `referral_earnings` table (`ReferralEarning` Prisma
 model in `prisma/schema/referral.prisma`):
 
-| Field            | Type            | Notes                                              |
-| :--------------- | :-------------- | :------------------------------------------------- |
-| `id`             | `String`        | `cuid()` primary key.                              |
-| `referrerWallet` | `String`        | Wallet that earned the reward.                     |
-| `sourceWallet`   | `String`        | Referred wallet whose activity generated it.       |
-| `tier`           | `Int`           | Referral tier: `1`, `2`, or `3`.                   |
-| `amount`         | `Decimal(20,7)` | Reward amount in XLM.                              |
-| `ledger`         | `Int`           | Ledger the event was observed in.                  |
-| `txHash`         | `String`        | Transaction hash.                                  |
-| `eventIndex`     | `Int`           | Event index within the transaction.                |
-| `earnedAt`       | `DateTime`      | On-chain event timestamp.                          |
-| `createdAt`      | `DateTime`      | Row insertion time.                                |
+| Field            | Type            | Notes                                        |
+| :--------------- | :-------------- | :------------------------------------------- |
+| `id`             | `String`        | `cuid()` primary key.                        |
+| `referrerWallet` | `String`        | Wallet that earned the reward.               |
+| `sourceWallet`   | `String`        | Referred wallet whose activity generated it. |
+| `tier`           | `Int`           | Referral tier: `1`, `2`, or `3`.             |
+| `amount`         | `Decimal(20,7)` | Reward amount in XLM.                        |
+| `ledger`         | `Int`           | Ledger the event was observed in.            |
+| `txHash`         | `String`        | Transaction hash.                            |
+| `eventIndex`     | `Int`           | Event index within the transaction.          |
+| `earnedAt`       | `DateTime`      | On-chain event timestamp.                    |
+| `createdAt`      | `DateTime`      | Row insertion time.                          |
 
 `(txHash, eventIndex)` is unique, so replaying the same chain event is
 idempotent and never double-counts earnings.
@@ -51,7 +51,7 @@ interface ReferralRewardDistributedEvent {
    referrerWallet: string;
    sourceWallet: string;
    tier: 1 | 2 | 3;
-   amount: string;        // XLM, string for precision
+   amount: string; // XLM, string for precision
    distributedAt: string; // ISO timestamp
    ledger: number;
    txHash: string;
@@ -69,12 +69,12 @@ matches the `:wallet` path param; a mismatch returns `401`.
 
 Paginated earnings history, newest first.
 
-| Query param | Type    | Default | Notes                                          |
-| :---------- | :------ | :------ | :--------------------------------------------- |
-| `limit`     | integer | `20`    | 1–100.                                          |
-| `cursor`    | string  | –       | Opaque cursor from the previous page.           |
-| `from`      | ISO date| –       | Inclusive lower bound (date or timestamp).      |
-| `to`        | ISO date| –       | Inclusive upper bound (date or timestamp).      |
+| Query param | Type     | Default | Notes                                      |
+| :---------- | :------- | :------ | :----------------------------------------- |
+| `limit`     | integer  | `20`    | 1–100.                                     |
+| `cursor`    | string   | –       | Opaque cursor from the previous page.      |
+| `from`      | ISO date | –       | Inclusive lower bound (date or timestamp). |
+| `to`        | ISO date | –       | Inclusive upper bound (date or timestamp). |
 
 ```json
 {

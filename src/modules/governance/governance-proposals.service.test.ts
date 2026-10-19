@@ -12,7 +12,7 @@ jest.mock('../../utils/prisma.utils', () => ({
          findUnique: jest.fn(),
          createMany: jest.fn(),
       },
-      governanceVote: { findUnique: jest.fn(), create: jest.fn() },
+      governanceVote: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn() },
       activity: { create: jest.fn() },
       creatorProfile: { findFirst: jest.fn() },
       stellarWallet: { findUnique: jest.fn() },
@@ -39,12 +39,15 @@ import {
    createGovernanceProposal,
    DuplicateGovernanceVoteError,
    evaluateProposalOutcome,
+   getGovernanceProposal,
+   getGovernanceWalletVote,
    GovernanceKeyNotFoundError,
    GovernanceProposalNotFoundError,
    InvalidVoteOptionError,
    listGovernanceProposals,
    NoSnapshotVotingPowerError,
    NotKeyCreatorError,
+   proposalToDto,
    VotingPeriodEndedError,
    WalletNotRegisteredError,
 } from './governance-proposals.service';
@@ -527,5 +530,166 @@ describe('listGovernanceProposals (#878)', () => {
       });
       expect(result.has_more).toBe(false);
       expect(result.next_cursor).toBeNull();
+   });
+});
+
+describe('request-time proposal status', () => {
+   it('keeps an unexpired active proposal active', () => {
+      const dto = proposalToDto(makeActiveProposal({ expiresAt: FUTURE }));
+
+      expect(dto.status).toBe('active');
+      expect(dto.timeRemaining).toBeGreaterThan(0);
+      expect(dto.timeRemainingSeconds).toBe(dto.timeRemaining);
+      expect(dto.quorumPercent).toBe(30);
+   });
+
+   it('derives a terminal outcome for an expired proposal on read', () => {
+      const dto = proposalToDto(
+         makeActiveProposal({
+            expiresAt: PAST,
+            totalVotingWeight: '60',
+            results: { Yes: '60', No: '0' },
+         })
+      );
+
+      expect(dto.status).toBe('passed');
+      expect(dto.timeRemaining).toBe(0);
+      expect(dto.timeRemainingSeconds).toBe(0);
+   });
+
+   it('treats an expired under-quorum proposal as quorum_not_met', () => {
+      const dto = proposalToDto(
+         makeActiveProposal({
+            expiresAt: PAST,
+            totalVotingWeight: '20',
+            results: { Yes: '20', No: '0' },
+         })
+      );
+
+      expect(dto.status).toBe('quorum_not_met');
+   });
+
+   it('reports an executed proposal as executed', () => {
+      const dto = proposalToDto(
+         makeActiveProposal({
+            status: 'executed',
+            executedAt: new Date('2026-10-20T00:00:00.000Z'),
+         })
+      );
+
+      expect(dto.status).toBe('executed');
+      expect(dto.executedAt).toBe('2026-10-20T00:00:00.000Z');
+   });
+});
+
+describe('getGovernanceProposal', () => {
+   it('returns the full vote breakdown computed at request time', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(
+         makeActiveProposal({
+            expiresAt: PAST,
+            totalVotingWeight: '70',
+            results: { Yes: '60', No: '10' },
+         })
+      );
+      mockPrisma.governanceVote.findMany.mockResolvedValue([
+         {
+            voter: 'walletA',
+            optionIndex: 0,
+            weight: '60',
+            createdAt: new Date('2026-10-17T00:00:00.000Z'),
+         },
+         {
+            voter: 'walletB',
+            optionIndex: 1,
+            weight: '10',
+            createdAt: new Date('2026-10-17T01:00:00.000Z'),
+         },
+      ]);
+
+      const result = await getGovernanceProposal(PROPOSAL_ID);
+
+      expect(result.status).toBe('passed');
+      expect(result.votes).toHaveLength(2);
+      expect(result.votes[0]).toMatchObject({
+         voter: 'walletA',
+         optionIndex: 0,
+         option: 'Yes',
+         weight: '60',
+      });
+      expect(result.voteBreakdown).toEqual([
+         {
+            optionIndex: 0,
+            option: 'Yes',
+            weight: '60',
+            voteCount: 1,
+            percentage: 60 / 70,
+         },
+         {
+            optionIndex: 1,
+            option: 'No',
+            weight: '10',
+            voteCount: 1,
+            percentage: 10 / 70,
+         },
+      ]);
+   });
+
+   it('throws when the proposal does not exist', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(null);
+
+      await expect(
+         getGovernanceProposal('missing')
+      ).rejects.toBeInstanceOf(GovernanceProposalNotFoundError);
+   });
+});
+
+describe('getGovernanceWalletVote', () => {
+   beforeEach(() => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(
+         makeActiveProposal()
+      );
+   });
+
+   it('returns the wallet vote and its frozen snapshot weight', async () => {
+      mockPrisma.governanceVotingSnapshot.findUnique.mockResolvedValue({
+         weight: '10',
+      });
+      mockPrisma.governanceVote.findUnique.mockResolvedValue({
+         optionIndex: 1,
+         weight: '10',
+         createdAt: new Date('2026-10-17T00:00:00.000Z'),
+      });
+
+      const result = await getGovernanceWalletVote(PROPOSAL_ID, 'walletA');
+
+      expect(result.hasVoted).toBe(true);
+      expect(result.vote).toEqual({
+         optionIndex: 1,
+         option: 'No',
+         weight: '10',
+         votedAt: '2026-10-17T00:00:00.000Z',
+      });
+      expect(result.weight).toBe('10');
+   });
+
+   it('returns hasVoted=false when the wallet has not voted', async () => {
+      mockPrisma.governanceVotingSnapshot.findUnique.mockResolvedValue({
+         weight: '5',
+      });
+      mockPrisma.governanceVote.findUnique.mockResolvedValue(null);
+
+      const result = await getGovernanceWalletVote(PROPOSAL_ID, 'walletC');
+
+      expect(result.hasVoted).toBe(false);
+      expect(result.vote).toBeNull();
+      expect(result.weight).toBe('5');
+   });
+
+   it('throws when the proposal does not exist', async () => {
+      mockPrisma.governanceProposal.findFirst.mockResolvedValue(null);
+
+      await expect(
+         getGovernanceWalletVote('missing', 'walletA')
+      ).rejects.toBeInstanceOf(GovernanceProposalNotFoundError);
    });
 });

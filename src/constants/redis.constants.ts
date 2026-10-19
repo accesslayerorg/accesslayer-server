@@ -33,3 +33,14 @@ export const TWAP_MAX_SNAPSHOTS = 5000;
 // so the stored configuration is refreshed from the contract every 5 minutes.
 export const circuitBreakerConfigRedisKey = (keyId: string): string =>
    `circuit-breaker:config:${keyId}`;
+
+// ── TWAP snapshot endpoint (#1082) ───────────────────────────────
+// GET /keys/:key_id/twap is served from the indexed twap_snapshots table
+// with a short 60s TTL. A distinct namespace keeps it separate from the
+// #963 job cache (`twap:{keyId}:{window}`) so invalidation never collides.
+export const TWAP_SNAPSHOT_CACHE_TTL_SECONDS = 60;
+
+export const twapSnapshotCacheKey = (
+   keyId: string,
+   window: TwapWindow
+): string => `twap:snapshot:${keyId}:${window}`;

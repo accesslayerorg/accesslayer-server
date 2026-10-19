@@ -5,6 +5,7 @@ const PROPOSAL_STATUSES = [
    'passed',
    'failed',
    'quorum_not_met',
+   'executed',
 ] as const;
 
 /**
@@ -45,6 +46,11 @@ export const CreateGovernanceProposalSchema = z
          .min(0, 'quorumBps must be between 0 and 10000')
          .max(10000, 'quorumBps must be between 0 and 10000')
          .optional(),
+      nonce: z
+         .number()
+         .int('nonce must be an integer')
+         .nonnegative('nonce must be non-negative')
+         .optional(),
    })
    .strict();
 
@@ -59,6 +65,11 @@ export const CastGovernanceVoteSchema = z
          .number({ required_error: 'optionIndex is required' })
          .int('optionIndex must be an integer')
          .nonnegative('optionIndex must be non-negative'),
+      nonce: z
+         .number()
+         .int('nonce must be an integer')
+         .nonnegative('nonce must be non-negative')
+         .optional(),
    })
    .strict();
 

@@ -74,7 +74,7 @@ const app = express();
 app.use(express.json());
 app.use('/api/v1/keys', keysRouter);
 
-describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
+describe('GET /api/v1/keys/:keyId/twap/trade-history (#866)', () => {
    const now = new Date('2026-09-24T12:00:00.000Z');
 
    beforeEach(() => {
@@ -86,17 +86,17 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
    afterEach(() => jest.useRealTimers());
 
    it('returns 422 for invalid or missing window param', async () => {
-      const res1 = await request(app).get('/api/v1/keys/creator-1/twap');
+      const res1 = await request(app).get('/api/v1/keys/creator-1/twap/trade-history');
       expect(res1.status).toBe(422);
 
-      const res2 = await request(app).get('/api/v1/keys/creator-1/twap?window=invalid');
+      const res2 = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=invalid');
       expect(res2.status).toBe(422);
    });
 
    it('returns 404 when key is not found', async () => {
       (prisma.creatorProfile.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const res = await request(app).get('/api/v1/keys/nonexistent/twap?window=1h');
+      const res = await request(app).get('/api/v1/keys/nonexistent/twap/trade-history?window=1h');
       expect(res.status).toBe(404);
    });
 
@@ -118,7 +118,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
          currentPrice: 10000000n,
       });
 
-      const res = await request(app).get('/api/v1/keys/creator-1/twap?window=1h');
+      const res = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=1h');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.twapPrice).toBe('10000000');
@@ -138,7 +138,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
          currentPrice: 12500000n,
       });
 
-      const res = await request(app).get('/api/v1/keys/creator-1/twap?window=1h');
+      const res = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=1h');
 
       expect(res.status).toBe(200);
       expect(res.body.data.twapPrice).toBe('12500000');
@@ -163,7 +163,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
          currentPrice: 20000000n,
       });
 
-      const res = await request(app).get('/api/v1/keys/creator-1/twap?window=24h');
+      const res = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=24h');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.twapPrice).toBe('15000000');
@@ -186,7 +186,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
       });
 
       // First call populates cache
-      const res1 = await request(app).get('/api/v1/keys/creator-1/twap?window=7d');
+      const res1 = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=7d');
       expect(res1.status).toBe(200);
       expect(prisma.creatorPriceHistory.findMany).toHaveBeenCalledTimes(1);
       expect(prisma.creatorPriceHistory.findFirst).toHaveBeenCalledWith(
@@ -204,7 +204,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
       );
 
       // Second call hits cache
-      const res2 = await request(app).get('/api/v1/keys/creator-1/twap?window=7d');
+      const res2 = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=7d');
       expect(res2.status).toBe(200);
       expect(prisma.creatorPriceHistory.findMany).toHaveBeenCalledTimes(1);
 
@@ -212,7 +212,7 @@ describe('GET /api/v1/keys/:keyId/twap (#866)', () => {
       await invalidateKeyTwapCache('creator-1');
 
       // Third call fetches from DB
-      const res3 = await request(app).get('/api/v1/keys/creator-1/twap?window=7d');
+      const res3 = await request(app).get('/api/v1/keys/creator-1/twap/trade-history?window=7d');
       expect(res3.status).toBe(200);
       expect(prisma.creatorPriceHistory.findMany).toHaveBeenCalledTimes(2);
    });

@@ -17,7 +17,9 @@ model GovernanceProposal {
   quorumBps         Int      @default(3000)
   expiresAt         DateTime
   closedAt          DateTime?
-  status            String   @default("active") // active | passed | failed | quorum_not_met
+  /// Execution timestamp, set when ProposalExecuted is indexed (#governance).
+  executedAt        DateTime?
+  status            String   @default("active") // active | passed | failed | quorum_not_met | executed
 
   // Escalation tracking (#935), synced from ProposalExtended contract events.
   escalationCount   Int       @default(0)

@@ -42,6 +42,10 @@ import {
 } from '../trading/slippage.service';
 import { invalidateCreatorDashboardCache } from './creator-dashboard.service';
 import { invalidateHoldingsCache } from '../users/holdings.controller';
+import {
+   getMaxAvailableDepth,
+   LiquidityDepthUnavailableError,
+} from '../trading/liquidity-depth.service';
 
 export const sellSchema = z.object({
    quantity: z.number().int().positive(),
@@ -111,6 +115,25 @@ export async function httpSellCreatorKey(
    if (!creator) {
       sendNotFound(res, 'Key');
       return;
+   }
+   try {
+      const maxAvailable = await getMaxAvailableDepth(walletAddress, keyId, 'sell');
+      if (BigInt(body.quantity) > maxAvailable) {
+         sendError(
+            res,
+            422,
+            ErrorCode.UNPROCESSABLE_ENTITY,
+            'InsufficientDepth',
+            [{ field: 'max_available', message: maxAvailable.toString() }]
+         );
+         return;
+      }
+   } catch (error) {
+      if (error instanceof LiquidityDepthUnavailableError) {
+         sendError(res, 503, ErrorCode.INTERNAL_ERROR, error.message);
+         return;
+      }
+      throw error;
    }
    const { protocolFeeBps } = await getKeyFees(keyId);
 

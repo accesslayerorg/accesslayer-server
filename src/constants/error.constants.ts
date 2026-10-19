@@ -24,6 +24,7 @@ export const ErrorCode = {
    MEMO_TOO_LONG: 'memo_too_long',
    MEMO_EMPTY: 'memo_empty',
    MEMO_INVALID_ENCODING: 'memo_invalid_encoding',
+   TWAP_INVALID: 'TWAPInvalid',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

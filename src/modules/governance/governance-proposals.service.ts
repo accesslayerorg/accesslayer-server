@@ -32,7 +32,12 @@ export const LEDGERS_PER_DAY = 17280;
 
 export const BPS_DENOMINATOR = 10000n;
 
-export type ProposalStatus = 'active' | 'passed' | 'failed' | 'quorum_not_met';
+export type ProposalStatus =
+   | 'active'
+   | 'passed'
+   | 'failed'
+   | 'quorum_not_met'
+   | 'executed';
 export type ProposalOutcome = 'passed' | 'failed' | 'quorum_not_met';
 
 // ── Errors ────────────────────────────────────────────────────
@@ -237,14 +242,21 @@ export interface GovernanceProposalDto {
    snapshotLedger: number;
    snapshotTotalWeight: string;
    quorumBps: number;
+   /** Quorum threshold expressed as a percentage (e.g. 30 for 3000 bps). */
+   quorumPercent: number;
    quorumRequired: string;
    quorumMet: boolean;
    winningOption: string | null;
    totalVotingWeight: string;
    results: Record<string, string>;
    participationRate: number | null;
+   /** Seconds until the voting deadline (0 once the proposal has closed). */
+   timeRemaining: number;
+   /** Alias of {@link timeRemaining} for clients that prefer the explicit unit. */
+   timeRemainingSeconds: number;
    expiresAt: string;
    closedAt: string | null;
+   executedAt: string | null;
    createdAt: string;
 }
 
@@ -261,11 +273,47 @@ interface ProposalRow {
    snapshotLedger: number;
    expiresAt: Date;
    closedAt: Date | null;
+   executedAt?: Date | null;
    status: string;
    createdAt: Date;
 }
 
-function proposalToDto(proposal: ProposalRow): GovernanceProposalDto {
+/**
+ * Resolves a proposal's status from its indexed on-chain state as of `now`.
+ *
+ * A proposal whose voting window is still open is `active`; once the deadline
+ * has passed its terminal outcome (`passed` / `failed` / `quorum_not_met`) is
+ * derived from the recorded tally. An `executed` proposal keeps that terminal
+ * status regardless of the deadline.
+ */
+export function resolveProposalStatus(
+   proposal: ProposalRow,
+   now: Date = new Date()
+): string {
+   if (proposal.status === 'executed' || proposal.executedAt) {
+      return 'executed';
+   }
+   if (proposal.status !== 'active') {
+      return proposal.status;
+   }
+   if (now.getTime() < proposal.expiresAt.getTime()) {
+      return 'active';
+   }
+   return evaluateProposalOutcome({
+      options: Array.isArray(proposal.options)
+         ? (proposal.options as string[])
+         : [],
+      results: (proposal.results ?? {}) as Record<string, string>,
+      castWeight: proposal.totalVotingWeight,
+      snapshotTotalWeight: proposal.snapshotTotalWeight ?? '0',
+      quorumBps: proposal.quorumBps ?? DEFAULT_QUORUM_BPS,
+   });
+}
+
+function proposalToDto(
+   proposal: ProposalRow,
+   now: Date = new Date()
+): GovernanceProposalDto {
    const options = Array.isArray(proposal.options)
       ? (proposal.options as string[])
       : [];
@@ -275,6 +323,10 @@ function proposalToDto(proposal: ProposalRow): GovernanceProposalDto {
    const cast = toBigInt(proposal.totalVotingWeight);
    const eligible = toBigInt(snapshotTotalWeight);
    const required = quorumRequiredWeight(snapshotTotalWeight, quorumBps);
+   const timeRemaining = Math.max(
+      0,
+      Math.floor((proposal.expiresAt.getTime() - now.getTime()) / 1000)
+   );
 
    return {
       id: proposal.id,
@@ -282,18 +334,24 @@ function proposalToDto(proposal: ProposalRow): GovernanceProposalDto {
       proposalId: proposal.proposalId,
       title: proposal.title,
       options,
-      status: proposal.status,
+      status: resolveProposalStatus(proposal, now),
       snapshotLedger: proposal.snapshotLedger,
       snapshotTotalWeight,
       quorumBps,
+      quorumPercent: quorumBps / 100,
       quorumRequired: required,
       quorumMet: eligible > 0n && BigInt(required) <= cast,
       winningOption: leadingOption(options, results).option,
       totalVotingWeight: proposal.totalVotingWeight,
       results,
       participationRate: eligible > 0n ? Number(cast) / Number(eligible) : null,
+      timeRemaining,
+      timeRemainingSeconds: timeRemaining,
       expiresAt: proposal.expiresAt.toISOString(),
       closedAt: proposal.closedAt ? proposal.closedAt.toISOString() : null,
+      executedAt: proposal.executedAt
+         ? proposal.executedAt.toISOString()
+         : null,
       createdAt: proposal.createdAt.toISOString(),
    };
 }
@@ -513,6 +571,158 @@ export async function getGovernanceVotingWeight(
       keyId: proposal.keyId,
       proposalId: proposal.proposalId,
       wallet,
+      weight: toIntegerString(snapshot?.weight),
+      snapshotLedger: proposal.snapshotLedger,
+      snapshotTotalWeight: proposal.snapshotTotalWeight ?? '0',
+   };
+}
+
+// ── Read detail / wallet vote ─────────────────────────────────
+
+export interface GovernanceVoteDto {
+   voter: string;
+   optionIndex: number;
+   option: string | null;
+   weight: string;
+   votedAt: string;
+}
+
+export interface GovernanceVoteBreakdownItem {
+   optionIndex: number;
+   option: string;
+   weight: string;
+   voteCount: number;
+   /** Share of the cast weight held by this option, in [0, 1]; null when no weight was cast. */
+   percentage: number | null;
+}
+
+export interface GovernanceProposalDetailDto extends GovernanceProposalDto {
+   votes: GovernanceVoteDto[];
+   voteBreakdown: GovernanceVoteBreakdownItem[];
+}
+
+/**
+ * Fetch a single proposal with its full vote breakdown.
+ *
+ * The status is recomputed from the stored on-chain state at request time, so
+ * an expired-but-not-yet-swept proposal is never reported as `active`.
+ *
+ * @throws {GovernanceProposalNotFoundError} 404 — no such proposal
+ */
+export async function getGovernanceProposal(
+   proposalIdParam: string
+): Promise<GovernanceProposalDetailDto> {
+   const proposal = await findProposal(proposalIdParam);
+   if (!proposal) throw new GovernanceProposalNotFoundError(proposalIdParam);
+
+   const votes = await prisma.governanceVote.findMany({
+      where: { keyId: proposal.keyId, proposalId: proposal.proposalId },
+      orderBy: { createdAt: 'asc' },
+   });
+
+   const options = Array.isArray(proposal.options)
+      ? (proposal.options as string[])
+      : [];
+   const results = (proposal.results ?? {}) as Record<string, string>;
+   const cast = toBigInt(proposal.totalVotingWeight);
+
+   const weightForOption = (optionIndex: number): string =>
+      toIntegerString(results[options[optionIndex]] ?? '0');
+
+   return {
+      ...proposalToDto(proposal),
+      votes: votes.map(vote => ({
+         voter: vote.voter,
+         optionIndex: vote.optionIndex,
+         option: options[vote.optionIndex] ?? null,
+         weight: toIntegerString(vote.weight),
+         votedAt: vote.createdAt.toISOString(),
+      })),
+      voteBreakdown: options.map((option, optionIndex) => {
+         const weight = weightForOption(optionIndex);
+         return {
+            optionIndex,
+            option,
+            weight,
+            voteCount: votes.filter(vote => vote.optionIndex === optionIndex)
+               .length,
+            percentage:
+               cast > 0n
+                  ? Number(toBigInt(weight)) / Number(cast)
+                  : null,
+         };
+      }),
+   };
+}
+
+export interface WalletGovernanceVoteResult {
+   keyId: string;
+   proposalId: string;
+   wallet: string;
+   hasVoted: boolean;
+   vote: {
+      optionIndex: number;
+      option: string | null;
+      weight: string;
+      votedAt: string;
+   } | null;
+   /** Wallet's frozen snapshot voting weight for the proposal. */
+   weight: string;
+   snapshotLedger: number;
+   snapshotTotalWeight: string;
+}
+
+/**
+ * Fetch a wallet's vote (if any) and snapshot weight for a proposal.
+ *
+ * @throws {GovernanceProposalNotFoundError} 404 — no such proposal
+ */
+export async function getGovernanceWalletVote(
+   proposalIdParam: string,
+   wallet: string
+): Promise<WalletGovernanceVoteResult> {
+   const proposal = await findProposal(proposalIdParam);
+   if (!proposal) throw new GovernanceProposalNotFoundError(proposalIdParam);
+
+   const [snapshot, vote] = await Promise.all([
+      prisma.governanceVotingSnapshot.findUnique({
+         where: {
+            keyId_proposalId_wallet: {
+               keyId: proposal.keyId,
+               proposalId: proposal.proposalId,
+               wallet,
+            },
+         },
+         select: { weight: true },
+      }),
+      prisma.governanceVote.findUnique({
+         where: {
+            keyId_proposalId_voter: {
+               keyId: proposal.keyId,
+               proposalId: proposal.proposalId,
+               voter: wallet,
+            },
+         },
+      }),
+   ]);
+
+   const options = Array.isArray(proposal.options)
+      ? (proposal.options as string[])
+      : [];
+
+   return {
+      keyId: proposal.keyId,
+      proposalId: proposal.proposalId,
+      wallet,
+      hasVoted: vote !== null,
+      vote: vote
+         ? {
+              optionIndex: vote.optionIndex,
+              option: options[vote.optionIndex] ?? null,
+              weight: toIntegerString(vote.weight),
+              votedAt: vote.createdAt.toISOString(),
+           }
+         : null,
       weight: toIntegerString(snapshot?.weight),
       snapshotLedger: proposal.snapshotLedger,
       snapshotTotalWeight: proposal.snapshotTotalWeight ?? '0',
@@ -758,7 +968,7 @@ export async function listGovernanceProposals(
    );
 
    return {
-      items: data.map(proposalToDto),
+      items: data.map(proposal => proposalToDto(proposal)),
       next_cursor: hasMore ? (nextCursor ?? null) : null,
       has_more: hasMore,
    };

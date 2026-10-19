@@ -87,7 +87,8 @@ export async function processTradeEvent(
          txHash: event.tx_hash,
          timestamp: new Date(event.timestamp),
          paymentAsset:
-            typeof event.payment_asset === 'string' && event.payment_asset.trim() !== ''
+            typeof event.payment_asset === 'string' &&
+            event.payment_asset.trim() !== ''
                ? event.payment_asset.trim().toUpperCase()
                : 'XLM',
       },
@@ -104,7 +105,8 @@ export async function processTradeEvent(
       const { invalidateCreatorDashboardCache } =
          await import('../creator/creator-dashboard.service');
       await invalidateCreatorDashboardCache(event.creator_id);
-      const { invalidateKeyTwapCache } = await import('../keys/key-twap-window.service');
+      const { invalidateKeyTwapCache } =
+         await import('../keys/key-twap-window.service');
       await invalidateKeyTwapCache(event.creator_id);
    } catch {
       // Non-critical cache invalidation failure
@@ -126,5 +128,22 @@ export async function processTradeEvent(
       // Non-critical cache invalidation failure
    }
 
+   try {
+      const { invalidateDiscoveryCache } =
+         await import('../keys/discovery.service');
+      invalidateDiscoveryCache();
+   } catch {
+      // Non-critical cache invalidation failure
+   }
+
    return true;
 }
+
+export {
+   processBundleTradeEvent,
+   processBundleTradeEvents,
+   BundleExecutedEvent,
+   BundleItem,
+   NormalizedBundleItem,
+   IndexedBundleTrade,
+} from './bundle-trade-indexer.service';

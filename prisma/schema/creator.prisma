@@ -67,6 +67,9 @@ model CreatorProfile {
   successor        CreatorProfile?        @relation("KeySuccessor", fields: [successorKeyId], references: [id], onDelete: SetNull)
   supersededKeys   CreatorProfile[]       @relation("KeySuccessor")
 
+  socialMetadata       CreatorSocialMetadata?
+  socialMetadataEvents SocialMetadataEvent[]
+
   @@index([userId])
   @@index([successorKeyId])
 }
