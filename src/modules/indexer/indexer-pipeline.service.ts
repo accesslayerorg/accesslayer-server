@@ -41,6 +41,15 @@ function isGovernanceProposalEvent(event: IndexerChainEvent): boolean {
    );
 }
 
+function isSpotlightEvent(event: IndexerChainEvent): boolean {
+   return (
+      event.eventType === 'SpotlightBidPlaced' ||
+      event.eventType === 'SPOTLIGHT_BID_PLACED' ||
+      event.eventType === 'SpotlightAwarded' ||
+      event.eventType === 'SPOTLIGHT_AWARDED'
+   );
+}
+
 export interface TradeEventProcessingOptions {
    /**
     * Advance the shared ledger cursor after processing the batch.
@@ -405,6 +414,15 @@ export async function processIndexerEvents(
    const lpEvents = events.filter(event => isLpEventType(event.eventType));
    if (lpEvents.length > 0) {
       await processLpEvents(lpEvents);
+   }
+
+   // Spotlight auction events (#1114)
+   const spotlightEvents = events.filter(isSpotlightEvent);
+   if (spotlightEvents.length > 0) {
+      const { processSpotlightEvents } = await import(
+         './key-spotlight-indexer.service'
+      );
+      await processSpotlightEvents(spotlightEvents);
    }
 
    await advanceIndexerCursorForBatch(events);
