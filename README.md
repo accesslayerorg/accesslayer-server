@@ -246,6 +246,8 @@ Returns the latest indexed ledger number, its opaque cursor, and the timestamp o
 
 - Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)
 
+Invoice protocol endpoints, contract configuration, and worker integration: [Invoice Protocol](./docs/invoice-protocol.md).
+
 ## Metrics
 
 - Queue metrics: `GET /metrics/queues`

@@ -18,6 +18,7 @@
 // with fake timers and no network.
 
 import { prisma } from '../../utils/prisma.utils';
+import { guardInvoiceMarketSubmission } from '../invoice/invoice-market.service';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
 import { computeRetryDelay } from '../../utils/retry-delay.utils';
@@ -168,6 +169,9 @@ export async function submitContractCall(
    input: SubmitContractCallInput,
    deps: ServiceDeps
 ): Promise<ContractSubmissionResult> {
+   // Runs before any attempt or tracking write, with identities decoded from
+   // the signed transaction rather than caller-controlled operation metadata.
+   await guardInvoiceMarketSubmission(input);
    const {
       postJson,
       submitClient = makeDefaultSubmitClient(

@@ -10,6 +10,7 @@ import {
    GetWhitelistStatusQuerySchema,
    AddWhitelistBodySchema,
    RemoveWhitelistParamsSchema,
+   CheckWhitelistBodySchema,
 } from './whitelist.schemas';
 import {
    getWhitelistStatus,
@@ -18,11 +19,13 @@ import {
    addWalletsToWhitelist,
    removeWalletFromWhitelist,
    listWhitelist,
+   getBulkWhitelistStatus,
 } from './whitelist.service';
 
 /**
- * GET /keys/:keyId/whitelist
- * Returns the whitelist status and approval status for a wallet.
+ * GET /keys/:key_id/whitelist/:wallet
+ * (also supports GET /keys/:keyId/whitelist?wallet=...)
+ * Returns whitelist status and wallet approval status.
  * Public endpoint - no authentication required.
  */
 export const httpGetWhitelistStatus: AsyncController = async (
@@ -31,7 +34,7 @@ export const httpGetWhitelistStatus: AsyncController = async (
    next
 ) => {
    try {
-      const { keyId } = req.params as { keyId: string };
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
       const wallet = req.params.wallet ?? req.query.wallet;
 
       if (!keyId) {
@@ -46,7 +49,7 @@ export const httpGetWhitelistStatus: AsyncController = async (
          ]);
       }
 
-      // Parse and validate query parameters
+      // Parse and validate query/path parameters
       const parsed = GetWhitelistStatusQuerySchema.safeParse({ wallet });
       if (!parsed.success) {
          return sendValidationError(res, 'Invalid query parameters', [
@@ -55,21 +58,70 @@ export const httpGetWhitelistStatus: AsyncController = async (
       }
 
       const query = parsed.data as GetWhitelistStatusQuery;
-      const creatorId = keyId;
 
-      // Verify creator exists
-      const exists = await creatorExists(creatorId);
+      // Verify creator / key exists
+      const exists = await creatorExists(keyId);
       if (!exists) {
          return sendNotFound(res, 'Creator');
       }
 
-      // Get whitelist status with caching
-      const status = await getWhitelistStatus(creatorId, query.wallet);
+      const resolvedCreatorId = (await resolveCreatorId(keyId)) ?? keyId;
+
+      // Get whitelist status with 30s caching
+      const status = await getWhitelistStatus(resolvedCreatorId, query.wallet);
 
       return sendSuccess(res, {
+         is_whitelisted: status.is_whitelisted,
+         whitelist_mode_enabled: status.whitelist_mode_enabled,
          whitelistEnabled: status.whitelistEnabled,
          isApproved: status.isApproved,
       });
+   } catch (error) {
+      next(error);
+   }
+};
+
+/**
+ * POST /keys/:key_id/whitelist/check
+ * Bulk check endpoint returning status for all submitted wallets.
+ * Public endpoint - no authentication required.
+ */
+export const httpCheckWhitelistBulk: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
+
+      if (!keyId) {
+         return sendValidationError(res, 'Missing required parameters', [
+            { field: 'keyId', message: 'Key ID is required' },
+         ]);
+      }
+
+      const parsed = CheckWhitelistBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+         return sendValidationError(
+            res,
+            'Invalid request body',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+      }
+
+      const exists = await creatorExists(keyId);
+      if (!exists) {
+         return sendNotFound(res, 'Key');
+      }
+
+      const resolvedCreatorId = (await resolveCreatorId(keyId)) ?? keyId;
+
+      const bulkResult = await getBulkWhitelistStatus(
+         resolvedCreatorId,
+         parsed.data.wallets
+      );
+
+      return sendSuccess(res, bulkResult);
    } catch (error) {
       next(error);
    }
@@ -81,6 +133,7 @@ export const httpGetWhitelistStatus: AsyncController = async (
  */
 export const httpAddToWhitelist: AsyncController = async (req, res, next) => {
    try {
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
       const parsed = AddWhitelistBodySchema.safeParse(req.body);
       if (!parsed.success) {
          return sendValidationError(
@@ -90,7 +143,7 @@ export const httpAddToWhitelist: AsyncController = async (req, res, next) => {
          );
       }
 
-      const creatorId = await resolveCreatorId(String(req.params.keyId));
+      const creatorId = await resolveCreatorId(keyId);
       if (!creatorId) {
          return sendNotFound(res, 'Key');
       }
@@ -112,7 +165,11 @@ export const httpRemoveFromWhitelist: AsyncController = async (
    next
 ) => {
    try {
-      const parsed = RemoveWhitelistParamsSchema.safeParse(req.params);
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
+      const parsed = RemoveWhitelistParamsSchema.safeParse({
+         keyId,
+         wallet: req.params.wallet,
+      });
       if (!parsed.success) {
          return sendValidationError(
             res,
@@ -145,7 +202,8 @@ export const httpRemoveFromWhitelist: AsyncController = async (
  */
 export const httpListWhitelist: AsyncController = async (req, res, next) => {
    try {
-      const creatorId = await resolveCreatorId(String(req.params.keyId));
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
+      const creatorId = await resolveCreatorId(keyId);
       if (!creatorId) {
          return sendNotFound(res, 'Key');
       }

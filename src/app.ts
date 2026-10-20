@@ -11,6 +11,7 @@ import nonceRouter from './modules/nonce/nonce.routes';
 import swapsRouter from './modules/swaps/swaps.routes';
 import keysRouter from './modules/keys/keys.routes';
 import internalRouter from './modules/admin/sequencer.routes';
+import eventsRouter from './modules/events/events.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -116,6 +117,7 @@ app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 app.use('/keys', routeBodySizeLimit('default'), keysRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+app.use('/events', routeBodySizeLimit('default'), eventsRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

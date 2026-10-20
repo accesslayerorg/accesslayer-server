@@ -95,6 +95,13 @@ import {
    processBuyback,
 } from './key-deprecation.service';
 import { getKeyCooldown } from './key-cooldown.service';
+import {
+   getPollVoteWeight,
+   pollWeightCacheKey,
+   PollNotFoundError,
+   PollVoteWeight,
+   POLL_WEIGHT_CACHE_SECONDS,
+} from './key-poll-weight.service';
 import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
 import {
@@ -150,6 +157,12 @@ import {
 } from './key-price.service';
 import { getKeyTwap } from './key-twap-window.service';
 import { getTwapSnapshot } from './key-twap-snapshot.service';
+import {
+   DEPTH_DEFAULT_LEVELS,
+   DEPTH_MAX_LEVELS,
+   getKeyDepth,
+   getKeySpread,
+} from './key-depth.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -928,6 +941,65 @@ router.get('/:keyId/twap', async (req, res, next) => {
    }
 });
 
+// ── GET /:keyId/depth and /:keyId/depth/spread (#1152) ────────
+// Order book depth from the indexed DepthUpdated events (key_depth table),
+// 5s cache invalidated per key by the indexer. Keys with no open orders
+// return empty sides (and null spread fields), not an error.
+
+const depthQuerySchema = z.object({
+   levels: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(DEPTH_MAX_LEVELS)
+      .default(DEPTH_DEFAULT_LEVELS),
+});
+
+async function resolveDepthKeyId(keyId: string): Promise<string | null> {
+   const creator = await prisma.creatorProfile.findFirst({
+      where: { OR: [{ id: keyId }, { handle: keyId }] },
+      select: { id: true },
+   });
+   return creator?.id ?? null;
+}
+
+router.get('/:keyId/depth/spread', async (req, res, next) => {
+   try {
+      const id = await resolveDepthKeyId(String(req.params.keyId));
+      if (!id) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      sendSuccess(res, await getKeySpread(id));
+   } catch (error) {
+      next(error);
+   }
+});
+
+router.get('/:keyId/depth', async (req, res, next) => {
+   const parsed = depthQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         `Invalid levels param. Must be an integer between 1 and ${DEPTH_MAX_LEVELS}`,
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      const id = await resolveDepthKeyId(String(req.params.keyId));
+      if (!id) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      sendSuccess(res, await getKeyDepth(id, parsed.data.levels));
+   } catch (error) {
+      next(error);
+   }
+});
+
 // ── GET /:keyId/twap/trade-history (#866) ─────────────────────
 // The earlier #866 endpoint, moved off /:keyId/twap when #1082 claimed that
 // path. Distinct from GET /:keyId/price/twap (#963): it serves the 1h/24h/7d
@@ -1266,6 +1338,56 @@ router.post(
             { error, keyId: req.params.keyId },
             'Key proposal vote failed'
          );
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/polls/:pollId/weight/:wallet
+ * Return a wallet's estimated vote weight for a key poll, read from the holder
+ * balance snapshot at the poll creation block. Used by the frontend vote modal.
+ *
+ * - Returns 404 if the poll does not exist for the key
+ * - Returns 400 if the wallet is not a valid Stellar address
+ * - Returns zero weight when the wallet held nothing at the snapshot block
+ * - Cached for 60s per wallet/poll pair
+ */
+const pollWeightParamsSchema = z.object({
+   wallet: StellarAddressSchema,
+});
+
+router.get(
+   '/:keyId/polls/:pollId/weight/:wallet',
+   async (req, res, next) => {
+      const keyId = String(req.params.keyId);
+      const pollId = String(req.params.pollId);
+      const parsed = pollWeightParamsSchema.safeParse(req.params);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid wallet address',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+      const wallet = parsed.data.wallet;
+
+      try {
+         const cacheKey = pollWeightCacheKey(keyId, pollId, wallet);
+         const cached = await cacheGetJson<PollVoteWeight>(cacheKey);
+         if (cached !== null) {
+            return sendSuccess(res, cached);
+         }
+
+         const weight = await getPollVoteWeight(keyId, pollId, wallet);
+         await cacheSetJson(cacheKey, weight, POLL_WEIGHT_CACHE_SECONDS);
+         sendSuccess(res, weight);
+      } catch (error) {
+         if (error instanceof PollNotFoundError) {
+            sendNotFound(res, 'Poll');
+            return;
+         }
          next(error);
       }
    }

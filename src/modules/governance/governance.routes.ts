@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { timelockRouter } from '../invoice/invoice-protocol.routes';
 import { EscalatingProposalsQuerySchema } from './governance-escalation.schemas';
 import { getEscalatingProposals } from './governance-escalation.service';
 import {
@@ -44,6 +45,7 @@ import {
 } from '../nonce';
 
 const router = Router();
+router.use('/timelock', timelockRouter);
 
 /**
  * GET /governance/proposals/escalating
@@ -154,32 +156,29 @@ router.get('/proposals/:proposal_id', async (req, res, next) => {
  * Returns the wallet's vote (option and weight) for the proposal together
  * with its frozen snapshot voting weight.
  */
-router.get(
-   '/proposals/:proposal_id/votes/:wallet',
-   async (req, res, next) => {
-      const wallet = String(req.params.wallet ?? '').trim();
-      if (wallet.length === 0) {
-         sendValidationError(res, 'Invalid path parameters', [
-            { field: 'wallet', message: 'wallet is required' },
-         ]);
+router.get('/proposals/:proposal_id/votes/:wallet', async (req, res, next) => {
+   const wallet = String(req.params.wallet ?? '').trim();
+   if (wallet.length === 0) {
+      sendValidationError(res, 'Invalid path parameters', [
+         { field: 'wallet', message: 'wallet is required' },
+      ]);
+      return;
+   }
+
+   try {
+      const result = await getGovernanceWalletVote(
+         String(req.params.proposal_id),
+         wallet
+      );
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof GovernanceProposalNotFoundError) {
+         sendNotFound(res, 'Proposal');
          return;
       }
-
-      try {
-         const result = await getGovernanceWalletVote(
-            String(req.params.proposal_id),
-            wallet
-         );
-         sendSuccess(res, result);
-      } catch (error) {
-         if (error instanceof GovernanceProposalNotFoundError) {
-            sendNotFound(res, 'Proposal');
-            return;
-         }
-         next(error);
-      }
+      next(error);
    }
-);
+});
 
 /**
  * POST /governance/proposals

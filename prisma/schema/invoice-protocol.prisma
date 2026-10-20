@@ -1,0 +1,107 @@
+// Separate cursor for worker streams filtered to the invoice contracts.
+model InvoiceProtocolCursor {
+  id        Int      @id @default(1)
+  ledger    Int
+  cursor    String
+  updatedAt DateTime @updatedAt
+
+  @@map("invoice_protocol_cursor")
+}
+
+// Immutable event journal and replayable projections for the invoice protocol.
+model InvoiceProtocolEvent {
+  id               String   @id
+  contractId       String
+  txHash           String
+  eventIndex       Int
+  transactionIndex Int
+  ledger           Int
+  eventType        String
+  entityKey        String
+  timestamp        DateTime
+  payload          Json
+
+  @@unique([contractId, txHash, eventIndex])
+  @@index([entityKey, ledger, transactionIndex, eventIndex])
+  @@index([eventType, entityKey, timestamp])
+  @@map("invoice_protocol_events")
+}
+
+model IssuerScore {
+  wallet       String   @id
+  score        Int
+  tier         String
+  lastEventId  String
+  lastUpdated  DateTime
+
+  @@map("issuer_scores")
+}
+
+model FraudReport {
+  reportId        String
+  invoiceId       String
+  reporter        String
+  evidenceHash    String
+  notes           String?
+  status          String
+  resolution      String?
+  resolutionNotes String?
+  submittedAt     DateTime
+  resolvedAt      DateTime?
+
+  @@id([invoiceId, reportId])
+  @@index([invoiceId, submittedAt, reportId])
+  @@index([invoiceId, status])
+  @@map("fraud_reports")
+}
+
+model TimelockChange {
+  proposalId  String   @id
+  target      String
+  function    String
+  params      Json
+  eta         DateTime
+  status      String
+  outcome     String?
+  proposedAt  DateTime
+  completedAt DateTime?
+
+  @@index([status, proposedAt, proposalId])
+  @@map("timelock_changes")
+}
+
+model TransferRestrictionEvent {
+  id              String   @id
+  invoiceId       String
+  fromWallet      String
+  toWallet        String
+  reason          String
+  restrictionType String
+  ledger          Int
+  txHash          String
+  eventIndex      Int
+  timestamp       DateTime
+
+  @@index([invoiceId, timestamp, id])
+  @@map("transfer_restriction_events")
+}
+
+// The immutable signed envelope enforces the price limit on chain. A worker
+// may retry an interrupted submission using exactly the same envelope/hash.
+model InvoiceLimitOrder {
+  id             String   @id @default(cuid())
+  invoiceId      String
+  fromWallet     String
+  buyerWallet    String
+  limitPrice     String
+  transactionXdr String
+  txHash         String   @unique
+  status         String   @default("PENDING")
+  leaseUntil     DateTime?
+  leaseToken     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([invoiceId, status, createdAt])
+  @@map("invoice_limit_orders")
+}

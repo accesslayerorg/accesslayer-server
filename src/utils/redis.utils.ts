@@ -28,7 +28,10 @@ function createRedisClient(): Redis | null {
          lazyConnect: false,
          maxRetriesPerRequest: 1,
          enableOfflineQueue: false,
-         retryStrategy: (attempt: number) => Math.min(attempt * 500, 5000),
+         retryStrategy: (attempt: number) =>
+            process.env.NODE_ENV === 'test' || envConfig.MODE === 'test'
+               ? null
+               : Math.min(attempt * 500, 5000),
       });
 
       client.on('ready', () => {

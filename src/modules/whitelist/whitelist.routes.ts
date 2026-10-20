@@ -2,6 +2,7 @@ import { NextFunction, Request, Response, Router } from 'express';
 import { requireKeyCreator } from '../../middlewares/jwt-auth.middleware';
 import {
    httpAddToWhitelist,
+   httpCheckWhitelistBulk,
    httpGetWhitelistStatus,
    httpListWhitelist,
    httpRemoveFromWhitelist,
@@ -9,11 +10,34 @@ import {
 
 const whitelistRouter = Router();
 
+const normalizeKeyId = (req: Request, _res: Response, next: NextFunction) => {
+   if (!req.params.keyId && req.params.key_id) {
+      req.params.keyId = req.params.key_id;
+   }
+   next();
+};
+
 /**
- * GET /keys/:keyId/whitelist/:wallet
+ * POST /keys/:key_id/whitelist/check
+ * (also /keys/:keyId/whitelist/check)
+ * Public bulk check endpoint: checks whitelist status for wallets[]
+ */
+whitelistRouter.post(
+   ['/:key_id/whitelist/check', '/:keyId/whitelist/check'],
+   normalizeKeyId,
+   httpCheckWhitelistBulk
+);
+
+/**
+ * GET /keys/:key_id/whitelist/:wallet
+ * (also /keys/:keyId/whitelist/:wallet)
  * Public endpoint - returns whitelist and wallet approval status.
  */
-whitelistRouter.get('/:keyId/whitelist/:wallet', httpGetWhitelistStatus);
+whitelistRouter.get(
+   ['/:key_id/whitelist/:wallet', '/:keyId/whitelist/:wallet'],
+   normalizeKeyId,
+   httpGetWhitelistStatus
+);
 
 /**
  * GET /keys/:keyId/whitelist?wallet=<address>
@@ -23,7 +47,8 @@ whitelistRouter.get('/:keyId/whitelist/:wallet', httpGetWhitelistStatus);
  * Without `wallet`, falls through to the creator-only list below.
  */
 whitelistRouter.get(
-   '/:keyId/whitelist',
+   ['/:key_id/whitelist', '/:keyId/whitelist'],
+   normalizeKeyId,
    (req: Request, res: Response, next: NextFunction) => {
       if (req.query.wallet === undefined) {
          return next();
@@ -37,7 +62,8 @@ whitelistRouter.get(
  * Creator-only (JWT). Returns the synced whitelist for the key.
  */
 whitelistRouter.get(
-   '/:keyId/whitelist',
+   ['/:key_id/whitelist', '/:keyId/whitelist'],
+   normalizeKeyId,
    requireKeyCreator('keyId'),
    httpListWhitelist
 );
@@ -47,7 +73,8 @@ whitelistRouter.get(
  * Creator-only (JWT). Bulk-adds wallets: { wallets: string[] }.
  */
 whitelistRouter.post(
-   '/:keyId/whitelist',
+   ['/:key_id/whitelist', '/:keyId/whitelist'],
+   normalizeKeyId,
    requireKeyCreator('keyId'),
    httpAddToWhitelist
 );
@@ -57,7 +84,8 @@ whitelistRouter.post(
  * Creator-only (JWT). Removes a wallet from the whitelist.
  */
 whitelistRouter.delete(
-   '/:keyId/whitelist/:wallet',
+   ['/:key_id/whitelist/:wallet', '/:keyId/whitelist/:wallet'],
+   normalizeKeyId,
    requireKeyCreator('keyId'),
    httpRemoveFromWhitelist
 );

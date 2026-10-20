@@ -85,15 +85,77 @@ model ReferralEvent {
 }
 
 /**
- * Referral reward earnings indexed from the on-chain
- * `ReferralRewardDistributed` event (#1057).
+ * Current referral tier state for a wallet, derived from on-chain
+ * `ReferralTierUpgraded` events (#1034).
  *
- * One row per distributed reward. `referrerWallet` is the wallet that earned
- * the reward; `sourceWallet` is the referred wallet whose activity generated
- * it; `tier` is the referral tier (1 = direct, 2 = second level, 3 = third
- * level). The `(txHash, eventIndex)` pair is unique so replaying the same
- * chain event is idempotent and never double-counts earnings.
+ * One row per referrer. `tier` is the highest tier reached, `cumulativeVolume`
+ * the total referred volume that earned it, and `lastUpgradedAt` the timestamp
+ * of the most recent upgrade.
  */
+model ReferralTier {
+  id               String    @id @default(cuid())
+
+  // Referrer wallet whose tier is tracked
+  walletAddress    String    @unique
+
+  // Highest referral tier reached (1, 2 or 3)
+  tier             Int       @default(1)
+
+  // Cumulative referred volume in XLM
+  cumulativeVolume Decimal   @default(0) @db.Decimal(20, 7)
+
+  // When the wallet last upgraded tiers
+  lastUpgradedAt   DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tier])
+  @@map("referral_tiers")
+}
+
+/**
+ * Append-only history of referral tier upgrades (#1034).
+ *
+ * One row per `ReferralTierUpgraded` event. The `(txHash, eventIndex)` pair is
+ * unique so replaying the same chain event is idempotent and never records a
+ * duplicate upgrade.
+ */
+model ReferralTierEvent {
+  id               String   @id @default(cuid())
+
+  // Referrer wallet that upgraded
+  walletAddress    String
+
+  previousTier     Int
+  newTier          Int
+
+  // Cumulative referred volume in XLM at the time of the upgrade
+  cumulativeVolume Decimal  @db.Decimal(20, 7)
+
+  // Chain correlation
+  ledger           Int
+  txHash           String
+  eventIndex       Int
+
+  // On-chain event timestamp
+  occurredAt       DateTime
+
+  createdAt        DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([walletAddress, occurredAt(sort: Desc)])
+  @@map("referral_tier_events")
+}
+
+// Referral reward earnings indexed from the on-chain
+// `ReferralRewardDistributed` event (#1057).
+//
+// One row per distributed reward. `referrerWallet` is the wallet that earned
+// the reward; `sourceWallet` is the referred wallet whose activity generated
+// it; `tier` is the referral tier (1 = direct, 2 = second level, 3 = third
+// level). The `(txHash, eventIndex)` pair is unique so replaying the same
+// chain event is idempotent and never double-counts earnings.
 model ReferralEarning {
   id             String   @id @default(cuid())
 

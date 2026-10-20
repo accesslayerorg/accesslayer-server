@@ -23,11 +23,13 @@ import {
    processSocialMetadataEvents,
    SOCIAL_METADATA_UPDATED_EVENT_TYPE,
 } from './social-metadata-indexer.service';
+import {
+   canonicalInvoiceEventType,
+   INVOICE_PROTOCOL_EVENT_TYPES,
+} from './invoice-protocol.events';
 
 function isTradeEvent(event: IndexerChainEvent): boolean {
-   return (
-      event.eventType === 'KEY_BOUGHT' || event.eventType === 'KEY_SOLD'
-   );
+   return event.eventType === 'KEY_BOUGHT' || event.eventType === 'KEY_SOLD';
 }
 
 function isGovernanceProposalEvent(event: IndexerChainEvent): boolean {
@@ -334,15 +336,26 @@ export async function advanceIndexerCursorForBatch(
 
 /**
  * Processes a mixed batch of indexer events (trades, social metadata and
- * TWAPUpdated observations).
+ * TWAPUpdated observations, and invoice protocol projections).
  *
  * Routes each event type to its handler and advances the ledger cursor
  * exactly once, over the full batch, so batches containing only social
  * metadata events still make cursor progress.
  */
 export async function processIndexerEvents(
-   events: IndexerChainEvent[]
+   events: IndexerChainEvent[],
+   options: { advanceCursor?: boolean } = {}
 ): Promise<void> {
+   const invoiceEvents = events.filter(event =>
+      INVOICE_PROTOCOL_EVENT_TYPES.has(
+         canonicalInvoiceEventType(event.eventType)
+      )
+   );
+   if (invoiceEvents.length) {
+      const { processInvoiceProtocolEvents } =
+         await import('./invoice-protocol-indexer.service');
+      await processInvoiceProtocolEvents(invoiceEvents);
+   }
    const tradeEvents = events.filter(isTradeEvent);
    const dividendEvents = events.filter(
       event =>
@@ -367,14 +380,41 @@ export async function processIndexerEvents(
    // TWAP event actually arrives.
    const twapEvents = events.filter(
       event =>
-         event.eventType === 'TWAP_UPDATED' ||
-         event.eventType === 'TWAPUpdated'
+         event.eventType === 'TWAP_UPDATED' || event.eventType === 'TWAPUpdated'
    );
    if (twapEvents.length > 0) {
-      const { processTwapUpdatedEvents } = await import(
-         './twap-indexer.service'
-      );
+      const { processTwapUpdatedEvents } =
+         await import('./twap-indexer.service');
       await processTwapUpdatedEvents(twapEvents);
+   }
+
+   // DepthUpdated (#1152). Awaited before the cursor moves so a failure
+   // redelivers the batch and key_depth never misses a level change.
+   const depthEvents = events.filter(
+      event =>
+         event.eventType === 'DEPTH_UPDATED' ||
+         event.eventType === 'DepthUpdated'
+   );
+   if (depthEvents.length > 0) {
+      const { processDepthUpdatedEvents } =
+         await import('./key-depth-indexer.service');
+      await processDepthUpdatedEvents(depthEvents);
+   }
+
+   const whitelistEvents = events.filter(
+      event =>
+         event.eventType === 'WalletWhitelisted' ||
+         event.eventType === 'WALLET_WHITELISTED' ||
+         event.eventType === 'WHITELIST_ADDED' ||
+         event.eventType === 'WalletRemovedFromWhitelist' ||
+         event.eventType === 'WALLET_REMOVED_FROM_WHITELIST' ||
+         event.eventType === 'WHITELIST_REMOVED'
+   );
+   if (whitelistEvents.length > 0) {
+      const { processWhitelistEvents } = await import(
+         './whitelist-indexer.service'
+      );
+      await processWhitelistEvents(whitelistEvents);
    }
 
    // Governance lifecycle events (PROPOSAL_CREATED / VOTE_CAST /
@@ -382,9 +422,8 @@ export async function processIndexerEvents(
    // batch that creates a proposal and records its votes stays consistent.
    const governanceEvents = events.filter(isGovernanceProposalEvent);
    if (governanceEvents.length > 0) {
-      const { processGovernanceProposalEvents } = await import(
-         './governance-proposal-indexer.service'
-      );
+      const { processGovernanceProposalEvents } =
+         await import('./governance-proposal-indexer.service');
       await processGovernanceProposalEvents(governanceEvents);
    }
 
@@ -393,21 +432,20 @@ export async function processIndexerEvents(
    }
 
    if (dividendEvents.length > 0) {
-      const { processDividendEvents } = await import(
-         './dividend-indexer.service'
-      );
+      const { processDividendEvents } =
+         await import('./dividend-indexer.service');
       await processDividendEvents(dividendEvents, { advanceCursor: false });
    }
 
-   const { isLpEventType, processLpEvents } = await import(
-      './lp-indexer.service'
-   );
+   const { isLpEventType, processLpEvents } =
+      await import('./lp-indexer.service');
    const lpEvents = events.filter(event => isLpEventType(event.eventType));
    if (lpEvents.length > 0) {
       await processLpEvents(lpEvents);
    }
 
-   await advanceIndexerCursorForBatch(events);
+   if (options.advanceCursor !== false)
+      await advanceIndexerCursorForBatch(events);
 }
 
 function computeBatchHash(

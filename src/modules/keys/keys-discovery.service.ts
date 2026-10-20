@@ -47,7 +47,7 @@ function cacheGet(key: string): unknown | undefined {
    return entry.body;
 }
 
-function cacheSet(key: string, body: unknown, ttlMs: number): void {
+function cacheSet(key: string, body: unknown, ttlMs: number = DISCOVERY_TTL_MS): void {
    if (responseCache.size >= MAX_CACHE_ENTRIES) {
       const oldest = [...responseCache.entries()].sort(
          (a, b) => a[1].expiresAt - b[1].expiresAt
