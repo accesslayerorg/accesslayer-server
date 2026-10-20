@@ -34,6 +34,10 @@ export const TWAP_MAX_SNAPSHOTS = 5000;
 export const circuitBreakerConfigRedisKey = (keyId: string): string =>
    `circuit-breaker:config:${keyId}`;
 
+// Key content gate config cache (#1150)
+export const keyGateConfigRedisKey = (keyId: string): string =>
+   `key:gate:config:${keyId}`;
+
 // ── TWAP snapshot endpoint (#1082) ───────────────────────────────
 // GET /keys/:key_id/twap is served from the indexed twap_snapshots table
 // with a short 60s TTL. A distinct namespace keeps it separate from the
@@ -45,19 +49,11 @@ export const twapSnapshotCacheKey = (
    window: TwapWindow
 ): string => `twap:snapshot:${keyId}:${window}`;
 
+
 // ── Order book depth endpoints (#1152) ───────────────────────────
-// GET /keys/:key_id/depth and /depth/spread are served from the indexed
-// key_depth table with a 5s TTL and invalidated per key by the indexer on
-// every DepthUpdated event. The depth response varies by `levels`, so keys
-// are `depth:{keyId}:levels:{n}`; the indexer drops them all with the
-// `depth:{keyId}:*` pattern.
-export const KEY_DEPTH_CACHE_TTL_SECONDS = 5;
+export const KEY_DEPTH_CACHE_TTL_SECONDS = 10;
 
-export const keyDepthCacheKey = (keyId: string, levels: number): string =>
-   `depth:${keyId}:levels:${levels}`;
-
-export const keyDepthSpreadCacheKey = (keyId: string): string =>
-   `depth:${keyId}:spread`;
-
-export const keyDepthCachePattern = (keyId: string): string =>
-   `depth:${keyId}:*`;
+export const keyDepthCacheKey = (keyId: string, levels?: number): string =>
+   levels !== undefined ? `key:depth:${keyId}:${levels}` : `key:depth:${keyId}`;
+export const keyDepthSpreadCacheKey = (keyId: string): string => `key:depth:spread:${keyId}`;
+export const keyDepthCachePattern = (keyId: string): string => `key:depth:${keyId}*`;
