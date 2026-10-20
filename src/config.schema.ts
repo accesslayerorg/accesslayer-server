@@ -240,11 +240,19 @@ export const envSchema = z
       // max_bps configuration, and the TTL (seconds) for the cached contract
       // read. Defaults to a 5-minute refresh window.
       CIRCUIT_BREAKER_CONTRACT_ID: optionalNonEmptyString,
+      GATE_CONFIG_CONTRACT_ID: optionalNonEmptyString,
       CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS: z.coerce
          .number()
          .int()
          .positive()
          .default(300),
+
+      // Key content gate config cache (#1150)
+      GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
 
       // Nonce registry contract (#1039): deployed contract id holding the
       // on-chain single-use nonce registry, and short TTL for cached nonces.
@@ -256,19 +264,6 @@ export const envSchema = z
 
       // Invoice protocol adapters. Unconfigured reads/execution fail closed.
       ISSUER_REPUTATION_CONTRACT_ID: optionalNonEmptyString,
-      INVOICE_TRANSFER_CONTRACT_ID: optionalNonEmptyString,
-      INVOICE_MARKET_CONTRACT_ID: optionalNonEmptyString,
-      INVOICE_MARKET_ABI: optionalNonEmptyString,
-      INVOICE_FRAUD_CONTRACT_ID: optionalNonEmptyString,
-      INVOICE_TIMELOCK_CONTRACT_ID: optionalNonEmptyString,
-
-      // Social metadata sync (Pinata gateway used to resolve avatar CIDs)
-      PINATA_GATEWAY_URL: z
-         .string()
-         .url(
-            'PINATA_GATEWAY_URL must be a valid URL (e.g. https://gateway.pinata.cloud/ipfs)'
-         )
-         .default('https://gateway.pinata.cloud/ipfs'),
 
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
