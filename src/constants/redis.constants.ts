@@ -48,3 +48,11 @@ export const twapSnapshotCacheKey = (
    keyId: string,
    window: TwapWindow
 ): string => `twap:snapshot:${keyId}:${window}`;
+
+
+// ── Order book depth endpoints (#1152) ───────────────────────────
+export const KEY_DEPTH_CACHE_TTL_SECONDS = 10;
+
+export const keyDepthCacheKey = (keyId: string): string => `key:depth:${keyId}`;
+export const keyDepthSpreadCacheKey = (keyId: string): string => `key:depth:spread:${keyId}`;
+export const keyDepthCachePattern = (keyId: string): string => `key:depth:${keyId}*`;
