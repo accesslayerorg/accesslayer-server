@@ -86,7 +86,12 @@ export async function relaySignedTransaction(input: {
    await enforceWalletRateLimit(wallet);
 
    const keypair = Keypair.fromPublicKey(wallet);
-   const transaction = TransactionBuilder.fromXDR(input.tx_params, networkPassphrase());
+   const envelope = TransactionBuilder.fromXDR(
+      input.tx_params,
+      networkPassphrase()
+   );
+   const transaction =
+      'innerTransaction' in envelope ? envelope.innerTransaction : envelope;
    if (transaction.source !== wallet || transaction.sequence !== input.nonce) {
       throw Object.assign(new Error('Transaction wallet or sequence does not match the reservation'), { statusCode: 400 });
    }
@@ -102,7 +107,7 @@ export async function relaySignedTransaction(input: {
       throw Object.assign(new Error('Nonce reservation is missing or expired'), { statusCode: 409 });
    }
 
-   const result = await sendTransaction(transaction.toXDR());
+   const result = await sendTransaction(envelope.toXDR());
    if (result.status === 'ERROR' || !result.hash) {
       throw Object.assign(new Error('Soroban RPC rejected the transaction'), { statusCode: 502, details: result });
    }
