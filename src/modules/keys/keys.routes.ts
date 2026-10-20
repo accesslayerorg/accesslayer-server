@@ -156,7 +156,6 @@ import {
    KeyNotFoundError as PriceKeyNotFoundError,
 } from './key-price.service';
 import { getKeyTwap } from './key-twap-window.service';
-import { getKeyTwap } from './key-twap-window.service';
 import { getTwapSnapshot } from './key-twap-snapshot.service';
 import {
    DEPTH_DEFAULT_LEVELS,
