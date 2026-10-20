@@ -30,7 +30,7 @@ export class KeyNotFoundError extends Error {
  */
 export async function getGateConfig(
    keyId: string,
-   now: Date = new Date()
+   _now: Date = new Date()
 ): Promise<GateConfigResponse> {
    const creator = await prisma.creatorProfile.findFirst({
       where: { OR: [{ id: keyId }, { handle: keyId }] },

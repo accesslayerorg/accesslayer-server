@@ -119,8 +119,6 @@ export async function processTradeEvents(
          await processGateConfigEvents([event]);
          return;
       }
-         return;
-      }
 
       // Validate event type
       if (event.eventType !== 'KEY_BOUGHT' && event.eventType !== 'KEY_SOLD') {
