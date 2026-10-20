@@ -1,0 +1,75 @@
+// prisma/schema/wal.prisma
+
+enum SorobanOperation {
+  BUY
+  SELL
+}
+
+enum SorobanWALState {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  ROLLED_BACK
+}
+
+model SorobanWALEntry {
+  id                   String           @id @default(cuid())
+  operation            SorobanOperation
+  wallet               String
+  creatorWallet        String
+  amount               Decimal
+  expectedSupplyBefore Decimal
+  xdrPayload           String           @db.Text
+  state                SorobanWALState  @default(PENDING)
+  txHash               String?          @unique
+  idempotencyKey       String?          @unique
+  submittedAt          DateTime?
+  confirmedAt          DateTime?
+  error                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([state, createdAt])
+  @@index([wallet])
+  @@index([creatorWallet])
+  @@index([txHash])
+}
+
+model PriceSnapshot {
+  id          String   @id @default(cuid())
+  creatorId   String
+  price       Decimal
+  supply      Decimal
+  timestamp   DateTime @default(now())
+
+  @@index([creatorId, timestamp])
+}
+
+model CreatorStats {
+  id          String   @id @default(cuid())
+  creatorId   String   @unique
+  holderCount Int      @default(0)
+  totalSupply Decimal  @default(0)
+  totalVolume Decimal  @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([creatorId])
+}
+
+model TransactionHistory {
+  id            String           @id @default(cuid())
+  txHash        String           @unique
+  walEntryId    String?
+  operation     SorobanOperation
+  wallet        String
+  creatorWallet String
+  amount        Decimal
+  price         Decimal?
+  createdAt     DateTime         @default(now())
+
+  @@index([wallet])
+  @@index([creatorWallet])
+  @@index([createdAt])
+}

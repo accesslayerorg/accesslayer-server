@@ -5,53 +5,7 @@ import { envConfig } from './config';
 import { logger } from './utils/logger.utils';
 import { prisma } from './utils/prisma.utils';
 import { verifyMigrationChecksums } from './utils/migration-checksum.utils';
-import {
-   IndexerFlagsConfigError,
-   runIndexerFeatureFlagsStartupCheck,
-} from './utils/indexer-flags-startup-check.utils';
-import { checkOptionalDependencies } from './utils/startup.utils';
-import { describeDatabasePoolConfig } from './utils/db-pool-config.utils';
-import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
-import {
-   startDetectPriceMovementsJob,
-   stopDetectPriceMovementsJob,
-} from './jobs/detect-price-movements.job';
-import {
-   startGovernanceSyncJob,
-   stopGovernanceSyncJob,
-} from './jobs/governance-sync.job';
-import {
-   startPriceHistoryCleanupJob,
-   stopPriceHistoryCleanupJob,
-} from './jobs/price-history-cleanup.job';
-import {
-   startTwapComputationJob,
-   stopTwapComputationJob,
-} from './jobs/twap-computation.job';
-import {
-   startFlashLoanViolationCleanupJob,
-   stopFlashLoanViolationCleanupJob,
-} from './jobs/flash-loan-violation-cleanup.job';
-import {
-   startStatusProbeJob,
-   stopStatusProbeJob,
-} from './jobs/status-probe.job';
-import {
-   startSessionActivityCleanupJob,
-   stopSessionActivityCleanupJob,
-} from './jobs/session-activity-cleanup.job';
-import {
-   startCampaignCronJobs,
-   stopCampaignCronJobs,
-} from './jobs/campaign-cron.job';
-import { connectRedis, disconnectRedis } from './utils/redis.utils';
-import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
-import { buildStartupConfigSummary } from './utils/config-summary.utils';
-import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
-import {
-   attachPriceWebSocketGateway,
-   closePriceWebSocketGateway,
-} from './modules/price-stream/price-stream.gateway';
+import { startWALRecoveryWorker, stopWALRecoveryWorker } from './modules/wal/wal-recovery.worker';
 
 async function startServer() {
    try {
@@ -96,18 +50,8 @@ async function startServer() {
       // Verify migrations on startup
       await verifyMigrationChecksums();
 
-      // Check and warn about disabled optional dependencies (non-blocking)
-      checkOptionalDependencies();
-
-      startDetectPriceMovementsJob();
-      startGovernanceSyncJob();
-      startPriceHistoryCleanupJob();
-      startTwapComputationJob();
-      startFlashLoanViolationCleanupJob();
-      startStatusProbeJob();
-      startSessionActivityCleanupJob();
-      startCampaignCronJobs();
-      initKeyCreationMetadataSync();
+      // Start WAL recovery worker
+      await startWALRecoveryWorker();
 
       const server = app.listen(envConfig.PORT, () => {
          logger.info(`Server running on port ${envConfig.PORT}`);
@@ -171,7 +115,8 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
 
       server.close(async () => {
          clearTimeout(shutdownTimer);
-         logger.info('HTTP server closed, draining requests');
+         stopWALRecoveryWorker();
+         console.log('✅ HTTP server closed, draining requests');
 
          await new Promise(resolve => setTimeout(resolve, DRAIN_WINDOW_MS));
 
