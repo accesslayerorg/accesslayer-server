@@ -12,6 +12,7 @@ import swapsRouter from './modules/swaps/swaps.routes';
 import keysRouter from './modules/keys/keys.routes';
 import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
+import analyticsRouter from './modules/analytics/analytics.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -118,6 +119,7 @@ app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 app.use('/keys', routeBodySizeLimit('default'), keysRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
+app.use('/analytics', routeBodySizeLimit('default'), analyticsRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since
