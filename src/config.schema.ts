@@ -263,7 +263,13 @@ export const envSchema = z
       LP_CONTRACT_ID: optionalNonEmptyString,
 
       // Invoice protocol adapters. Unconfigured reads/execution fail closed.
+      INVOICE_MARKET_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_MARKET_ABI: optionalNonEmptyString,
       ISSUER_REPUTATION_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_FRAUD_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_TIMELOCK_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_TRANSFER_CONTRACT_ID: optionalNonEmptyString,
+
 
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
@@ -637,3 +643,5 @@ export const envSchema = z
          });
       }
    });
+
+      PINATA_GATEWAY_URL: z.string().url().default('https://gateway.pinata.cloud/ipfs'),
