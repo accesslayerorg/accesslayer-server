@@ -1,0 +1,18 @@
+// prisma/schema/co-creator.prisma
+// Co-creator roster model for creator dashboard management.
+
+model KeyCoCreator {
+  id        String    @id @default(cuid())
+  keyId     String    @map("key_id")
+  wallet    String
+  role      String    @default("contributor")
+  isActive  Boolean   @default(true) @map("is_active")
+  addedAt   DateTime  @default(now()) @map("added_at")
+  removedAt DateTime? @map("removed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@unique([keyId, wallet])
+  @@index([keyId, isActive])
+  @@map("key_cocreators")
+}
