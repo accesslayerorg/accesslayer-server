@@ -36,6 +36,10 @@ import { TWAP_WINDOWS } from '../../constants/redis.constants';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { envConfig } from '../../config';
 import { getKeyProposals, getProposalForVoting } from './key-proposals.service';
+import {
+   getKeyPollWeight,
+   PollNotFoundError,
+} from './key-poll-weight.service';
 import { getKeySupply } from './key-supply.service';
 import { httpGetKeyLeaderboard } from './key-leaderboard.controller';
 import {
@@ -1179,6 +1183,32 @@ router.get('/:keyId/proposals', async (req, res, next) => {
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/polls/:pollId/weight/:wallet
+ * Return a wallet's estimated vote weight for a key poll computed from
+ * holder balance snapshot at poll creation block.
+ */
+router.get('/:keyId/polls/:pollId/weight/:wallet', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const pollId = String(req.params.pollId);
+      const wallet = String(req.params.wallet);
+
+      const result = await getKeyPollWeight(keyId, pollId, wallet);
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (error instanceof PollNotFoundError) {
+         sendNotFound(res, 'Poll');
          return;
       }
       next(error);
