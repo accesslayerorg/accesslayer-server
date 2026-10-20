@@ -56,6 +56,7 @@ import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
+import analyticsRouter from './analytics/analytics.routes';
 
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
@@ -141,5 +142,6 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/analytics', routeBodySizeLimit('default'), analyticsRouter);
 
 export default router;
