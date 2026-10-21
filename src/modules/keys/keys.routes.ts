@@ -107,6 +107,7 @@ import {
    PollVoteWeight,
    POLL_WEIGHT_CACHE_SECONDS,
 } from './key-poll-weight.service';
+import { getKeyPollDetail, listKeyPolls } from './key-polls.service';
 import { getKeyHoldingCapacity } from './key-holding-capacity.service';
 import { StellarAddressSchema } from '../wallet/wallet.schemas';
 import {
@@ -1477,6 +1478,81 @@ router.post(
             { error, keyId: req.params.keyId },
             'Key proposal vote failed'
          );
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/polls?status=active|closed&page=&limit=
+ * Paginated active and closed community polls with tally and time remaining (#1174).
+ */
+const listPollsQuerySchema = z.object({
+   status: z.enum(['active', 'closed']).optional(),
+   page: z.coerce.number().int().min(1).default(1),
+   limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+router.get(
+   '/:keyId/polls',
+   cacheControl({ maxAge: 30, type: 'public', mustRevalidate: true }),
+   async (req, res, next) => {
+      const parsed = listPollsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid polls query parameters',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const keyId = String(req.params.keyId);
+         const result = await listKeyPolls(keyId, parsed.data);
+         sendSuccess(res, result);
+      } catch (error) {
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/keys/:keyId/polls/:pollId?wallet=
+ * Single community poll with per-option results and optional wallet vote (#1174).
+ */
+const pollDetailQuerySchema = z.object({
+   wallet: StellarAddressSchema.optional(),
+});
+
+router.get(
+   '/:keyId/polls/:pollId',
+   cacheControl({ maxAge: 30, type: 'public', mustRevalidate: true }),
+   async (req, res, next) => {
+      const parsed = pollDetailQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid poll query parameters',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         const keyId = String(req.params.keyId);
+         const pollId = String(req.params.pollId);
+         const detail = await getKeyPollDetail(
+            keyId,
+            pollId,
+            parsed.data.wallet
+         );
+         sendSuccess(res, detail);
+      } catch (error) {
+         if (error instanceof PollNotFoundError) {
+            sendNotFound(res, 'Poll');
+            return;
+         }
          next(error);
       }
    }

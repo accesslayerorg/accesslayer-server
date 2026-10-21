@@ -39,6 +39,7 @@ export interface ParsedTipEvent {
    tipper: string;
    /** Amount in XLM (converted from stroops). */
    amountXlm: string;
+   anonymous?: boolean;
    messageHash: string | null;
    tippedAt: Date;
    ledger: number;
@@ -96,7 +97,9 @@ export function parseTipEvent(event: IndexerChainEvent): TipParseResult {
       return { ok: false, reason: 'missing or invalid key/creator id' };
    }
 
-   const tipper = readStringField(raw, 'tipper', 'sender', 'wallet', 'actor');
+   const anonymous = Boolean(raw.anonymous ?? raw.is_anonymous ?? false);
+   const rawTipper = readStringField(raw, 'tipper', 'sender', 'wallet', 'actor');
+   const tipper = rawTipper ?? (anonymous ? 'anonymous' : null);
    if (!tipper) {
       return { ok: false, reason: 'missing or invalid tipper' };
    }
@@ -151,6 +154,7 @@ export function parseTipEvent(event: IndexerChainEvent): TipParseResult {
          keyId,
          tipper,
          amountXlm: stroopsToXlmDecimalString(amount),
+         ...(anonymous ? { anonymous: true } : {}),
          messageHash,
          tippedAt,
          ledger,
@@ -201,6 +205,7 @@ export async function processTipEvent(
                keyId: value.keyId,
                tipper: value.tipper,
                amount: value.amountXlm,
+               ...(value.anonymous ? { anonymous: true } : {}),
                messageHash: value.messageHash,
                ledger: value.ledger,
                txHash: value.txHash,

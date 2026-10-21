@@ -239,6 +239,13 @@ export async function castKeyProposalVote(
       });
    });
 
+   try {
+      const { invalidateKeyPollsCache } = await import('./key-polls.service');
+      await invalidateKeyPollsCache(keyId);
+   } catch {
+      // Cache invalidation is best-effort.
+   }
+
    return {
       proposalId,
       optionIndex,

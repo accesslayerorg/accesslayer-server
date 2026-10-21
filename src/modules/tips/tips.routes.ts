@@ -23,8 +23,12 @@ import {
 } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
-import { KEY_TIPS_CACHE_TTL_SECONDS } from '../../constants/redis.constants';
 import {
+   KEY_TIPS_CACHE_TTL_SECONDS,
+   KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS,
+} from '../../constants/redis.constants';
+import {
+   getTipLeaderboard,
    getTipMessageContent,
    getTipTotals,
    listTips,
@@ -44,12 +48,54 @@ const ListTipsQuerySchema = z.object({
    cursor: z.string().min(1).optional(),
 });
 
+const TipLeaderboardQuerySchema = z.object({
+   limit: z.coerce.number().int().min(1).max(100).default(10),
+});
+
 const tipsCache = () =>
    cacheControl({
       maxAge: KEY_TIPS_CACHE_TTL_SECONDS,
       type: 'public',
       mustRevalidate: true,
    });
+
+const tipsLeaderboardCache = () =>
+   cacheControl({
+      maxAge: KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS,
+      type: 'public',
+      mustRevalidate: true,
+   });
+
+/**
+ * GET /keys/:key_id/tips/leaderboard?limit=N
+ * Public. Top tippers ranked by total amount tipped (#1173).
+ */
+const httpGetTipLeaderboard: AsyncController = async (req, res, next) => {
+   try {
+      const keyId = (req.params.key_id ?? req.params.keyId) as string;
+      if (!keyId) {
+         return sendValidationError(res, 'Missing required parameters', [
+            { field: 'keyId', message: 'Key ID is required' },
+         ]);
+      }
+
+      const parsedQuery = TipLeaderboardQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) {
+         return sendValidationError(
+            res,
+            'Invalid leaderboard query',
+            zodIssuesToDetails(parsedQuery.error.issues)
+         );
+      }
+
+      return sendSuccess(
+         res,
+         await getTipLeaderboard(keyId, parsedQuery.data.limit)
+      );
+   } catch (error) {
+      next(error);
+   }
+};
 
 /**
  * GET /keys/:key_id/tips?limit=&cursor=
@@ -134,6 +180,13 @@ const httpGetTipContent: AsyncController = async (req, res) => {
       );
    }
 };
+
+tipsRouter.get(
+   ['/:key_id/tips/leaderboard', '/:keyId/tips/leaderboard'],
+   normalizeKeyId,
+   tipsLeaderboardCache(),
+   httpGetTipLeaderboard
+);
 
 tipsRouter.get(
    ['/:key_id/tips/total', '/:keyId/tips/total'],

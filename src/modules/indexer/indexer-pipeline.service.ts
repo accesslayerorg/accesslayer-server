@@ -600,6 +600,26 @@ export async function processIndexerEvents(
       await processHealthScoreEvents(healthScoreEvents);
    }
 
+   // Community poll vote & close events (#1174).
+   const { POLL_EVENT_TYPES, processPollEvents } =
+      await import('./poll-indexer.service');
+   const pollEvents = events.filter(event =>
+      POLL_EVENT_TYPES.has(event.eventType)
+   );
+   if (pollEvents.length > 0) {
+      await processPollEvents(pollEvents);
+   }
+
+   // Invoice instalment payment schedule (#1177).
+   const { INSTALMENT_PAID_EVENT_TYPES, processInstalmentPaidEvents } =
+      await import('./instalment-schedule-indexer.service');
+   const instalmentEvents = events.filter(event =>
+      INSTALMENT_PAID_EVENT_TYPES.has(event.eventType)
+   );
+   if (instalmentEvents.length > 0) {
+      await processInstalmentPaidEvents(instalmentEvents);
+   }
+
    if (options.advanceCursor !== false)
       await advanceIndexerCursorForBatch(events);
 }

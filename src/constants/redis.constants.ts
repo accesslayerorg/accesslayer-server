@@ -109,6 +109,7 @@ export const contentAccessCachePattern = (keyId: string): string =>
 // key_tips / key_tip_totals tables with a 60s TTL. IPFS tip message
 // content fetched on demand is cached longer (immutable per CID).
 export const KEY_TIPS_CACHE_TTL_SECONDS = 60;
+export const KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS = 300;
 export const KEY_TIP_CONTENT_CACHE_TTL_SECONDS = 3600;
 
 export const keyTipsListCacheKey = (
@@ -120,8 +121,35 @@ export const keyTipsListCacheKey = (
 export const keyTipsTotalCacheKey = (keyId: string): string =>
    `key:tips:${keyId}:total`;
 
+export const keyTipsLeaderboardCacheKey = (
+   keyId: string,
+   limit: number
+): string => `key:tips:${keyId}:leaderboard:${limit}`;
+
 export const keyTipContentCacheKey = (messageHash: string): string =>
    `key:tips:content:${messageHash}`;
 
 export const keyTipsCachePattern = (keyId: string): string =>
    `key:tips:${keyId}:*`;
+
+// ── Key community polls endpoints (#1174) ───────────────────────
+// GET /keys/:key_id/polls and /polls/:poll_id are cached for 30s and
+// invalidated on PollVoteCast and PollClosed events.
+export const KEY_POLLS_CACHE_TTL_SECONDS = 30;
+
+export const keyPollsListCacheKey = (
+   keyId: string,
+   status: string,
+   page: number,
+   limit: number
+): string => `key:polls:${keyId}:list:${status}:${page}:${limit}`;
+
+export const keyPollDetailCacheKey = (
+   keyId: string,
+   pollId: string,
+   wallet: string
+): string => `key:polls:${keyId}:detail:${pollId}:${wallet}`;
+
+export const keyPollsCachePattern = (keyId: string): string =>
+   `key:polls:${keyId}:*`;
+
