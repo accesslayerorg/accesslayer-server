@@ -10,7 +10,11 @@
 //   getDelegationHistory  — full event log for a wallet across all keys
 
 import { prisma } from '../../utils/prisma.utils';
-import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
+import {
+   cacheGetJson,
+   cacheInvalidate,
+   cacheSetJson,
+} from '../../utils/redis.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 
 // ── Cache TTLs ────────────────────────────────────────────────
@@ -18,6 +22,7 @@ import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 const DELEGATE_CACHE_TTL_SECONDS = 60;
 const DELEGATORS_CACHE_TTL_SECONDS = 60;
 const HISTORY_CACHE_TTL_SECONDS = 60;
+export const VOTING_WEIGHT_CACHE_TTL_SECONDS = 60;
 
 // ── Error classes ─────────────────────────────────────────────
 
@@ -66,6 +71,20 @@ export interface DelegationHistoryItem {
    occurredAt: string;
 }
 
+export interface DelegatorWeightEntry {
+   wallet: string;
+   amount: number;
+}
+
+export interface KeyGovernanceVotingWeight {
+   wallet: string;
+   key_id: string;
+   own_weight: number;
+   delegated_weight: number;
+   total: number;
+   delegators: DelegatorWeightEntry[];
+}
+
 // ── Cache invalidation helpers (used by indexer) ──────────────
 
 export function delegateCachePattern(wallet: string): string {
@@ -78,6 +97,28 @@ export function delegatorsCachePattern(wallet: string): string {
 
 export function delegationHistoryCachePattern(wallet: string): string {
    return `governance:delegation:history:${wallet}:*`;
+}
+
+export function votingWeightCacheKey(wallet: string, keyId: string): string {
+   return `governance:voting-weight:${wallet}:${keyId}`;
+}
+
+export function votingWeightCachePattern(wallet: string): string {
+   return `governance:voting-weight:${wallet}:*`;
+}
+
+export async function invalidateVotingWeightCache(
+   wallet: string,
+   keyId?: string
+): Promise<void> {
+   if (keyId) {
+      await cacheInvalidate(
+         votingWeightCacheKey(wallet, keyId),
+         votingWeightCachePattern(wallet)
+      );
+      return;
+   }
+   await cacheInvalidate(votingWeightCachePattern(wallet));
 }
 
 // ── Current delegate ──────────────────────────────────────────
@@ -296,6 +337,108 @@ export async function getDelegatedVoteWeight(
    });
 
    return Number(agg._sum.balance ?? 0);
+}
+
+/**
+ * Returns a wallet's total governance voting weight for a key including
+ * delegated weight from active delegations (#1176).
+ *
+ * - `own_weight`: wallet's current holder balance (`KeyOwnership`)
+ * - `delegated_weight`: sum of active delegators' balances for `keyId`
+ * - `total`: `own_weight + delegated_weight`
+ * - `delegators`: `{ wallet, amount }[]` for each active delegating wallet
+ * - Cached for 60s and invalidated on VotingDelegated / DelegationRevoked
+ * - Returns `total: 0` when the wallet has no holdings and no delegations
+ */
+export async function getKeyGovernanceVotingWeight(
+   wallet: string,
+   keyId: string
+): Promise<KeyGovernanceVotingWeight> {
+   const normalizedWallet = wallet.trim();
+   const normalizedKeyId = keyId.trim();
+   const cacheKey = votingWeightCacheKey(normalizedWallet, normalizedKeyId);
+
+   try {
+      const cached = await cacheGetJson<KeyGovernanceVotingWeight>(cacheKey);
+      if (cached !== null) {
+         return cached;
+      }
+   } catch {
+      // Cache read failure falls through to database.
+   }
+
+   const [ownOwnership, activeDelegations] = await Promise.all([
+      prisma.keyOwnership.findUnique({
+         where: {
+            ownerAddress_creatorId: {
+               ownerAddress: normalizedWallet,
+               creatorId: normalizedKeyId,
+            },
+         },
+         select: { balance: true },
+      }),
+      prisma.voteDelegation.findMany({
+         where: {
+            delegateeWallet: normalizedWallet,
+            keyId: normalizedKeyId,
+            isActive: true,
+         },
+         orderBy: { occurredAt: 'desc' },
+         select: { delegatorWallet: true },
+      }),
+   ]);
+
+   const ownWeight = ownOwnership
+      ? Math.max(0, Number(ownOwnership.balance))
+      : 0;
+
+   let delegators: DelegatorWeightEntry[] = [];
+   if (activeDelegations.length > 0) {
+      const delegatorWallets = activeDelegations.map(d => d.delegatorWallet);
+      const delegatorOwnerships = await prisma.keyOwnership.findMany({
+         where: {
+            ownerAddress: { in: delegatorWallets },
+            creatorId: normalizedKeyId,
+         },
+         select: {
+            ownerAddress: true,
+            balance: true,
+         },
+      });
+
+      const balanceByWallet = new Map<string, number>();
+      for (const row of delegatorOwnerships) {
+         balanceByWallet.set(
+            row.ownerAddress,
+            Math.max(0, Number(row.balance))
+         );
+      }
+
+      delegators = activeDelegations.map(d => ({
+         wallet: d.delegatorWallet,
+         amount: balanceByWallet.get(d.delegatorWallet) ?? 0,
+      }));
+   }
+
+   const delegatedWeight = delegators.reduce((sum, d) => sum + d.amount, 0);
+   const total = ownWeight + delegatedWeight;
+
+   const result: KeyGovernanceVotingWeight = {
+      wallet: normalizedWallet,
+      key_id: normalizedKeyId,
+      own_weight: ownWeight,
+      delegated_weight: delegatedWeight,
+      total,
+      delegators,
+   };
+
+   try {
+      await cacheSetJson(cacheKey, result, VOTING_WEIGHT_CACHE_TTL_SECONDS);
+   } catch {
+      // Cache write failure is non-critical.
+   }
+
+   return result;
 }
 
 // ── Row mappers ───────────────────────────────────────────────

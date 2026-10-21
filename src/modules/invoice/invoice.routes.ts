@@ -6,6 +6,7 @@ import { httpGetInvoiceComparison } from './invoice.controllers';
 import { invoiceProtocolRouter } from './invoice-protocol.routes';
 import { invoiceMarketRouter } from './invoice-market.routes';
 import { invoiceEarlyIncentiveRouter } from './invoice-early-incentive.routes';
+import { invoiceScheduleRouter } from './invoice-schedule.routes';
 
 const invoiceRouter = Router();
 
@@ -27,5 +28,6 @@ invoiceRouter.get(
 invoiceRouter.use(invoiceProtocolRouter);
 invoiceRouter.use(invoiceMarketRouter);
 invoiceRouter.use(invoiceEarlyIncentiveRouter);
+invoiceRouter.use(invoiceScheduleRouter);
 
 export default invoiceRouter;

@@ -1,0 +1,27 @@
+// prisma/schema/instalment-schedule.prisma
+// Invoice payment schedule and InstalmentPaid event read model (#1177).
+
+/// One row per invoice schedule instalment, updated/inserted as InstalmentPaid
+/// contract events are indexed. Unpaid rows have paidAt = null; overdue status
+/// is derived at request time by comparing dueDate against the current clock.
+model InstalmentPayment {
+  id               String    @id @default(cuid())
+  invoiceId        String
+  instalmentNumber Int
+  totalInstalments Int?
+  amount           Decimal   @db.Decimal(30, 7)
+  dueDate          DateTime
+  paidAt           DateTime?
+  payer            String?
+  txHash           String?
+  eventIndex       Int?
+  ledger           Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([invoiceId, instalmentNumber])
+  @@unique([txHash, eventIndex])
+  @@index([invoiceId, dueDate(sort: Asc)])
+  @@index([invoiceId, instalmentNumber(sort: Asc)])
+  @@map("instalment_payments")
+}

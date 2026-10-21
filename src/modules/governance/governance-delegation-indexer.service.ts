@@ -34,7 +34,19 @@ import {
    delegateCachePattern,
    delegatorsCachePattern,
    delegationHistoryCachePattern,
+   votingWeightCachePattern,
 } from './governance-delegation.service';
+
+export const DELEGATION_SET_EVENT_TYPES: ReadonlySet<string> = new Set([
+   'DELEGATION_SET',
+   'VotingDelegated',
+   'VOTING_DELEGATED',
+]);
+
+export const DELEGATION_REVOKED_EVENT_TYPES: ReadonlySet<string> = new Set([
+   'DELEGATION_REVOKED',
+   'DelegationRevoked',
+]);
 
 // ── Typed event interfaces ────────────────────────────────────
 
@@ -51,7 +63,7 @@ import {
  *   occurredAt       — ISO-8601 timestamp
  */
 export interface DelegationSetEvent extends IndexerChainEvent {
-   eventType: 'DELEGATION_SET';
+   eventType: 'DELEGATION_SET' | 'VotingDelegated' | 'VOTING_DELEGATED';
    delegatorWallet: string;
    delegateeWallet: string;
    keyId: string;
@@ -70,7 +82,7 @@ export interface DelegationSetEvent extends IndexerChainEvent {
  *   occurredAt       — ISO-8601 timestamp
  */
 export interface DelegationRevokedEvent extends IndexerChainEvent {
-   eventType: 'DELEGATION_REVOKED';
+   eventType: 'DELEGATION_REVOKED' | 'DelegationRevoked';
    delegatorWallet: string;
    keyId: string;
    occurredAt: string;
@@ -89,7 +101,7 @@ const DELEGATION_SET_REQUIRED_FIELDS: (keyof DelegationSetEvent)[] = [
 ];
 
 /**
- * Process a batch of DELEGATION_SET events.
+ * Process a batch of DELEGATION_SET / VotingDelegated events.
  *
  * For each event:
  *   1. Validates required fields.
@@ -106,7 +118,7 @@ export async function processDelegationSetEvents(
    events: IndexerChainEvent[]
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
-      if (event.eventType !== 'DELEGATION_SET') return;
+      if (!DELEGATION_SET_EVENT_TYPES.has(event.eventType)) return;
 
       const e = event as DelegationSetEvent;
 
@@ -250,10 +262,13 @@ export async function processDelegationSetEvents(
          delegatorsCachePattern(e.delegateeWallet),
          delegationHistoryCachePattern(e.delegatorWallet),
          delegationHistoryCachePattern(e.delegateeWallet),
+         votingWeightCachePattern(e.delegatorWallet),
+         votingWeightCachePattern(e.delegateeWallet),
       ];
       if (previousDelegatee && previousDelegatee !== e.delegateeWallet) {
          patternsToInvalidate.push(delegatorsCachePattern(previousDelegatee));
          patternsToInvalidate.push(delegationHistoryCachePattern(previousDelegatee));
+         patternsToInvalidate.push(votingWeightCachePattern(previousDelegatee));
       }
       await cacheInvalidate(...patternsToInvalidate);
 
@@ -282,7 +297,7 @@ const DELEGATION_REVOKED_REQUIRED_FIELDS: (keyof DelegationRevokedEvent)[] = [
 ];
 
 /**
- * Process a batch of DELEGATION_REVOKED events.
+ * Process a batch of DELEGATION_REVOKED / DelegationRevoked events.
  *
  * For each event:
  *   1. Validates required fields.
@@ -298,7 +313,7 @@ export async function processDelegationRevokedEvents(
    events: IndexerChainEvent[]
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
-      if (event.eventType !== 'DELEGATION_REVOKED') return;
+      if (!DELEGATION_REVOKED_EVENT_TYPES.has(event.eventType)) return;
 
       const e = event as DelegationRevokedEvent;
 
@@ -421,7 +436,9 @@ export async function processDelegationRevokedEvents(
          delegateCachePattern(e.delegatorWallet),
          delegatorsCachePattern(previousDelegatee),
          delegationHistoryCachePattern(e.delegatorWallet),
-         delegationHistoryCachePattern(previousDelegatee)
+         delegationHistoryCachePattern(previousDelegatee),
+         votingWeightCachePattern(e.delegatorWallet),
+         votingWeightCachePattern(previousDelegatee)
       );
 
       logger.info(

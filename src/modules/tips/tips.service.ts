@@ -22,8 +22,10 @@ import { logger } from '../../utils/logger.utils';
 import {
    KEY_TIP_CONTENT_CACHE_TTL_SECONDS,
    KEY_TIPS_CACHE_TTL_SECONDS,
+   KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS,
    keyTipContentCacheKey,
    keyTipsCachePattern,
+   keyTipsLeaderboardCacheKey,
    keyTipsListCacheKey,
    keyTipsTotalCacheKey,
 } from '../../constants/redis.constants';
@@ -31,6 +33,7 @@ import {
    normalizeIpfsCid,
    resolvePinataGatewayUrl,
 } from '../../utils/pinata-gateway.utils';
+import { truncateWallet } from '../../utils/wallet-display.utils';
 import { resolveCreatorId } from '../whitelist/whitelist.service';
 
 /** One tip in the history. */
@@ -60,6 +63,15 @@ export interface TipTotals {
    count: number;
 }
 
+/** One entry on the per-key tip leaderboard (#1173). */
+export interface TipLeaderboardEntry {
+   rank: number;
+   wallet: string | null;
+   total_tipped: string;
+   tip_count: number;
+   anonymous: boolean;
+}
+
 /** Maximum IPFS message size fetched for the content endpoint (256 KiB). */
 export const MAX_TIP_MESSAGE_BYTES = 256 * 1024;
 
@@ -67,11 +79,15 @@ export const MAX_TIP_MESSAGE_BYTES = 256 * 1024;
 export const TIP_MESSAGE_FETCH_TIMEOUT_MS = 5000;
 
 /**
- * Drops every cached tip response for a key (list + total). Called by the
- * indexer after every TipSent event.
+ * Drops every cached tip response for a key (list + total + leaderboard).
+ * Called by the indexer after every TipSent event.
  */
 export async function invalidateKeyTipsCache(keyId: string): Promise<void> {
-   await cacheInvalidate(keyTipsCachePattern(keyId));
+   const resolvedKeyId = await resolveTipKeyId(keyId);
+   await cacheInvalidate(keyTipsCachePattern(resolvedKeyId));
+   if (resolvedKeyId !== keyId) {
+      await cacheInvalidate(keyTipsCachePattern(keyId));
+   }
 }
 
 /**
@@ -182,6 +198,138 @@ export async function getTipTotals(keyId: string): Promise<TipTotals> {
 
    try {
       await cacheSetJson(cacheKey, result, KEY_TIPS_CACHE_TTL_SECONDS);
+   } catch {
+      // Cache write failures are non-critical.
+   }
+
+   return result;
+}
+
+function isAnonymousTipRow(row: {
+   tipper?: string | null;
+   anonymous?: boolean | null;
+}): boolean {
+   if (row.anonymous === true) return true;
+   const trimmed = (row.tipper ?? '').trim();
+   if (!trimmed) return true;
+   const lower = trimmed.toLowerCase();
+   return lower === 'anonymous' || lower === 'anon' || lower === 'null';
+}
+
+/**
+ * Returns the top tippers for a creator key ranked by total amount (#1173).
+ *
+ * - Anonymous tips are represented with `wallet: null` and `anonymous: true`.
+ * - Non-anonymous tippers have their wallet truncated (`GABC…WXYZ`).
+ * - Cached in Redis for 5 minutes (300s) and invalidated on TipSent events.
+ * - Keys with no tips return an empty array `[]`.
+ */
+export async function getTipLeaderboard(
+   keyId: string,
+   limit = 10
+): Promise<TipLeaderboardEntry[]> {
+   const resolvedKeyId = await resolveTipKeyId(keyId);
+   const clampedLimit = Math.min(Math.max(Math.trunc(limit) || 10, 1), 100);
+   const cacheKey = keyTipsLeaderboardCacheKey(resolvedKeyId, clampedLimit);
+
+   try {
+      const cached = await cacheGetJson<TipLeaderboardEntry[]>(cacheKey);
+      if (cached !== null) {
+         logger.debug({ keyId: resolvedKeyId }, 'Tip leaderboard cache hit');
+         return cached;
+      }
+   } catch {
+      // Cache read failures fall through to the database.
+   }
+
+   const rows = await prisma.keyTip.findMany({
+      where: { keyId: resolvedKeyId },
+      select: {
+         tipper: true,
+         amount: true,
+         anonymous: true,
+      },
+   });
+
+   if (rows.length === 0) {
+      try {
+         await cacheSetJson(
+            cacheKey,
+            [],
+            KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS
+         );
+      } catch {
+         // Cache write failures are non-critical.
+      }
+      return [];
+   }
+
+   const buckets = new Map<
+      string,
+      {
+         rawWallet: string | null;
+         anonymous: boolean;
+         totalStroops: bigint;
+         tipCount: number;
+      }
+   >();
+
+   for (const row of rows) {
+      const anon = isAnonymousTipRow(row);
+      const trimmedTipper = (row.tipper ?? '').trim();
+      const hasDistinctWallet =
+         Boolean(trimmedTipper) &&
+         trimmedTipper.toLowerCase() !== 'anonymous' &&
+         trimmedTipper.toLowerCase() !== 'anon' &&
+         trimmedTipper.toLowerCase() !== 'null';
+
+      const bucketKey = anon
+         ? hasDistinctWallet
+            ? `anon:${trimmedTipper}`
+            : '__anonymous__'
+         : `wallet:${trimmedTipper}`;
+
+      const stroops = BigInt(Math.round(Number(row.amount) * 1e7));
+      const existing = buckets.get(bucketKey);
+      if (existing) {
+         existing.totalStroops += stroops;
+         existing.tipCount += 1;
+      } else {
+         buckets.set(bucketKey, {
+            rawWallet: anon ? null : trimmedTipper,
+            anonymous: anon,
+            totalStroops: stroops,
+            tipCount: 1,
+         });
+      }
+   }
+
+   const sorted = Array.from(buckets.entries())
+      .sort(([keyA, a], [keyB, b]) => {
+         if (b.totalStroops !== a.totalStroops) {
+            return b.totalStroops > a.totalStroops ? 1 : -1;
+         }
+         if (b.tipCount !== a.tipCount) {
+            return b.tipCount - a.tipCount;
+         }
+         return keyA.localeCompare(keyB);
+      })
+      .slice(0, clampedLimit);
+
+   const result: TipLeaderboardEntry[] = sorted.map(([, entry], index) => ({
+      rank: index + 1,
+      wallet: entry.anonymous ? null : truncateWallet(entry.rawWallet ?? ''),
+      total_tipped: (Number(entry.totalStroops) / 1e7).toFixed(7),
+      tip_count: entry.tipCount,
+      anonymous: entry.anonymous,
+   }));
+
+   try {
+      await cacheSetJson(
+         cacheKey,
+         result,
+         KEY_TIPS_LEADERBOARD_CACHE_TTL_SECONDS
+      );
    } catch {
       // Cache write failures are non-critical.
    }

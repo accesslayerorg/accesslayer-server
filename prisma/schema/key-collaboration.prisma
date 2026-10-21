@@ -46,7 +46,7 @@ model KeyCoCreator {
   @@map("key_cocreators")
 }
 
-/// One row per indexed TipSent event (#1132).
+/// One row per indexed TipSent event (#1132, #1173).
 model KeyTip {
   id      String  @id @default(cuid())
   /// Key ID (CreatorProfile.id) that received the tip.
@@ -55,6 +55,8 @@ model KeyTip {
   tipper  String
   /// Tip amount in XLM (converted from stroops).
   amount  Decimal @db.Decimal(20, 7)
+  /// Whether the tipper chose to tip anonymously (#1173).
+  anonymous Boolean @default(false)
   /// IPFS CID of the tip message, when one was attached.
   messageHash String?
   ledger  Int?

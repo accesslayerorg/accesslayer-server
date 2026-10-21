@@ -43,9 +43,49 @@ import {
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from '../nonce';
+import { cacheControl } from '../../middlewares/cache-control.middleware';
+import {
+   getKeyGovernanceVotingWeight,
+   VOTING_WEIGHT_CACHE_TTL_SECONDS,
+} from './governance-delegation.service';
 
 const router = Router();
 router.use('/timelock', timelockRouter);
+
+/**
+ * GET /governance/voting-weight/:wallet/:key_id
+ *
+ * Returns a wallet's total governance voting weight for a key including
+ * delegated weight (`own_weight`, `delegated_weight`, `total`, `delegators`) (#1176).
+ * Cached for 60s and invalidated on VotingDelegated and DelegationRevoked events.
+ */
+router.get(
+   '/voting-weight/:wallet/:key_id',
+   cacheControl({
+      maxAge: VOTING_WEIGHT_CACHE_TTL_SECONDS,
+      type: 'public',
+      mustRevalidate: true,
+   }),
+   async (req, res, next) => {
+      const wallet = String(req.params.wallet ?? '').trim();
+      const keyId = String(req.params.key_id ?? '').trim();
+
+      if (!wallet || !keyId) {
+         sendValidationError(res, 'Invalid path parameters', [
+            ...(wallet ? [] : [{ field: 'wallet', message: 'wallet is required' }]),
+            ...(keyId ? [] : [{ field: 'key_id', message: 'key_id is required' }]),
+         ]);
+         return;
+      }
+
+      try {
+         const result = await getKeyGovernanceVotingWeight(wallet, keyId);
+         sendSuccess(res, result);
+      } catch (error) {
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /governance/proposals/escalating
