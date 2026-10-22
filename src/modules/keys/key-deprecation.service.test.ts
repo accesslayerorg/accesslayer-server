@@ -24,6 +24,7 @@ const prismaMock = {
    },
    creatorProfile: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
    },
    $transaction: jest.fn(async (ops: unknown[]) => Promise.all(ops)),
@@ -41,7 +42,11 @@ jest.mock('../admin/audit-log.service', () => ({
    createAuditEntry: jest.fn(),
 }));
 
-import { dispatchKeySunsetNotifications } from './key-deprecation.service';
+import {
+   dispatchKeySunsetNotifications,
+   getKeyDeprecationStatus,
+} from './key-deprecation.service';
+import { KeyNotFoundError } from './key-fees.service';
 
 describe('dispatchKeySunsetNotifications', () => {
    beforeEach(() => {
@@ -173,6 +178,84 @@ describe('dispatchKeySunsetNotifications', () => {
                }),
             }),
          })
+      );
+   });
+});
+
+describe('getKeyDeprecationStatus', () => {
+   beforeEach(() => {
+      jest.clearAllMocks();
+   });
+
+   it('returns active status with no successor for a non-deprecated key', async () => {
+      prismaMock.creatorProfile.findFirst.mockResolvedValue({
+         id: 'creator-1',
+         deprecatedAt: null,
+         reason: null,
+         successorKeyId: null,
+      });
+
+      const result = await getKeyDeprecationStatus('creator-1');
+
+      expect(result).toEqual({
+         keyId: 'creator-1',
+         status: 'active',
+         reason: null,
+         deprecatedAt: null,
+         successor: null,
+      });
+      expect(prismaMock.creatorProfile.findUnique).not.toHaveBeenCalled();
+   });
+
+   it('returns deprecated status with an embedded successor summary', async () => {
+      prismaMock.creatorProfile.findFirst.mockResolvedValue({
+         id: 'creator-1',
+         deprecatedAt: new Date('2026-01-01T00:00:00.000Z'),
+         reason: 'sunset',
+         successorKeyId: 'creator-2',
+      });
+      prismaMock.creatorProfile.findUnique.mockResolvedValue({
+         id: 'creator-2',
+         displayName: 'Successor Key',
+         avatarUrl: 'https://example.com/avatar.png',
+         priceSnapshot: { currentPrice: BigInt(1000) },
+      });
+
+      const result = await getKeyDeprecationStatus('creator-1');
+
+      expect(result).toEqual({
+         keyId: 'creator-1',
+         status: 'deprecated',
+         reason: 'sunset',
+         deprecatedAt: '2026-01-01T00:00:00.000Z',
+         successor: {
+            id: 'creator-2',
+            name: 'Successor Key',
+            avatarUrl: 'https://example.com/avatar.png',
+            currentPrice: '1000',
+         },
+      });
+   });
+
+   it('returns a null successor when the designated successor key no longer exists', async () => {
+      prismaMock.creatorProfile.findFirst.mockResolvedValue({
+         id: 'creator-1',
+         deprecatedAt: new Date('2026-01-01T00:00:00.000Z'),
+         reason: 'sunset',
+         successorKeyId: 'missing-key',
+      });
+      prismaMock.creatorProfile.findUnique.mockResolvedValue(null);
+
+      const result = await getKeyDeprecationStatus('creator-1');
+
+      expect(result.successor).toBeNull();
+   });
+
+   it('throws KeyNotFoundError when the key does not exist', async () => {
+      prismaMock.creatorProfile.findFirst.mockResolvedValue(null);
+
+      await expect(getKeyDeprecationStatus('missing')).rejects.toBeInstanceOf(
+         KeyNotFoundError
       );
    });
 });

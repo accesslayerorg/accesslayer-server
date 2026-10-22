@@ -139,5 +139,13 @@ export async function registerKeyContract(input: KeyRegistrationInput) {
       metadata: input.metadata,
    });
 
+   // 5. Bust the discovery feed cache so the new key surfaces immediately.
+   try {
+      const { invalidateDiscoveryCache } = await import('./discovery.service');
+      invalidateDiscoveryCache();
+   } catch {
+      // Non-critical
+   }
+
    return registeredKey;
 }

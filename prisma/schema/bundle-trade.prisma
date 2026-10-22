@@ -1,0 +1,22 @@
+// prisma/schema/bundle-trade.prisma
+// Bundle trade indexer models for atomic multi-key purchase history.
+
+model BundleTrade {
+  id         String   @id @default(cuid())
+  wallet     String
+  buyer      String   @default("")
+  totalCost  String   @map("total_cost")
+  itemCount  Int      @map("item_count")
+  items      Json
+  ledger     Int
+  txHash     String   @map("tx_hash")
+  timestamp  DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([ledger, txHash])
+  @@index([wallet])
+  @@index([buyer])
+  @@index([ledger])
+  @@index([timestamp])
+  @@map("bundle_trades")
+}

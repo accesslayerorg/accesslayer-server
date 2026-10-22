@@ -1,0 +1,44 @@
+// prisma/schema/key-metadata.prisma
+
+model KeyMetadata {
+  id             String    @id @default(cuid())
+  keyId          String    @unique
+  keyAddress     String?
+  name           String
+  symbol         String
+  description    String?
+  imageCid       String?   @map("image_cid")
+  imageUrl       String?   @map("image_url")
+  lastSyncedAt   DateTime  @default(now()) @map("last_synced_at")
+  contractUpdatedAt DateTime? @map("contract_updated_at")
+  txHash         String?   @map("tx_hash")
+  ledger         Int?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  milestones      KeyMilestone[]
+
+  @@index([keyId])
+  @@index([keyAddress])
+  @@map("key_metadata")
+}
+
+model KeyMilestone {
+  id                String   @id @default(cuid())
+  keyId              String
+  keyMetadataId     String?
+  milestoneIndex    Int
+  supplyAtCrossing  BigInt   @map("supply_at_crossing")
+  feeBps            Int      @map("fee_bps")
+  timestamp         DateTime
+  txHash            String   @map("tx_hash")
+  ledger             Int
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  keyMetadata       KeyMetadata? @relation(fields: [keyMetadataId], references: [id], onDelete: SetNull)
+
+  @@unique([keyId, milestoneIndex])
+  @@unique([keyId, txHash, ledger])
+  @@index([keyId, supplyAtCrossing])
+  @@map("key_milestones")
+}

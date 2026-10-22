@@ -18,6 +18,7 @@
 // with fake timers and no network.
 
 import { prisma } from '../../utils/prisma.utils';
+import { guardInvoiceMarketSubmission } from '../invoice/invoice-market.service';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
 import { computeRetryDelay } from '../../utils/retry-delay.utils';
@@ -31,6 +32,7 @@ import {
    pollForConfirmation,
    type TransactionStatusClient,
 } from './confirmation-poller.utils';
+import { waitForLedgerDepth } from './ledger-depth-gate.utils';
 import {
    classifyContractError,
    ContractSubmitError,
@@ -168,6 +170,9 @@ export async function submitContractCall(
    input: SubmitContractCallInput,
    deps: ServiceDeps
 ): Promise<ContractSubmissionResult> {
+   // Runs before any attempt or tracking write, with identities decoded from
+   // the signed transaction rather than caller-controlled operation metadata.
+   await guardInvoiceMarketSubmission(input);
    const {
       postJson,
       submitClient = makeDefaultSubmitClient(
@@ -283,6 +288,20 @@ export async function submitContractCall(
 
    // ── 4. Persist resolution + emit events ─────────────────────────────
    if (outcome?.status === 'SUCCESS') {
+      // Ledger-depth gate (#724): buy/sell responses are withheld until the
+      // ledger that included the transaction is 2 ledgers deep, to reduce
+      // reorg exposure. Budget exhaustion releases with a warning (logged
+      // inside the gate) so a stalled RPC head cannot block confirmations
+      // forever.
+      await waitForLedgerDepth(outcome.ledger, {
+         statusClient,
+         txHash,
+         intervalMs: pollIntervalMs,
+         timeoutMs: pollTimeoutMs,
+         delay,
+         now,
+      });
+
       try {
          await prisma.contractTransaction.update({
             where: { txHash },

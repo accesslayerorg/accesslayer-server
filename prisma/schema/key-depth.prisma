@@ -1,0 +1,33 @@
+// prisma/schema/key-depth.prisma
+//
+// Current order book depth per key, indexed from DepthUpdated contract
+// events (#1152).
+//
+// - One row per (creatorId, side, price) level holding the level's current
+//   total volume. A DepthUpdated event carries the new absolute volume for
+//   its level; volume 0 means the level was emptied.
+// - Emptied levels are kept as zero-volume rows rather than deleted so the
+//   (ledger, eventIndex) watermark survives and a late or replayed older
+//   event can never resurrect a level. Readers filter on volume > 0.
+// - `creatorId` is intentionally NOT a foreign key, so an event that arrives
+//   before CREATOR_REGISTERED has been indexed is stored, not dropped.
+
+model KeyDepth {
+  id         String   @id @default(cuid())
+  /// Key ID (CreatorProfile.id) the level belongs to.
+  creatorId  String
+  /// "bid" | "ask".
+  side       String
+  /// Level price in stroops.
+  price      BigInt
+  /// Current total open volume at this level (0 = empty).
+  volume     BigInt
+  /// Position of the last applied event; older events are ignored.
+  ledger     Int
+  eventIndex Int
+  txHash     String
+  updatedAt  DateTime @updatedAt
+
+  @@unique([creatorId, side, price])
+  @@map("key_depth")
+}

@@ -28,6 +28,7 @@ import {
    getReferralSummary,
    recordReferralEvent,
 } from './referrals.service';
+import { getReferralTierSnapshot } from '../referrals/referral-tier.service';
 
 export async function httpGetWalletReferrals(
    req: AuthenticatedRequest,
@@ -56,12 +57,14 @@ export async function httpGetWalletReferrals(
       }
 
       const breakdown = await getReferralBreakdown(wallet, parsed.data);
+      const tier = await getReferralTierSnapshot(wallet);
 
       attachTimestampHeader(res);
       sendSuccess(
          res,
          {
             ...summary,
+            tier,
             breakdown: breakdown.items,
             pagination: {
                limit: parsed.data.limit,

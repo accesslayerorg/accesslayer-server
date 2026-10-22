@@ -6,6 +6,7 @@ model LpPosition {
   wallet         String
   keyId          String
   sharePercent   Decimal  @default(0)
+  amount         Decimal  @default(0)
   accruedRewards Decimal  @default(0)
   status         String   @default("active") // active | removed
   createdAt      DateTime @default(now())

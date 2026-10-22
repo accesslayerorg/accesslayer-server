@@ -39,3 +39,39 @@ jobs:
 
          - name: Build
            run: pnpm build
+
+   invoice-protocol:
+      runs-on: ubuntu-latest
+      services:
+         postgres:
+            image: postgres:16
+            env:
+               POSTGRES_USER: accesslayer
+               POSTGRES_PASSWORD: local-test-only
+               POSTGRES_DB: invoice_protocol_test
+            ports:
+               - 5432:5432
+            options: >-
+               --health-cmd "pg_isready -U accesslayer -d invoice_protocol_test"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+      env:
+         DATABASE_URL: postgresql://accesslayer:local-test-only@localhost:5432/invoice_protocol_test
+         RUN_INVOICE_PROTOCOL_INTEGRATION: '1'
+         PUPPETEER_SKIP_DOWNLOAD: '1'
+      steps:
+         - uses: actions/checkout@v4
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+         - run: pnpm install --frozen-lockfile
+         - run: pnpm exec prisma generate
+         - name: Create disposable test schema
+           run: pnpm exec prisma db push --skip-generate
+         - name: Invoice protocol database and HTTP integration
+           run: pnpm test --runInBand --testPathPatterns=invoice-protocol --globals='{"ts-jest":{"isolatedModules":true}}'

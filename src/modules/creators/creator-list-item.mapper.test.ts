@@ -25,6 +25,17 @@ describe('mapCreatorListItem()', () => {
          currentPrice: null,
          price24hAgo: null,
          priceChange24h: null,
+         deprecated: false,
       });
+   });
+
+   it('flags a deprecated key', async () => {
+      const input = createSeededCreatorFixture(2, {
+         deprecatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
+
+      const result = await mapCreatorListItem(input);
+
+      expect(result.deprecated).toBe(true);
    });
 });

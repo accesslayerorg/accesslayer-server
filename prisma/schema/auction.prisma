@@ -1,0 +1,34 @@
+model Auction {
+  id               String      @id @default(cuid())
+  keyId            String
+  status           String      @default("OPEN") // OPEN | CLOSED
+  minimumBid       Decimal     @db.Decimal(20, 7)
+  minimumIncrement Decimal     @db.Decimal(20, 7)
+  currentBid       Decimal?    @db.Decimal(20, 7)
+  currentBidder    String?
+  winnerWallet     String?
+  closedAt         DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  bids AuctionBid[]
+
+  @@index([keyId, status])
+  @@index([status, currentBid])
+}
+
+model AuctionBid {
+  id         String    @id @default(cuid())
+  auctionId  String
+  bidderId   String
+  amount     Decimal   @db.Decimal(20, 7)
+  status     String    @default("ACTIVE") // ACTIVE | REFUNDED
+  refundedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([auctionId, status, amount])
+  @@index([bidderId, status])
+}

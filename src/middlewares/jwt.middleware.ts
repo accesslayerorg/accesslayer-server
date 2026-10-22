@@ -4,6 +4,7 @@ import { envConfig } from '../config';
 import { sendUnauthorized } from '../utils/api-response.utils';
 import { logger } from '../utils/logger.utils';
 import { getClientIp } from '../utils/client-ip.utils';
+import { logExpiredTokenRejection } from '../utils/expired-token-log.utils';
 
 export interface JwtPayload {
   walletAddress: string;
@@ -41,20 +42,7 @@ export function jwtAuth(req: Request, res: Response, next: NextFunction): void {
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      const expiredSecondsAgo = Math.max(
-        0,
-        Math.floor((Date.now() - error.expiredAt.getTime()) / 1000)
-      );
-      logger.warn(
-        {
-          type: 'auth_rejection',
-          reason: 'expired_token',
-          endpoint: req.path,
-          ip_address: getClientIp(req),
-          expired_seconds_ago: expiredSecondsAgo,
-        },
-        'Authentication rejected: expired token'
-      );
+      logExpiredTokenRejection(req, token, error);
     } else {
       logger.warn(
         {

@@ -1,0 +1,18 @@
+/// Holder tenure milestone reward claimed on-chain.
+model MilestoneClaim {
+  id            String   @id @default(cuid())
+  keyId         String
+  wallet        String
+  milestoneDays Int
+  rewardAmount  Decimal? @db.Decimal(36, 7)
+  claimedAt     DateTime
+  txHash        String
+  eventIndex    Int
+  ledger        Int
+  createdAt     DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@unique([keyId, wallet, milestoneDays])
+  @@index([wallet, keyId])
+  @@map("milestone_claims")
+}

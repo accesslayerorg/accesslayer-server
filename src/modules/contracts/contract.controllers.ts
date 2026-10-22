@@ -13,11 +13,13 @@ import {
    ErrorCode,
 } from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
-import { SubmitContractCallSchema } from './contract.schemas';
 import {
-   submitContractCall,
-   ContractSubmitError,
-} from './contract.service';
+   TransferBlockedError,
+   InvoiceProtocolUnavailableError,
+} from '../invoice/invoice-protocol.contract';
+import { InvalidInvoiceTransactionError } from '../invoice/invoice-market.service';
+import { SubmitContractCallSchema } from './contract.schemas';
+import { submitContractCall, ContractSubmitError } from './contract.service';
 
 /**
  * POST /contracts/call
@@ -55,6 +57,27 @@ export const httpSubmitContractCall: AsyncController = async (
 
       sendSuccess(res, result);
    } catch (err) {
+      if (err instanceof TransferBlockedError) {
+         sendError(res, 403, ErrorCode.TRANSFER_BLOCKED, err.reason, [
+            { field: 'reason', message: err.reason },
+            { field: 'restriction_type', message: err.restrictionType },
+         ]);
+         return;
+      }
+      if (
+         err instanceof InvoiceProtocolUnavailableError ||
+         err instanceof InvalidInvoiceTransactionError
+      ) {
+         sendError(
+            res,
+            err instanceof InvoiceProtocolUnavailableError ? 503 : 400,
+            err instanceof InvoiceProtocolUnavailableError
+               ? ErrorCode.SERVICE_UNAVAILABLE
+               : ErrorCode.BAD_REQUEST,
+            err.message
+         );
+         return;
+      }
       if (err instanceof ContractSubmitError) {
          logger.info(
             {
@@ -66,23 +89,13 @@ export const httpSubmitContractCall: AsyncController = async (
          );
 
          if (err.kind === 'user') {
-            sendError(
-               res,
-               400,
-               ErrorCode.BAD_REQUEST,
-               err.message
-            );
+            sendError(res, 400, ErrorCode.BAD_REQUEST, err.message);
             return;
          }
 
          // Transient exhaustion — the RPC was unreachable/overloaded for
          // every attempt. Surface 503 so clients back off and retry later.
-         sendError(
-            res,
-            503,
-            ErrorCode.RATE_LIMIT,
-            err.message
-         );
+         sendError(res, 503, ErrorCode.RATE_LIMIT, err.message);
          return;
       }
       next(err);

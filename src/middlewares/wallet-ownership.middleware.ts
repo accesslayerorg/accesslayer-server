@@ -10,6 +10,8 @@
 // way.
 
 import { Request, Response, NextFunction } from 'express';
+import { Keypair } from '@stellar/stellar-base';
+import { createHash } from 'crypto';
 import { checkCreatorProfileOwnership } from '../utils/wallet-ownership.utils';
 import { ErrorCode, sendError } from '../utils/api-response.utils';
 import { StellarAddressSchema } from '../modules/wallet/wallet.schemas';
@@ -18,6 +20,7 @@ import { logger } from '../utils/logger.utils';
 export interface WalletOwnedRequest extends Request {
    walletAddress?: string;
    ownerUserId?: string;
+   signatureVerified?: boolean;
 }
 
 /**
@@ -72,7 +75,11 @@ export function requireCreatorProfileOwnership(
          return;
       }
 
-      const rawParam = req.params[paramName];
+      const rawParam =
+         req.params[paramName] ??
+         req.params.wallet ??
+         req.params.creatorId ??
+         req.params.id;
       const creatorIdOrHandle = Array.isArray(rawParam)
          ? rawParam[0]
          : rawParam;
@@ -84,6 +91,59 @@ export function requireCreatorProfileOwnership(
             `Missing required path parameter "${paramName}".`
          );
          return;
+      }
+
+      const signature = req.headers['x-wallet-signature'];
+      const timestamp = req.headers['x-timestamp'];
+
+      if (signature || timestamp) {
+         if (!signature || !timestamp) {
+            sendError(
+               res,
+               401,
+               ErrorCode.UNAUTHORIZED,
+               'Missing required signature headers: x-wallet-signature, x-timestamp'
+            );
+            return;
+         }
+
+         const ts = parseInt(Array.isArray(timestamp) ? timestamp[0] : timestamp, 10);
+         if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+            sendError(
+               res,
+               400,
+               ErrorCode.BAD_REQUEST,
+               'Invalid or expired signature timestamp'
+            );
+            return;
+         }
+
+         try {
+            const bodyJson = JSON.stringify(req.body);
+            const payload = `${bodyJson}${timestamp}`;
+            const message = createHash('sha256').update(payload, 'utf8').digest();
+            const keypair = Keypair.fromPublicKey(address);
+            const sigStr = Array.isArray(signature) ? signature[0] : signature;
+            const valid = keypair.verify(message, Buffer.from(sigStr, 'base64'));
+            if (!valid) {
+               sendError(
+                  res,
+                  403,
+                  ErrorCode.FORBIDDEN,
+                  'Invalid wallet signature'
+               );
+               return;
+            }
+            req.signatureVerified = true;
+         } catch {
+            sendError(
+               res,
+               403,
+               ErrorCode.FORBIDDEN,
+               'Invalid wallet signature'
+            );
+            return;
+         }
       }
 
       try {

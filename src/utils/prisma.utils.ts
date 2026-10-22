@@ -5,6 +5,7 @@ import { requestContextStorage } from './als.utils';
 import { logger } from './logger.utils';
 import { describeDatabasePoolConfig } from './db-pool-config.utils';
 import { logDbPoolAcquire, logDbPoolRelease } from './db-pool-log.utils';
+import { databaseCircuitBreaker } from './circuit-breaker.utils';
 
 // Use global variable to prevent multiple instances in development
 declare global {
@@ -81,6 +82,7 @@ const queryStartTimes = new Map<symbol, number>();
 export const prisma = basePrisma.$extends({
    query: {
       $allOperations({ operation, model, args, query }: any) {
+         databaseCircuitBreaker.checkState();
          const timeoutMs = envConfig.DB_QUERY_TIMEOUT_MS;
          const slowThresholdMs = envConfig.SLOW_QUERY_THRESHOLD_MS;
          const poolWarnThreshold = envConfig.DB_POOL_WAIT_WARN_MS;
@@ -203,7 +205,15 @@ export const prisma = basePrisma.$extends({
             }
          });
 
-         return Promise.race([queryPromise, timeoutPromise]);
+         return Promise.race([queryPromise, timeoutPromise])
+            .then(result => {
+               databaseCircuitBreaker.recordSuccess();
+               return result;
+            })
+            .catch(err => {
+               databaseCircuitBreaker.recordFailure(err);
+               throw err;
+            });
       },
    },
 });

@@ -1,5 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.utils';
+import { envConfig } from '../config';
+
+interface AuthenticatedRequest extends Request {
+   user?: {
+      wallet: string;
+   };
+}
 
 // Log request outcome after the response has been fully sent.
 //
@@ -65,6 +72,42 @@ export const requestCompletionLoggerMiddleware = (
       }
 
       logger.info(payload, 'Request completed');
+   };
+
+   res.once('finish', logOnce);
+   res.once('close', logOnce);
+
+   next();
+};
+
+export const slowRequestLoggerMiddleware = (
+   req: AuthenticatedRequest,
+   res: Response,
+   next: NextFunction
+): void => {
+   const startTime = process.hrtime();
+   let logged = false;
+
+   // Ensure we log once even if multiple events fire.
+   const logOnce = () => {
+      if (logged) return;
+      logged = true;
+
+      const diff = process.hrtime(startTime);
+      const durationMs = diff[0] * 1e3 + diff[1] * 1e-6;
+
+      if (durationMs >= envConfig.SLOW_REQUEST_THRESHOLD_MS) {
+         const wallet = req.user?.wallet;
+         const payload = {
+            method: req.method,
+            path: req.path,
+            status_code: res.statusCode,
+            duration_ms: Math.round(durationMs),
+            ...(wallet ? { wallet } : {}),
+            slow_threshold_ms: envConfig.SLOW_REQUEST_THRESHOLD_MS,
+         };
+         logger.warn(payload, 'Slow request detected');
+      }
    };
 
    res.once('finish', logOnce);

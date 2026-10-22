@@ -4,6 +4,7 @@
 // Called on every BUY or SELL trade event.
 
 import { prisma } from '../../utils/prisma.utils';
+import { evaluatePriceAlertsForMovement } from '../alerts/alert.service';
 import { logger } from '../../utils/logger.utils';
 
 export type PriceSnapshotDirection = 'BUY' | 'SELL';
@@ -90,6 +91,12 @@ export async function upsertPriceSnapshot(
             },
             'price-snapshot: written (first trade)'
          );
+         try {
+            const { invalidateKeyTwapCache } = await import('../keys/key-twap-window.service');
+            await invalidateKeyTwapCache(creatorId);
+         } catch {
+            // Non-critical cache invalidation failure
+         }
          return;
       }
 
@@ -99,11 +106,6 @@ export async function upsertPriceSnapshot(
             { creatorId, tradeAt, lastTradeAt: existing.lastTradeAt },
             'price-snapshot: skipping stale event (idempotency guard)'
          );
-         return;
-      }
-
-      // Skip write when price is unchanged.
-      if (existing.currentPrice.toString() === price.toString()) {
          return;
       }
 
@@ -145,7 +147,28 @@ export async function upsertPriceSnapshot(
          },
          'price-snapshot: written'
       );
-   } catch (err) {
+      try {
+         const { invalidateKeyTwapCache } = await import('../keys/key-twap-window.service');
+         await invalidateKeyTwapCache(creatorId);
+      } catch {
+         // Non-critical cache invalidation failure
+      }
+      // Issue #1012: evaluate price alerts after the price write commits.
+      // Failure here must not roll back a trade (docs/indexer/PRICE_ALERTS.md).
+      try {
+         await evaluatePriceAlertsForMovement({
+            creatorId,
+            previousPrice: existing.currentPrice.toString(),
+            currentPrice: price.toString(),
+            ledger_sequence: ledger,
+         });
+      } catch (alertErr) {
+         logger.error(
+            { err: alertErr, creatorId },
+            'price-snapshot: alert evaluation failed'
+         );
+      }
+      } catch (err) {
       logger.error({ err, creatorId }, 'price-snapshot: failed to upsert');
       throw err;
    }

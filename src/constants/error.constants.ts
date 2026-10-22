@@ -12,6 +12,7 @@ export const ErrorCode = {
    GONE: 'GONE',
    BAD_REQUEST: 'BAD_REQUEST',
    INTERNAL_ERROR: 'INTERNAL_ERROR',
+   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
    RATE_LIMIT: 'RATE_LIMIT',
    SLIPPAGE_EXCEEDED: 'slippage_exceeded',
    PRISMA_ERROR: 'DATABASE_ERROR',
@@ -20,6 +21,14 @@ export const ErrorCode = {
    NOT_A_CREATOR: 'not_a_creator',
    TOKEN_EXPIRY_TAMPERED: 'token_expiry_tampered',
    MISSING_IAT: 'missing_iat',
+   MEMO_TOO_LONG: 'memo_too_long',
+   MEMO_EMPTY: 'memo_empty',
+   MEMO_INVALID_ENCODING: 'memo_invalid_encoding',
+   TWAP_INVALID: 'TWAPInvalid',
+   TRANSFER_BLOCKED: 'TransferBlocked',
+   DEPENDENCY_UNAVAILABLE: 'dependency_unavailable',
+   MISSING_IDEMPOTENCY_KEY: 'missing_idempotency_key',
+   REQUEST_IN_PROGRESS: 'request_in_progress',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

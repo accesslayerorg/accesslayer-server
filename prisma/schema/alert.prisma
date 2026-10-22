@@ -1,3 +1,4 @@
+
 // prisma/schema/alert.prisma
 
 model PriceAlert {
@@ -6,7 +7,7 @@ model PriceAlert {
   walletAddress String
   targetPrice   Decimal
   direction     String   // "above" | "below"
-  callbackUrl   String
+  callbackUrl   String?  // optional since #1012
   isActive      Boolean  @default(true)
   triggeredAt   DateTime?
   createdAt     DateTime @default(now())
