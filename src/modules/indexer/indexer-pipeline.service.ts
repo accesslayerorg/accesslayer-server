@@ -252,14 +252,6 @@ export async function processTradeEvents(
       // row records the supply *after* this trade (#893).
       const supplyAfterTrade = await persistCirculatingSupply(creatorId);
 
-      // Holder balances just changed, so drop the cached content-gate
-      // access checks for this key rather than waiting out the 30s TTL
-      // (#1137).
-      const { invalidateContentAccessCache } = await import(
-         '../content-access/content-access.service'
-      );
-      await invalidateContentAccessCache(creatorId);
-
       // 4. upsertPriceSnapshot — records the price snapshot atomically with
       // the post-trade supply and trade direction, for TWAP and historical
       // price charts (#893).
@@ -364,12 +356,12 @@ export async function processIndexerEvents(
          await import('./invoice-protocol-indexer.service');
       await processInvoiceProtocolEvents(invoiceEvents);
    }
-   const spotlightBidEvents = events.filter(event =>
-      ['SpotlightBidPlaced', 'SPOTLIGHT_BID_PLACED', 'SpotlightAwarded', 'SPOTLIGHT_AWARDED'].includes(event.eventType)
+   const reserveEvents = events.filter(event =>
+      ['ReserveAccrued', 'RESERVE_ACCRUED', 'ReserveDeployed', 'RESERVE_DEPLOYED'].includes(event.eventType)
    );
-   if (spotlightBidEvents.length > 0) {
-      const { processSpotlightBidEvents } = await import('./spotlight-bid-indexer.service');
-      await processSpotlightBidEvents(spotlightBidEvents);
+   if (reserveEvents.length > 0) {
+      const { processReserveEvents } = await import('./reserve-indexer.service');
+      await processReserveEvents(reserveEvents);
    }
    const tradeEvents = events.filter(isTradeEvent);
    const dividendEvents = events.filter(
@@ -379,13 +371,6 @@ export async function processIndexerEvents(
          event.eventType === 'DIVIDEND_DISTRIBUTED' ||
          event.eventType === 'DividendClaimed' ||
          event.eventType === 'DIVIDEND_CLAIMED'
-   );
-   const revenueShareEvents = events.filter(
-      event =>
-         event.eventType === 'RevenueDistributed' ||
-         event.eventType === 'REVENUE_DISTRIBUTED' ||
-         event.eventType === 'RevenueShareClaimed' ||
-         event.eventType === 'REVENUE_SHARE_CLAIMED'
    );
    const socialEvents = events.filter(
       event => event.eventType === SOCIAL_METADATA_UPDATED_EVENT_TYPE
@@ -449,44 +434,6 @@ export async function processIndexerEvents(
       await processGovernanceProposalEvents(governanceEvents);
    }
 
-   const { CURVE_UPDATE_EVENT_TYPES, processCurveUpdateEvents } =
-      await import('./curve-update-indexer.service');
-   const curveUpdateEvents = events.filter(event =>
-      CURVE_UPDATE_EVENT_TYPES.has(event.eventType)
-   );
-   if (curveUpdateEvents.length > 0) {
-      await processCurveUpdateEvents(curveUpdateEvents);
-   }
-
-   const {
-      MILESTONE_REWARD_CLAIMED_EVENT_TYPES,
-      processMilestoneRewardClaimedEvents,
-   } = await import('./milestone-claim-indexer.service');
-   const milestoneClaimEvents = events.filter(event =>
-      MILESTONE_REWARD_CLAIMED_EVENT_TYPES.has(event.eventType)
-   );
-   if (milestoneClaimEvents.length > 0) {
-      await processMilestoneRewardClaimedEvents(milestoneClaimEvents);
-   }
-
-   const { KEY_RETIREMENT_EVENT_TYPES, processKeyRetirementEvents } =
-      await import('./key-retirement-indexer.service');
-   const retirementEvents = events.filter(event =>
-      KEY_RETIREMENT_EVENT_TYPES.has(event.eventType)
-   );
-   if (retirementEvents.length > 0) {
-      await processKeyRetirementEvents(retirementEvents);
-   }
-
-   const { KEY_LAUNCH_AUCTION_EVENT_TYPES, processKeyLaunchAuctionEvents } =
-      await import('./key-launch-auction-indexer.service');
-   const launchAuctionEvents = events.filter(event =>
-      KEY_LAUNCH_AUCTION_EVENT_TYPES.has(event.eventType)
-   );
-   if (launchAuctionEvents.length > 0) {
-      await processKeyLaunchAuctionEvents(launchAuctionEvents);
-   }
-
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
@@ -497,107 +444,11 @@ export async function processIndexerEvents(
       await processDividendEvents(dividendEvents, { advanceCursor: false });
    }
 
-   if (revenueShareEvents.length > 0) {
-      const { processRevenueShareEvents } =
-         await import('./revenue-share-indexer.service');
-      await processRevenueShareEvents(revenueShareEvents);
-   }
-
    const { isLpEventType, processLpEvents } =
       await import('./lp-indexer.service');
    const lpEvents = events.filter(event => isLpEventType(event.eventType));
    if (lpEvents.length > 0) {
       await processLpEvents(lpEvents);
-   }
-
-   // Co-creator roster (#1139). Awaited before the cursor moves so a
-   // failure redelivers the batch and the roster never misses a change.
-   const coCreatorEvents = events.filter(
-      event =>
-         event.eventType === 'CO_CREATOR_ADDED' ||
-         event.eventType === 'CoCreatorAdded' ||
-         event.eventType === 'CO_CREATOR_SET' ||
-         event.eventType === 'CoCreatorSet' ||
-         event.eventType === 'co_set' ||
-         event.eventType === 'CO_CREATOR_REMOVED' ||
-         event.eventType === 'CoCreatorRemoved' ||
-         event.eventType === 'cc_rm'
-   );
-   if (coCreatorEvents.length > 0) {
-      const { processCoCreatorEvents } = await import(
-         './co-creator-indexer.service'
-      );
-      await processCoCreatorEvents(coCreatorEvents);
-   }
-
-   // Reserve balance (#1140): ReserveAccrued / ReserveDeployed.
-   const reserveEvents = events.filter(
-      event =>
-         event.eventType === 'RESERVE_ACCRUED' ||
-         event.eventType === 'ReserveAccrued' ||
-         event.eventType === 'RESERVE_DEPLOYED' ||
-         event.eventType === 'ReserveDeployed'
-   );
-   if (reserveEvents.length > 0) {
-      const { processReserveEvents } = await import(
-         './reserve-indexer.service'
-      );
-      await processReserveEvents(reserveEvents);
-   }
-
-   // Tip history (#1132): TipSent.
-   const tipEvents = events.filter(
-      event =>
-         event.eventType === 'TIP_SENT' ||
-         event.eventType === 'TipSent' ||
-         event.eventType === 'tip'
-   );
-   if (tipEvents.length > 0) {
-      const { processTipEvents } = await import('./tip-indexer.service');
-      await processTipEvents(tipEvents);
-   }
-
-   // Treasury, early incentive slots, issuer verification and health score
-   // (#1178, #1179, #1180, #1181). Awaited before the cursor moves so a failure
-   // redelivers the batch instead of leaving a gap in the read models.
-   const { TREASURY_EVENT_TYPES, processTreasuryEvents } =
-      await import('./treasury-indexer.service');
-   const treasuryEvents = events.filter(event =>
-      TREASURY_EVENT_TYPES.has(event.eventType)
-   );
-   if (treasuryEvents.length > 0) {
-      await processTreasuryEvents(treasuryEvents);
-   }
-
-   const { EARLY_SLOT_FILLED_EVENT_TYPES, processEarlySlotFilledEvents } =
-      await import('./early-incentive-indexer.service');
-   const earlySlotEvents = events.filter(event =>
-      EARLY_SLOT_FILLED_EVENT_TYPES.has(event.eventType)
-   );
-   if (earlySlotEvents.length > 0) {
-      await processEarlySlotFilledEvents(earlySlotEvents);
-   }
-
-   const {
-      ISSUER_VERIFICATION_EVENT_TYPES,
-      processIssuerVerificationEvents,
-   } = await import('./issuer-verification-indexer.service');
-   const verificationEvents = events.filter(event =>
-      ISSUER_VERIFICATION_EVENT_TYPES.has(event.eventType)
-   );
-   if (verificationEvents.length > 0) {
-      await processIssuerVerificationEvents(verificationEvents);
-   }
-
-   const {
-      HEALTH_SCORE_UPDATED_EVENT_TYPES,
-      processHealthScoreEvents,
-   } = await import('./health-score-indexer.service');
-   const healthScoreEvents = events.filter(event =>
-      HEALTH_SCORE_UPDATED_EVENT_TYPES.has(event.eventType)
-   );
-   if (healthScoreEvents.length > 0) {
-      await processHealthScoreEvents(healthScoreEvents);
    }
 
    if (options.advanceCursor !== false)

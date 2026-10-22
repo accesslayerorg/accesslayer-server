@@ -1,0 +1,16 @@
+model ReserveEvent {
+  id             String   @id @default(cuid())
+  asset          String
+  eventType      String
+  amount         Decimal  @db.Decimal(30, 7)
+  reserveBalance Decimal? @db.Decimal(30, 7)
+  actor          String?
+  txHash          String
+  eventIndex      Int
+  ledger          Int
+  occurredAt      DateTime
+  createdAt       DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([asset, occurredAt(sort: Desc)])
+}
