@@ -1,0 +1,26 @@
+// prisma/schema/holding-snapshot.prisma
+// Append-only holdings read model written on every trade event (#1008).
+//
+// One row per (wallet, key, trade) holding change: the balance the wallet
+// held for that key immediately after the trade. GET /portfolio/history
+// replays these snapshots as-of each interval and multiplies them by the
+// recorded price at that same interval to build the value-over-time chart.
+
+model WalletHoldingSnapshot {
+  id         String   @id @default(cuid())
+  /// Wallet address whose balance changed. Indexer/api trade paths write
+  /// the post-trade balance for the wallet that bought or sold.
+  ownerAddress String
+  /// Key ID — the CreatorProfile this balance belongs to.
+  creatorId  String
+  /// Balance of this holding immediately after the trade that produced it.
+  balance    Decimal  @default(0)
+  /// When the trade that produced this balance occurred.
+  recordedAt DateTime @default(now())
+
+  // Composite indexes for the two history reads: all of a wallet's
+  // snapshots in a time window, and the as-of balance per (wallet, key).
+  @@index([ownerAddress, recordedAt])
+  @@index([ownerAddress, creatorId, recordedAt])
+  @@map("wallet_holding_snapshots")
+}

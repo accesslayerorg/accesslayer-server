@@ -218,3 +218,59 @@ export function requireWalletParamMatch(paramName: string = 'wallet') {
       });
    };
 }
+
+function findFirstQueryString(value: unknown): string | undefined {
+   if (Array.isArray(value)) {
+      const first = value.find(item => typeof item === 'string');
+      return typeof first === 'string' ? first : undefined;
+   }
+   return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Guard for routes that identify the wallet via a query parameter (e.g.
+ * `GET /referrals/tier?wallet=`). The JWT wallet claim must exactly match the
+ * named query parameter (case-insensitive).
+ *
+ * Responses:
+ * - 400 when the wallet query parameter is missing
+ * - 401 when no/invalid token or when the wallets do not match
+ */
+export function requireWalletQueryMatch(paramName: string = 'wallet') {
+   return (
+      req: AuthenticatedRequest,
+      res: Response,
+      next: NextFunction
+   ): void => {
+      requireJwtAuth(req, res, () => {
+         if (!req.user) {
+            return;
+         }
+
+         const walletQuery = findFirstQueryString(req.query[paramName]);
+         if (!walletQuery || !walletQuery.trim()) {
+            sendError(
+               res,
+               400,
+               ErrorCode.BAD_REQUEST,
+               `Missing required query parameter "${paramName}".`
+            );
+            return;
+         }
+
+         if (
+            req.user!.wallet.toLowerCase() !== walletQuery.trim().toLowerCase()
+         ) {
+            sendError(
+               res,
+               401,
+               ErrorCode.UNAUTHORIZED,
+               'Authenticated wallet does not match the requested wallet.'
+            );
+            return;
+         }
+
+         next();
+      });
+   };
+}

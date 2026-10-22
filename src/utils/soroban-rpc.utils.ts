@@ -1,5 +1,6 @@
 import { logger } from './logger.utils';
 import { envConfig } from '../config';
+import { sorobanRpcCircuitBreaker } from './circuit-breaker.utils';
 
 /**
  * Soroban RPC client for querying contract state and ledger entries.
@@ -36,6 +37,8 @@ export async function getLedgerEntries(
       return null;
    }
 
+   sorobanRpcCircuitBreaker.checkState();
+
    try {
       const response = await fetch(envConfig.STELLAR_SOROBAN_RPC_URL, {
          method: 'POST',
@@ -53,6 +56,9 @@ export async function getLedgerEntries(
       });
 
       if (!response.ok) {
+         sorobanRpcCircuitBreaker.recordFailure(
+            new Error(`Soroban HTTP ${response.status}`)
+         );
          logger.warn(
             {
                status: response.status,
@@ -78,12 +84,11 @@ export async function getLedgerEntries(
          return null;
       }
 
+      sorobanRpcCircuitBreaker.recordSuccess();
       return json.result as GetLedgerEntriesResponse;
    } catch (error) {
-      logger.warn(
-         { error },
-         'Failed to query Soroban RPC'
-      );
+      sorobanRpcCircuitBreaker.recordFailure(error);
+      logger.warn({ error }, 'Failed to query Soroban RPC');
       return null;
    }
 }

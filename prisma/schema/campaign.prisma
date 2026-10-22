@@ -1,0 +1,44 @@
+// prisma/schema/campaign.prisma
+
+model Campaign {
+  id              String                     @id @default(cuid())
+  name            String
+  description     String?
+  status          String                     @default("ACTIVE") // ACTIVE | CLAIMABLE | ENDED
+  criteriaType    String                     @default("TRADE_VOLUME") // TRADE_VOLUME | TRADE_COUNT | ACTIVITY_COUNT
+  threshold       Decimal                    @default(0)
+  criteria        Json?
+  startDate       DateTime                   @default(now())
+  endDate         DateTime
+  contractAddress String?
+  lastCheckedAt   DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  qualifications  CampaignQualificationLog[]
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("campaigns")
+}
+
+model CampaignQualificationLog {
+  id          String    @id @default(cuid())
+  campaignId  String
+  wallet      String
+  status      String    @default("QUALIFIED") // QUALIFIED | FAILED
+  metricValue Decimal?
+  txHash      String?
+  error       String?
+  qualifiedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, wallet])
+  @@index([campaignId])
+  @@index([wallet])
+  @@index([status])
+  @@map("campaign_qualification_log")
+}

@@ -7,6 +7,8 @@ import {
    httpUpdateProtocolFee,
    httpGetAuditLog,
 } from './admin.controllers';
+import { getFlaggedSessions } from './session-security.service';
+import { safeIntParam } from '../../utils/query.utils';
 import { httpSyncKeyState } from './key-sync.controllers';
 import {
    httpCreateMultisigProposal,
@@ -47,6 +49,8 @@ import { ErrorCode } from '../../constants/error.constants';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
+import { invalidateKeyVestingCache } from '../vesting/vesting.service';
+import { treasuryRouter } from '../treasury/treasury.routes';
 
 function isValidStellarAddress(address: string): boolean {
    return typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address);
@@ -126,6 +130,55 @@ adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
 adminRouter.patch('/protocol-fee', adminGuard, httpUpdateProtocolFee);
 adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
+
+// ── Security monitoring (#1035) ───────────────────────────────
+
+const securityFlagsQuerySchema = z.object({
+   limit: safeIntParam({
+      defaultValue: 50,
+      min: 1,
+      max: 100,
+      label: 'Limit',
+   }),
+   offset: safeIntParam({
+      defaultValue: 0,
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+      label: 'Offset',
+   }),
+   wallet: z.string().trim().min(1).optional(),
+   reason: z.enum(['NEW_IP_FOR_WALLET', 'HIGH_REQUEST_RATE', 'UNUSUAL_HOUR_ACCESS']).optional(),
+});
+
+/**
+ * GET /api/v1/admin/security/flags?limit=&offset=&wallet=&reason=
+ *
+ * Paginated list of sessions flagged by anomaly detection (new IP for
+ * wallet, high request rate, unusual hour access), newest first. Requires
+ * admin JWT (#1035).
+ */
+adminRouter.get(
+   '/security/flags',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = securityFlagsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid security flags query',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         sendSuccess(res, await getFlaggedSessions(parsed.data));
+      } catch (error) {
+         logger.error({ error }, 'Security flags lookup failed');
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/admin/proposals
@@ -304,6 +357,7 @@ adminRouter.post('/vesting', adminGuard, async (req: AdminRequest, res, next) =>
             claimedKeys: new Prisma.Decimal(0),
          },
       });
+      await invalidateKeyVestingCache(String(keyId), String(beneficiary));
 
       sendSuccess(res, {
          ...schedule,
@@ -1166,5 +1220,8 @@ adminRouter.post(
       }
    }
 );
+
+// Platform treasury dashboard reads (#1181). Every treasury route is admin-only.
+adminRouter.use('/treasury', adminGuard, treasuryRouter);
 
 export default adminRouter;

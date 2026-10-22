@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
+import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { CreatorHoldersQueryType } from './creator-holders.schemas';
 import { encodeCursor, decodeCursor, CursorChecksumError } from '../../utils/cursor.utils';
+import { REDIS_KEYS, HOLDER_STAKING_CACHE_TTL_SECONDS } from '../../constants/notifications.constants';
 
 /**
  * Public-facing holder record returned by the holders endpoint.
@@ -17,6 +19,40 @@ export interface HolderRecord {
    share_percent: number;
    /** 1-based position in the full (offset-aware) sorted holder list. */
    rank: number;
+   /** Number of keys this holder has staked in the staking contract. */
+   stakedQuantity: number;
+   /** Number of keys this holder keeps liquid (key_balance - stakedQuantity). */
+   liquidQuantity: number;
+}
+
+/**
+ * Reads a holder's staked quantity for a creator key from the on-chain
+ * staking_positions persistent map via Soroban RPC, caching individual
+ * staking positions in Redis within a 30-second TTL.
+ *
+ * In a full implementation this would:
+ * 1. Build the XDR ledger entry key for (creatorKeyId, holderAddress)
+ * 2. Call getLedgerEntries() via Soroban RPC
+ * 3. Decode the staking_position ScVal to extract the staked quantity
+ */
+async function readStakedQuantity(
+   keyId: string,
+   holderAddress: string
+): Promise<number> {
+   const cacheKey = REDIS_KEYS.holderStaking(keyId, holderAddress);
+
+   const cached = await cacheGetJson<{ staked: number }>(cacheKey);
+   if (cached !== null) {
+      return cached.staked;
+   }
+
+   // TODO: Implement Soroban RPC call to read the staking_position for the
+   // (keyId, holderAddress) pair. Until then, holders with no on-chain stake
+   // record report 0, keeping the response backward compatible.
+   const staked = 0;
+
+   await cacheSetJson(cacheKey, { staked }, HOLDER_STAKING_CACHE_TTL_SECONDS);
+   return staked;
 }
 
 /**
@@ -84,17 +120,23 @@ export async function fetchCreatorHolders(
 
    const totalKeys = Number(balanceSum._sum.balance ?? 0);
 
-   const holders: HolderRecord[] = rows.map((row, index) => {
-      const keyBalance = Number(row.balance);
-      return {
-         wallet_address: row.ownerAddress,
-         key_balance: keyBalance,
-         held_since: row.createdAt,
-         key_count: keyBalance,
-         share_percent: totalKeys > 0 ? (keyBalance / totalKeys) * 100 : 0,
-         rank: offset + index + 1,
-      };
-   });
+   const holders: HolderRecord[] = await Promise.all(
+      rows.map(async (row, index) => {
+         const keyBalance = Number(row.balance);
+         const stakedQuantity = await readStakedQuantity(creatorId, row.ownerAddress);
+         const liquidQuantity = keyBalance - stakedQuantity;
+         return {
+            wallet_address: row.ownerAddress,
+            key_balance: keyBalance,
+            held_since: row.createdAt,
+            key_count: keyBalance,
+            share_percent: totalKeys > 0 ? (keyBalance / totalKeys) * 100 : 0,
+            rank: offset + index + 1,
+            stakedQuantity,
+            liquidQuantity,
+         };
+      })
+   );
 
    if (holders.length === 0) {
       const durationMs = Date.now() - startMs;
@@ -221,19 +263,23 @@ export async function fetchCreatorHoldersByCursor(
    const hasMore = rows.length > limit;
    const page = hasMore ? rows.slice(0, limit) : rows;
 
-   const holders: HolderRecord[] = page.map((row, index) => {
-      const keyBalance = Number(row.balance);
-      return {
-         wallet_address: row.ownerAddress,
-         key_balance: keyBalance,
-         held_since: row.createdAt,
-         key_count: keyBalance,
-         share_percent: totalKeys > 0 ? (keyBalance / totalKeys) * 100 : 0,
-         // Position within this page only — cursor pagination doesn't track
-         // an absolute offset across pages.
-         rank: index + 1,
-      };
-   });
+   const holders: HolderRecord[] = await Promise.all(
+      page.map(async (row, index) => {
+         const keyBalance = Number(row.balance);
+         const stakedQuantity = await readStakedQuantity(creatorId, row.ownerAddress);
+         const liquidQuantity = keyBalance - stakedQuantity;
+         return {
+            wallet_address: row.ownerAddress,
+            key_balance: keyBalance,
+            held_since: row.createdAt,
+            key_count: keyBalance,
+            share_percent: totalKeys > 0 ? (keyBalance / totalKeys) * 100 : 0,
+            rank: index + 1,
+            stakedQuantity,
+            liquidQuantity,
+         };
+      })
+   );
 
    const nextCursor =
       hasMore && page.length > 0

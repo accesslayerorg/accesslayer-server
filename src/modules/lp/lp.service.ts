@@ -3,6 +3,9 @@
 // LP position and rewards API (#980).
 
 import { prisma } from '../../utils/prisma.utils';
+import { logger } from '../../utils/logger.utils';
+import { buildLogFields } from '../../utils/log-fields.utils';
+import * as lpRewardsContract from './lp-rewards.contract';
 
 export class LpPositionNotFoundError extends Error {
    constructor(lpId: string) {
@@ -15,9 +18,11 @@ export interface LpPositionSummary {
    lpId: string;
    wallet: string;
    keyId: string;
+   amount: string;
    sharePercent: string;
    accruedRewards: string;
    status: string;
+   rewardsSource?: 'live' | 'stored';
    createdAt: string;
    updatedAt: string;
 }
@@ -26,22 +31,67 @@ function toSummary(position: {
    lpId: string;
    wallet: string;
    keyId: string;
+   amount: unknown;
    sharePercent: unknown;
    accruedRewards: unknown;
    status: string;
-   createdAt: Date;
-   updatedAt: Date;
+   createdAt: Date | string;
+   updatedAt: Date | string;
 }): LpPositionSummary {
    return {
       lpId: position.lpId,
       wallet: position.wallet,
       keyId: position.keyId,
+      amount: String(position.amount),
       sharePercent: String(position.sharePercent),
       accruedRewards: String(position.accruedRewards),
       status: position.status,
-      createdAt: position.createdAt.toISOString(),
-      updatedAt: position.updatedAt.toISOString(),
+      createdAt:
+         position.createdAt instanceof Date
+            ? position.createdAt.toISOString()
+            : new Date(position.createdAt).toISOString(),
+      updatedAt:
+         position.updatedAt instanceof Date
+            ? position.updatedAt.toISOString()
+            : new Date(position.updatedAt).toISOString(),
    };
+}
+
+async function attachLiveRewards(
+   summary: LpPositionSummary
+): Promise<LpPositionSummary> {
+   try {
+      const liveRewards = await lpRewardsContract.getLpRewardsLive(
+         summary.wallet,
+         summary.keyId
+      );
+      return {
+         ...summary,
+         accruedRewards: liveRewards,
+         rewardsSource: 'live',
+      };
+   } catch (error) {
+      if (
+         error instanceof lpRewardsContract.LpContractNotConfiguredError ||
+         error instanceof lpRewardsContract.LpRewardsFetchError
+      ) {
+         logger.warn(
+            buildLogFields({
+               type: 'lp_live_rewards_fallback',
+               lpId: summary.lpId,
+               wallet: summary.wallet,
+               keyId: summary.keyId,
+               error: error instanceof Error ? error.message : String(error),
+            }),
+            'Failed to fetch live LP rewards; falling back to stored rewards'
+         );
+         return {
+            ...summary,
+            rewardsSource: 'stored',
+         };
+      }
+      throw error;
+   }
 }
 
 /** All active LP positions for a wallet. */
@@ -53,6 +103,31 @@ export async function getLpPositionsByWallet(
       orderBy: { createdAt: 'desc' },
    });
    return positions.map(toSummary);
+}
+
+/**
+ * All active LP positions for a wallet with live rewards fetched from
+ * the LP rewards contract. Concurrency is limited to 5 calls at a time.
+ */
+export async function getLpPositionsWithLiveRewards(
+   wallet: string
+): Promise<LpPositionSummary[]> {
+   const positions = await prisma.lpPosition.findMany({
+      where: { wallet, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+   });
+   const summaries = positions.map(toSummary);
+
+   const CHUNK_SIZE = 5;
+   const results: LpPositionSummary[] = [];
+   for (let i = 0; i < summaries.length; i += CHUNK_SIZE) {
+      const chunk = summaries.slice(i, i + CHUNK_SIZE);
+      const enrichedChunk = await Promise.all(
+         chunk.map((summary) => attachLiveRewards(summary))
+      );
+      results.push(...enrichedChunk);
+   }
+   return results;
 }
 
 /**
@@ -70,6 +145,33 @@ export async function getLpPositionById(
       throw new LpPositionNotFoundError(lpId);
    }
    return toSummary(position);
+}
+
+/**
+ * Single LP position detail scoped to the owning wallet. If the position is
+ * active, live rewards are fetched; if removed, stored rewards are returned
+ * with no contract call. Throws LpPositionNotFoundError if not found or not owned.
+ */
+export async function getLpPositionDetailWithLiveRewards(
+   positionId: string,
+   wallet: string
+): Promise<LpPositionSummary> {
+   const position = await prisma.lpPosition.findUnique({
+      where: { lpId: positionId },
+   });
+   if (!position || position.wallet !== wallet) {
+      throw new LpPositionNotFoundError(positionId);
+   }
+
+   const summary = toSummary(position);
+   if (summary.status === 'active') {
+      return attachLiveRewards(summary);
+   }
+
+   return {
+      ...summary,
+      rewardsSource: 'stored',
+   };
 }
 
 export interface LpPoolSummary {

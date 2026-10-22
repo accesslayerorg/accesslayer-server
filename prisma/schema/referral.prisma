@@ -1,6 +1,54 @@
 // prisma/schema/referral.prisma
 
 /**
+ * Referral code issued once per wallet (#910). Referrers share this code so
+ * new wallets can register as their referees via
+ * `POST /referrals/register`. The code is generated on demand and is stable
+ * for the lifetime of the wallet.
+ */
+model ReferralCode {
+  id            String   @id @default(cuid())
+
+  // Wallet the code belongs to
+  walletAddress String   @unique
+
+  // Public code shared by the referrer
+  code          String   @unique
+
+  createdAt     DateTime @default(now())
+
+  @@index([walletAddress])
+}
+
+/// Links a referee wallet to the referrer that owns its referral code (#910).
+/// A wallet can only ever be referred once (`refereeAddress` is unique), so a
+/// second registration attempt is a 409 conflict.
+model Referral {
+  id              String    @id @default(cuid())
+
+  // Referrer wallet that owns the referral code
+  referrerAddress String
+
+  // Referee wallet that registered with the referrer's code
+  refereeAddress  String    @unique
+
+  // Referral code used at registration time
+  referralCode    String
+
+  // Set once the referee completes their first trade; null until then
+  firstTradeAt    DateTime?
+
+  // Key (creator id) of the trade that triggered the first-trade reward
+  firstTradeKeyId String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([referrerAddress, createdAt])
+  @@index([referrerAddress])
+}
+
+/**
  * Referral fee earnings indexed from the on-chain `referral_fee_paid` event.
  *
  * One row per fee payment. `walletAddress` is the referrer who earned the
@@ -18,6 +66,10 @@ model ReferralEvent {
   // Optional denormalised creator id for joins
   creatorId     String?
 
+  // Referred wallet whose trade generated the fee. Null for fees that were
+  // not attributed to a specific referee (e.g. raw on-chain events).
+  refereeAddress String?
+
   // Fee amount in XLM
   amount        Decimal
 
@@ -29,4 +81,109 @@ model ReferralEvent {
 
   @@index([walletAddress, createdAt])
   @@index([keyId])
+  @@index([refereeAddress])
+}
+
+/**
+ * Current referral tier state for a wallet, derived from on-chain
+ * `ReferralTierUpgraded` events (#1034).
+ *
+ * One row per referrer. `tier` is the highest tier reached, `cumulativeVolume`
+ * the total referred volume that earned it, and `lastUpgradedAt` the timestamp
+ * of the most recent upgrade.
+ */
+model ReferralTier {
+  id               String    @id @default(cuid())
+
+  // Referrer wallet whose tier is tracked
+  walletAddress    String    @unique
+
+  // Highest referral tier reached (1, 2 or 3)
+  tier             Int       @default(1)
+
+  // Cumulative referred volume in XLM
+  cumulativeVolume Decimal   @default(0) @db.Decimal(20, 7)
+
+  // When the wallet last upgraded tiers
+  lastUpgradedAt   DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tier])
+  @@map("referral_tiers")
+}
+
+/**
+ * Append-only history of referral tier upgrades (#1034).
+ *
+ * One row per `ReferralTierUpgraded` event. The `(txHash, eventIndex)` pair is
+ * unique so replaying the same chain event is idempotent and never records a
+ * duplicate upgrade.
+ */
+model ReferralTierEvent {
+  id               String   @id @default(cuid())
+
+  // Referrer wallet that upgraded
+  walletAddress    String
+
+  previousTier     Int
+  newTier          Int
+
+  // Cumulative referred volume in XLM at the time of the upgrade
+  cumulativeVolume Decimal  @db.Decimal(20, 7)
+
+  // Chain correlation
+  ledger           Int
+  txHash           String
+  eventIndex       Int
+
+  // On-chain event timestamp
+  occurredAt       DateTime
+
+  createdAt        DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([walletAddress, occurredAt(sort: Desc)])
+  @@map("referral_tier_events")
+}
+
+// Referral reward earnings indexed from the on-chain
+// `ReferralRewardDistributed` event (#1057).
+//
+// One row per distributed reward. `referrerWallet` is the wallet that earned
+// the reward; `sourceWallet` is the referred wallet whose activity generated
+// it; `tier` is the referral tier (1 = direct, 2 = second level, 3 = third
+// level). The `(txHash, eventIndex)` pair is unique so replaying the same
+// chain event is idempotent and never double-counts earnings.
+model ReferralEarning {
+  id             String   @id @default(cuid())
+
+  // Wallet that earned the reward
+  referrerWallet String
+
+  // Referred wallet whose activity generated the reward
+  sourceWallet   String
+
+  // Referral tier (1, 2 or 3)
+  tier           Int
+
+  // Reward amount in XLM
+  amount         Decimal  @db.Decimal(20, 7)
+
+  // Chain correlation
+  ledger         Int
+  txHash         String
+  eventIndex     Int
+
+  // Event timestamp on-chain
+  earnedAt       DateTime
+
+  createdAt      DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([referrerWallet, earnedAt(sort: Desc)])
+  @@index([referrerWallet, tier])
+  @@index([sourceWallet])
+  @@map("referral_earnings")
 }

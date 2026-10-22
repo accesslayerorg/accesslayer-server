@@ -11,6 +11,7 @@
 
 import { logger } from '../utils/logger.utils';
 import { envConfig } from '../config';
+import { sorobanRpcCircuitBreaker } from '../utils/circuit-breaker.utils';
 
 /** Default JSON-RPC POST transport used in production. */
 async function defaultPostJson(url: string, body: unknown): Promise<unknown> {
@@ -41,10 +42,7 @@ async function defaultPostJson(url: string, body: unknown): Promise<unknown> {
    }
 }
 
-export type SorobanPostJson = (
-   url: string,
-   body: unknown
-) => Promise<unknown>;
+export type SorobanPostJson = (url: string, body: unknown) => Promise<unknown>;
 
 /** Expose the default transport for callers that want to bind clients to it. */
 export const defaultSorobanTransport: SorobanPostJson = defaultPostJson;
@@ -102,26 +100,28 @@ async function callRpc<T>(
    params: unknown,
    postJson: SorobanPostJson
 ): Promise<T> {
-   const url = envConfig.STELLAR_SOROBAN_RPC_URL;
-   const body = { jsonrpc: '2.0', id: '1', method, params };
+   return sorobanRpcCircuitBreaker.execute(async () => {
+      const url = envConfig.STELLAR_SOROBAN_RPC_URL;
+      const body = { jsonrpc: '2.0', id: '1', method, params };
 
-   let envelope: unknown;
-   try {
-      envelope = await postJson(url, body);
-   } catch (error) {
-      logger.warn(
-         { method, error: (error as Error).message },
-         'Soroban RPC request failed'
-      );
-      throw error;
-   }
+      let envelope: unknown;
+      try {
+         envelope = await postJson(url, body);
+      } catch (error) {
+         logger.warn(
+            { method, error: (error as Error).message },
+            'Soroban RPC request failed'
+         );
+         throw error;
+      }
 
-   const { result, error } = (envelope ?? {}) as JsonRpcEnvelope;
-   if (error) {
-      throw new SorobanRpcMethodError(error.code, error.message);
-   }
+      const { result, error } = (envelope ?? {}) as JsonRpcEnvelope;
+      if (error) {
+         throw new SorobanRpcMethodError(error.code, error.message);
+      }
 
-   return result as T;
+      return result as T;
+   });
 }
 
 /**
@@ -169,9 +169,5 @@ export async function getTransaction(
    hash: string,
    postJson: SorobanPostJson = defaultPostJson
 ): Promise<GetTransactionResult> {
-   return callRpc<GetTransactionResult>(
-      'getTransaction',
-      { hash },
-      postJson
-   );
+   return callRpc<GetTransactionResult>('getTransaction', { hash }, postJson);
 }

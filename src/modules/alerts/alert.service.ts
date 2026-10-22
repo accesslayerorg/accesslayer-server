@@ -42,7 +42,7 @@ export async function createAlert(input: CreateAlertInput) {
          walletAddress: input.wallet_address,
          targetPrice: input.target_price,
          direction: input.direction,
-         callbackUrl: input.callback_url,
+         callbackUrl: input.callback_url ?? null,
       },
    });
 
@@ -72,19 +72,44 @@ export async function listAlerts(walletAddress: string) {
 }
 
 /**
+ * Issue #1012: returns every triggered (not-necessarily-active) alert for a
+ * wallet so the notifications service can surface them in-app. Ordered by
+ * triggeredAt desc so newest fires first.
+ */
+export async function listTriggeredAlertsForWallet(walletAddress: string) {
+   return await prisma.priceAlert.findMany({
+      where: {
+         walletAddress,
+         triggeredAt: { not: null },
+      },
+      orderBy: { triggeredAt: 'desc' },
+   });
+}
+
+/**
  * Deletes a price alert by id, scoped to the wallet address for authorization.
  * Returns the deleted record id or null if not found.
+ * Throws 403 if the alert belongs to a different wallet.
  */
 export async function deleteAlert(
    id: string,
-   walletAddress: string
+   walletAddress?: string
 ): Promise<{ id: string } | null> {
    const existing = await prisma.priceAlert.findFirst({
-      where: { id, walletAddress },
+      where: { id },
    });
 
    if (!existing) {
       return null;
+   }
+
+   if (walletAddress && existing.walletAddress !== walletAddress) {
+      const error = new Error(
+         'You do not have permission to delete this alert'
+      ) as any;
+      error.statusCode = 403;
+      error.code = 'FORBIDDEN';
+      throw error;
    }
 
    await prisma.priceAlert.delete({ where: { id } });
@@ -102,11 +127,57 @@ export async function deleteAlert(
    return { id };
 }
 
+/**
+ * Manually marks a price alert as triggered (inactive, with triggeredAt timestamp).
+ * Scoped to the wallet address for authorization.
+ * Returns the updated record or null if not found.
+ * Throws 403 if the alert belongs to a different wallet.
+ */
+export async function triggerAlert(
+   id: string,
+   walletAddress?: string
+) {
+   const existing = await prisma.priceAlert.findFirst({
+      where: { id },
+   });
+
+   if (!existing) {
+      return null;
+   }
+
+   if (walletAddress && existing.walletAddress !== walletAddress) {
+      const error = new Error(
+         'You do not have permission to modify this alert'
+      ) as any;
+      error.statusCode = 403;
+      error.code = 'FORBIDDEN';
+      throw error;
+   }
+
+   const updated = await prisma.priceAlert.update({
+      where: { id },
+      data: {
+         isActive: false,
+         triggeredAt: new Date(),
+      },
+   });
+
+   logger.info(
+      {
+         alert_id: updated.id,
+         creator_id: updated.creatorId,
+         triggered_at: updated.triggeredAt,
+         wallet_address: truncateWallet(updated.walletAddress),
+      },
+      'Price alert triggered'
+   );
+
+   return updated;
+}
+
 function toNumber(value: number | string | { toString(): string }): number {
    return typeof value === 'number' ? value : Number(value.toString());
 }
-
-
 
 function maskCallbackUrl(callbackUrl: string): string {
    try {
@@ -132,13 +203,17 @@ async function deliverPriceAlertWebhook(
       walletAddress: string;
       targetPrice: unknown;
       direction: string;
-      callbackUrl: string;
+      callbackUrl: string | null;
    },
    payload: Record<string, unknown>
 ): Promise<void> {
+   if (!alert.callbackUrl) {
+      return;
+   }
+
    const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
    const maskedUrl = maskCallbackUrl(alert.callbackUrl);
-   const threshold = toNumber(alert.targetPrice as string | number | { toString(): string });
+   const threshold = toNumber(alert.targetPrice as string | number | { toString(): string});
    const triggeredPrice = toNumber(payload.current_price as string | number | { toString(): string });
 
    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -205,6 +280,12 @@ async function deliverPriceAlertWebhook(
 /**
  * Evaluates active alerts for a creator price movement and delivers only alerts
  * whose threshold was crossed in the registered direction.
+ *
+ * Issue #1012: alert disable is unconditional — even if webhook delivery
+ * throws, the alert is disabled and (via listTriggeredAlertsForWallet) becomes
+ * visible in the in-app notification feed. Webhook failure is logged, not
+ * propagated, so callers wiring this into the price pipeline can't roll back
+ * a trade.
  */
 export async function evaluatePriceAlertsForMovement(
    movement: PriceMovement
@@ -221,6 +302,8 @@ export async function evaluatePriceAlertsForMovement(
          },
       });
 
+      let alertsTriggered = 0;
+
       for (const alert of alerts) {
          const targetPrice = toNumber(alert.targetPrice);
          const crossedAbove =
@@ -236,16 +319,9 @@ export async function evaluatePriceAlertsForMovement(
             continue;
          }
 
-         await deliverPriceAlertWebhook(alert, {
-            event_type: 'price_alert',
-            alert_id: alert.id,
-            creator_id: alert.creatorId,
-            wallet_address: alert.walletAddress,
-            target_price: targetPrice,
-            current_price: currentPrice,
-            direction: alert.direction,
-         });
-
+         // Disable + record trigger first — this is what the in-app
+         // notification reads. If this succeeds, the user sees the alert even
+         // if the webhook below fails.
          await prisma.priceAlert.update({
             where: { id: alert.id },
             data: {
@@ -253,7 +329,43 @@ export async function evaluatePriceAlertsForMovement(
                triggeredAt: new Date(),
             },
          });
+         alertsTriggered += 1;
+
+         try {
+            await deliverPriceAlertWebhook(alert, {
+               event_type: 'price_alert',
+               alert_id: alert.id,
+               creator_id: alert.creatorId,
+               wallet_address: alert.walletAddress,
+               target_price: targetPrice,
+               current_price: currentPrice,
+               direction: alert.direction,
+            });
+         } catch (webhookError) {
+            logger.error(
+               {
+                  alert_id: alert.id,
+                  creator_id: alert.creatorId,
+                  error_message:
+                     webhookError instanceof Error
+                        ? webhookError.message
+                        : 'Unknown error',
+               },
+               'Price alert webhook failed after alert was disabled'
+            );
+         }
       }
+
+      logger[alertsTriggered > 0 ? 'info' : 'debug'](
+         {
+            creator_id: movement.creatorId,
+            alerts_evaluated: alerts.length,
+            alerts_triggered: alertsTriggered,
+            new_price: currentPrice,
+            checked_at: new Date().toISOString(),
+         },
+         'Price alert check run'
+      );
    } catch (err) {
       logger.error(
          {

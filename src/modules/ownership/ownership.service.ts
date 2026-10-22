@@ -1,6 +1,8 @@
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { OwnershipQueryType } from './ownership.schemas';
+import { recordHoldingSnapshot } from '../portfolio/holding-snapshot.service';
+import { onHolderBalanceChanged } from '../keys/key-holder-leaderboard.service';
 
 type KeyOwnership = NonNullable<
    Awaited<ReturnType<typeof prisma.keyOwnership.findFirst>>
@@ -25,6 +27,8 @@ export async function fetchOwnership(
 export interface OwnershipUpdateContext {
    event_type?: 'buy' | 'sell';
    ledger_sequence?: number;
+   /** When the trade occurred; used for the holdings snapshot timestamp (#1008). */
+   occurredAt?: Date;
 }
 
 export async function updateOwnership(
@@ -68,6 +72,17 @@ export async function updateOwnership(
       'Ownership read model updated'
    );
 
+   // Holdings snapshot for the portfolio history chart (#1008).
+   await recordHoldingSnapshot({
+      ownerAddress,
+      creatorId,
+      balance: Number(result.balance),
+      recordedAt: ctx.occurredAt ?? new Date(),
+   });
+
+   // Recompute the holder leaderboard after the balance change (#1013).
+   await onHolderBalanceChanged(creatorId);
+
    return result;
 }
 
@@ -108,7 +123,7 @@ export async function recordKeyPurchase(
             newBalance;
     }
 
-    return (prisma.keyOwnership.upsert({
+    const updated = (await (prisma.keyOwnership.upsert({
         where: {
             ownerAddress_creatorId: { ownerAddress, creatorId },
         },
@@ -124,7 +139,20 @@ export async function recordKeyPurchase(
             costBasis: pricePerKeyXlm,
             lastBuyAt: boughtAt,
         },
-    }) as unknown) as Promise<KeyOwnership>;
+    }) as unknown)) as KeyOwnership;
+
+    // Holdings snapshot for the portfolio history chart (#1008).
+    await recordHoldingSnapshot({
+        ownerAddress,
+        creatorId,
+        balance: Number(updated.balance),
+        recordedAt: boughtAt,
+    });
+
+    // Recompute the holder leaderboard after the balance change (#1013).
+    await onHolderBalanceChanged(creatorId);
+
+    return updated;
 }
 
 export class InsufficientKeyBalanceError extends Error {
@@ -165,7 +193,8 @@ export async function recordKeySale(
     ownerAddress: string,
     creatorId: string,
     quantitySold: number,
-    pricePerKeyXlm: number
+    pricePerKeyXlm: number,
+    soldAt: Date = new Date()
 ): Promise<KeyOwnership> {
     const existing = await prisma.keyOwnership.findUnique({
         where: {
@@ -194,7 +223,7 @@ export async function recordKeySale(
         quantitySold
     );
 
-    return (prisma.keyOwnership.update({
+    const updated = (await (prisma.keyOwnership.update({
         where: {
             ownerAddress_creatorId: { ownerAddress, creatorId },
         },
@@ -203,5 +232,18 @@ export async function recordKeySale(
             costBasis: newCostBasis,
             realisedPnl: currentRealised + realisedForTrade,
         },
-    }) as unknown) as Promise<KeyOwnership>;
+    }) as unknown)) as KeyOwnership;
+
+    // Holdings snapshot for the portfolio history chart (#1008).
+    await recordHoldingSnapshot({
+        ownerAddress,
+        creatorId,
+        balance: Number(updated.balance),
+        recordedAt: soldAt,
+    });
+
+    // Recompute the holder leaderboard after the balance change (#1013).
+    await onHolderBalanceChanged(creatorId);
+
+    return updated;
 }

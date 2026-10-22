@@ -47,6 +47,7 @@ describe('LP routes', () => {
                lpId: 'lp-1',
                wallet,
                keyId: 'key-1',
+               amount: '1000',
                sharePercent: '10',
                accruedRewards: '5.5',
                status: 'active',
@@ -61,6 +62,7 @@ describe('LP routes', () => {
          expect(res.status).toBe(200);
          expect(res.body.data.items).toHaveLength(1);
          expect(res.body.data.items[0].sharePercent).toBe('10');
+         expect(res.body.data.items[0].amount).toBe('1000');
       });
    });
 
@@ -88,6 +90,7 @@ describe('LP routes', () => {
             lpId: 'lp-1',
             wallet,
             keyId: 'key-1',
+            amount: '1000',
             sharePercent: '10',
             accruedRewards: '5.5',
             status: 'active',
@@ -100,6 +103,7 @@ describe('LP routes', () => {
             .set('Authorization', `Bearer ${token}`);
          expect(res.status).toBe(200);
          expect(res.body.data.lpId).toBe('lp-1');
+         expect(res.body.data.amount).toBe('1000');
       });
    });
 
@@ -115,6 +119,108 @@ describe('LP routes', () => {
          expect(res.status).toBe(200);
          expect(res.body.data.totalPoolSize).toBe('100');
          expect(res.body.data.estimatedApr).toBe(12.5);
+      });
+   });
+
+   describe('GET /api/v1/lp/:wallet/positions', () => {
+      it('returns 401 without a token', async () => {
+         const res = await request(app).get(`/api/v1/lp/${wallet}/positions`);
+         expect(res.status).toBe(401);
+      });
+
+      it('returns 403 when the path wallet does not match the authenticated wallet', async () => {
+         const res = await request(app)
+            .get('/api/v1/lp/GDIFFERENTWALLET/positions')
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(403);
+      });
+
+      it('returns 400 when the wallet param is invalid', async () => {
+         const res = await request(app)
+            .get('/api/v1/lp/%20/positions')
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(400);
+      });
+
+      it('returns active positions with live rewards for authenticated wallet', async () => {
+         jest
+            .spyOn(lpService, 'getLpPositionsWithLiveRewards')
+            .mockResolvedValueOnce([
+               {
+                  lpId: 'lp-1',
+                  wallet,
+                  keyId: 'key-1',
+                  amount: '1000',
+                  sharePercent: '10',
+                  accruedRewards: '15.5',
+                  rewardsSource: 'live',
+                  status: 'active',
+                  createdAt: '2026-09-01T00:00:00.000Z',
+                  updatedAt: '2026-09-01T00:00:00.000Z',
+               },
+            ]);
+
+         const res = await request(app)
+            .get(`/api/v1/lp/${wallet}/positions`)
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(200);
+         expect(res.body.data.items).toHaveLength(1);
+         expect(res.body.data.items[0].rewardsSource).toBe('live');
+         expect(res.body.data.items[0].amount).toBe('1000');
+      });
+   });
+
+   describe('GET /api/v1/lp/:wallet/positions/:positionId', () => {
+      it('returns 401 without a token', async () => {
+         const res = await request(app).get(
+            `/api/v1/lp/${wallet}/positions/lp-1`
+         );
+         expect(res.status).toBe(401);
+      });
+
+      it('returns 403 when the path wallet does not match the authenticated wallet', async () => {
+         const res = await request(app)
+            .get('/api/v1/lp/GDIFFERENTWALLET/positions/lp-1')
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(403);
+      });
+
+      it('returns 404 when the position does not exist or is not owned by the wallet', async () => {
+         jest
+            .spyOn(lpService, 'getLpPositionDetailWithLiveRewards')
+            .mockRejectedValueOnce(
+               new lpService.LpPositionNotFoundError('lp-1')
+            );
+
+         const res = await request(app)
+            .get(`/api/v1/lp/${wallet}/positions/lp-1`)
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(404);
+      });
+
+      it('returns position detail with live rewards when found and owned', async () => {
+         jest
+            .spyOn(lpService, 'getLpPositionDetailWithLiveRewards')
+            .mockResolvedValueOnce({
+               lpId: 'lp-1',
+               wallet,
+               keyId: 'key-1',
+               amount: '1000',
+               sharePercent: '10',
+               accruedRewards: '15.5',
+               rewardsSource: 'live',
+               status: 'active',
+               createdAt: '2026-09-01T00:00:00.000Z',
+               updatedAt: '2026-09-01T00:00:00.000Z',
+            });
+
+         const res = await request(app)
+            .get(`/api/v1/lp/${wallet}/positions/lp-1`)
+            .set('Authorization', `Bearer ${token}`);
+         expect(res.status).toBe(200);
+         expect(res.body.data.lpId).toBe('lp-1');
+         expect(res.body.data.rewardsSource).toBe('live');
+         expect(res.body.data.amount).toBe('1000');
       });
    });
 });

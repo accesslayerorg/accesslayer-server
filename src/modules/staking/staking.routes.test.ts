@@ -192,19 +192,38 @@ describe('Staking Routes', () => {
    });
 
    describe('GET /staking/positions', () => {
-      it('returns list of staking positions with embedded tier data', async () => {
-         jest
+      it('returns the authenticated wallet positions with embedded tier data', async () => {
+         const spy = jest
             .spyOn(stakingService, 'getStakingPositions')
             .mockResolvedValueOnce([mockPosition]);
+         const token = signWalletAccessToken('GBTESTSTAKER0001');
 
-         const res = await request(app).get(
-            '/staking/positions?wallet=GBTESTSTAKER0001'
-         );
+         const res = await request(app)
+            .get('/staking/positions')
+            .set('Authorization', `Bearer ${token}`);
          expect(res.status).toBe(200);
          expect(res.body.success).toBe(true);
+         expect(spy).toHaveBeenCalledWith({ wallet: 'GBTESTSTAKER0001' });
          expect(res.body.data).toHaveLength(1);
          expect(res.body.data[0].effectiveWeight).toBe('625');
          expect(res.body.data[0].tierData.tier).toBe(1);
+      });
+
+      it('ignores a ?wallet query and uses the token wallet', async () => {
+         const spy = jest
+            .spyOn(stakingService, 'getStakingPositions')
+            .mockResolvedValueOnce([]);
+         const token = signWalletAccessToken('GBTESTSTAKER0001');
+
+         await request(app)
+            .get('/staking/positions?wallet=GSOMEONEELSE')
+            .set('Authorization', `Bearer ${token}`);
+         expect(spy).toHaveBeenCalledWith({ wallet: 'GBTESTSTAKER0001' });
+      });
+
+      it('requires authentication', async () => {
+         const res = await request(app).get('/staking/positions');
+         expect(res.status).toBe(401);
       });
    });
 

@@ -12,6 +12,7 @@
 import { Redis } from 'ioredis';
 import { envConfig } from '../config';
 import { logger } from './logger.utils';
+import { redisCircuitBreaker } from './circuit-breaker.utils';
 
 const globalForRedis = globalThis as unknown as {
    __accesslayerRedis?: Redis | null;
@@ -27,10 +28,18 @@ function createRedisClient(): Redis | null {
          lazyConnect: false,
          maxRetriesPerRequest: 1,
          enableOfflineQueue: false,
-         retryStrategy: (attempt: number) => Math.min(attempt * 500, 5000),
+         retryStrategy: (attempt: number) =>
+            process.env.NODE_ENV === 'test' || envConfig.MODE === 'test'
+               ? null
+               : Math.min(attempt * 500, 5000),
+      });
+
+      client.on('ready', () => {
+         redisCircuitBreaker.recordSuccess();
       });
 
       client.on('error', (error: Error) => {
+         redisCircuitBreaker.recordFailure(error);
          logger.error(
             { type: 'redis_error', error: error.message },
             'Redis client error'
@@ -63,11 +72,15 @@ export function getRedisClient(): Redis | null {
  * unavailable so callers treat outages as cache misses.
  */
 export async function cacheGet(key: string): Promise<string | null> {
+   if (redisCircuitBreaker.isOpen()) return null;
    const client = getRedisClient();
    if (!client) return null;
    try {
-      return await client.get(key);
+      const val = await client.get(key);
+      redisCircuitBreaker.recordSuccess();
+      return val;
    } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
       logger.warn(
          {
             type: 'redis_get_failed',
@@ -115,11 +128,14 @@ export async function cacheSetJson(
    value: unknown,
    ttlSeconds: number
 ): Promise<void> {
+   if (redisCircuitBreaker.isOpen()) return;
    const client = getRedisClient();
    if (!client) return;
    try {
       await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+      redisCircuitBreaker.recordSuccess();
    } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
       logger.warn(
          {
             type: 'redis_set_failed',
@@ -154,10 +170,43 @@ export async function cacheSetRaw(
 }
 
 /**
+ * Set a key only if it does not already exist (atomic SET NX) with an expiration.
+ * Returns true if the key was set, or false if it already existed.
+ * When Redis is unavailable or circuit breaker is open, returns true so requests proceed.
+ */
+export async function cacheSetRawNx(
+   key: string,
+   value: string,
+   ttlSeconds: number
+): Promise<boolean> {
+   if (redisCircuitBreaker.isOpen()) return true;
+   const client = getRedisClient();
+   if (!client) return true;
+   try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      redisCircuitBreaker.recordSuccess();
+      return result === 'OK';
+   } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
+      logger.warn(
+         {
+            type: 'redis_set_nx_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET NX failed; allowing request through'
+      );
+      return true;
+   }
+}
+
+/**
  * Delete one or more keys. Accepts glob patterns which are expanded via SCAN
  * so invalidation never blocks Redis with KEYS.
  */
-export async function cacheInvalidate(...keysOrPatterns: string[]): Promise<void> {
+export async function cacheInvalidate(
+   ...keysOrPatterns: string[]
+): Promise<void> {
    const client = getRedisClient();
    if (!client || keysOrPatterns.length === 0) return;
 

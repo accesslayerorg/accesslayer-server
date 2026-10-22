@@ -1,0 +1,68 @@
+// prisma/schema/merkle.prisma
+// Merkle-proof event integrity system (#727)
+
+enum PartitionStatus {
+  OPEN
+  CLOSED
+  PUBLISHED
+  PUBLICATION_FAILED
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  network     String
+  contractId  String
+  ledger      Int
+  txHash      String
+  eventIndex  Int
+  topic       String
+  dataJson    String
+  leafHash    String
+  leafIndex   Int
+  partitionId String
+  createdAt   DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  // A leaf index identifies one slot in the partition's Merkle tree, so it must
+  // be unique per partition; this blocks concurrent ingestion from writing two
+  // events into the same leaf and corrupting the tree.
+  @@unique([partitionId, leafIndex])
+  @@index([partitionId])
+  @@index([network, contractId])
+  @@index([ledger])
+}
+
+model MerkleTreeState {
+  id          String   @id @default(cuid())
+  partitionId String
+  level       Int
+  position    Int
+  hash        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([partitionId, level, position])
+  @@index([partitionId, level])
+}
+
+model MerklePartitionRoot {
+  id            String          @id @default(cuid())
+  partitionId   String          @unique
+  network       String
+  contractId    String
+  ledgerStart   Int
+  ledgerEnd     Int
+  root          String
+  eventCount    Int
+  sorobanTxHash String?
+  status        PartitionStatus @default(OPEN)
+  retryCount    Int             @default(0)
+  lastError     String?
+  closedAt      DateTime?
+  publishedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([network, contractId])
+  @@index([status])
+}

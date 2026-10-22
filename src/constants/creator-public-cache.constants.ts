@@ -11,9 +11,19 @@ import { CREATOR_PUBLIC_ROUTE_NAMES } from './creator-public-routes.constants';
  */
 export const CREATOR_PUBLIC_ROUTE_CACHE_MAX_AGE_SECONDS = {
    publicRead: PUBLIC_ENDPOINT_CACHE_SECONDS.short,
+   /**
+    * Social metadata freshness window.
+    *
+    * Social metadata is synced from on-chain SocialMetadataUpdated events and
+    * server-side caches are invalidated synchronously on each event. Keeping
+    * the HTTP max-age at 60 seconds bounds client/CDN staleness to the same
+    * 60-second freshness budget.
+    */
+   socialRead: 60,
 } as const;
 
 const publicReadSeconds = CREATOR_PUBLIC_ROUTE_CACHE_MAX_AGE_SECONDS.publicRead;
+const socialReadSeconds = CREATOR_PUBLIC_ROUTE_CACHE_MAX_AGE_SECONDS.socialRead;
 
 /**
  * Options for {@link cacheControl} on creator public routes.
@@ -39,6 +49,11 @@ export const CREATOR_PUBLIC_ROUTE_CACHE_PRESETS = {
       type: 'public' as const,
       staleIfError: 86400,
    },
+   [CREATOR_PUBLIC_ROUTE_NAMES.GET_SOCIAL]: {
+      maxAge: socialReadSeconds,
+      type: 'public' as const,
+      staleIfError: 86400,
+   },
    [CREATOR_PUBLIC_ROUTE_NAMES.GET_KEYS]: {
       maxAge: publicReadSeconds,
       type: 'public' as const,
@@ -52,4 +67,5 @@ export const CREATOR_PUBLIC_ROUTE_CACHE_PRESETS = {
  */
 export const CREATOR_PUBLIC_ROUTE_CACHE_CONTROL_HEADER = {
    publicRead: `public, max-age=${publicReadSeconds}`,
+   socialRead: `public, max-age=${socialReadSeconds}`,
 } as const;
