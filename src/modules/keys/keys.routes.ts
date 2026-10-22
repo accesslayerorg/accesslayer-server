@@ -1,6 +1,7 @@
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
+import { getSubscriptionStatus } from './subscription-status.service';
 import {
    sendError,
    sendNotFound,
@@ -2665,6 +2666,15 @@ router.post(
       }
    }
 );
+
+router.get('/:keyId/subscription/:wallet', async (req, res, next) => {
+   try {
+      const result = await getSubscriptionStatus(req.params.keyId, req.params.wallet);
+      sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+});
 
 router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
