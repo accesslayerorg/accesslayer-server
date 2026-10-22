@@ -10,9 +10,9 @@
   "packageManager": "pnpm@10.6.5",
   "scripts": {
     "preinstall": "node -e \"const ua = process.env.npm_config_user_agent || ''; if (!ua.includes('pnpm')) { console.error('Use pnpm for this repository. Run: pnpm install'); process.exit(1); }\"",
-    "dev": "node api.js && nodemon",
-    "start": "node api.js && node dist/server.js",
-    "build": "node api.js && tsc",
+    "dev": "nodemon",
+    "start": "node dist/server.js",
+    "build": "tsc",
     "test": "jest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -73,6 +73,7 @@
     "swagger-ui-express": "^5.0.1",
     "text-to-svg": "^3.1.5",
     "tspec": "^0.1.116",
+    "ws": "^8.21.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.4",
     "zod-validation-error": "^3.5.2"
@@ -93,6 +94,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/text-to-svg": "^3.1.4",
+    "@types/ws": "^8.18.2",
     "@typescript-eslint/eslint-plugin": "^8.32.0",
     "@typescript-eslint/parser": "^8.32.0",
     "eslint": "^9.26.0",
