@@ -192,6 +192,27 @@ display/bio/avatar fields plus a `null` `source`. The avatar is resolved from
 its IPFS CID via `PINATA_GATEWAY_URL`. See
 [social-metadata-sync.md](./social-metadata-sync.md) for the sync details.
 
+## Creator Revenue Distribution Endpoints
+
+### GET /keys/:keyId/revenue-distributions
+
+Return indexed revenue distributions for a creator key, newest first.
+
+- **Auth:** None
+- **Query Params:** `limit` (1-100, default 50), `cursor` (distribution cursor)
+- **Response:** Each entry includes `distributionId`, `distributedAt`, `amount`,
+  and `holderCount`, along with cursor pagination metadata.
+- **Cache:** 60 seconds; invalidated when a new distribution is indexed.
+
+### GET /keys/:keyId/revenue-distributions/:wallet
+
+Return the wallet's claimable and claimed amounts for each indexed distribution.
+
+- **Auth:** None
+- **Response:** Distribution entries include `claimableAmount` and
+  `claimedAmount` in addition to the distribution date, amount, and holder count.
+- **Cache:** 60 seconds; invalidated when a distribution or claim is indexed.
+
 ---
 
 ## Creator Profile Endpoints
@@ -310,6 +331,99 @@ GET /invoices/compare?ids=cm123,cm456
             }
          }
       }
+   }
+}
+```
+
+---
+
+### GET /invoices/:invoice_id/early-incentive
+
+Early funding incentive slot status for an invoice. `slots_filled` counts indexed
+`EarlySlotFilled` events and is capped at `slots_total`. Configuration comes from
+the most recent event. Responses are cached for 30 seconds.
+
+- **Auth:** None
+- **Response:** `200 OK`; `404` when the invoice does not exist. An invoice with
+  no incentive configured returns `is_active: false`.
+
+```json
+{
+   "success": true,
+   "data": {
+      "invoice_id": "cm123",
+      "slots_total": 10,
+      "slots_filled": 4,
+      "slots_remaining": 6,
+      "bonus_bps": 250,
+      "is_active": true
+   }
+}
+```
+
+---
+
+## Issuer Endpoints
+
+### GET /issuers/:wallet/verification
+
+Verification badge status for an issuer. `is_verified` is `false` for revoked,
+expired, or never-verified issuers, and `tier` is `null` in those cases.
+`days_remaining` is `null` for a grant with no expiry. Responses are cached for 60
+seconds.
+
+- **Auth:** None
+- **Response:** `200 OK`; `400` for an invalid Stellar wallet
+
+```json
+{
+   "success": true,
+   "data": {
+      "wallet": "GISSUER...",
+      "is_verified": true,
+      "tier": "GOLD",
+      "expiry_timestamp": "2027-01-01T00:00:00.000Z",
+      "days_remaining": 71
+   }
+}
+```
+
+### GET /issuers/verified
+
+Paginated list of currently verified issuers.
+
+- **Auth:** None
+- **Query:** `page` (default `1`), `limit` (default `20`, max `100`)
+- **Response:** `200 OK` with `meta` pagination
+
+---
+
+## Investor Endpoints
+
+### GET /investors/:wallet/health-score
+
+Portfolio health score for a wallet, read from the health-score contract's
+`get_health_score` and cached for 5 minutes. `score` and `factors` are `null` for
+a wallet with no portfolio. Requires `PORTFOLIO_HEALTH_CONTRACT_ID`; without it the
+endpoint returns `503`.
+
+- **Auth:** None
+- **Response:** `200 OK`; `400` for an invalid wallet; `503` when the contract is
+  not configured or the read fails
+
+```json
+{
+   "success": true,
+   "data": {
+      "wallet": "GINVESTOR...",
+      "score": 742,
+      "factors": {
+         "concentration_score": 80,
+         "maturity_distribution_score": 70,
+         "issuer_diversity_score": 65,
+         "default_exposure_score": 90
+      },
+      "computed_at": "2026-10-21T10:00:00.000Z"
    }
 }
 ```
@@ -611,7 +725,68 @@ window, with alert and auto-suspension state.
 
 ---
 
+### GET /admin/treasury
+
+Platform treasury balance for the admin dashboard. `total_balance` is gross fee
+inflow minus allocations. `per_source_breakdown` is gross inflow per source;
+allocations are not attributed to a source. Amounts are strings in stroops.
+Cached for 60 seconds.
+
+- **Auth:** Admin JWT (`adminGuard`)
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "total_balance": "1200000000",
+      "per_source_breakdown": [
+         { "source": "trading", "balance": "1500000000" }
+      ],
+      "last_updated": "2026-10-21T10:00:00.000Z"
+   }
+}
+```
+
+### GET /admin/treasury/allocations
+
+Paginated `FundsAllocated` history (`destination`, `amount`, `purpose`, `tx_hash`,
+`ledger`, `occurred_at`).
+
+- **Auth:** Admin JWT
+- **Query:** `page` (default `1`), `limit` (default `20`, max `100`)
+
+### GET /admin/treasury/inflows
+
+Paginated `FeeReceived` history (`source`, `amount`, `tx_hash`, `ledger`,
+`occurred_at`).
+
+- **Auth:** Admin JWT
+- **Query:** `page` (default `1`), `limit` (default `20`, max `100`)
+
+---
+
 ## Keys Endpoints
+
+### GET /keys/:keyId/leaderboard
+
+Returns wallets ranked by the selected `LeaderboardUpdated` metric. Results
+are cached for 60 seconds and the cache is invalidated when a new event is
+indexed for the key. Keys without indexed leaderboard rows return an empty
+`items` array.
+
+- **Auth:** None
+- **Query Params:** `metric` (`volume`, `pnl`, or `holding_days`, required),
+  `limit` (integer, default `20`, maximum `100`)
+- **Response:** `{ "success": true, "data": { "items": [{ "rank": 1, "wallet": "...", "score": "..." }] } }`
+
+### GET /keys/:keyId/leaderboard/:wallet
+
+Returns the wallet's ordinal rank and exact score for each leaderboard metric.
+Each metric is `null` when the wallet has no indexed entry for the key.
+
+- **Auth:** None
+- **Response:** `{ "success": true, "data": { "keyId": "...", "wallet": "...", "metrics": { "volume": { "rank": 1, "score": "..." }, "pnl": null, "holding_days": null } } }`
 
 ### GET /keys/:keyId/price
 
@@ -650,6 +825,28 @@ serialised as strings. Response is cached in Redis for 10 seconds.
 - **Error Responses:**
    - `400 Bad Request` — `quantity` is missing, non-integer, ≤ 0, or > 1 000 000
    - `404 Not Found` — key does not exist
+
+### Community Polls
+
+Polls are indexed from `PollCreated`, `PollVoteCast`, and `PollClosed` contract
+events. Results report vote counts and summed vote weight per option. Responses
+are cached for 30 seconds and invalidated when a poll event for the key is
+indexed.
+
+#### GET /keys/:keyId/polls
+
+Lists all active and closed polls for a key with expiry, total votes, total
+voting weight, and per-option weight tallies.
+
+#### GET /keys/:keyId/polls/:pollId
+
+Returns poll details and per-option vote counts and weights in `optionResults`.
+
+#### GET /keys/:keyId/polls/:pollId/votes/:wallet
+
+Returns whether the wallet voted and, if so, its selected option and indexed
+vote weight. Invalid Stellar wallet addresses return `400`; unknown keys or
+polls return `404`.
 
 ---
 

@@ -19,7 +19,7 @@ export interface PollVoteWeight {
 }
 
 /** Cache TTL for a wallet/poll weight pair, in seconds. */
-export const POLL_WEIGHT_CACHE_SECONDS = 60;
+export const POLL_WEIGHT_CACHE_SECONDS = 30;
 
 /**
  * Redis key for the cached weight of one wallet in one poll. Scoped by key so

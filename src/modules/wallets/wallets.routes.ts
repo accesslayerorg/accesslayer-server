@@ -3,12 +3,30 @@ import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
 import { httpGetWalletFollowing } from "./wallet-following.controllers";
 import { httpGetWalletFeed } from "./wallet-feed.controllers";
+import {
+   httpGetWalletBadges,
+   httpGetWalletBadgeSummary,
+} from "./wallet-badges.controllers";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
 import { jwtAuth } from "../../middlewares/jwt.middleware";
 
 const walletsRouter = Router();
+
+/**
+ * GET /api/v1/wallets/:wallet/badges
+ *
+ * Returns all earned and locked badge types for a Stellar wallet.
+ */
+walletsRouter.get("/:wallet/badges", httpGetWalletBadges);
+
+/**
+ * GET /api/v1/wallets/:wallet/badges/summary
+ *
+ * Returns earned badge counts for every badge type.
+ */
+walletsRouter.get("/:wallet/badges/summary", httpGetWalletBadgeSummary);
 
 /**
  * GET /api/v1/wallets/:address/activity

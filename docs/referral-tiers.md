@@ -12,11 +12,11 @@ Tiers are defined in `src/modules/referrals/referral-tier.constants.ts`. A
 wallet's tier is a function of the cumulative volume of referrals it has
 driven; the reward rate (basis points) is applied to referred volume.
 
-| Tier | Minimum cumulative volume (XLM) | Reward rate     |
-| :--- | :------------------------------ | :-------------- |
-| 1    | 0                               | 500 bps (5%)    |
-| 2    | 1,000                           | 750 bps (7.5%)  |
-| 3    | 10,000                          | 1000 bps (10%)  |
+| Tier | Minimum cumulative volume (XLM) | Reward rate    |
+| :--- | :------------------------------ | :------------- |
+| 1    | 0                               | 500 bps (5%)   |
+| 2    | 1,000                           | 750 bps (7.5%) |
+| 3    | 10,000                          | 1000 bps (10%) |
 
 Tier 1 is the entry tier, so every wallet always has a tier. Once a wallet is
 at the top tier, `nextThreshold` and `distanceToNextThreshold` are `null`.
@@ -29,28 +29,28 @@ Tier state is stored in two tables (`prisma/schema/referral.prisma`):
 
 Current tier per wallet — one row per referrer.
 
-| Field              | Type            | Notes                                    |
-| :----------------- | :-------------- | :--------------------------------------- |
-| `walletAddress`    | `String`        | Unique referrer wallet.                  |
-| `tier`             | `Int`           | Highest tier reached (1, 2 or 3).        |
-| `cumulativeVolume` | `Decimal(20,7)` | Cumulative referred volume in XLM.       |
-| `lastUpgradedAt`   | `DateTime?`     | Timestamp of the most recent upgrade.    |
-| `updatedAt`        | `DateTime`      | Last mutation time.                      |
+| Field              | Type            | Notes                                 |
+| :----------------- | :-------------- | :------------------------------------ |
+| `walletAddress`    | `String`        | Unique referrer wallet.               |
+| `tier`             | `Int`           | Highest tier reached (1, 2 or 3).     |
+| `cumulativeVolume` | `Decimal(20,7)` | Cumulative referred volume in XLM.    |
+| `lastUpgradedAt`   | `DateTime?`     | Timestamp of the most recent upgrade. |
+| `updatedAt`        | `DateTime`      | Last mutation time.                   |
 
 ### `referral_tier_events` (`ReferralTierEvent`)
 
 Append-only upgrade log — one row per `ReferralTierUpgraded` event.
 
-| Field              | Type            | Notes                                    |
-| :----------------- | :-------------- | :--------------------------------------- |
-| `walletAddress`    | `String`        | Referrer that upgraded.                  |
-| `previousTier`     | `Int`           | Tier before the upgrade.                 |
-| `newTier`          | `Int`           | Tier after the upgrade.                  |
-| `cumulativeVolume` | `Decimal(20,7)` | Volume at the time of the upgrade.       |
-| `txHash`           | `String`        | Transaction hash.                        |
-| `eventIndex`       | `Int`           | Event index within the transaction.      |
-| `ledger`           | `Int`           | Ledger the event was observed in.        |
-| `occurredAt`       | `DateTime`      | On-chain event timestamp.                |
+| Field              | Type            | Notes                               |
+| :----------------- | :-------------- | :---------------------------------- |
+| `walletAddress`    | `String`        | Referrer that upgraded.             |
+| `previousTier`     | `Int`           | Tier before the upgrade.            |
+| `newTier`          | `Int`           | Tier after the upgrade.             |
+| `cumulativeVolume` | `Decimal(20,7)` | Volume at the time of the upgrade.  |
+| `txHash`           | `String`        | Transaction hash.                   |
+| `eventIndex`       | `Int`           | Event index within the transaction. |
+| `ledger`           | `Int`           | Ledger the event was observed in.   |
+| `occurredAt`       | `DateTime`      | On-chain event timestamp.           |
 
 `(txHash, eventIndex)` is unique, so replaying the same chain event never
 records a duplicate upgrade.
@@ -80,10 +80,10 @@ Event shape:
 interface ReferralTierUpgradedEvent {
    eventType: 'REFERRAL_TIER_UPGRADED';
    walletAddress: string;
-   previousTier: number;   // 0 for a wallet's first tier
-   newTier: number;        // 1 | 2 | 3
+   previousTier: number; // 0 for a wallet's first tier
+   newTier: number; // 1 | 2 | 3
    cumulativeVolume: string; // XLM, string for precision
-   upgradedAt: string;     // ISO timestamp
+   upgradedAt: string; // ISO timestamp
    ledger: number;
    txHash: string;
    eventIndex: number;
@@ -101,9 +101,9 @@ returns `401`.
 Current tier and the metadata needed to render progress towards the next tier.
 Cached in Redis for 5 minutes per wallet (invalidated when an upgrade lands).
 
-| Query param | Type   | Notes                                     |
-| :---------- | :----- | :---------------------------------------- |
-| `wallet`    | string | Required. Referrer wallet address.        |
+| Query param | Type   | Notes                              |
+| :---------- | :----- | :--------------------------------- |
+| `wallet`    | string | Required. Referrer wallet address. |
 
 ```json
 {
@@ -124,11 +124,11 @@ Cached in Redis for 5 minutes per wallet (invalidated when an upgrade lands).
 
 Cursor-paginated upgrade log, newest first.
 
-| Query param | Type    | Default | Notes                                  |
-| :---------- | :------ | :------ | :------------------------------------- |
-| `wallet`    | string  | –       | Required. Referrer wallet address.     |
-| `limit`     | integer | `20`    | 1–100.                                  |
-| `cursor`    | string  | –       | Opaque cursor from the previous page.   |
+| Query param | Type    | Default | Notes                                 |
+| :---------- | :------ | :------ | :------------------------------------ |
+| `wallet`    | string  | –       | Required. Referrer wallet address.    |
+| `limit`     | integer | `20`    | 1–100.                                |
+| `cursor`    | string  | –       | Opaque cursor from the previous page. |
 
 ```json
 {

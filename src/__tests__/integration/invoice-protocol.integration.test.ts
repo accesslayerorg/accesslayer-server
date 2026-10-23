@@ -266,7 +266,10 @@ describeDatabase('invoice protocol against PostgreSQL', () => {
             return { result: { status: 'PENDING', hash } };
          }
          if (body.method === 'getTransaction')
-            return { result: { status: 'SUCCESS', ledger: 901 } };
+            // `latestLedger` is part of a real getTransaction response and is
+            // what the #724 ledger-depth gate reads: report the network head
+            // two ledgers past inclusion so buys/sells confirm immediately.
+            return { result: { status: 'SUCCESS', ledger: 901, latestLedger: 903 } };
          throw new Error(`Unexpected RPC method ${body.method}`);
       });
    });

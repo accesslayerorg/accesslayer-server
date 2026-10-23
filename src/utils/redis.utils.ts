@@ -170,6 +170,37 @@ export async function cacheSetRaw(
 }
 
 /**
+ * Set a key only if it does not already exist (atomic SET NX) with an expiration.
+ * Returns true if the key was set, or false if it already existed.
+ * When Redis is unavailable or circuit breaker is open, returns true so requests proceed.
+ */
+export async function cacheSetRawNx(
+   key: string,
+   value: string,
+   ttlSeconds: number
+): Promise<boolean> {
+   if (redisCircuitBreaker.isOpen()) return true;
+   const client = getRedisClient();
+   if (!client) return true;
+   try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      redisCircuitBreaker.recordSuccess();
+      return result === 'OK';
+   } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
+      logger.warn(
+         {
+            type: 'redis_set_nx_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET NX failed; allowing request through'
+      );
+      return true;
+   }
+}
+
+/**
  * Delete one or more keys. Accepts glob patterns which are expanded via SCAN
  * so invalidation never blocks Redis with KEYS.
  */

@@ -110,7 +110,7 @@ describe('GET /api/v1/keys/:keyId/polls/:pollId/weight/:wallet', () => {
          snapshot_block: 4821,
       });
       expect(mockGetPollVoteWeight).toHaveBeenCalledTimes(1);
-      expect(mockTtls).toEqual([60]);
+      expect(mockTtls).toEqual([30]);
       expect(Date.now() - startedAt).toBeLessThan(200);
       expect(mockCacheStore.has(pollWeightCacheKey(KEY_ID, POLL_ID, WALLET))).toBe(
          true

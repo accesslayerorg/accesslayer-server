@@ -61,3 +61,67 @@ export const keyDepthSpreadCacheKey = (keyId: string): string =>
 
 export const keyDepthCachePattern = (keyId: string): string =>
    `depth:${keyId}:*`;
+
+// ── Co-creator roster endpoints (#1139) ─────────────────────────
+// GET /keys/:key_id/co-creators and /co-creators/:wallet are served from
+// the indexed key_cocreators table with a 60s TTL. Both the list and any
+// per-wallet detail share the `key:cocreators:{keyId}:` prefix so the
+// indexer can drop everything for a key with one pattern.
+export const KEY_COCREATOR_CACHE_TTL_SECONDS = 60;
+
+export const keyCoCreatorListCacheKey = (keyId: string): string =>
+   `key:cocreators:${keyId}:list`;
+
+export const keyCoCreatorDetailCacheKey = (
+   keyId: string,
+   wallet: string
+): string => `key:cocreators:${keyId}:${wallet}`;
+
+export const keyCoCreatorCachePattern = (keyId: string): string =>
+   `key:cocreators:${keyId}:*`;
+
+// ── Reserve balance endpoint (#1140) ────────────────────────────
+// GET /keys/:key_id/reserve is served from the indexed key_reserves table
+// with a 60s TTL, invalidated per key on every ReserveAccrued /
+// ReserveDeployed event.
+export const KEY_RESERVE_CACHE_TTL_SECONDS = 60;
+
+export const keyReserveCacheKey = (keyId: string): string =>
+   `key:reserve:${keyId}`;
+
+// ── Content access endpoint (#1137) ─────────────────────────────
+// GET /keys/:key_id/content-access/:wallet is evaluated on chain (or
+// off-chain from indexed state) with a 30s TTL. Invalidated per key on
+// KEY_BOUGHT/KEY_SOLD (balance changes) so a just-completed trade is
+// visible immediately.
+export const CONTENT_ACCESS_CACHE_TTL_SECONDS = 30;
+
+export const contentAccessCacheKey = (
+   keyId: string,
+   wallet: string
+): string => `key:content-access:${keyId}:${wallet}`;
+
+export const contentAccessCachePattern = (keyId: string): string =>
+   `key:content-access:${keyId}:*`;
+
+// ── Tip history endpoints (#1132) ───────────────────────────────
+// GET /keys/:key_id/tips and /tips/total are served from the indexed
+// key_tips / key_tip_totals tables with a 60s TTL. IPFS tip message
+// content fetched on demand is cached longer (immutable per CID).
+export const KEY_TIPS_CACHE_TTL_SECONDS = 60;
+export const KEY_TIP_CONTENT_CACHE_TTL_SECONDS = 3600;
+
+export const keyTipsListCacheKey = (
+   keyId: string,
+   limit: number,
+   cursor: string
+): string => `key:tips:${keyId}:list:${limit}:${cursor}`;
+
+export const keyTipsTotalCacheKey = (keyId: string): string =>
+   `key:tips:${keyId}:total`;
+
+export const keyTipContentCacheKey = (messageHash: string): string =>
+   `key:tips:content:${messageHash}`;
+
+export const keyTipsCachePattern = (keyId: string): string =>
+   `key:tips:${keyId}:*`;

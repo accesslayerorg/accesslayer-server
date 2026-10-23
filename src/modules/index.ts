@@ -22,6 +22,8 @@ import { issuerRouter } from './invoice/invoice-protocol.routes';
 import freezeRouter from './freeze/freeze.routes';
 import platformRouter from './platform/platform.routes';
 import searchRouter from './search/search.routes';
+import { issuerVerificationRouter } from './issuers/issuer-verification.routes';
+import { investorHealthRouter } from './portfolio/portfolio-health-score.routes';
 
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
@@ -56,6 +58,8 @@ import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
+import milestonesRouter from './keys/milestones.routes';
+import autoInvestRouter from './auto-invest/auto-invest.routes';
 
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
@@ -85,6 +89,8 @@ router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
 router.use('/invoices', routeBodySizeLimit('default'), invoiceRouter);
 router.use('/issuers', routeBodySizeLimit('default'), issuerRouter);
+router.use('/issuers', routeBodySizeLimit('default'), issuerVerificationRouter);
+router.use('/investors', routeBodySizeLimit('default'), investorHealthRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
@@ -141,5 +147,7 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
+router.use('/auto-invest', routeBodySizeLimit('default'), autoInvestRouter);
 
 export default router;
