@@ -10,6 +10,7 @@ export type TwapWindow = (typeof TWAP_WINDOW_KEYS)[number];
 
 export const TWAP_WINDOW_MS: Record<TwapWindow, number> = {
    '1h': 60 * 60 * 1000,
+   '4h': 4 * 60 * 60 * 1000,
    '24h': 24 * 60 * 60 * 1000,
    '7d': 7 * 24 * 60 * 60 * 1000,
 };
@@ -17,12 +18,14 @@ export const TWAP_WINDOW_MS: Record<TwapWindow, number> = {
 // Ledgers close every ~5 seconds on Stellar/Soroban
 export const TWAP_WINDOW_LEDGERS: Record<TwapWindow, number> = {
    '1h': 720,
+   '4h': 2880,
    '24h': 17280,
    '7d': 120960,
 };
 
 export const TWAP_CACHE_TTL_SECONDS: Record<TwapWindow, number> = {
    '1h': 60 * 60,
+   '4h': 4 * 60 * 60,
    '24h': 24 * 60 * 60,
    '7d': 7 * 24 * 60 * 60,
 };
