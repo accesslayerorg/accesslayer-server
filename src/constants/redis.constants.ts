@@ -12,8 +12,8 @@ export { TWAP_WINDOW_MS } from '../modules/keys/key-twap-window.service';
 
 export const TWAP_CACHE_TTL_SECONDS = 30;
 
-export const twapRedisKey = (keyId: string, window: TwapWindow, side: string): string =>
-   `twap:${keyId}:${window}:${side}`;
+export const twapRedisKey = (keyId: string, window: TwapWindow, side?: string): string =>
+   side === undefined ? `twap:${keyId}:${window}` : `twap:${keyId}:${window}:${side}`;
 
 // Circuit breaker config cache (#987): the contract-read max_bps per key.
 // Entries expire after CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS (5 minutes),
