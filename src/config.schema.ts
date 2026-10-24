@@ -663,6 +663,7 @@ export const envSchema = z
       SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })
    .passthrough()
+   .catchall(z.any())
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
          ctx.addIssue({
