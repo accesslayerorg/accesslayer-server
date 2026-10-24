@@ -75,7 +75,8 @@ export async function httpListAlerts(
 ): Promise<void> {
    try {
       const authWallet = (req as AuthenticatedRequest).user?.wallet;
-      const queryWallet = req.query.wallet_address || req.query.walletAddress;
+      const queryWallet =
+         req.query.wallet || req.query.wallet_address || req.query.walletAddress;
       const targetWallet = authWallet || queryWallet;
 
       if (!targetWallet || typeof targetWallet !== 'string') {
