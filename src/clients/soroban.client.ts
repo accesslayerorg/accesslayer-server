@@ -100,6 +100,30 @@ async function callRpc<T>(
    params: unknown,
    postJson: SorobanPostJson
 ): Promise<T> {
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if (envConfig.MODE === 'test' && process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER !== '1') {
+      const url = envConfig.STELLAR_SOROBAN_RPC_URL;
+      const body = { jsonrpc: '2.0', id: '1', method, params };
+
+      let envelope: unknown;
+      try {
+         envelope = await postJson(url, body);
+      } catch (error) {
+         logger.warn(
+            { method, error: (error as Error).message },
+            'Soroban RPC request failed'
+         );
+         throw error;
+      }
+
+      const { result, error } = (envelope ?? {}) as JsonRpcEnvelope;
+      if (error) {
+         throw new SorobanRpcMethodError(error.code, error.message);
+      }
+
+      return result as T;
+   }
+
    return sorobanRpcCircuitBreaker.execute(async () => {
       const url = envConfig.STELLAR_SOROBAN_RPC_URL;
       const body = { jsonrpc: '2.0', id: '1', method, params };

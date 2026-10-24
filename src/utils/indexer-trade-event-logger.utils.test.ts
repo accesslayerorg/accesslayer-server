@@ -61,7 +61,7 @@ describe('logIndexerTradeEvent', () => {
    it('masks actor_address to first 4 and last 4 characters', () => {
       logIndexerTradeEvent(BASE_FIELDS);
       const addr = infoMock.mock.calls[0][0].actor_address as string;
-      expect(addr).toMatch(/^GAAA\.\.\.AAAA$/);
+      expect(addr).toMatch(/^GAAA…AAAA$/);
    });
 
    it('masks short addresses without truncating', () => {
@@ -78,7 +78,7 @@ describe('logIndexerTradeEvent', () => {
       const addr = infoMock.mock.calls[0][0].actor_address as string;
       expect(addr.startsWith('GBBB')).toBe(true);
       expect(addr.endsWith('BBBA')).toBe(true);
-      expect(addr).toContain('...');
+      expect(addr).toContain('\u2026');
    });
 
    it('does not log the full actor_address in clear text', () => {

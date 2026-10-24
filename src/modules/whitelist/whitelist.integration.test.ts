@@ -151,11 +151,17 @@ describe('Whitelist Endpoint Integration Tests (#1084)', () => {
                      }
                   }
                } else {
-                  memoryCache.delete(pattern);
-               }
-            }
+                   memoryCache.delete(pattern);
+                }
+             }
          }
       );
+   });
+
+   afterAll(async () => {
+      await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
+      await prisma.user.deleteMany({});
    });
 
    afterEach(() => {

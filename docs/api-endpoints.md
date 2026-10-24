@@ -2,6 +2,34 @@
 
 Base URL: `http://localhost:3000/api/v1`
 
+## Tips Endpoints
+
+### GET /tips/:tip_id/content
+
+Get the message content associated with a `TipSent` event. The first request
+fetches the event's IPFS content hash through the configured Pinata gateway and
+caches the result permanently in `tip_content`. Cached content is not fetched
+again. Content is limited to 500 characters when stored.
+
+- **Auth:** None
+- **Response:** `200 OK` when content is fetched or unavailable; `404 Not Found`
+  when the tip does not exist
+
+```json
+{
+   "success": true,
+   "data": {
+      "tip_id": "tip-123",
+      "content": "Thanks for your work!",
+      "content_unavailable": false
+   }
+}
+```
+
+If the IPFS request times out after 5 seconds (or the gateway cannot provide
+the content), `content` is `null` and `content_unavailable` is `true`. Failed
+fetches are not cached.
+
 ## Health Endpoints
 
 ### GET /health

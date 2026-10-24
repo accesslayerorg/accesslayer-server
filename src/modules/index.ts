@@ -58,6 +58,7 @@ import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
+import tipsRouter from './tips/tips.routes';
 import milestonesRouter from './keys/milestones.routes';
 import autoInvestRouter from './auto-invest/auto-invest.routes';
 
@@ -141,6 +142,7 @@ router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
+router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
 
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
 router.use('/trades', routeBodySizeLimit('default'), tradesRouter);

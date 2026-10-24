@@ -30,6 +30,7 @@ model Event {
   @@index([partitionId])
   @@index([network, contractId])
   @@index([ledger])
+  @@index([topic])
 }
 
 model MerkleTreeState {

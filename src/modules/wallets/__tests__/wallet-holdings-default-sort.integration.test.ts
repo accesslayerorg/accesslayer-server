@@ -25,6 +25,7 @@ describe('GET /api/v1/wallets/:address/holdings - default sort order', () => {
       await prisma.keyOwnership.deleteMany({});
       await prisma.creatorPriceSnapshot.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
 
       // Create 3 users for the creators

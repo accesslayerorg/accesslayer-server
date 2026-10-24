@@ -17,6 +17,7 @@ describe('Dividend Endpoints Integration Tests', () => {
       await prisma.dividendDistribution.deleteMany({});
       await prisma.keyOwnership.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
 
       // Create test creator
@@ -83,6 +84,7 @@ describe('Dividend Endpoints Integration Tests', () => {
       await prisma.dividendDistribution.deleteMany({});
       await prisma.keyOwnership.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
    });
 

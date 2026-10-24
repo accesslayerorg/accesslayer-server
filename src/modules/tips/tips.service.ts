@@ -29,6 +29,7 @@ import {
 } from '../../constants/redis.constants';
 import {
    normalizeIpfsCid,
+   isValidIpfsCid,
    resolvePinataGatewayUrl,
 } from '../../utils/pinata-gateway.utils';
 import { resolveCreatorId } from '../whitelist/whitelist.service';
@@ -216,6 +217,12 @@ export async function getTipMessageContent(
    }
 
    const messageHash = tip.messageHash;
+   const cid = normalizeIpfsCid(messageHash);
+
+   if (!cid || !isValidIpfsCid(cid)) {
+      return null;
+   }
+
    const cacheKey = keyTipContentCacheKey(messageHash);
 
    try {
@@ -228,10 +235,6 @@ export async function getTipMessageContent(
       // Cache read failures fall through to the gateway.
    }
 
-   const cid = normalizeIpfsCid(messageHash);
-   if (!cid) {
-      return null;
-   }
    const url = resolvePinataGatewayUrl(cid);
    if (!url) {
       throw new Error('No IPFS gateway configured (PINATA_GATEWAY_URL)');

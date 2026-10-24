@@ -135,7 +135,7 @@ export function verifyAclSignatures(params: {
    }
    if (validWallets.length < ACL_MULTISIG_THRESHOLD) {
       throw new MultisigVerificationError(
-         `ACL mutations require ${ACL_MULTISIG_THRESHOLD} of ${adminSet.size || ACL_MULTISIG_SET_SIZE} admin signatures; got ${validWallets.length}`
+         `ACL mutation requires ${ACL_MULTISIG_THRESHOLD} of ${adminSet.size || ACL_MULTISIG_SET_SIZE} admin signatures; got ${validWallets.length}`
       );
    }
 

@@ -10,11 +10,9 @@ import { getKeyLpStatsCacheKey } from '../keys/key-lp.service';
 import { LP_OVERVIEW_CACHE_KEY } from '../admin/lp-overview.service';
 
 function adminToken(): string {
-   return jwt.sign(
-      { sub: 'admin-test', role: 'admin' },
-      envConfig.JWT_SECRET,
-      { expiresIn: '1h' }
-   );
+   return jwt.sign({ sub: 'admin-test', role: 'admin' }, envConfig.JWT_SECRET, {
+      expiresIn: '1h',
+   });
 }
 
 function lpEvent(
@@ -43,6 +41,7 @@ describe('LP allocation tracking and TVL reporting (#943)', () => {
    beforeEach(async () => {
       await prisma.lpAllocation.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
 
       const userA = await prisma.user.create({
@@ -92,7 +91,7 @@ describe('LP allocation tracking and TVL reporting (#943)', () => {
          where: { creatorId: creatorAId },
       });
       expect(rows).toHaveLength(1);
-      expect(rows[0].amountXlm.toString()).toBe('50.0000000');
+      expect(rows[0].amountXlm.toFixed(7)).toBe('50.0000000');
       expect(rows[0].txHash).toBe(event.txHash);
    });
 
@@ -147,7 +146,9 @@ describe('LP allocation tracking and TVL reporting (#943)', () => {
    });
 
    it('AC2: 404 for an unknown key', async () => {
-      const res = await request(app).get('/api/v1/keys/does-not-exist/lp-stats');
+      const res = await request(app).get(
+         '/api/v1/keys/does-not-exist/lp-stats'
+      );
       expect(res.status).toBe(404);
    });
 
@@ -183,7 +184,9 @@ describe('LP allocation tracking and TVL reporting (#943)', () => {
       expect(first.body.data.totalLpContributedXlm).toBe('10.0000000');
 
       // Stats are now cached for the key.
-      const cachedBefore = await cacheGetJson(getKeyLpStatsCacheKey(creatorAId));
+      const cachedBefore = await cacheGetJson(
+         getKeyLpStatsCacheKey(creatorAId)
+      );
       expect(cachedBefore).not.toBeNull();
 
       await processLpAllocationEvents([

@@ -35,11 +35,17 @@ function createRedisClient(): Redis | null {
       });
 
       client.on('ready', () => {
-         redisCircuitBreaker.recordSuccess();
+         // Skip circuit breaker in test mode to avoid false positives
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+            redisCircuitBreaker.recordSuccess();
+         }
       });
 
       client.on('error', (error: Error) => {
-         redisCircuitBreaker.recordFailure(error);
+         // Skip circuit breaker in test mode to avoid false positives
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+            redisCircuitBreaker.recordFailure(error);
+         }
          logger.error(
             { type: 'redis_error', error: error.message },
             'Redis client error'
@@ -72,15 +78,20 @@ export function getRedisClient(): Redis | null {
  * unavailable so callers treat outages as cache misses.
  */
 export async function cacheGet(key: string): Promise<string | null> {
-   if (redisCircuitBreaker.isOpen()) return null;
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') && redisCircuitBreaker.isOpen()) return null;
    const client = getRedisClient();
    if (!client) return null;
    try {
       const val = await client.get(key);
-      redisCircuitBreaker.recordSuccess();
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordSuccess();
+      }
       return val;
    } catch (error) {
-      redisCircuitBreaker.recordFailure(error);
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordFailure(error);
+      }
       logger.warn(
          {
             type: 'redis_get_failed',
@@ -128,14 +139,19 @@ export async function cacheSetJson(
    value: unknown,
    ttlSeconds: number
 ): Promise<void> {
-   if (redisCircuitBreaker.isOpen()) return;
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') && redisCircuitBreaker.isOpen()) return;
    const client = getRedisClient();
    if (!client) return;
    try {
       await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
-      redisCircuitBreaker.recordSuccess();
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordSuccess();
+      }
    } catch (error) {
-      redisCircuitBreaker.recordFailure(error);
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordFailure(error);
+      }
       logger.warn(
          {
             type: 'redis_set_failed',

@@ -9,6 +9,33 @@ on:
 jobs:
    verify:
       runs-on: ubuntu-latest
+      services:
+         postgres:
+            image: postgres:16
+            env:
+               POSTGRES_USER: accesslayer
+               POSTGRES_PASSWORD: local-test-only
+               POSTGRES_DB: accesslayer_test
+            ports:
+               - 5432:5432
+            options: >-
+               --health-cmd "pg_isready -U accesslayer -d accesslayer_test"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+         redis:
+            image: redis:7-alpine
+            ports:
+               - 6379:6379
+            options: >-
+               --health-cmd "redis-cli ping"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+      env:
+         DATABASE_URL: postgresql://accesslayer:local-test-only@localhost:5432/accesslayer_test
+         REDIS_URL: redis://localhost:6379
+         MODE: test
 
       steps:
          - name: Checkout
@@ -39,6 +66,13 @@ jobs:
 
          - name: Build
            run: pnpm build
+
+         - name: Create disposable test schema
+           run: pnpm exec prisma db push --skip-generate
+
+         - name: Run Jest suite
+           timeout-minutes: 75
+           run: pnpm test --ci --maxWorkers=1
 
    invoice-protocol:
       runs-on: ubuntu-latest
