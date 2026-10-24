@@ -133,6 +133,13 @@ import {
    KeyNotFoundError as BuybackPoolKeyNotFoundError,
 } from './buyback-pool.service';
 import {
+   getKeyTips,
+   getKeyTipsTotal,
+   getTipMessage,
+   KeyNotFoundError as TippingKeyNotFoundError,
+   TipNotFoundError,
+} from './key-tipping.service';
+import {
    getMultiplierTiers,
    matchTierForLockPeriod,
    calculateEffectiveWeight,
@@ -1687,6 +1694,68 @@ router.get('/:keyId/price', async (req, res, next) => {
          { error, keyId: req.params.keyId },
          'GET /keys/:keyId/price failed'
       );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/tips
+ * Get paginated tip history for a creator key.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/tips', async (req, res, next) => {
+   try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const cursor = req.query.cursor as string | undefined;
+      const tips = await getKeyTips(req.params.keyId, isNaN(limit) ? 20 : limit, cursor);
+      sendSuccess(res, tips);
+   } catch (error) {
+      if (error instanceof TippingKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId: req.params.keyId }, 'Key tips fetch failed');
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/tips/total
+ * Get total cumulative tips received for a creator key.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/tips/total', async (req, res, next) => {
+   try {
+      const total = await getKeyTipsTotal(req.params.keyId);
+      sendSuccess(res, total);
+   } catch (error) {
+      if (error instanceof TippingKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error({ error, keyId: req.params.keyId }, 'Key tips total fetch failed');
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/tips/:tipId/message
+ * Get IPFS message content for a specific tip.
+ * Cached on demand.
+ * No auth required.
+ */
+router.get('/:keyId/tips/:tipId/message', async (req, res, next) => {
+   try {
+      const message = await getTipMessage(req.params.keyId, req.params.tipId);
+      sendSuccess(res, message);
+   } catch (error) {
+      if (error instanceof TipNotFoundError) {
+         sendNotFound(res, 'Tip');
+         return;
+      }
+      logger.error({ error, keyId: req.params.keyId, tipId: req.params.tipId }, 'Tip message fetch failed');
       next(error);
    }
 });
