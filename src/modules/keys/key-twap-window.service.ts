@@ -5,7 +5,7 @@ import {
    type TwapSnapshotPoint,
 } from './key-twap.service';
 
-export const TWAP_WINDOW_KEYS = ['1h', '24h', '7d'] as const;
+export const TWAP_WINDOW_KEYS = ['1h', '4h', '24h', '7d'] as const;
 export type TwapWindow = (typeof TWAP_WINDOW_KEYS)[number];
 
 export const TWAP_WINDOW_MS: Record<TwapWindow, number> = {
