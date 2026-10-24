@@ -50,6 +50,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateKeyVestingCache } from '../vesting/vesting.service';
+import { treasuryRouter } from '../treasury/treasury.routes';
 
 function isValidStellarAddress(address: string): boolean {
    return typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address);
@@ -1219,5 +1220,8 @@ adminRouter.post(
       }
    }
 );
+
+// Platform treasury dashboard reads (#1181). Every treasury route is admin-only.
+adminRouter.use('/treasury', adminGuard, treasuryRouter);
 
 export default adminRouter;

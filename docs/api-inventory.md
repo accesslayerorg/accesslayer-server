@@ -94,10 +94,11 @@ events.
 
 - Referral tier reference: [`docs/referral-tiers.md`](./referral-tiers.md).
 
-| Method | Path                        | Description                                                              |
-| :----- | :-------------------------- | :----------------------------------------------------------------------- |
-| `GET`  | `/referrals/tier`           | Current tier, cumulative volume, next threshold and reward rate (bps).   |
-| `GET`  | `/referrals/tier/history`   | Cursor-paginated tier upgrade history for a wallet.                      |
+| Method | Path                      | Description                                                            |
+| :----- | :------------------------ | :--------------------------------------------------------------------- |
+| `GET`  | `/referrals/tier`         | Current tier, cumulative volume, next threshold and reward rate (bps). |
+| `GET`  | `/referrals/tier/history` | Cursor-paginated tier upgrade history for a wallet.                    |
+
 Wallet-scoped referral reward earnings indexed from `ReferralRewardDistributed`
 events.
 
@@ -192,6 +193,16 @@ Early-access whitelist status check and management endpoints (#1084).
 | `GET`    | `/keys/:keyId/whitelist`          | Return synced whitelist entries for the key (creator JWT required).               |
 | `POST`   | `/keys/:keyId/whitelist`          | Bulk add wallets to key whitelist (creator JWT required).                         |
 | `DELETE` | `/keys/:keyId/whitelist/:wallet`  | Remove a wallet from key whitelist (creator JWT required).                        |
+
+## Key Leaderboard
+
+Wallet rankings are indexed from `LeaderboardUpdated` contract events and
+cached for 60 seconds. The cache is invalidated when a new event is indexed.
+
+| Method | Path                                       | Description                                            |
+| :----- | :----------------------------------------- | :----------------------------------------------------- |
+| `GET`  | `/keys/:key_id/leaderboard?metric=&limit=` | Ranked wallets for `volume`, `pnl`, or `holding_days`. |
+| `GET`  | `/keys/:key_id/leaderboard/:wallet`        | Wallet rank and score for all three metrics.           |
 
 ---
 

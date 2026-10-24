@@ -1,0 +1,117 @@
+// prisma/schema/key-collaboration.prisma
+//
+// Read models for co-creator rosters (#1139), creator tips (#1132) and
+// key reserves (#1140), maintained by the indexer from CoCreatorSet /
+// CoCreatorRemoved, TipSent and ReserveAccrued / ReserveDeployed contract
+// events.
+//
+// Design notes:
+// - `keyId` is intentionally NOT a foreign key: an event that arrives
+//   before CREATOR_REGISTERED has been indexed is stored, not dropped
+//   (same rationale as KeyDepth).
+// - KeyCoCreator is an order-safe upsert: the row carries the
+//   (ledger, eventIndex) watermark of the last applied event and only a
+//   strictly newer event mutates it, so replays and out-of-order delivery
+//   converge on the latest on-chain state.
+// - KeyTip / KeyReserveEvent are append-only; (txHash, eventIndex)
+//   uniqueness makes replayed events no-ops. The running totals on
+//   KeyTipTotal and KeyReserve are updated in the same transaction as the
+//   event row, so a total can never drift from its event log.
+// - Monetary amounts are stored as Decimal XLM (7 dp), converted from
+//   stroops by the indexer.
+
+/// Active + historical co-creator roster per key (#1139).
+model KeyCoCreator {
+  id    String  @id @default(cuid())
+  /// Key ID (CreatorProfile.id) the co-creator belongs to.
+  keyId String
+  /// Stellar address (G...) of the co-creator.
+  wallet String
+  /// Role label served by GET /keys/:key_id/co-creators.
+  role  String  @default("co_creator")
+  /// On-chain revenue share in basis points (CoCreatorSet.split_bps).
+  shareBps Int?
+  /// false after CoCreatorRemoved; excluded from the active roster list.
+  active Boolean @default(true)
+  addedAt DateTime @default(now())
+  removedAt DateTime?
+  /// Position of the last applied event; older events are ignored.
+  ledger Int?
+  eventIndex Int?
+  txHash String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([keyId, wallet])
+  @@index([keyId, active])
+  @@map("key_cocreators")
+}
+
+/// One row per indexed TipSent event (#1132).
+model KeyTip {
+  id      String  @id @default(cuid())
+  /// Key ID (CreatorProfile.id) that received the tip.
+  keyId   String
+  /// Stellar address of the tipper.
+  tipper  String
+  /// Tip amount in XLM (converted from stroops).
+  amount  Decimal @db.Decimal(20, 7)
+  /// IPFS CID of the tip message, when one was attached.
+  messageHash String?
+  ledger  Int?
+  /// Chain position; unique with eventIndex so replays are no-ops.
+  txHash  String?
+  eventIndex Int?
+  /// When the tip happened on chain.
+  tippedAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, tippedAt])
+  @@map("key_tips")
+}
+
+/// Cumulative tips per key, maintained transactionally with KeyTip rows.
+model KeyTipTotal {
+  id      String  @id @default(cuid())
+  keyId   String  @unique
+  total   Decimal @default(0) @db.Decimal(20, 7)
+  count   Int     @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("key_tip_totals")
+}
+
+/// Current reserve balance per key (#1140), maintained from
+/// ReserveAccrued / ReserveDeployed events.
+model KeyReserve {
+  id      String  @id @default(cuid())
+  keyId   String  @unique
+  /// Current reserve balance in XLM.
+  balance Decimal @default(0) @db.Decimal(20, 7)
+  /// Lifetime accrued (XLM).
+  totalAccrued Decimal @default(0) @db.Decimal(20, 7)
+  /// Lifetime deployed (XLM).
+  totalDeployed Decimal @default(0) @db.Decimal(20, 7)
+  updatedAt DateTime @updatedAt
+
+  @@map("key_reserves")
+}
+
+/// Append-only reserve event log; (txHash, eventIndex) uniqueness makes
+/// replayed events no-ops so the balance above never double-counts.
+model KeyReserveEvent {
+  id      String  @id @default(cuid())
+  keyId   String
+  /// "accrued" | "deployed".
+  type    String
+  /// Amount in XLM.
+  amount  Decimal @db.Decimal(20, 7)
+  ledger  Int?
+  txHash  String?
+  eventIndex Int?
+  createdAt DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId])
+  @@map("key_reserve_events")
+}

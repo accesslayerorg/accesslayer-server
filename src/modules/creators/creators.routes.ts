@@ -28,6 +28,7 @@ import { requireStellarSignature } from '../../middlewares/stellar-signature.mid
 import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
 import { enforceBuyCooldown } from '../../middlewares/buy-cooldown.middleware';
 import { validateBody } from '../../middlewares/validate-body.middleware';
+import { idempotencyMiddleware } from '../../middlewares/idempotency.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
 import { httpSellCreatorKey, sellSchema } from '../creator/sell.controller';
 import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
@@ -60,6 +61,7 @@ creatorsRouter.post(
    // work so a paused platform/key rejects with 503 immediately.
    platformPauseGuard(),
    requireStellarSignature(),
+   idempotencyMiddleware(),
    buyKeyRateLimit,
    enforceBuyCooldown(),
    validateBody(buySchema),
@@ -79,6 +81,7 @@ creatorsRouter.post(
    // Platform-wide and per-key pause validation (#988).
    platformPauseGuard(),
    requireStellarSignature(),
+   idempotencyMiddleware(),
    buyKeyRateLimit,
    validateBody(sellSchema),
    httpSellCreatorKey

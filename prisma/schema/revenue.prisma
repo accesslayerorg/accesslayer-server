@@ -70,3 +70,62 @@ model ProtocolRevenueShare {
   @@unique([distributionId, wallet])
   @@index([wallet])
 }
+
+/// A creator-key revenue distribution indexed from RevenueDistributed.
+model RevenueDistribution {
+  id                String   @id @default(cuid())
+  keyId             String
+  chainDistributionId String?
+  amount            Decimal  @db.Decimal(20, 7)
+  holderCount       Int
+  ledger            Int
+  txHash            String
+  eventIndex        Int      @default(0)
+  distributedAt     DateTime
+  createdAt         DateTime @default(now())
+
+  shares            RevenueDistributionShare[]
+  claims            RevenueShareClaim[]
+
+  @@unique([ledger, txHash, eventIndex])
+  @@unique([keyId, chainDistributionId])
+  @@index([keyId, distributedAt(sort: Desc), id(sort: Desc)])
+  @@map("revenue_distributions")
+}
+
+/// A wallet's claimable allocation at the time a key distribution was made.
+model RevenueDistributionShare {
+  id                String   @id @default(cuid())
+  distributionId    String
+  wallet            String
+  amount            Decimal  @db.Decimal(20, 7)
+  createdAt         DateTime @default(now())
+
+  distribution      RevenueDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  claims            RevenueShareClaim[]
+
+  @@unique([distributionId, wallet])
+  @@index([wallet])
+  @@map("revenue_distribution_shares")
+}
+
+/// An indexed on-chain RevenueShareClaimed event.
+model RevenueShareClaim {
+  id                String   @id @default(cuid())
+  distributionId    String
+  shareId           String
+  wallet            String
+  amount            Decimal  @db.Decimal(20, 7)
+  ledger            Int
+  txHash            String
+  eventIndex        Int      @default(0)
+  claimedAt         DateTime
+  createdAt         DateTime @default(now())
+
+  distribution      RevenueDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  share             RevenueDistributionShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  @@unique([ledger, txHash, eventIndex])
+  @@index([distributionId, wallet])
+  @@map("revenue_share_claims")
+}

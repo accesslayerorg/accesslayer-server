@@ -36,3 +36,43 @@ model MultisigSignature {
   @@index([signer])
   @@map("multisig_signatures")
 }
+
+model MultisigAction {
+  id           String   @id @default(cuid())
+  actionId     String   @unique
+  changeType   String?
+  payload      Json?
+  status       String   @default("pending") // pending | executed | expired | rejected
+  threshold    Int      @default(2)
+  totalSigners Int      @default(3)
+  proposedBy   String
+  proposedAt   DateTime @default(now())
+  executedAt   DateTime?
+  expiredAt    DateTime?
+  ledger       Int?
+  txHash       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  signatures   Signature[]
+
+  @@index([status])
+  @@index([proposedBy])
+  @@map("multisig_actions")
+}
+
+model Signature {
+  id        String   @id @default(cuid())
+  actionId  String
+  signer    String
+  signedAt  DateTime @default(now())
+  ledger    Int?
+  txHash    String?
+
+  action    MultisigAction @relation(fields: [actionId], references: [actionId], onDelete: Cascade)
+
+  @@unique([actionId, signer])
+  @@index([signer])
+  @@index([actionId])
+  @@map("signatures")
+}

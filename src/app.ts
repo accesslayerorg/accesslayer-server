@@ -5,11 +5,12 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; 
 import router from './modules/index';
 import stakingRouter from './modules/staking/staking.routes';
 import statusRouter from './modules/status/status.routes';
+import keysRouter from './modules/keys/keys.routes';
 import tradesRouter from './modules/trades/trades.routes';
 import tradersRouter from './modules/traders/traders.routes';
 import nonceRouter from './modules/nonce/nonce.routes';
 import swapsRouter from './modules/swaps/swaps.routes';
-import keysRouter from './modules/keys/keys.routes';
+import milestonesRouter from './modules/keys/milestones.routes';
 import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
@@ -25,7 +26,7 @@ import { schemaVersionMiddleware } from './middlewares/schema-version.middleware
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
 import { requestContextMiddleware } from './middlewares/request-context.middleware';
 import { requestEntryLoggerMiddleware } from './middlewares/request-entry-logger.middleware';
-import { requestCompletionLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
+import { requestCompletionLoggerMiddleware, slowRequestLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
 import { sessionActivityMiddleware } from './middlewares/session-activity.middleware';
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
@@ -46,6 +47,7 @@ app.use(apiVersionMiddleware);
 app.use(schemaVersionMiddleware);
 app.use(requestEntryLoggerMiddleware);
 app.use(requestCompletionLoggerMiddleware);
+app.use(slowRequestLoggerMiddleware);
 // Session activity logging (#1035): registers a res.on('finish') listener
 // so it can read req.user after route-level auth guards have run. Mount
 // position only needs to be before the routers.
@@ -116,6 +118,7 @@ app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 app.use('/keys', routeBodySizeLimit('default'), keysRouter);
+app.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
 

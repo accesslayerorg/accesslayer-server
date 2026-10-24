@@ -32,6 +32,7 @@ import {
    pollForConfirmation,
    type TransactionStatusClient,
 } from './confirmation-poller.utils';
+import { waitForLedgerDepth } from './ledger-depth-gate.utils';
 import {
    classifyContractError,
    ContractSubmitError,
@@ -287,6 +288,20 @@ export async function submitContractCall(
 
    // ── 4. Persist resolution + emit events ─────────────────────────────
    if (outcome?.status === 'SUCCESS') {
+      // Ledger-depth gate (#724): buy/sell responses are withheld until the
+      // ledger that included the transaction is 2 ledgers deep, to reduce
+      // reorg exposure. Budget exhaustion releases with a warning (logged
+      // inside the gate) so a stalled RPC head cannot block confirmations
+      // forever.
+      await waitForLedgerDepth(outcome.ledger, {
+         statusClient,
+         txHash,
+         intervalMs: pollIntervalMs,
+         timeoutMs: pollTimeoutMs,
+         delay,
+         now,
+      });
+
       try {
          await prisma.contractTransaction.update({
             where: { txHash },

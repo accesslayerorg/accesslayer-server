@@ -12,7 +12,8 @@ export type ContractOperation =
    | 'stake'
    | 'governance'
    | 'claim'
-   | 'qualify_wallet';
+   | 'qualify_wallet'
+   | 'mint_badge';
 
 export const CONTRACT_OPERATIONS: ContractOperation[] = [
    'buy',
@@ -21,6 +22,7 @@ export const CONTRACT_OPERATIONS: ContractOperation[] = [
    'governance',
    'claim',
    'qualify_wallet',
+   'mint_badge',
 ];
 
 export function isContractOperation(value: string): value is ContractOperation {

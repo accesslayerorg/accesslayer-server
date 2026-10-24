@@ -37,6 +37,10 @@ jest.mock('../../utils/prisma.utils', () => ({
       activity: { create: jest.fn() },
       indexedLedger: { upsert: jest.fn() },
       twapSnapshot: { create: jest.fn() },
+      keyLeaderboard: {
+         updateMany: jest.fn(),
+         create: jest.fn(),
+      },
    },
 }));
 jest.mock('../../utils/logger.utils', () => ({
@@ -55,6 +59,7 @@ import { prisma } from '../../utils/prisma.utils';
 const mockPrisma = prisma as unknown as {
    indexedLedger: { upsert: jest.Mock };
    twapSnapshot: { create: jest.Mock };
+   keyLeaderboard: { updateMany: jest.Mock; create: jest.Mock };
 };
 
 const twap = (txHash: string, ledger: number) => ({
@@ -74,6 +79,8 @@ describe('processIndexerEvents with TWAPUpdated', () => {
       jest.clearAllMocks();
       mockPrisma.indexedLedger.upsert.mockResolvedValue({});
       mockPrisma.twapSnapshot.create.mockResolvedValue({});
+      mockPrisma.keyLeaderboard.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.keyLeaderboard.create.mockResolvedValue({});
    });
 
    it('indexes TWAP events and advances the cursor to the batch max ledger', async () => {
@@ -101,5 +108,52 @@ describe('processIndexerEvents with TWAPUpdated', () => {
    it('advances the cursor for a batch containing only TWAP events', async () => {
       await processIndexerEvents([twap('a', 300)]);
       expect(mockPrisma.indexedLedger.upsert).toHaveBeenCalledTimes(1);
+   });
+
+   it('indexes LeaderboardUpdated events before advancing the cursor', async () => {
+      await processIndexerEvents([
+         {
+            txHash: 'leaderboard-tx',
+            eventIndex: 1,
+            eventType: 'LeaderboardUpdated',
+            ledger: 305,
+            creatorId: 'key-1',
+            wallet: 'GABC',
+            volume: '1000',
+            pnl: '20',
+            holdingDays: '5',
+         },
+      ]);
+
+      expect(mockPrisma.keyLeaderboard.create).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.indexedLedger.upsert).toHaveBeenCalledWith(
+         expect.objectContaining({
+            update: expect.objectContaining({ ledger: 305 }),
+         })
+      );
+   });
+
+   it('does not advance the cursor if leaderboard persistence fails', async () => {
+      mockPrisma.keyLeaderboard.create.mockRejectedValueOnce(
+         new Error('db down')
+      );
+
+      await expect(
+         processIndexerEvents([
+            {
+               txHash: 'leaderboard-tx',
+               eventIndex: 1,
+               eventType: 'LeaderboardUpdated',
+               ledger: 306,
+               creatorId: 'key-1',
+               wallet: 'GABC',
+               volume: '1000',
+               pnl: '20',
+               holdingDays: '5',
+            },
+         ])
+      ).rejects.toThrow('db down');
+
+      expect(mockPrisma.indexedLedger.upsert).not.toHaveBeenCalled();
    });
 });
