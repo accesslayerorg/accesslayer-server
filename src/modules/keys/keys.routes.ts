@@ -133,6 +133,12 @@ import {
    KeyNotFoundError as BuybackPoolKeyNotFoundError,
 } from './buyback-pool.service';
 import {
+   getCoCreators,
+   getCoCreatorDetail,
+   KeyNotFoundError as CoCreatorKeyNotFoundError,
+   CoCreatorNotFoundError,
+} from './key-cocreator.service';
+import {
    getMultiplierTiers,
    matchTierForLockPeriod,
    calculateEffectiveWeight,
@@ -1710,6 +1716,59 @@ router.get('/:keyId/buyback-pool', async (req, res, next) => {
       logger.error(
          { error, keyId: req.params.keyId },
          'Buyback pool fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/co-creators
+ * Get active co-creators roster for a key.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/co-creators', async (req, res, next) => {
+   try {
+      const roster = await getCoCreators(req.params.keyId);
+      sendSuccess(res, roster);
+   } catch (error) {
+      if (error instanceof CoCreatorKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Co-creators fetch failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/co-creators/:wallet
+ * Get single co-creator detail with role.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/co-creators/:wallet', async (req, res, next) => {
+   try {
+      const detail = await getCoCreatorDetail(
+         req.params.keyId,
+         req.params.wallet
+      );
+      sendSuccess(res, detail);
+   } catch (error) {
+      if (error instanceof CoCreatorKeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      if (error instanceof CoCreatorNotFoundError) {
+         sendNotFound(res, 'Co-creator');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId, wallet: req.params.wallet },
+         'Co-creator detail fetch failed'
       );
       next(error);
    }
