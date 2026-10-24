@@ -1,0 +1,34 @@
+model KeySnapshot {
+  id           String   @id @default(cuid())
+  /// Registered on-chain key contract address.
+  keyId        String
+  /// UTC calendar day this snapshot represents.
+  snapshotDate DateTime @db.Date
+  /// Metrics returned by take_daily_snapshot, kept as JSON to preserve
+  /// contract metrics without requiring a schema change for each new field.
+  metrics      Json
+  createdAt    DateTime @default(now())
+
+  @@unique([keyId, snapshotDate])
+  @@index([snapshotDate])
+  @@map("key_snapshots")
+}
+
+model SnapshotError {
+  id               String    @id @default(cuid())
+  /// Registered on-chain key contract address.
+  keyId            String
+  /// UTC calendar day the failed snapshot belongs to.
+  snapshotDate     DateTime  @db.Date
+  error            String
+  firstFailedAt    DateTime  @default(now())
+  retryAt          DateTime
+  retryExpiresAt   DateTime
+  retryCount       Int       @default(0)
+  resolvedAt       DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([keyId, snapshotDate])
+  @@index([resolvedAt, retryAt, retryExpiresAt])
+  @@map("snapshot_errors")
+}

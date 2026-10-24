@@ -193,6 +193,16 @@ no need to thread it through function arguments.
 | `OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN`          | boolean | No       | `true`                        | Run cleanup in dry-run mode (log only, no deletion) |
 | `OWNERSHIP_SNAPSHOT_CLEANUP_INTERVAL_MINUTES` | number  | No       | `60`                          | Interval in minutes between cleanup job runs        |
 
+### Key Analytics Snapshots
+
+| Variable                                       | Type    | Required | Default | Description                                                     |
+| ---------------------------------------------- | ------- | -------- | ------- | --------------------------------------------------------------- |
+| `KEY_ANALYTICS_SNAPSHOT_ENABLED`               | boolean | No       | `true`  | Enable daily on-chain snapshots for active registered keys     |
+| `KEY_ANALYTICS_SNAPSHOT_INTERVAL_MINUTES`      | number  | No       | `1440`  | Interval between full daily snapshot collections                |
+| `KEY_ANALYTICS_SNAPSHOT_BATCH_SIZE`            | number  | No       | `100`   | Active keys/errors processed per database batch                 |
+| `KEY_ANALYTICS_SNAPSHOT_RETRY_INTERVAL_MINUTES`| number  | No       | `5`     | Minutes between retry passes for failed snapshots               |
+| `KEY_ANALYTICS_SNAPSHOT_RETRY_WINDOW_MINUTES`  | number  | No       | `60`    | Maximum time after failure during which the snapshot is retried |
+
 ### Job Coordination
 
 | Variable                     | Type   | Required | Default  | Description                                        |

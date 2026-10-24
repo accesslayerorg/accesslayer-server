@@ -361,6 +361,29 @@ export const envSchema = z
          .positive()
          .default(5),
 
+      // Daily on-chain key analytics snapshots and bounded failure retries.
+      KEY_ANALYTICS_SNAPSHOT_ENABLED: booleanCoerce.default(true),
+      KEY_ANALYTICS_SNAPSHOT_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1440),
+      KEY_ANALYTICS_SNAPSHOT_BATCH_SIZE: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(100),
+      KEY_ANALYTICS_SNAPSHOT_RETRY_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+      KEY_ANALYTICS_SNAPSHOT_RETRY_WINDOW_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
       // Minimum number of observations a TWAPUpdated snapshot must carry for
       // GET /keys/:key_id/twap to treat it as valid (#1082). Below this the
       // endpoint responds with TWAPInvalid instead of a price.
