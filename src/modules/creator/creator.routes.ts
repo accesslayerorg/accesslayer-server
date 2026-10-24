@@ -23,6 +23,7 @@ import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownersh
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { UpsertCreatorProfileBodySchema } from './creator-profile.schemas';
 import { validateCreatorParam } from '../../middlewares/creator-param.middleware';
+import { getBondStatus, getBondForfeitureHistory } from './creator-bond.service';
 
 const creatorsRouter = Router();
 
@@ -96,6 +97,56 @@ creatorsRouter.get(
 // 405 handler for /:id/stats
 creatorsRouter.all('/:id/stats', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
+ * GET /api/v1/creators/keys/:key_id/bond
+ *
+ * Performance bond status for a creator key: amount, state, creator.
+ * Bond state is read from get_bond_status with a 60s stale-while-revalidate cache.
+ * Returns 404 when the key has no bond record.
+ */
+creatorsRouter.get('/keys/:key_id/bond', async (req, res, next) => {
+   const keyId = Array.isArray(req.params.key_id)
+      ? req.params.key_id[0]
+      : req.params.key_id;
+   try {
+      const bond = await getBondStatus(keyId);
+      if (!bond) {
+         sendError(res, 404, ErrorCode.NOT_FOUND, 'Bond not found for key');
+         return;
+      }
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+      sendSuccess(res, bond);
+   } catch (error) {
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/creators/keys/:key_id/bond/history
+ *
+ * Forfeiture history for a creator key's bond, newest first.
+ * Each record includes reason and timestamp from indexed BondForfeited events.
+ */
+creatorsRouter.get('/keys/:key_id/bond/history', async (req, res, next) => {
+   const keyId = Array.isArray(req.params.key_id)
+      ? req.params.key_id[0]
+      : req.params.key_id;
+   try {
+      const bond = await prisma.performanceBond.findFirst({
+         where: { keyId },
+         select: { id: true },
+      });
+      if (!bond) {
+         sendError(res, 404, ErrorCode.NOT_FOUND, 'Bond not found for key');
+         return;
+      }
+      const history = await getBondForfeitureHistory(keyId);
+      sendSuccess(res, history);
+   } catch (error) {
+      next(error);
+   }
 });
 
 /**
@@ -384,45 +435,14 @@ creatorsRouter.post(
                creatorId: creatorProfile.id,
                payload: {
                   keyId: creatorProfile.id,
-                  buybackPricePerKey,
-                  circulatingSupply,
-                  notification: 'key_deprecated',
                },
             },
          });
 
-         // Notify all current holders via the notification queue
-         const holders = await prisma.keyOwnership.findMany({
-            where: {
-               creatorId: creatorProfile.id,
-               balance: { gt: 0 },
-            },
-            select: { ownerAddress: true, balance: true },
-         });
-
-         const redis = getRedisClient();
-         for (const holder of holders) {
-            if (redis) {
-               await redis.lpush(
-                  'queue:notifications',
-                  JSON.stringify({
-                     type: 'key_deprecated',
-                     keyId: creatorProfile.id,
-                     walletAddress: holder.ownerAddress,
-                     buybackPricePerKey,
-                     balance: holder.balance.toString(),
-                     timestamp: new Date().toISOString(),
-                  })
-               );
-            }
-         }
-
          sendSuccess(res, {
             keyId: creatorProfile.id,
             status: updated.status,
-            buybackPricePerKey,
-            circulatingSupply,
-            notifiedHoldersCount: holders.length,
+            tradingPaused: updated.tradingPaused,
          });
       } catch (error) {
          next(error);

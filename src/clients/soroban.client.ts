@@ -171,3 +171,32 @@ export async function getTransaction(
 ): Promise<GetTransactionResult> {
    return callRpc<GetTransactionResult>('getTransaction', { hash }, postJson);
 }
+
+/** Result of the `simulateTransaction` JSON-RPC method (read-only contract call). */
+export interface SimulateTransactionResult {
+   /** Base64 XDR return value of the invoked contract function. */
+   results?: Array<{ xdr: string; auth?: string[] }>;
+   /** Set when the simulation failed on-chain logic. */
+   error?: string;
+   latestLedger?: number;
+   minResourceFee?: string;
+}
+
+/**
+ * Simulate a read-only contract invocation (e.g. `get_bond_status`) without
+ * submitting a transaction. Used by the bond status service, which caches the
+ * decoded result for 60s with stale-while-revalidate.
+ *
+ * @param transactionXdr - Base64 XDR of an unsigned invoke-host-function envelope.
+ * @param postJson - Injectable transport (tests pass a stub).
+ */
+export async function simulateTransaction(
+   transactionXdr: string,
+   postJson: SorobanPostJson = defaultPostJson
+): Promise<SimulateTransactionResult> {
+   return callRpc<SimulateTransactionResult>(
+      'simulateTransaction',
+      { transaction: transactionXdr },
+      postJson
+   );
+}
