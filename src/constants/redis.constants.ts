@@ -4,7 +4,7 @@ export type { TwapWindow } from '../modules/keys/key-twap-window.service';
 // TWAP cache (#963): get_twap returns per (keyId, window, side); TTL 30s.
 import type { TwapWindow } from '../modules/keys/key-twap-window.service';
 
-export const TWAP_WINDOWS = ['1h', '4h', '24h'] as const;
+export const TWAP_WINDOWS = ['1h', '4h', '24h', '7d'] as const;
 
 export const TWAP_STALE_THRESHOLD_MS = 120_000;
 export const TWAP_MAX_SNAPSHOTS = 1000;
