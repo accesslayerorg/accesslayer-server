@@ -662,6 +662,7 @@ export const envSchema = z
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
       SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })
+   .passthrough()
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
          ctx.addIssue({
