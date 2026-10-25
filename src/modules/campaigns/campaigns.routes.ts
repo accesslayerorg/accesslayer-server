@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../utils/prisma.utils';
 import { sendError, sendSuccess, sendValidationError, zodIssuesToDetails } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
+import { CAMPAIGN_LEADERBOARD_CACHE_TTL_SECONDS } from './campaign-leaderboard.cache';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 
 const router = Router();
@@ -35,7 +36,7 @@ router.get('/:campaignId/eligibility/:wallet', cacheControl({ maxAge: 60, type: 
   } catch (error) { next(error); }
 });
 
-router.get('/:campaignId/leaderboard', cacheControl({ maxAge: 300, type: 'public' }), async (req, res, next) => {
+router.get('/:campaignId/leaderboard', cacheControl({ maxAge: CAMPAIGN_LEADERBOARD_CACHE_TTL_SECONDS, type: 'public' }), async (req, res, next) => {
   const parsed = z.object({ limit: limitSchema }).safeParse(req.query);
   if (!parsed.success) { sendValidationError(res, 'Invalid campaign leaderboard query', zodIssuesToDetails(parsed.error.issues)); return; }
   try {
