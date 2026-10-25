@@ -54,6 +54,7 @@ import auctionRouter from './auctions/auction.routes';
 import holdersRouter from './dividends/holders.routes';
 import multisigRouter from './multisig/multisig.routes';
 import campaignsRouter from './campaigns/campaigns.routes';
+import analyticsRouter from './analytics/analytics.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -135,5 +136,6 @@ router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);
+router.use('/analytics', routeBodySizeLimit('default'), analyticsRouter);
 
 export default router;
