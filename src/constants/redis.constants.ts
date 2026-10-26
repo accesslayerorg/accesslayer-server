@@ -10,7 +10,12 @@ export const TWAP_STALE_THRESHOLD_MS = 120_000;
 export const TWAP_MAX_SNAPSHOTS = 1000;
 export { TWAP_WINDOW_MS } from '../modules/keys/key-twap-window.service';
 
-export const TWAP_CACHE_TTL_SECONDS = 30;
+export const TWAP_CACHE_TTL_SECONDS: Record<string, number> = {
+   '1h': 30,
+   '4h': 30,
+   '24h': 30,
+   '7d': 30,
+} as any;
 
 export const twapRedisKey = (keyId: string, window: TwapWindow, side?: string): string =>
    side === undefined ? `twap:${keyId}:${window}` : `twap:${keyId}:${window}:${side}`;
