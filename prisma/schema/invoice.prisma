@@ -15,7 +15,22 @@ model Invoice {
   updatedAt       DateTime            @updatedAt
 
   watchlists      InvestorWatchlist[]
+  secondaryTrades InvoiceSecondaryTradePrice[]
 
   @@index([sellerWallet])
   @@index([status])
+}
+
+model InvoiceSecondaryTradePrice {
+  id        String   @id @default(cuid())
+  invoiceId String
+  price     Decimal
+  amount    Decimal
+  tradedAt  DateTime @default(now())
+  txHash    String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, tradedAt(sort: Desc)])
+  @@map("invoice_secondary_trade_prices")
 }
