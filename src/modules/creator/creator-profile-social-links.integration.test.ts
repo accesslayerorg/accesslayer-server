@@ -23,6 +23,12 @@ jest.mock('../../utils/prisma.utils', () => ({
          findFirst: (...args: unknown[]) => mockFindFirstCreator(...args),
          update: (...args: unknown[]) => mockUpdateCreator(...args),
       },
+      creatorPriceHistory: {
+         findMany: jest.fn().mockResolvedValue([]),
+      },
+      creatorSocialMetadata: {
+         findUnique: jest.fn().mockResolvedValue(null),
+      },
       stellarWallet: {
          findUnique: (...args: unknown[]) => mockFindUniqueWallet(...args),
       },
@@ -240,7 +246,8 @@ describe('Creator Profile Social Links and Display Name Management API (#1016)',
       it('allows the wallet owner to update display name, avatar CID, and social links', async () => {
          const updatePayload = {
             displayName: 'Brand New Name',
-            avatar_cid: 'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku',
+            avatar_cid:
+               'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku',
             twitter: 'https://twitter.com/newhandle',
             website: 'https://newdomain.com',
             discord: 'https://discord.gg/newcommunity',
@@ -364,7 +371,8 @@ describe('Creator Profile Social Links and Display Name Management API (#1016)',
 
       it('normalizes social links by stripping tracking parameters and lowercasing host', async () => {
          const updatePayload = {
-            twitter: 'https://Twitter.com/validhandle?utm_source=twitter&ref=share',
+            twitter:
+               'https://Twitter.com/validhandle?utm_source=twitter&ref=share',
             website: 'https://MyWebsite.org/about/?utm_medium=social',
             discord: 'https://Discord.gg/servercode',
          };

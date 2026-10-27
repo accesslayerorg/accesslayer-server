@@ -73,7 +73,4 @@ async function run() {
    console.log('querySignature.utils tests passed');
 }
 
-run().catch(err => {
-   console.error(err);
-   process.exit(1);
-});
+test('builds stable signatures for public query parameters', run);

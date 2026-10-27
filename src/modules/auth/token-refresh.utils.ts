@@ -46,6 +46,15 @@ export function refreshAccessToken(token: string): TokenRefreshResult {
       throw error;
    }
 
+   if (
+      !payload ||
+      typeof payload !== 'object' ||
+      typeof payload.exp !== 'number' ||
+      typeof payload.sub !== 'string'
+   ) {
+      return { success: false, status: 401, code: 'invalid_token' };
+   }
+
    const nowSeconds = Math.floor(Date.now() / 1000);
    const secondsRemaining = payload.exp - nowSeconds;
 

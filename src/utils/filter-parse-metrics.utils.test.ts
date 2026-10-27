@@ -46,4 +46,4 @@ function run() {
    console.log('filter-parse-metrics.utils tests passed');
 }
 
-run();
+test('tracks and resets filter parse error metrics', run);

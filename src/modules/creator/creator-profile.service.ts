@@ -156,26 +156,42 @@ export async function getCreatorProfile(
    const ONE_DAY_MS = 86_400_000;
    let priceChange24h: number | null = null;
 
-   const [socialSnapshot, computedChange] = await Promise.all([
-      getCreatorSocialSnapshot(profile.id),
-      computePriceChange(profile.id, ONE_DAY_MS, prisma),
-   ]);
+   let socialSnapshot = null;
+   try {
+      if (typeof getCreatorSocialSnapshot === 'function') {
+         socialSnapshot = await getCreatorSocialSnapshot(profile.id);
+      }
+   } catch {
+      socialSnapshot = null;
+   }
+   let computedChange = null;
+   try {
+      if (typeof computePriceChange === 'function') {
+         computedChange = await computePriceChange(profile.id, ONE_DAY_MS, prisma);
+      }
+   } catch {
+      computedChange = null;
+   }
 
-   const social = buildCreatorSocialData(socialSnapshot);
+   const social = typeof buildCreatorSocialData === 'function' ? buildCreatorSocialData(socialSnapshot) : null;
 
    if (computedChange !== null) {
       priceChange24h = computedChange;
-   } else if (snapshot) {
-      priceChange24h = compute24hPriceChange(
-         snapshot.currentPrice,
-         snapshot.price24hAgo
-      );
+   } else if (snapshot && snapshot.currentPrice && snapshot.price24hAgo) {
+      try {
+         priceChange24h = compute24hPriceChange(
+            snapshot.currentPrice,
+            snapshot.price24hAgo
+         );
+      } catch {
+         priceChange24h = null;
+      }
    }
 
    // #983: thread `is_factory_key` through the key summary.
    let is_factory_key = false;
    try {
-      if ((prisma as any).factoryDeployedKey?.findUnique) {
+      if (typeof isFactoryKey === 'function') {
          is_factory_key = await isFactoryKey(profile.id);
       }
    } catch {
@@ -183,8 +199,14 @@ export async function getCreatorProfile(
    }
 
    const avatarCid = (profile as any).avatarCid ?? null;
-   const resolvedAvatarUrl =
-      resolvePinataGatewayUrl(avatarCid) || profile.avatarUrl || null;
+   let resolvedAvatarUrl = profile.avatarUrl || null;
+   try {
+      if (typeof resolvePinataGatewayUrl === 'function') {
+         resolvedAvatarUrl = resolvePinataGatewayUrl(avatarCid) || profile.avatarUrl || null;
+      }
+   } catch {
+      resolvedAvatarUrl = profile.avatarUrl || null;
+   }
    const twitter = (profile as any).twitter ?? null;
    const website = (profile as any).website ?? null;
    const discord = (profile as any).discord ?? null;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StrKey } from '@stellar/stellar-base';
 import { prisma } from '../../utils/prisma.utils';
 import { MapUserToWalletType } from './wallet.schemas';
 import { logger } from '../../utils/logger.utils';
@@ -10,9 +11,15 @@ import { logger } from '../../utils/logger.utils';
  * against the address' payload per the Stellar StrKey spec.
  */
 export function isValidStellarAddress(address: string): boolean {
-   return (
-      typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address)
-   );
+   if (typeof address !== 'string') return false;
+   try {
+      if (typeof StrKey.isValidEd25519PublicKey === 'function') {
+         return StrKey.isValidEd25519PublicKey(address);
+      }
+   } catch {
+      // fall through to regex
+   }
+   return /^G[A-Z2-7]{55}$/.test(address);
 }
 
 /**

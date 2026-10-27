@@ -261,11 +261,10 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
-      expect(creatorsUtils.fetchCreatorList).toHaveBeenCalledWith(
-         expect.objectContaining({
-            search: undefined,
-         })
-      );
+      expect(
+         (creatorsUtils.fetchCreatorList as jest.Mock).mock.calls.at(-1)?.[0]
+            .search
+      ).toBeUndefined();
 
       const body = res.json.mock.calls[0][0];
       expect(body.data.items).toHaveLength(0);
@@ -276,11 +275,10 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       const res = makeRes();
       await httpListCreators(req, res, makeNext());
 
-      expect(creatorsUtils.fetchCreatorList).toHaveBeenCalledWith(
-         expect.objectContaining({
-            search: undefined,
-         })
-      );
+      expect(
+         (creatorsUtils.fetchCreatorList as jest.Mock).mock.calls.at(-1)?.[0]
+            .search
+      ).toBeUndefined();
 
       const body = res.json.mock.calls[0][0];
       expect(body.data.items).toHaveLength(0);

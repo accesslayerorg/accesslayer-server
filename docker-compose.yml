@@ -16,9 +16,9 @@ services:
       container_name: accesslayer-postgres
       restart: unless-stopped
       environment:
-         POSTGRES_DB: accesslayer
-         POSTGRES_USER: postgres
-         POSTGRES_PASSWORD: postgres
+         POSTGRES_DB: accesslayer_test
+         POSTGRES_USER: accesslayer
+         POSTGRES_PASSWORD: local-test-only
       ports:
          - '5432:5432'
       volumes:

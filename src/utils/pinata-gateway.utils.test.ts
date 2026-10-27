@@ -1,5 +1,6 @@
 import {
    normalizeIpfsCid,
+   isValidIpfsCid,
    resolvePinataGatewayUrl,
 } from './pinata-gateway.utils';
 
@@ -83,5 +84,27 @@ describe('resolvePinataGatewayUrl', () => {
       expect(resolvePinataGatewayUrl('')).toBeNull();
       expect(resolvePinataGatewayUrl(null)).toBeNull();
       expect(resolvePinataGatewayUrl(undefined)).toBeNull();
+   });
+});
+
+describe('isValidIpfsCid', () => {
+   it('accepts a valid CIDv0', () => {
+      expect(
+         isValidIpfsCid('QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG')
+      ).toBe(true);
+   });
+
+   it('accepts a valid CIDv1 (base32)', () => {
+      expect(
+         isValidIpfsCid('bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi')
+      ).toBe(true);
+   });
+
+   it('rejects malformed or non-CID values', () => {
+      expect(isValidIpfsCid('invalid-cid')).toBe(false);
+      expect(isValidIpfsCid('QmShort')).toBe(false);
+      expect(isValidIpfsCid('')).toBe(false);
+      expect(isValidIpfsCid(null)).toBe(false);
+      expect(isValidIpfsCid(undefined)).toBe(false);
    });
 });
