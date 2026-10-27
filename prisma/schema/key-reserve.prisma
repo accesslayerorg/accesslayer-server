@@ -1,0 +1,13 @@
+// prisma/schema/key-reserve.prisma
+// Key reserve read model for liquidity backstop indicators and low-reserve warnings.
+
+model KeyReserve {
+  id             String   @id @default(cuid())
+  keyId          String   @unique @map("key_id")
+  reserveBalance Decimal  @default(0) @map("reserve_balance") @db.Decimal(20, 7)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([keyId])
+  @@map("key_reserves")
+}

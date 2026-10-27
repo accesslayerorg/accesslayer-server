@@ -138,6 +138,10 @@ import {
    KeyNotFoundError as BuybackPoolKeyNotFoundError,
 } from './buyback-pool.service';
 import {
+   getKeyReserve,
+   KeyNotFoundError as KeyReserveNotFoundError,
+} from './key-reserve.service';
+import {
    getMultiplierTiers,
    matchTierForLockPeriod,
    calculateEffectiveWeight,
@@ -1739,6 +1743,29 @@ router.get('/:keyId/price', async (req, res, next) => {
       logger.error(
          { error, keyId: req.params.keyId },
          'GET /keys/:keyId/price failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/reserve
+ * Returns current reserve balance, market cap, and reserve ratio for stability monitoring.
+ * Cached with 60s TTL.
+ * No auth required.
+ */
+router.get('/:keyId/reserve', async (req, res, next) => {
+   try {
+      const reserve = await getKeyReserve(req.params.keyId);
+      sendSuccess(res, reserve);
+   } catch (error) {
+      if (error instanceof KeyReserveNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'Key reserve fetch failed'
       );
       next(error);
    }
