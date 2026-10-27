@@ -1,0 +1,20 @@
+// prisma/schema/tipping.prisma
+// Creator tipping read model for tip history and cumulative tip totals.
+
+model KeyTip {
+  id          String   @id @default(cuid())
+  keyId       String   @map("key_id")
+  tipper      String
+  amount      Decimal  @default(0) @db.Decimal(20, 7)
+  messageHash String?  @map("message_hash")
+  messageCid  String?  @map("message_cid")
+  messageText String?  @map("message_text")
+  ledger      Int?
+  txHash      String?  @map("tx_hash")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([keyId])
+  @@index([tipper])
+  @@index([createdAt(sort: Desc)])
+  @@map("key_tips")
+}
