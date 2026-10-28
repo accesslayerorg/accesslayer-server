@@ -1,6 +1,7 @@
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
+import { getSubscriptionStatus } from './subscription-status.service';
 import {
    sendError,
    sendNotFound,
@@ -32,12 +33,21 @@ import {
    getKeyMetadata,
    KeyMetadataNotFoundError,
 } from './key-metadata-sync.service';
-import { TWAP_WINDOWS } from '../../constants/redis.constants';
+import {
+   TWAP_WINDOWS,
+   KEY_SNAPSHOT_RANGES,
+   KEY_SNAPSHOT_DEFAULT_RANGE,
+} from '../../constants/redis.constants';
+import { getKeySnapshots } from './key-snapshots.service';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { envConfig } from '../../config';
 import { getKeyProposals, getProposalForVoting } from './key-proposals.service';
 import { getKeySupply } from './key-supply.service';
 import { httpGetKeyLeaderboard } from './key-leaderboard.controller';
+import {
+   httpGetKeyEventLeaderboard,
+   httpGetWalletKeyEventLeaderboard,
+} from './key-event-leaderboard.controller';
 import {
    httpGetHolderLeaderboard,
    httpGetHolderRank,
@@ -46,7 +56,13 @@ import {
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
 import dividendRouter from '../dividends/dividend.routes';
+import revenueDistributionsRouter from '../revenue/revenue-distributions.routes';
 import whitelistRouter from '../whitelist/whitelist.routes';
+import coCreatorsRouter from '../co-creators/co-creators.routes';
+import reservesRouter from '../reserves/reserves.routes';
+import contentAccessRouter from '../content-access/content-access.routes';
+import tipsRouter from '../tips/tips.routes';
+import keyPollsRouter from './key-polls.routes';
 import {
    requireJwtAuth,
    requireKeyCreator,
@@ -685,6 +701,18 @@ router.get('/:keyId/holders/leaderboard', httpGetHolderLeaderboard);
 router.get('/:keyId/holders/:wallet/rank', httpGetHolderRank);
 
 /**
+ * GET /api/v1/keys/:keyId/leaderboard?metric=volume|pnl|holding_days&limit=
+ * Returns indexed wallet rankings for a key and metric.
+ */
+router.get('/:keyId/leaderboard', httpGetKeyEventLeaderboard);
+
+/**
+ * GET /api/v1/keys/:keyId/leaderboard/:wallet
+ * Returns the wallet's rank and score for each indexed metric.
+ */
+router.get('/:keyId/leaderboard/:wallet', httpGetWalletKeyEventLeaderboard);
+
+/**
  * GET /api/v1/keys/:keyId/circuit-breaker?limit=&offset=
  *
  * Returns the key's circuit breaker state: the configured max_bps (read from
@@ -1028,6 +1056,54 @@ router.get('/:keyId/twap', async (req, res, next) => {
    }
 });
 
+// ── GET /:keyId/snapshots (#1112) ─────────────────────────────
+// Daily analytics snapshots (price, volume, holder_count, market_cap) from
+// the indexed SnapshotTaken events (key_snapshots table), oldest first.
+// range=7d|30d|90d|all (default 30d) counts back from today, UTC.
+// 5-minute cache, invalidated per key by the indexer. A key with no
+// snapshots yet returns an empty array; an unknown key returns 404.
+
+const keySnapshotsQuerySchema = z.object({
+   range: z
+      .enum(KEY_SNAPSHOT_RANGES, {
+         errorMap: () => ({
+            message: 'Invalid range param. Must be 7d, 30d, 90d, or all',
+         }),
+      })
+      .default(KEY_SNAPSHOT_DEFAULT_RANGE),
+});
+
+router.get('/:keyId/snapshots', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const parsed = keySnapshotsQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'Invalid range param. Must be 7d, 30d, 90d, or all',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const snapshots = await getKeySnapshots(creator.id, parsed.data.range);
+      sendSuccess(res, snapshots);
+   } catch (error) {
+      next(error);
+   }
+});
+
 // ── GET /:keyId/depth and /:keyId/depth/spread (#1152) ────────
 // Order book depth from the indexed DepthUpdated events (key_depth table),
 // 5s cache invalidated per key by the indexer. Keys with no open orders
@@ -1150,46 +1226,93 @@ router.get('/:keyId/fees', async (req, res, next) => {
    }
 });
 
+import { getSwapFeeTier, getKeyFeeHistory } from './key-swap-fee.service';
+
 const dynamicFeeQuerySchema = z.object({
    amount: z.coerce.number().int().nonnegative(),
    direction: z.enum(['buy', 'sell']),
    wallet: StellarAddressSchema.optional(),
 });
 
+const feeHistoryQuerySchema = z.object({
+   limit: z.coerce.number().int().min(1).max(100).default(50),
+   offset: z.coerce.number().int().nonnegative().default(0),
+});
+
 /**
- * GET /api/v1/keys/:keyId/fee
- * Computes the effective dynamic fee rate for a given trade, factoring in base fee,
- * volume-tier discount, protocol fee, and creator royalty (#962).
+ * GET /api/v1/keys/:keyId/fee/history
+ * Returns fee tier change history with timestamps from FeeAdjusted events.
  */
-router.get('/:keyId/fee', async (req, res, next) => {
-   const parsed = dynamicFeeQuerySchema.safeParse(req.query);
+router.get('/:keyId/fee/history', async (req, res, next) => {
+   const parsed = feeHistoryQuerySchema.safeParse(req.query);
    if (!parsed.success) {
       sendValidationError(
          res,
-         'Invalid dynamic fee query',
+         'Invalid fee history query parameters',
          zodIssuesToDetails(parsed.error.issues)
       );
       return;
    }
 
    try {
-      // We dynamically load the service here to avoid massive circular imports if any
-      const { getDynamicFeeRate } = await import('./key-dynamic-fee.service');
+      const history = await getKeyFeeHistory(req.params.keyId, parsed.data);
+      sendSuccess(res, history);
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+});
 
-      // If the request is authenticated, we use the user's wallet for the volume discount
-      // In a real implementation we would extract the wallet from the JWT middleware (req.user),
-      // but this endpoint is public. We optionally accept a wallet address to preview discount.
-      const wallet = parsed.data.wallet;
+/**
+ * GET /api/v1/keys/:keyId/fee
+ * Returns the current swap fee tier for a given creator key by reading the dynamic fee contract,
+ * including current volume bracket, fee in basis points, and rolling 24h volume (#1055).
+ * Cached with 60s TTL.
+ */
+router.get('/:keyId/fee', async (req, res, next) => {
+   // If trade calculation query params are provided, handle dynamic fee rate computation
+   if (req.query.amount !== undefined && req.query.direction !== undefined) {
+      const parsed = dynamicFeeQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid dynamic fee query',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
 
-      sendSuccess(
-         res,
-         await getDynamicFeeRate(
-            req.params.keyId,
-            parsed.data.amount,
-            parsed.data.direction,
-            wallet
-         )
-      );
+      try {
+         const { getDynamicFeeRate } =
+            await import('./key-dynamic-fee.service');
+         const wallet = parsed.data.wallet;
+
+         sendSuccess(
+            res,
+            await getDynamicFeeRate(
+               req.params.keyId,
+               parsed.data.amount,
+               parsed.data.direction,
+               wallet
+            )
+         );
+         return;
+      } catch (error) {
+         if (error instanceof KeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         next(error);
+         return;
+      }
+   }
+
+   try {
+      const feeTier = await getSwapFeeTier(req.params.keyId);
+      sendSuccess(res, feeTier);
    } catch (error) {
       if (error instanceof KeyNotFoundError) {
          sendNotFound(res, 'Key');
@@ -2026,8 +2149,24 @@ router.get('/:keyId/simulate', async (req, res, next) => {
 // Mount dividend routes
 router.use('/', dividendRouter);
 
+// Creator key revenue distribution history and wallet claims
+router.use('/', revenueDistributionsRouter);
+
 // Mount whitelist routes
 router.use('/', whitelistRouter);
+
+// Mount co-creator roster routes (#1139)
+router.use('/', coCreatorsRouter);
+
+// Mount key reserve balance routes (#1140)
+router.use('/', reservesRouter);
+
+// Mount content-gate access routes (#1137)
+router.use('/', contentAccessRouter);
+
+// Mount tip history routes (#1132)
+router.use('/', tipsRouter);
+router.use('/', keyPollsRouter);
 
 // ── POST /:keyId/burn ─────────────────────────────────────────
 
@@ -2598,6 +2737,15 @@ router.post(
       }
    }
 );
+
+router.get('/:keyId/subscription/:wallet', async (req, res, next) => {
+   try {
+      const result = await getSubscriptionStatus(req.params.keyId, req.params.wallet);
+      sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+});
 
 router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);

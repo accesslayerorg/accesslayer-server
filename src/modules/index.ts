@@ -22,6 +22,8 @@ import { issuerRouter } from './invoice/invoice-protocol.routes';
 import freezeRouter from './freeze/freeze.routes';
 import platformRouter from './platform/platform.routes';
 import searchRouter from './search/search.routes';
+import { issuerVerificationRouter } from './issuers/issuer-verification.routes';
+import { investorHealthRouter } from './portfolio/portfolio-health-score.routes';
 
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
@@ -51,14 +53,7 @@ import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import holdersRouter from './dividends/holders.routes';
-import discoveryRouter from './keys/discovery.routes';
-import tradesRouter from './trades/trades.routes';
-import tradersRouter from './traders/traders.routes';
-import nonceRouter from './nonce/nonce.routes';
-import swapsRouter from './swaps/swaps.routes';
-import eventsRouter from './events/events.routes';
-import milestonesRouter from './keys/milestones.routes';
-
+import multisigRouter from './multisig/multisig.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -87,6 +82,8 @@ router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
 router.use('/invoices', routeBodySizeLimit('default'), invoiceRouter);
 router.use('/issuers', routeBodySizeLimit('default'), issuerRouter);
+router.use('/issuers', routeBodySizeLimit('default'), issuerVerificationRouter);
+router.use('/investors', routeBodySizeLimit('default'), investorHealthRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
@@ -138,13 +135,6 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
-router.use('/events', routeBodySizeLimit('default'), eventsRouter);
-
-router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
-router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
-router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
-router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
-router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
-router.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
+router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 
 export default router;

@@ -21,15 +21,17 @@ A single swap can earn both `FIRST_BUYER` and `WHALE_HOLDER`.
 
 ## Components
 
-| File                                          | Responsibility                                                 |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| `src/modules/badges/badge-trigger.service.ts` | `evaluateEvent` (pure rules) + `processQualifyingEvent`.       |
-| `src/modules/badges/badge-mint.service.ts`    | `mintBadge`: dedup guard → mint w/ retry → audit log.          |
-| `src/modules/badges/badge-mint.client.ts`     | Default client: submits `mint_badge` via the contract service. |
-| `src/modules/badges/badge-mint.builder.ts`    | Builds + signs the `mint_badge(wallet, badge_type)` envelope.  |
-| `src/modules/badges/badge.constants.ts`       | Thresholds (whale/hold/rank) and attempt limits.               |
-| `src/modules/badges/badge.types.ts`           | Badge types, event shapes, client/result interfaces.           |
-| `prisma/schema/badge-mint.prisma`             | `BadgeMintLog` audit table.                                    |
+| File                                                  | Responsibility                                                 |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| `src/modules/badges/badge-trigger.service.ts`         | `evaluateEvent` (pure rules) + `processQualifyingEvent`.       |
+| `src/modules/badges/badge-mint.service.ts`            | `mintBadge`: dedup guard → mint w/ retry → audit log.          |
+| `src/modules/badges/badge-mint.client.ts`             | Default client: submits `mint_badge` via the contract service. |
+| `src/modules/badges/badge-mint.builder.ts`            | Builds + signs the `mint_badge(wallet, badge_type)` envelope.  |
+| `src/modules/badges/badge.constants.ts`               | Thresholds (whale/hold/rank) and attempt limits.               |
+| `src/modules/badges/badge.types.ts`                   | Badge types, event shapes, client/result interfaces.           |
+| `src/modules/indexer/badge-minted-indexer.service.ts` | Indexes confirmed `BadgeMinted` events into `wallet_badges`.   |
+| `src/modules/badges/badge-read.service.ts`            | Wallet badge collection/summary with five-minute cache.        |
+| `prisma/schema/badge-mint.prisma`                     | `BadgeMintLog` audit table.                                    |
 
 ## Flow
 
@@ -86,6 +88,18 @@ await processQualifyingEvent({
 // On a governance vote:
 await processQualifyingEvent({ kind: 'vote', wallet, proposalId, txHash });
 ```
+
+Confirmed `BadgeMinted` events are independently indexed into `wallet_badges`
+by the shared indexer pipeline. The cursor advances only after this projection
+is persisted. Wallet badge reads are available at:
+
+- `GET /api/v1/wallets/:wallet/badges` — earned badges and the remaining locked
+  badge types, with mint timestamps for earned badges.
+- `GET /api/v1/wallets/:wallet/badges/summary` — total earned and a count for
+  each of the five badge types.
+
+Both read responses are cached for five minutes. A newly indexed badge mint
+invalidates both cached responses for that wallet.
 
 ## Configuration
 

@@ -4,13 +4,13 @@ export const NOTIFICATION_TYPES = {
    TRADE_COMPLETED: 'trade_completed',
    LOCKUP_EXPIRING: 'lockup_expiring',
    PRICE_MOVED: 'price_moved',
+   PRICE_ALERT_TRIGGERED: 'price_alert_triggered',
    PAUSE_PROPOSAL_CREATED: 'pause_proposal_created',
    TRADING_PAUSED: 'trading_paused',
    KEY_DEPRECATED: 'key_deprecated',
    KEY_SUNSET_FLAGGED: 'key_sunset_flagged',
    MILESTONE_CROSSED: 'milestone_crossed',
    CIRCUIT_BREAKER_TRIPPED: 'circuit_breaker_tripped',
-   PRICE_ALERT_TRIGGERED: 'price_alert_triggered',
 } as const;
 
 export type NotificationType =

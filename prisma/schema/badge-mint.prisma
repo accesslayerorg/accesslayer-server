@@ -37,3 +37,19 @@ model BadgeMintLog {
   @@index([status])
   @@map("badge_mint_log")
 }
+
+/// On-chain badge mints indexed by their original chain position.
+model WalletBadge {
+  id         String   @id @default(cuid())
+  wallet     String
+  badgeType  String
+  mintedAt   DateTime
+  txHash     String
+  eventIndex Int
+  ledger     Int
+
+  @@unique([wallet, badgeType])
+  @@unique([txHash, eventIndex])
+  @@index([wallet, mintedAt])
+  @@map("wallet_badges")
+}
