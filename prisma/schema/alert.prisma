@@ -10,6 +10,7 @@ model PriceAlert {
   callbackUrl   String?  // optional since #1012
   isActive      Boolean  @default(true)
   triggeredAt   DateTime?
+  triggeredPrice Decimal? @db.Decimal(20, 7)
   createdAt     DateTime @default(now())
 
   @@index([creatorId])

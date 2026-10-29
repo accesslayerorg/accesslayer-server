@@ -126,3 +126,60 @@ export async function getKeyReserve(
 
    return result;
 }
+
+/** One row of GET /keys/:key_id/reserve/history. */
+export interface KeyReserveHistoryItem {
+   type: string;
+   amount: string;
+   ledger: number | null;
+   tx_hash: string | null;
+   event_index: number | null;
+   date: string;
+}
+
+/** Paginated reserve event history response. */
+export interface KeyReserveHistoryResponse {
+   key_id: string;
+   items: KeyReserveHistoryItem[];
+   total: number;
+   limit: number;
+   offset: number;
+}
+
+/**
+ * Returns the paginated ReserveAccrued / ReserveDeployed event log for a key,
+ * newest first (#1157). Keys with no events return an empty page, not 404.
+ */
+export async function getKeyReserveHistory(
+   keyId: string,
+   limit: number,
+   offset: number
+): Promise<KeyReserveHistoryResponse> {
+   const resolvedKeyId = await resolveReserveKeyId(keyId);
+   const where = { keyId: resolvedKeyId };
+
+   const [rows, total] = await Promise.all([
+      prisma.keyReserveEvent.findMany({
+         where,
+         orderBy: [{ createdAt: 'desc' }, { ledger: 'desc' }, { eventIndex: 'desc' }],
+         take: limit,
+         skip: offset,
+      }),
+      prisma.keyReserveEvent.count({ where }),
+   ]);
+
+   return {
+      key_id: resolvedKeyId,
+      items: rows.map(row => ({
+         type: row.type,
+         amount: row.amount.toFixed(7),
+         ledger: row.ledger,
+         tx_hash: row.txHash,
+         event_index: row.eventIndex,
+         date: row.createdAt.toISOString(),
+      })),
+      total,
+      limit,
+      offset,
+   };
+}

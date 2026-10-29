@@ -53,15 +53,7 @@ import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import holdersRouter from './dividends/holders.routes';
-import discoveryRouter from './keys/discovery.routes';
-import tradesRouter from './trades/trades.routes';
-import tradersRouter from './traders/traders.routes';
-import nonceRouter from './nonce/nonce.routes';
-import swapsRouter from './swaps/swaps.routes';
-import eventsRouter from './events/events.routes';
-import milestonesRouter from './keys/milestones.routes';
-import autoInvestRouter from './auto-invest/auto-invest.routes';
-
+import multisigRouter from './multisig/multisig.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -101,6 +93,7 @@ router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 // handle /:keyId/freeze and /:keyId/unfreeze when needed.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
+router.use('/keys', routeBodySizeLimit('default'), performanceBondRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
@@ -139,15 +132,6 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
-router.use('/events', routeBodySizeLimit('default'), eventsRouter);
-
-router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
-router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
-router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
-router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
-router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
-router.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
-router.use('/auto-invest', routeBodySizeLimit('default'), autoInvestRouter);
-router.use('/keys', routeBodySizeLimit('default'), performanceBondRouter);
+router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 
 export default router;

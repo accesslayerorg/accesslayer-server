@@ -69,6 +69,7 @@ import {
 } from './volume-discount-tier-indexer.service';
 import { invalidateTraderDiscountCache } from '../traders/trader-discount.service';
 import { broadcastSwapPrice } from '../price-stream/price-stream.gateway';
+import { processSubscriptionCreatedEvent } from '../keys/subscription-status.service';
 import {
    SWAP_EVENT_TYPES,
    processAtomicSwapEvent,
@@ -401,6 +402,9 @@ export async function processIndexerEvents(
    const socialEvents = events.filter(
       event => event.eventType === SOCIAL_METADATA_UPDATED_EVENT_TYPE
    );
+   const subscriptionEvents = events.filter(
+      event => event.eventType === 'SubscriptionCreated' || event.eventType === 'SUBSCRIPTION_CREATED'
+   );
 
    if (socialEvents.length > 0) {
       await processSocialMetadataEvents(socialEvents);
@@ -419,6 +423,19 @@ export async function processIndexerEvents(
       const { processTwapUpdatedEvents } =
          await import('./twap-indexer.service');
       await processTwapUpdatedEvents(twapEvents);
+   }
+
+   // SnapshotTaken (#1112). Awaited before the cursor moves so a failure
+   // redelivers the batch and key_snapshots never misses a day.
+   const snapshotEvents = events.filter(
+      event =>
+         event.eventType === 'SNAPSHOT_TAKEN' ||
+         event.eventType === 'SnapshotTaken'
+   );
+   if (snapshotEvents.length > 0) {
+      const { processSnapshotTakenEvents } =
+         await import('./key-snapshot-indexer.service');
+      await processSnapshotTakenEvents(snapshotEvents);
    }
 
    // DepthUpdated (#1152). Awaited before the cursor moves so a failure
@@ -469,6 +486,12 @@ export async function processIndexerEvents(
       const { processGovernanceProposalEvents } =
          await import('./governance-proposal-indexer.service');
       await processGovernanceProposalEvents(governanceEvents);
+   }
+
+   // Subscription status cache (#1079): awaited before the cursor moves so a
+   // failed write redelivers the batch instead of leaving a stale status.
+   for (const event of subscriptionEvents) {
+      await processSubscriptionCreatedEvent(event as Record<string, unknown>);
    }
 
    // Community poll events are processed in chain order before advancing the
