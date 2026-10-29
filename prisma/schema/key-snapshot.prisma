@@ -1,0 +1,40 @@
+// prisma/schema/key-snapshot.prisma
+//
+// Daily key analytics snapshots indexed from SnapshotTaken contract events
+// (#1112). Powers GET /keys/:key_id/snapshots and the historical performance
+// charts on the frontend.
+//
+// - One row per (creatorId, snapshotDate). The contract emits one snapshot a
+//   day per key; if it ever emits more than one for the same UTC day, the
+//   event with the highest (ledger, eventIndex) wins, so replays and
+//   out-of-order delivery always converge on the same row.
+// - `creatorId` is intentionally NOT a foreign key, as for twap_snapshots: a
+//   snapshot can arrive before CREATOR_REGISTERED has been indexed.
+// - Monetary values (price, volume, marketCap) are stroops in BIGINT.
+
+model KeyAnalyticsSnapshot {
+  id           String   @id @default(cuid())
+  /** Key ID (CreatorProfile.id) the snapshot belongs to. */
+  creatorId    String
+  /** UTC calendar day the snapshot represents. */
+  snapshotDate DateTime @db.Date
+  /** Key price in stroops at snapshot time. */
+  price        BigInt
+  /** Trading volume for the day in stroops. */
+  volume       BigInt
+  /** Number of distinct holders at snapshot time. */
+  holderCount  Int
+  /** Market cap in stroops at snapshot time. */
+  marketCap    BigInt
+  /** Exact time the contract took the snapshot. */
+  takenAt      DateTime
+  ledger       Int
+  txHash       String
+  eventIndex   Int
+  indexedAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([creatorId, snapshotDate])
+  @@index([ledger])
+  @@map("key_snapshots")
+}

@@ -125,3 +125,29 @@ export const keyTipContentCacheKey = (messageHash: string): string =>
 
 export const keyTipsCachePattern = (keyId: string): string =>
    `key:tips:${keyId}:*`;
+
+// ── Key analytics snapshots endpoint (#1112) ─────────────────────
+// GET /keys/:key_id/snapshots?range=7d|30d|90d|all is served from the indexed
+// key_snapshots table and cached for 5 minutes. The SnapshotTaken indexer
+// drops every range for the key when a new snapshot lands (literal DELs).
+export const KEY_SNAPSHOT_RANGES = ['7d', '30d', '90d', 'all'] as const;
+export type KeySnapshotRange = (typeof KEY_SNAPSHOT_RANGES)[number];
+
+/** Days covered by each bounded range, counting today. `all` is unbounded. */
+export const KEY_SNAPSHOT_RANGE_DAYS: Record<
+   Exclude<KeySnapshotRange, 'all'>,
+   number
+> = {
+   '7d': 7,
+   '30d': 30,
+   '90d': 90,
+};
+
+export const KEY_SNAPSHOT_DEFAULT_RANGE: KeySnapshotRange = '30d';
+
+export const KEY_SNAPSHOT_CACHE_TTL_SECONDS = 5 * 60;
+
+export const keySnapshotCacheKey = (
+   keyId: string,
+   range: KeySnapshotRange
+): string => `key-snapshots:${keyId}:${range}`;

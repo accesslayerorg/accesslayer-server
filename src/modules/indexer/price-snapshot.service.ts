@@ -135,6 +135,21 @@ export async function upsertPriceSnapshot(
             },
          }),
       ]);
+      try {
+         const { evaluatePriceAlertsForMovement } = await import('../alerts/alert.service');
+         await evaluatePriceAlertsForMovement({
+            creatorId,
+            previousPrice: existing.currentPrice.toString(),
+            currentPrice: price.toString(),
+            ledger_sequence: ledger,
+         });
+      } catch (error) {
+         // Price history is the source of truth; alert delivery is best-effort.
+         logger.warn(
+            { creator_id: creatorId, error: (error as Error).message },
+            'price-snapshot: alert evaluation failed'
+         );
+      }
       logger.debug(
          {
             creator_id: creatorId,

@@ -4,6 +4,7 @@ import { isValidStellarAddress } from '../wallet/wallet.utils';
 
 export const CreateAlertSchema = z
    .object({
+      key_id: z.string().min(1, 'key_id is required').optional(),
       keyId: z.string().min(1, 'keyId is required').optional(),
       creator_id: z.string().min(1, 'creator_id is required').optional(),
       creatorId: z.string().min(1, 'creatorId is required').optional(),
@@ -34,7 +35,7 @@ export const CreateAlertSchema = z
       callbackUrl: z.string().url('callbackUrl must be a valid URL').optional(),
    })
    .refine(
-      (data) => !!(data.keyId || data.creator_id || data.creatorId),
+      (data) => !!(data.key_id || data.keyId || data.creator_id || data.creatorId),
       {
          message: 'keyId is required',
          path: ['keyId'],
@@ -48,7 +49,7 @@ export const CreateAlertSchema = z
       }
    )
    .transform((data) => ({
-      creator_id: (data.keyId || data.creator_id || data.creatorId)!,
+      creator_id: (data.key_id || data.keyId || data.creator_id || data.creatorId)!,
       wallet_address: data.wallet_address || data.walletAddress,
       target_price: (data.targetPrice ?? data.target_price)!,
       direction: data.direction,
@@ -67,6 +68,12 @@ export type CreateAlertInput = {
 };
 
 export const ListAlertsQuerySchema = z.object({
+   wallet: z
+      .string()
+      .refine(isValidStellarAddress, {
+         message: 'Invalid Stellar wallet address',
+      })
+      .optional(),
    wallet_address: z
       .string()
       .refine(isValidStellarAddress, {

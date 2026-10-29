@@ -1,6 +1,7 @@
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
+import { getSubscriptionStatus } from './subscription-status.service';
 import {
    sendError,
    sendNotFound,
@@ -32,7 +33,12 @@ import {
    getKeyMetadata,
    KeyMetadataNotFoundError,
 } from './key-metadata-sync.service';
-import { TWAP_WINDOWS } from '../../constants/redis.constants';
+import {
+   TWAP_WINDOWS,
+   KEY_SNAPSHOT_RANGES,
+   KEY_SNAPSHOT_DEFAULT_RANGE,
+} from '../../constants/redis.constants';
+import { getKeySnapshots } from './key-snapshots.service';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { envConfig } from '../../config';
 import { getKeyProposals, getProposalForVoting } from './key-proposals.service';
@@ -1045,6 +1051,54 @@ router.get('/:keyId/twap', async (req, res, next) => {
          window: result.window,
          computed_at: result.computed_at,
       });
+   } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/snapshots (#1112) ─────────────────────────────
+// Daily analytics snapshots (price, volume, holder_count, market_cap) from
+// the indexed SnapshotTaken events (key_snapshots table), oldest first.
+// range=7d|30d|90d|all (default 30d) counts back from today, UTC.
+// 5-minute cache, invalidated per key by the indexer. A key with no
+// snapshots yet returns an empty array; an unknown key returns 404.
+
+const keySnapshotsQuerySchema = z.object({
+   range: z
+      .enum(KEY_SNAPSHOT_RANGES, {
+         errorMap: () => ({
+            message: 'Invalid range param. Must be 7d, 30d, 90d, or all',
+         }),
+      })
+      .default(KEY_SNAPSHOT_DEFAULT_RANGE),
+});
+
+router.get('/:keyId/snapshots', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const parsed = keySnapshotsQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendError(
+         res,
+         422,
+         ErrorCode.UNPROCESSABLE_ENTITY,
+         'Invalid range param. Must be 7d, 30d, 90d, or all',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+
+   try {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: { id: true },
+      });
+      if (!creator) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+
+      const snapshots = await getKeySnapshots(creator.id, parsed.data.range);
+      sendSuccess(res, snapshots);
    } catch (error) {
       next(error);
    }
@@ -2683,6 +2737,15 @@ router.post(
       }
    }
 );
+
+router.get('/:keyId/subscription/:wallet', async (req, res, next) => {
+   try {
+      const result = await getSubscriptionStatus(req.params.keyId, req.params.wallet);
+      sendSuccess(res, result);
+   } catch (error) {
+      next(error);
+   }
+});
 
 router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
