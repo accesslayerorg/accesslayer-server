@@ -24,6 +24,7 @@ import platformRouter from './platform/platform.routes';
 import searchRouter from './search/search.routes';
 import { issuerVerificationRouter } from './issuers/issuer-verification.routes';
 import { investorHealthRouter } from './portfolio/portfolio-health-score.routes';
+import performanceBondRouter from './performance-bond/performance-bond.routes';
 
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
@@ -71,8 +72,6 @@ router.use('/status', routeBodySizeLimit('default'), statusRouter);
 router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
-router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
-router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorRouter);
 router.use('/metrics', routeBodySizeLimit('default'), metricsRouter);
 router.use('/ledger', routeBodySizeLimit('default'), ledgerRouter);
@@ -94,6 +93,7 @@ router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 // handle /:keyId/freeze and /:keyId/unfreeze when needed.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
+router.use('/keys', routeBodySizeLimit('default'), performanceBondRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
