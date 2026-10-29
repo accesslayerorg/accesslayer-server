@@ -246,6 +246,14 @@ export const envSchema = z
          .positive()
          .default(300),
 
+      // Key content gate config cache (#1150)
+      GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      
       // Dynamic fee contract (#1055)
       DYNAMIC_FEE_CONTRACT_ID: optionalNonEmptyString,
 
@@ -654,6 +662,8 @@ export const envSchema = z
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
       SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })
+   .passthrough()
+   .catchall(z.any())
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
          ctx.addIssue({

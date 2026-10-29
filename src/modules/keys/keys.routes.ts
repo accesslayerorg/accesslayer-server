@@ -183,6 +183,7 @@ import {
    getKeyDepth,
    getKeySpread,
 } from './key-depth.service';
+import { getGateConfig, KeyNotFoundError as GateKeyNotFoundError } from './key-gate-config.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -2810,5 +2811,38 @@ router.get('/:keyId/lockup/:wallet', async (req, res, next) => {
       logger.error({ error, keyId, wallet }, 'Key lock-up lookup failed');
       next(error);
    }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/gate
+ *
+ * Returns the content gate configuration for a creator key.
+ * Data fetched from get_gate_config contract call with 60s cache.
+ * Cache invalidated on gate config change event for key.
+ */
+router.get(
+   '/:keyId/gate',
+   cacheControl({
+      maxAge: Math.floor(envConfig.GATE_CONFIG_CACHE_TTL_SECONDS / 1000),
+      type: 'public',
+      mustRevalidate: true,
+   }),
+   async (req, res, next) => {
+      try {
+         const keyId = String(req.params.keyId);
+         const result = await getGateConfig(keyId);
+         return sendSuccess(res, result);
+      } catch (error) {
+         if (error instanceof GateKeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         next(error);
+      }
+   }
+);
+
+router.all('/:keyId/gate', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
 });
 export default router;

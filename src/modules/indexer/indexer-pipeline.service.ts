@@ -75,6 +75,10 @@ import {
    processAtomicSwapEvent,
    markExpiredSwaps,
 } from './atomic-swap-indexer.service';
+import {
+   processGateConfigEvents,
+   GATE_CONFIG_UPDATED_EVENT_TYPES,
+} from './key-gate-config-indexer.service';
 
 /**
  * Processes a batch of on-chain trade events (KEY_BOUGHT or KEY_SOLD).
@@ -120,6 +124,11 @@ export async function processTradeEvents(
 
       if (SWAP_EVENT_TYPES.has(event.eventType)) {
          await processAtomicSwapEvent(event as any, prisma);
+         return;
+      }
+
+      if (GATE_CONFIG_UPDATED_EVENT_TYPES.includes(event.eventType)) {
+         await processGateConfigEvents([event]);
          return;
       }
 

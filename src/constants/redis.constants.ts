@@ -1,38 +1,34 @@
+export type { TwapWindow } from '../modules/keys/key-twap-window.service';
 // src/constants/redis.constants.ts
-// Redis key helpers and TTLs for TWAP price caching (#963).
-// Kept out of notifications.constants.ts so price-cache concerns live
-// in one place alongside future Redis-backed caches.
 
-export const TWAP_WINDOWS = ['1h', '4h', '24h'] as const;
-export type TwapWindow = (typeof TWAP_WINDOWS)[number];
+// TWAP cache (#963): get_twap returns per (keyId, window, side); TTL 30s.
+import type { TwapWindow } from '../modules/keys/key-twap-window.service';
 
-export const TWAP_WINDOW_MS: Record<TwapWindow, number> = {
-   '1h': 60 * 60 * 1000,
-   '4h': 4 * 60 * 60 * 1000,
-   '24h': 24 * 60 * 60 * 1000,
-};
+export const TWAP_WINDOWS = ['1h', '4h', '24h', '7d'] as const;
 
-// TTL matches the window size so longer windows stay cached longer.
-export const TWAP_CACHE_TTL_SECONDS: Record<TwapWindow, number> = {
-   '1h': 60 * 60,
-   '4h': 4 * 60 * 60,
-   '24h': 24 * 60 * 60,
-};
+export const TWAP_STALE_THRESHOLD_MS = 120_000;
+export const TWAP_MAX_SNAPSHOTS = 1000;
+export { TWAP_WINDOW_MS } from '../modules/keys/key-twap-window.service';
 
-export const twapRedisKey = (keyId: string, window: TwapWindow): string =>
-   `twap:${keyId}:${window}`;
+export const TWAP_CACHE_TTL_SECONDS: Record<string, number> = {
+   '1h': 30,
+   '4h': 30,
+   '24h': 30,
+   '7d': 30,
+} as any;
 
-// Stale when the computation job is behind by 2x its 5-minute interval.
-export const TWAP_STALE_THRESHOLD_MS = 10 * 60 * 1000;
-
-// Cap on snapshots scanned per TWAP computation (matches price-history cap).
-export const TWAP_MAX_SNAPSHOTS = 5000;
+export const twapRedisKey = (keyId: string, window: TwapWindow, side?: string): string =>
+   side === undefined ? `twap:${keyId}:${window}` : `twap:${keyId}:${window}:${side}`;
 
 // Circuit breaker config cache (#987): the contract-read max_bps per key.
 // Entries expire after CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS (5 minutes),
 // so the stored configuration is refreshed from the contract every 5 minutes.
 export const circuitBreakerConfigRedisKey = (keyId: string): string =>
    `circuit-breaker:config:${keyId}`;
+
+// Key content gate config cache (#1150)
+export const keyGateConfigRedisKey = (keyId: string): string =>
+   `key:gate:config:${keyId}`;
 
 // ── TWAP snapshot endpoint (#1082) ───────────────────────────────
 // GET /keys/:key_id/twap is served from the indexed twap_snapshots table
