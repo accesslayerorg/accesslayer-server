@@ -40,7 +40,7 @@ export async function httpGetStakingPositions(
    req: AuthenticatedRequest,
    res: Response
 ): Promise<void> {
-   const wallet = (req.params.wallet ?? '').trim();
+   const wallet = String(req.params.wallet ?? '').trim();
 
    const parsed = PositionsQuerySchema.safeParse(req.query);
    if (!parsed.success) {
@@ -90,8 +90,8 @@ export async function httpGetStakingPosition(
    req: AuthenticatedRequest,
    res: Response
 ): Promise<void> {
-   const wallet = (req.params.wallet ?? '').trim();
-   const stakeId = (req.params.stakeId ?? '').trim();
+   const wallet = String(req.params.wallet ?? '').trim();
+   const stakeId = String(req.params.stakeId ?? '').trim();
 
    const parsed = PositionDetailQuerySchema.safeParse(req.query);
    if (!parsed.success) {
@@ -145,7 +145,7 @@ export async function httpGetKeyEpochs(
    req: AuthenticatedRequest,
    res: Response
 ): Promise<void> {
-   const keyId = (req.params.keyId ?? '').trim();
+   const keyId = String(req.params.keyId ?? '').trim();
 
    const parsed = KeyEpochsQuerySchema.safeParse(req.query);
    if (!parsed.success) {

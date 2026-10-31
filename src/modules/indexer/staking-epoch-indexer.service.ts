@@ -103,7 +103,7 @@ export interface RewardsClaimedEvent extends IndexerChainEvent {
 
 // ── Required-field validators ─────────────────────────────────
 
-const STAKE_CREATED_REQUIRED: (keyof StakeCreatedEvent)[] = [
+const STAKE_CREATED_REQUIRED: (keyof StakeCreatedEvent & string)[] = [
    'wallet',
    'keyId',
    'amount',
@@ -113,7 +113,7 @@ const STAKE_CREATED_REQUIRED: (keyof StakeCreatedEvent)[] = [
    'eventIndex',
 ];
 
-const EPOCH_REWARD_REQUIRED: (keyof EpochRewardDistributedEvent)[] = [
+const EPOCH_REWARD_REQUIRED: (keyof EpochRewardDistributedEvent & string)[] = [
    'epoch',
    'keyId',
    'totalDistributed',
@@ -123,7 +123,7 @@ const EPOCH_REWARD_REQUIRED: (keyof EpochRewardDistributedEvent)[] = [
    'eventIndex',
 ];
 
-const REWARDS_CLAIMED_REQUIRED: (keyof RewardsClaimedEvent)[] = [
+const REWARDS_CLAIMED_REQUIRED: (keyof RewardsClaimedEvent & string)[] = [
    'stakeId',
    'wallet',
    'claimedAt',
