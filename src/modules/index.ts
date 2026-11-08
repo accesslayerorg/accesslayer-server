@@ -46,6 +46,7 @@ import referralRouter from './referrals/referrals.routes';
 import referralEarningsRouter from './referrals/referral-earnings.routes';
 import contractsRouter from './contracts/contract.routes';
 import stakingRouter from './staking/staking.routes';
+import { stakingEpochRouter, keyEpochRouter } from './staking/staking-epoch.routes';
 import sellersRouter from './sellers/sellers.routes';
 import governanceRouter from './governance/governance.routes';
 import factoryRouter from './factory/factory.routes';
@@ -126,6 +127,8 @@ router.use(
    watchlistRouter
 );
 router.use('/staking', routeBodySizeLimit('default'), stakingRouter);
+router.use('/staking', routeBodySizeLimit('default'), stakingEpochRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyEpochRouter);
 router.use('/sellers', routeBodySizeLimit('default'), sellersRouter);
 router.use('/governance', routeBodySizeLimit('default'), governanceRouter);
 router.use('/factory', routeBodySizeLimit('default'), factoryRouter);

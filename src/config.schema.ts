@@ -257,6 +257,11 @@ export const envSchema = z
       // LP position registry contract
       LP_CONTRACT_ID: optionalNonEmptyString,
 
+      // Staking contract (#1086): deployed staking contract used for live
+      // get_stake_rewards simulation calls. When unset, accrued rewards
+      // degrade gracefully to '0' rather than failing.
+      STAKING_CONTRACT_ID: optionalNonEmptyString,
+
       // Invoice protocol adapters. Unconfigured reads/execution fail closed.
       ISSUER_REPUTATION_CONTRACT_ID: optionalNonEmptyString,
       INVOICE_TRANSFER_CONTRACT_ID: optionalNonEmptyString,
