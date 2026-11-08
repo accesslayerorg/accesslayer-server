@@ -1,0 +1,9 @@
+model TipContent {
+  id          String   @id @default(cuid())
+  tipId       String   @unique @map("tip_id")
+  contentHash String   @map("content_hash")
+  content     String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("tip_content")
+}

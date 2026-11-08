@@ -93,8 +93,11 @@ describe('rate-limit-tracking.utils', () => {
 
          checkRateLimitThresholds(wallet, 100, limit, windowReset);
 
-         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
-         const call = mockLogger.warn.mock.calls[0];
+         // Crossing 100% directly also crosses 80%, so both thresholds log.
+         expect(mockLogger.warn).toHaveBeenCalledTimes(2);
+         const calls = mockLogger.warn.mock.calls;
+         expect(calls[0][0].threshold).toBe('80%');
+         const call = calls[1];
          expect(call[0]).toMatchObject({
             wallet_address: 'GAAA…AAAA',
             request_count: 100,
@@ -109,17 +112,17 @@ describe('rate-limit-tracking.utils', () => {
          const limit = 100;
          const windowReset = new Date('2026-01-15T13:00:00Z');
 
-         // Trigger at 100%
+         // Trigger at 100% (80% and 100% thresholds both fire)
          checkRateLimitThresholds(wallet, 100, limit, windowReset);
-         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+         expect(mockLogger.warn).toHaveBeenCalledTimes(2);
 
          // Trigger again at 100% (should not log)
          checkRateLimitThresholds(wallet, 100, limit, windowReset);
-         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+         expect(mockLogger.warn).toHaveBeenCalledTimes(2);
 
          // Trigger at 101% (should not log again)
          checkRateLimitThresholds(wallet, 101, limit, windowReset);
-         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+         expect(mockLogger.warn).toHaveBeenCalledTimes(2);
       });
    });
 

@@ -39,6 +39,7 @@ jest.mock('../../utils/prisma.utils', () => ({
       creatorProfile: { findMany: jest.fn() },
       creatorPriceSnapshot: { findMany: jest.fn() },
       circuitBreakerTrip: { findMany: jest.fn() },
+      priceAlert: { findMany: jest.fn() },
    },
 }));
 
@@ -58,6 +59,7 @@ describe('notification.service', () => {
       redisSets.clear();
       jest.clearAllMocks();
       (prisma.circuitBreakerTrip.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.priceAlert.findMany as jest.Mock).mockResolvedValue([]);
    });
 
    it('aggregates trade, lockup, and price_moved notifications newest first', async () => {

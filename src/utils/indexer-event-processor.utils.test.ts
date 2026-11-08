@@ -53,11 +53,11 @@ describe('indexer-event-processor.utils', () => {
          expect(infoMock).toHaveBeenCalledWith(
             expect.objectContaining({
                type: 'indexer_event_processed',
-               eventType: 'CREATOR_REGISTERED',
-               eventId: '0xabc123:0',
-               txHash: '0xabc123',
-               eventIndex: 0,
-               elapsedMs: expect.any(Number),
+               event_type: 'CREATOR_REGISTERED',
+               event_id: '0xabc123:0',
+               tx_hash: '0xabc123',
+               event_index: 0,
+               elapsed_ms: expect.any(Number),
             }),
             'Indexer chain event processed'
          );

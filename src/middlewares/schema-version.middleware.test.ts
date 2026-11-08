@@ -71,4 +71,4 @@ function run() {
    console.log('schema-version.middleware tests passed');
 }
 
-run();
+test('sets the schema version header when enabled', run);

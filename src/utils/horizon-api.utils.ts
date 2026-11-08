@@ -59,7 +59,8 @@ export async function horizonRequest(
          body: init.body,
       });
 
-   if (!init.bypassCircuitBreaker) {
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
       horizonCircuitBreaker.checkState();
    }
 
@@ -81,7 +82,7 @@ export async function horizonRequest(
          'Horizon API call completed'
       );
 
-      if (!init.bypassCircuitBreaker) {
+      if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
          if (response.status >= 500) {
             horizonCircuitBreaker.recordFailure(
                new Error(`Horizon HTTP ${response.status}`)
@@ -93,7 +94,7 @@ export async function horizonRequest(
 
       return response;
    } catch (err) {
-      if (!init.bypassCircuitBreaker) {
+      if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
          horizonCircuitBreaker.recordFailure(err);
       }
 

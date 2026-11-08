@@ -389,4 +389,4 @@ function run() {
    console.log('✓ All query-normalization-debug.utils tests passed');
 }
 
-run();
+test('emits sanitized query normalization diagnostics when enabled', run);

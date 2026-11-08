@@ -80,7 +80,7 @@ export async function getKeyLpStats(keyId: string): Promise<KeyLpStats> {
       _count: { _all: true },
    });
 
-   const totalContributed = aggregate._sum.amountXlm?.toString() ?? '0';
+   const totalContributed = aggregate._sum.amountXlm?.toFixed(7) ?? '0.0000000';
    const stats: KeyLpStats = {
       keyId,
       totalLpContributedXlm: totalContributed,
@@ -119,7 +119,7 @@ export async function getKeyLpHistory(input: {
    return {
       entries: page.map(allocation => ({
          id: allocation.id,
-         amountXlm: allocation.amountXlm.toString(),
+         amountXlm: allocation.amountXlm.toFixed(7),
          txHash: allocation.txHash,
          ledger: allocation.ledger,
          allocatedAt: allocation.allocatedAt.toISOString(),

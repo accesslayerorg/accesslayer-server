@@ -33,4 +33,4 @@ function run() {
    console.log('creators.boolean-query.parse tests passed');
 }
 
-run();
+test('parses creator boolean query parameters and rejects invalid values', run);

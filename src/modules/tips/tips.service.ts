@@ -29,6 +29,7 @@ import {
 } from '../../constants/redis.constants';
 import {
    normalizeIpfsCid,
+   isValidIpfsCid,
    resolvePinataGatewayUrl,
 } from '../../utils/pinata-gateway.utils';
 import { resolveCreatorId } from '../whitelist/whitelist.service';
@@ -201,13 +202,16 @@ export interface TipMessageContent {
  * failure.
  */
 export async function getTipMessageContent(
-   keyId: string,
+   keyId: string | undefined,
    tipId: string
 ): Promise<TipMessageContent | null> {
-   const resolvedKeyId = await resolveTipKeyId(keyId);
+   const resolvedKeyId = keyId ? await resolveTipKeyId(keyId) : undefined;
 
    const tip = await prisma.keyTip.findFirst({
-      where: { id: tipId, keyId: resolvedKeyId },
+      where: {
+         id: tipId,
+         ...(resolvedKeyId ? { keyId: resolvedKeyId } : {}),
+      },
       select: { messageHash: true },
    });
 
@@ -216,6 +220,12 @@ export async function getTipMessageContent(
    }
 
    const messageHash = tip.messageHash;
+   const cid = normalizeIpfsCid(messageHash);
+
+   if (!cid || !isValidIpfsCid(cid)) {
+      return null;
+   }
+
    const cacheKey = keyTipContentCacheKey(messageHash);
 
    try {
@@ -228,10 +238,6 @@ export async function getTipMessageContent(
       // Cache read failures fall through to the gateway.
    }
 
-   const cid = normalizeIpfsCid(messageHash);
-   if (!cid) {
-      return null;
-   }
    const url = resolvePinataGatewayUrl(cid);
    if (!url) {
       throw new Error('No IPFS gateway configured (PINATA_GATEWAY_URL)');
@@ -287,3 +293,4 @@ export async function getTipMessageContent(
       clearTimeout(timeout);
    }
 }
+

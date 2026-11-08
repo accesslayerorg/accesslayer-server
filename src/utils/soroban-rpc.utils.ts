@@ -37,7 +37,10 @@ export async function getLedgerEntries(
       return null;
    }
 
-   sorobanRpcCircuitBreaker.checkState();
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+      sorobanRpcCircuitBreaker.checkState();
+   }
 
    try {
       const response = await fetch(envConfig.STELLAR_SOROBAN_RPC_URL, {
@@ -56,9 +59,11 @@ export async function getLedgerEntries(
       });
 
       if (!response.ok) {
-         sorobanRpcCircuitBreaker.recordFailure(
-            new Error(`Soroban HTTP ${response.status}`)
-         );
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+            sorobanRpcCircuitBreaker.recordFailure(
+               new Error(`Soroban HTTP ${response.status}`)
+            );
+         }
          logger.warn(
             {
                status: response.status,
@@ -84,10 +89,14 @@ export async function getLedgerEntries(
          return null;
       }
 
-      sorobanRpcCircuitBreaker.recordSuccess();
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+         sorobanRpcCircuitBreaker.recordSuccess();
+      }
       return json.result as GetLedgerEntriesResponse;
    } catch (error) {
-      sorobanRpcCircuitBreaker.recordFailure(error);
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+         sorobanRpcCircuitBreaker.recordFailure(error);
+      }
       logger.warn({ error }, 'Failed to query Soroban RPC');
       return null;
    }

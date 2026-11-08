@@ -150,8 +150,10 @@ import { getKeyRetirement, getKeyRetirementHistory } from './key-retirement.serv
 import { getKeyLaunchAuction, getKeyLaunchAuctionBids } from './key-launch-auction.service';
 import { getSunsetWatchList } from './key-sunset-watch.service';
 import {
+   getKeyAnalytics,
    getKeyPaymentAssetAnalytics,
    getPlatformPaymentAssetDistribution,
+   analyticsWindowQuerySchema,
 } from './key-analytics.service';
 import {
    createKeyExportJob,
@@ -658,17 +660,51 @@ router.get('/exports/:jobId/download', async (req, res, next) => {
 /**
  * GET /api/v1/keys/:keyId/analytics
  *
- * Returns the payment-asset breakdown for a single key: trade count, unique
- * buyers, and total price in stroops grouped by paymentAsset.
+ * Returns trade count, unique traders and total volume (#916).
  * Resolves keyId by DB id or handle.
  *
- * Publicly accessible — the payment-asset mix for a key is not sensitive.
+ * Publicly accessible.
  *
  * Responses:
- *   200 — KeyPaymentAssetAnalytics
+ *   200 — KeyAnalytics
+ *   400 — invalid query
  *   404 — key not found
  */
 router.get('/:keyId/analytics', async (req, res, next) => {
+   const parsed = analyticsWindowQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid analytics query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await getKeyAnalytics(String(req.params.keyId), parsed.data)
+      );
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      logger.error(
+         { error, keyId: req.params.keyId },
+         'GET /keys/:keyId/analytics failed'
+      );
+      next(error);
+   }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/analytics/payment-assets
+ *
+ * Returns the payment-asset breakdown for a single key.
+ * Publicly accessible.
+ */
+router.get('/:keyId/analytics/payment-assets', async (req, res, next) => {
    try {
       sendSuccess(
          res,
@@ -681,7 +717,7 @@ router.get('/:keyId/analytics', async (req, res, next) => {
       }
       logger.error(
          { error, keyId: req.params.keyId },
-         'GET /keys/:keyId/analytics failed'
+         'GET /keys/:keyId/analytics/payment-assets failed'
       );
       next(error);
    }

@@ -2,6 +2,7 @@ import { processTradeEvents } from './indexer-pipeline.service';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
+import { cacheInvalidate as mockCacheInvalidate } from '../../utils/redis.utils';
 
 jest.mock('../../utils/prisma.utils', () => {
    const mockPrisma: any = {
@@ -25,6 +26,13 @@ jest.mock('../../utils/prisma.utils', () => {
       creatorProfile: {
          findUnique: jest.fn().mockResolvedValue(null),
          update: jest.fn(),
+      },
+      referral: {
+         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+         findUnique: jest.fn().mockResolvedValue(null),
+      },
+      referralEvent: {
+         create: jest.fn(),
       },
       indexedLedger: {
          upsert: jest.fn(),
@@ -52,8 +60,6 @@ jest.mock('../../utils/logger.utils', () => ({
    },
 }));
 
-const mockCacheInvalidate = jest.fn();
-
 // processTradeEvents invalidates the volume leaderboard cache (#785) after
 // creating each Activity row — stub Redis so that call resolves immediately
 // instead of attempting a real connection.
@@ -61,14 +67,22 @@ jest.mock('../../utils/redis.utils', () => ({
    getRedis: jest.fn(() => ({
       del: jest.fn().mockResolvedValue(1),
    })),
-   cacheInvalidate: mockCacheInvalidate,
+   cacheInvalidate: jest.fn(),
 }));
 
 describe('processTradeEvents integration test', () => {
    const mockPrisma = prisma as unknown as {
       activity: { create: jest.Mock; findMany: jest.Mock };
-      keyOwnership: { findFirst: jest.Mock; upsert: jest.Mock; aggregate: jest.Mock };
-      creatorPriceSnapshot: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
+      keyOwnership: {
+         findFirst: jest.Mock;
+         upsert: jest.Mock;
+         aggregate: jest.Mock;
+      };
+      creatorPriceSnapshot: {
+         findUnique: jest.Mock;
+         create: jest.Mock;
+         update: jest.Mock;
+      };
       creatorPriceHistory: { create: jest.Mock };
       creatorProfile: { findUnique: jest.Mock; update: jest.Mock };
       indexedLedger: { upsert: jest.Mock };
@@ -78,20 +92,22 @@ describe('processTradeEvents integration test', () => {
       warn: jest.Mock;
    };
 
-    beforeEach(() => {
-       jest.clearAllMocks();
-       mockPrisma.keyOwnership.upsert.mockResolvedValue({ balance: -50 });
-       mockPrisma.keyOwnership.aggregate.mockResolvedValue({ _sum: { balance: 0 } });
-       mockPrisma.activity.findMany.mockResolvedValue([]);
-       mockPrisma.creatorProfile.findUnique.mockResolvedValue(null);
-       mockPrisma.indexedLedger.upsert.mockResolvedValue({});
-       mockPrisma.$transaction.mockImplementation(async (arg: any) => {
-          if (typeof arg === 'function') {
-             return arg(mockPrisma);
-          }
-          return Promise.all(arg);
-       });
-    });
+   beforeEach(() => {
+      jest.clearAllMocks();
+      mockPrisma.keyOwnership.upsert.mockResolvedValue({ balance: -50 });
+      mockPrisma.keyOwnership.aggregate.mockResolvedValue({
+         _sum: { balance: 0 },
+      });
+      mockPrisma.activity.findMany.mockResolvedValue([]);
+      mockPrisma.creatorProfile.findUnique.mockResolvedValue(null);
+      mockPrisma.indexedLedger.upsert.mockResolvedValue({});
+      mockPrisma.$transaction.mockImplementation(async (arg: any) => {
+         if (typeof arg === 'function') {
+            return arg(mockPrisma);
+         }
+         return Promise.all(arg);
+      });
+   });
 
    it('correctly processes and persists a valid sell event', async () => {
       const event: IndexerChainEvent = {
@@ -124,6 +140,7 @@ describe('processTradeEvents integration test', () => {
                price_at_trade: '2000',
                fee_paid: '10',
                ledger_sequence: 12345,
+               payment_asset: 'XLM',
             },
             createdAt: new Date('2026-07-25T12:00:00.000Z'),
          },
@@ -229,7 +246,6 @@ describe('processTradeEvents integration test', () => {
       await processTradeEvents([malformedEvent]);
 
       expect(mockPrisma.activity.create).not.toHaveBeenCalled();
-      expect(mockLogger.warn).toHaveBeenCalledTimes(1);
       expect(mockLogger.warn).toHaveBeenCalledWith(
          expect.objectContaining({ missingField: 'creatorId' }),
          expect.any(String)

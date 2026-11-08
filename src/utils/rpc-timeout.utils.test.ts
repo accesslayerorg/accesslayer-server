@@ -45,7 +45,4 @@ async function run() {
    console.log('rpc-timeout.utils tests passed');
 }
 
-run().catch(err => {
-   console.error(err);
-   process.exit(1);
-});
+test('handles RPC timeouts and propagates other errors', run);

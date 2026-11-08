@@ -29,6 +29,7 @@ import {
    getTipTotals,
    listTips,
 } from './tips.service';
+import { httpGetTipContent as httpGetTipContentById } from './tips.controllers';
 
 const tipsRouter = Router();
 
@@ -155,6 +156,9 @@ tipsRouter.get(
    tipsCache(),
    httpGetTipContent
 );
+
+// Top-level endpoint added for IPFS tip content by tip ID
+tipsRouter.get('/:tip_id/content', httpGetTipContentById);
 
 tipsRouter.all(['/:key_id/tips', '/:keyId/tips'], (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
