@@ -4,6 +4,7 @@ model KeyFreeze {
   keyId      String    @unique   // matches KeyOwnership.creatorId (the "key" identifier in this repo)
   isFrozen   Boolean   @default(false)
   reason     String?
+  expiryTimestamp DateTime?
   frozenAt   DateTime?
   frozenBy   String?
   unfrozenAt DateTime?
@@ -12,6 +13,7 @@ model KeyFreeze {
   createdAt  DateTime  @default(now())
 
   @@index([isFrozen])
+  @@map("key_freeze_status")
 }
 
 model FreezeEvent {

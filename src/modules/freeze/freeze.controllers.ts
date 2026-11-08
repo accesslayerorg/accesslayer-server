@@ -2,7 +2,7 @@ import { AsyncController } from '../../types/auth.types';
 import { sendSuccess, sendValidationError, sendNotFound } from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { KeyIdParamSchema, FreezeBodySchema, UnfreezeBodySchema } from './freeze.schemas';
-import { getFreezeStatus, emergencyFreeze, initiateUnfreeze } from './freeze.service';
+import { getFreezeStatus, getFreezeHistory, emergencyFreeze, initiateUnfreeze } from './freeze.service';
 import { prisma } from '../../utils/prisma.utils';
 
 export const httpGetFreezeStatus: AsyncController = async (req, res, next) => {
@@ -13,7 +13,19 @@ export const httpGetFreezeStatus: AsyncController = async (req, res, next) => {
     if (!exists) return sendNotFound(res, 'Key');
     const status = await getFreezeStatus(parsed.data.keyId);
     attachTimestampHeader(res);
-    sendSuccess(res, status);
+    sendSuccess(res, { ...status, is_frozen: status.isFrozen, expiry_timestamp: status.expiryTimestamp, frozen_at: status.frozenAt });
+  } catch (e) { next(e); }
+};
+
+export const httpGetFreezeHistory: AsyncController = async (req, res, next) => {
+  try {
+    const parsed = KeyIdParamSchema.safeParse(req.params);
+    if (!parsed.success) return sendValidationError(res, 'Invalid keyId', parsed.error.issues.map(i => ({ field: i.path.join('.'), message: i.message })));
+    const exists = await prisma.keyOwnership.findFirst({ where: { creatorId: parsed.data.keyId } });
+    if (!exists) return sendNotFound(res, 'Key');
+    const history = await getFreezeHistory(parsed.data.keyId);
+    attachTimestampHeader(res);
+    sendSuccess(res, history);
   } catch (e) { next(e); }
 };
 
