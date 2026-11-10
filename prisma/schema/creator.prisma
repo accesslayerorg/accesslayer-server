@@ -74,8 +74,46 @@ model CreatorProfile {
   socialMetadata       CreatorSocialMetadata?
   socialMetadataEvents SocialMetadataEvent[]
 
+  bond             KeyPerformanceBond?
+  bondForfeitures  BondForfeiture[]
+
   @@index([userId])
   @@index([successorKeyId])
+}
+
+/// Performance bond posted by a creator for their key, mirrored from the bond contract.
+model KeyPerformanceBond {
+  id              String   @id @default(cuid())
+  creatorId       String   @unique
+  creatorAddress  String
+  /// Amount deposited, in XLM with 7 decimals.
+  amount          Decimal  @db.Decimal(20, 7)
+  /// One of: deposited, released, forfeited.
+  state           String   @default("deposited")
+  /// Last ledger at which the bond state was synced from chain.
+  lastSyncedLedger Int?    @map("last_synced_ledger")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  creator         CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorAddress])
+}
+
+/// Indexed BondForfeited event, one row per forfeiture.
+model BondForfeiture {
+  id          String   @id @default(cuid())
+  creatorId   String
+  amount      Decimal  @db.Decimal(20, 7)
+  reason      String
+  ledger      Int
+  txHash      String   @unique
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+
+  creator     CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId, timestamp])
 }
 
 model CreatorKeyRelaunch {

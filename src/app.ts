@@ -1,7 +1,7 @@
 // src/app.ts
 import express, { Express, Response, RequestHandler } from 'express';
 import { TspecDocsMiddleware } from 'tspec';
-import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; // Add notFoundHandler import
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import router from './modules/index';
 import stakingRouter from './modules/staking/staking.routes';
 import statusRouter from './modules/status/status.routes';
