@@ -19,6 +19,7 @@ export interface KeyCooldownStatus {
    key_id: string;
    wallet: string;
    active: boolean;
+   is_active: boolean;
    cooldown_active: boolean;
    expires_at: string | null;
    unlock_estimated_at: string | null;
@@ -26,6 +27,7 @@ export interface KeyCooldownStatus {
    remaining_seconds: number;
    cooldown_ledgers: number;
    cooldown_seconds: number;
+   last_trade_at: string | null;
 }
 
 export const cooldownCacheKey = (keyId: string, wallet: string): string =>
@@ -219,10 +221,13 @@ export async function getKeyCooldown(
    const cooldownLedgers = creator.cooldownLedgers ?? 0;
    const cooldownSeconds = cooldownLedgers * SECONDS_PER_LEDGER;
 
-   const buildInactive = (): KeyCooldownStatus => ({
+   const buildInactive = (
+      lastTradeAt: string | null = null
+   ): KeyCooldownStatus => ({
       key_id: creator.id,
       wallet: walletAddress,
       active: false,
+      is_active: false,
       cooldown_active: false,
       expires_at: null,
       unlock_estimated_at: null,
@@ -230,10 +235,11 @@ export async function getKeyCooldown(
       remaining_seconds: 0,
       cooldown_ledgers: cooldownLedgers,
       cooldown_seconds: cooldownSeconds,
+      last_trade_at: lastTradeAt,
    });
 
    if (cooldownLedgers <= 0) {
-      const res = buildInactive();
+      const res = buildInactive(null);
       await cacheSetJson(cacheKey, res, 10);
       return res;
    }
@@ -242,7 +248,7 @@ export async function getKeyCooldown(
       prisma.trade.findFirst({
          where: { buyer: walletAddress, creatorId: creator.id },
          orderBy: { ledger: 'desc' },
-         select: { ledger: true },
+         select: { ledger: true, timestamp: true },
       }),
       prisma.indexedLedger.findUnique({
          where: { id: 1 },
@@ -250,27 +256,35 @@ export async function getKeyCooldown(
       }),
    ]);
 
+   const lastTradeAt = lastBuy?.timestamp
+      ? lastBuy.timestamp instanceof Date
+         ? lastBuy.timestamp.toISOString()
+         : new Date(lastBuy.timestamp).toISOString()
+      : null;
+
    if (!lastBuy || !indexed) {
-      const res = buildInactive();
+      const res = buildInactive(lastTradeAt);
       await cacheSetJson(cacheKey, res, 10);
       return res;
    }
 
-   const remainingLedgers =
-      lastBuy.ledger + cooldownLedgers - indexed.ledger;
+   const remainingLedgers = lastBuy.ledger + cooldownLedgers - indexed.ledger;
    if (remainingLedgers <= 0) {
-      const res = buildInactive();
+      const res = buildInactive(lastTradeAt);
       await cacheSetJson(cacheKey, res, 10);
       return res;
    }
 
    const remainingSeconds = remainingLedgers * SECONDS_PER_LEDGER;
-   const expiresAt = new Date(Date.now() + remainingSeconds * 1000).toISOString();
+   const expiresAt = new Date(
+      Date.now() + remainingSeconds * 1000
+   ).toISOString();
 
    const activeStatus: KeyCooldownStatus = {
       key_id: creator.id,
       wallet: walletAddress,
       active: true,
+      is_active: true,
       cooldown_active: true,
       expires_at: expiresAt,
       unlock_estimated_at: expiresAt,
@@ -278,10 +292,12 @@ export async function getKeyCooldown(
       remaining_seconds: remainingSeconds,
       cooldown_ledgers: cooldownLedgers,
       cooldown_seconds: cooldownSeconds,
+      last_trade_at: lastTradeAt,
    };
 
-   // Cache expires precisely when cooldown ends (TTL = remainingSeconds)
-   await cacheSetJson(cacheKey, activeStatus, remainingSeconds > 0 ? remainingSeconds : 10);
+   // 10s TTL or remaining cooldown if less than 10s
+   const ttl = Math.min(10, remainingSeconds > 0 ? remainingSeconds : 10);
+   await cacheSetJson(cacheKey, activeStatus, ttl);
    return activeStatus;
 }
 
@@ -291,7 +307,26 @@ export async function getKeyCooldown(
 export async function getBatchCooldowns(
    keyIds: string[],
    walletAddress: string
-): Promise<(KeyCooldownStatus | { key_id: string; wallet: string; active: false; cooldown_active: false; expires_at: null; unlock_estimated_at: null; seconds_remaining: 0; remaining_seconds: 0; cooldown_ledgers: number; cooldown_seconds: number; error: string })[]> {
+): Promise<
+   (
+      | KeyCooldownStatus
+      | {
+           key_id: string;
+           wallet: string;
+           active: false;
+           is_active: false;
+           cooldown_active: false;
+           expires_at: null;
+           unlock_estimated_at: null;
+           seconds_remaining: 0;
+           remaining_seconds: 0;
+           cooldown_ledgers: number;
+           cooldown_seconds: number;
+           last_trade_at: null;
+           error: string;
+        }
+   )[]
+> {
    if (keyIds.length > 50) {
       throw new Error('Batch request exceeds maximum of 50 key IDs');
    }
@@ -306,6 +341,7 @@ export async function getBatchCooldowns(
                   key_id: keyId,
                   wallet: walletAddress,
                   active: false,
+                  is_active: false,
                   cooldown_active: false,
                   expires_at: null,
                   unlock_estimated_at: null,
@@ -313,6 +349,7 @@ export async function getBatchCooldowns(
                   remaining_seconds: 0,
                   cooldown_ledgers: 0,
                   cooldown_seconds: 0,
+                  last_trade_at: null,
                   error: 'Key not found',
                };
             }
@@ -335,5 +372,12 @@ export async function invalidateCooldownCache(
       select: { id: true },
    });
    const resolvedId = creator?.id ?? keyId;
-   await cacheInvalidate(cooldownCacheKey(resolvedId, walletAddress.toLowerCase()));
+   await cacheInvalidate(
+      cooldownCacheKey(resolvedId, walletAddress.toLowerCase())
+   );
+   if (resolvedId !== keyId) {
+      await cacheInvalidate(
+         cooldownCacheKey(keyId, walletAddress.toLowerCase())
+      );
+   }
 }

@@ -1,11 +1,16 @@
 import { getCreatorProfile } from './creator-profile.service';
 
 const findFirstMock = jest.fn();
+const socialMetadataFindUniqueMock = jest.fn();
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
       creatorProfile: {
          findFirst: (...args: unknown[]) => findFirstMock(...args),
+      },
+      creatorSocialMetadata: {
+         findUnique: (...args: unknown[]) =>
+            socialMetadataFindUniqueMock(...args),
       },
    },
 }));
@@ -13,6 +18,8 @@ jest.mock('../../utils/prisma.utils', () => ({
 describe('creator detail integration - empty social links', () => {
    beforeEach(() => {
       findFirstMock.mockReset();
+      socialMetadataFindUniqueMock.mockReset();
+      socialMetadataFindUniqueMock.mockResolvedValue(null);
    });
 
    it('returns links as an empty array when creator profile is missing', async () => {

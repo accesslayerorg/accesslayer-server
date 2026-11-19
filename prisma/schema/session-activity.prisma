@@ -1,0 +1,33 @@
+// prisma/schema/session-activity.prisma
+// Authenticated session activity logging + security anomaly flags (#1035).
+
+model SessionActivity {
+  id         String   @id @default(cuid())
+  wallet     String
+  ip         String
+  userAgent  String?
+  method     String
+  endpoint   String
+  statusCode Int
+  timestamp  DateTime @default(now())
+
+  @@index([wallet, timestamp(sort: Desc)])
+  @@index([wallet, ip])
+  @@index([timestamp(sort: Desc)])
+  @@map("session_activity")
+}
+
+model SecurityFlag {
+  id        String   @id @default(cuid())
+  wallet    String
+  ip        String?
+  userAgent String?
+  endpoint  String?
+  reason    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([wallet, reason])
+  @@index([createdAt(sort: Desc)])
+  @@map("security_flags")
+}

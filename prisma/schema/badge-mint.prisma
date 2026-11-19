@@ -1,0 +1,55 @@
+// prisma/schema/badge-mint.prisma
+// Key NFT badge minting trigger service (#1148).
+
+/// Audit log of every badge mint the trigger service attempts. One row per
+/// (wallet, badgeType): the unique constraint is the deduplication guard that
+/// prevents a wallet from being awarded the same badge type more than once.
+/// Rows move PENDING -> MINTED on a confirmed on-chain mint, or PENDING ->
+/// FAILED when minting is ultimately rejected (a FAILED row may be retried).
+model BadgeMintLog {
+  id           String    @id @default(cuid())
+  /// Wallet the badge is awarded to.
+  wallet       String
+  /// Badge kind: FIRST_BUYER | WHALE_HOLDER | GOVERNANCE_VOTER | DIAMOND_HANDS
+  /// | TOP_TRADER.
+  badgeType    String
+  /// PENDING | MINTED | FAILED
+  status       String    @default("PENDING")
+  /// Qualifying event that triggered the award: first_swap | whale_swap |
+  /// vote_cast | hold_milestone | leaderboard_entry.
+  triggerEvent String
+  /// Soroban transaction hash of the confirmed mint (null until minted).
+  txHash       String?
+  /// Number of mint attempts made by the retry loop (0 until the first try).
+  attempts     Int       @default(0)
+  /// Last error message seen while minting (null once minted).
+  error        String?
+  /// Qualifying context captured from the event (amount, rank, duration, ...).
+  metadata     Json?
+  /// When the mint confirmed on-chain (null until minted).
+  mintedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([wallet, badgeType])
+  @@index([wallet])
+  @@index([badgeType])
+  @@index([status])
+  @@map("badge_mint_log")
+}
+
+/// On-chain badge mints indexed by their original chain position.
+model WalletBadge {
+  id         String   @id @default(cuid())
+  wallet     String
+  badgeType  String
+  mintedAt   DateTime
+  txHash     String
+  eventIndex Int
+  ledger     Int
+
+  @@unique([wallet, badgeType])
+  @@unique([txHash, eventIndex])
+  @@index([wallet, mintedAt])
+  @@map("wallet_badges")
+}

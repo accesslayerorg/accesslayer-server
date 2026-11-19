@@ -6,10 +6,16 @@ import {
    REDIS_KEYS,
 } from '../../constants/notifications.constants';
 
+import { getTraderDiscount } from '../traders/trader-discount.service';
+
 export type KeyFees = {
    protocolFeeBps: number;
    creatorRoyaltyBuyBps: number;
    creatorRoyaltySellBps: number;
+   discountTier?: number;
+   tier?: number;
+   discountBps?: number;
+   volumeTierDiscountBps?: number;
 };
 
 export class KeyNotFoundError extends Error {
@@ -29,13 +35,15 @@ async function loadProtocolFeeBps(): Promise<number> {
    return config.protocolFeeBps;
 }
 
-export async function getKeyFees(keyId: string): Promise<KeyFees> {
-   const redis = getRedis();
-   const cacheKey = REDIS_KEYS.keyFees(keyId);
-   if (redis) {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-         return JSON.parse(cached) as KeyFees;
+export async function getKeyFees(keyId: string, wallet?: string): Promise<KeyFees> {
+   if (!wallet) {
+      const redis = getRedis();
+      const cacheKey = REDIS_KEYS.keyFees(keyId);
+      if (redis) {
+         const cached = await redis.get(cacheKey);
+         if (cached) {
+            return JSON.parse(cached) as KeyFees;
+         }
       }
    }
 
@@ -51,20 +59,36 @@ export async function getKeyFees(keyId: string): Promise<KeyFees> {
       throw new KeyNotFoundError(keyId);
    }
 
-   const protocolFeeBps = await loadProtocolFeeBps();
+   let protocolFeeBps = await loadProtocolFeeBps();
+   let discountTier: number | undefined;
+   let discountBps: number | undefined;
+
+   if (wallet) {
+      const traderDiscount = await getTraderDiscount(wallet);
+      discountTier = traderDiscount.tier;
+      discountBps = traderDiscount.discountBps;
+      protocolFeeBps = Math.max(0, protocolFeeBps - discountBps);
+   }
+
    const fees: KeyFees = {
       protocolFeeBps,
       creatorRoyaltyBuyBps: creator.creatorRoyaltyBuyBps,
       creatorRoyaltySellBps: creator.creatorRoyaltySellBps,
+      ...(discountTier !== undefined ? { discountTier, tier: discountTier } : {}),
+      ...(discountBps !== undefined ? { discountBps, volumeTierDiscountBps: discountBps } : {}),
    };
 
-   if (redis) {
-      await redis.set(
-         cacheKey,
-         JSON.stringify(fees),
-         'EX',
-         KEY_FEES_CACHE_TTL_SECONDS
-      );
+   if (!wallet) {
+      const redis = getRedis();
+      const cacheKey = REDIS_KEYS.keyFees(keyId);
+      if (redis) {
+         await redis.set(
+            cacheKey,
+            JSON.stringify(fees),
+            'EX',
+            KEY_FEES_CACHE_TTL_SECONDS
+         );
+      }
    }
 
    return fees;

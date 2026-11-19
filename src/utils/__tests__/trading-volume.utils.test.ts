@@ -1,9 +1,12 @@
-import { compute24hVolume } from '../trading-volume.utils';
+import { compute24hVolume, computeWallet30dVolume } from '../trading-volume.utils';
 import { prisma } from '../../utils/prisma.utils';
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
       activity: {
+         findMany: jest.fn(),
+      },
+      trade: {
          findMany: jest.fn(),
       },
    },
@@ -17,6 +20,7 @@ jest.mock('../../utils/logger.utils', () => ({
 
 const mockPrisma = prisma as unknown as {
    activity: { findMany: jest.Mock };
+   trade: { findMany: jest.Mock };
 };
 
 describe('compute24hVolume()', () => {
@@ -314,6 +318,80 @@ describe('compute24hVolume()', () => {
          expect(callArgs.where.createdAt.gte.getTime()).toBeGreaterThan(
             twentyFourHoursOneMinAgo.getTime()
          );
+      });
+   });
+});
+
+describe('computeWallet30dVolume()', () => {
+   const WALLET = 'GA2C5RFPE6GCKMY3US5PAB6UZLKIGAHWKXX2G6EXO2Z6K35GUR223746';
+   const NOW = new Date('2026-01-15T12:00:00Z');
+
+   beforeEach(() => {
+      jest.clearAllMocks();
+      jest.useFakeTimers();
+      jest.setSystemTime(NOW);
+      mockPrisma.trade.findMany.mockResolvedValue([]);
+   });
+
+   afterEach(() => {
+      jest.useRealTimers();
+   });
+
+   it('sums wallet trade prices within the rolling 30d window', async () => {
+      const thirtyDaysAgo = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      mockPrisma.activity.findMany.mockResolvedValue([
+         { payload: { price: '1000000000000' } }, // 100k XLM
+         { payload: { price_at_trade: '500000000000' } }, // 50k XLM
+      ]);
+
+      const volume = await computeWallet30dVolume(WALLET);
+
+      expect(volume).toBe(1500000000000n);
+      expect(mockPrisma.activity.findMany).toHaveBeenCalledWith({
+         where: {
+            actor: WALLET,
+            type: { in: ['KEY_BOUGHT', 'KEY_SOLD'] },
+            createdAt: {
+               gte: thirtyDaysAgo,
+               lte: NOW,
+            },
+         },
+         select: {
+            payload: true,
+         },
+      });
+   });
+
+   it('returns 0n when no trades exist for wallet', async () => {
+      mockPrisma.activity.findMany.mockResolvedValue([]);
+      mockPrisma.trade.findMany.mockResolvedValue([]);
+
+      const volume = await computeWallet30dVolume(WALLET);
+
+      expect(volume).toBe(0n);
+   });
+
+   it('falls back to Trade table if Activity has no trades', async () => {
+      mockPrisma.activity.findMany.mockResolvedValue([]);
+      mockPrisma.trade.findMany.mockResolvedValue([
+         { price: '3000000000000' },
+      ]);
+
+      const volume = await computeWallet30dVolume(WALLET);
+
+      expect(volume).toBe(3000000000000n);
+      expect(mockPrisma.trade.findMany).toHaveBeenCalledWith({
+         where: {
+            buyer: WALLET,
+            timestamp: {
+               gte: new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000),
+               lte: NOW,
+            },
+         },
+         select: {
+            price: true,
+         },
       });
    });
 });

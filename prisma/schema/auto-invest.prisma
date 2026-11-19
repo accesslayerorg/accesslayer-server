@@ -1,0 +1,60 @@
+// prisma/schema/auto-invest.prisma
+// Auto-invest rule management and execution schema for issue #1031.
+//
+// An AutoInvestRule lets a wallet automatically buy a newly listed creator key
+// when it matches the rule's category, minimum rating, and maximum price.
+// AutoInvestExecution records each execution attempt idempotently so the same
+// rule can purchase a given listing at most once.
+
+/**
+ * A user-configured auto-invest rule, owned by a Stellar wallet.
+ *
+ * The rule is associated with the caller's wallet address resolved from the
+ * authenticated JWT; clients never supply a wallet identifier directly.
+ */
+model AutoInvestRule {
+  id          String   @id @default(cuid())
+  /// Stellar wallet address that owns this rule (resolved from JWT, never
+  /// trusted from the client).
+  walletAddress String
+  /// Creator key category this rule matches (e.g. "music", "gaming").
+  category    String
+  /// Minimum key rating required to match (0.00-5.00). Null means no rating
+  /// floor; keys with no rating never match a rule that sets minRating.
+  minRating   Decimal? @db.Decimal(3, 2)
+  /// Maximum price per key in XLM the rule will pay (7 decimal places).
+  maxPrice    Decimal  @db.Decimal(20, 7)
+  /// Maximum number of keys to purchase under this rule for a single listing.
+  maxPerKey   Int      @default(1)
+  /// Whether the rule is eligible for execution. Inactive rules are skipped.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([walletAddress])
+  @@index([walletAddress, isActive])
+  @@map("auto_invest_rules")
+}
+
+/**
+ * Record of a single auto-invest execution attempt for a rule + listing.
+ *
+ * The unique constraint on (ruleId, listingId) is the idempotency key that
+ * prevents duplicate purchases for the same rule and listing across retries
+ * and duplicate listing events.
+ */
+model AutoInvestExecution {
+  id             String   @id @default(cuid())
+  ruleId         String
+  /// Creator key / listing identifier (CreatorProfile.id) that was evaluated.
+  listingId      String
+  status         String   @default("PENDING") // PENDING | EXECUTED | FAILED | SKIPPED_INSUFFICIENT_BALANCE
+  transactionHash String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([ruleId, listingId])
+  @@index([ruleId])
+  @@index([listingId])
+  @@map("auto_invest_executions")
+}

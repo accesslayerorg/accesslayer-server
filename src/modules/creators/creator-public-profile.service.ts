@@ -1,46 +1,36 @@
 // src/modules/creators/creator-public-profile.service.ts
-// Service layer for public creator profile endpoints (#900).
+// Service layer for public creator profile endpoints (#1009).
 
 import { prisma } from '../../utils/prisma.utils';
 import { encodeCursor, decodeCursor } from '../../utils/cursor.utils';
-import { resolvePinataGatewayUrl } from '../keys/key-metadata-sync.service';
+import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 
 const DEFAULT_KEYS_PAGE_SIZE = 20;
 const MAX_KEYS_PAGE_SIZE = 100;
+const PROFILE_CACHE_TTL_SECONDS = 300; // 5 minutes
+const PROFILE_CACHE_PREFIX = 'creator-public-profile:v1:';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface CreatorPublicSocialStats {
-   /** Number of unique wallets currently holding keys with balance > 0. */
+export interface CreatorPublicProfileStats {
    totalHolders: number;
-   /** Aggregated trading volume (sum of price * quantity) in stroops, as string. */
    totalTradingVolume: string;
-   /** Number of followers for this creator profile. */
    followersCount: number;
 }
 
-export interface CreatorPublicProfileWithStats {
-   id: string;
-   handle: string;
-   displayName: string;
+export interface CreatorPublicProfileResult {
+   wallet: string;
+   memberSince: string;
+   totalKeys: number;
+   totalVolume: string;
+   avgRating: number;
+   isVerified: boolean;
+   handle: string | null;
+   displayName: string | null;
    bio: string | null;
    avatarUrl: string | null;
-   avatarCid?: string | null;
-   twitter?: string | null;
-   website?: string | null;
-   discord?: string | null;
-   socialLinks?: {
-      twitter: string | null;
-      website: string | null;
-      discord: string | null;
-   };
-   isVerified: boolean;
-   createdAt: string;
-   updatedAt: string;
-   stats: CreatorPublicSocialStats;
+   stats: CreatorPublicProfileStats;
 }
 
-export interface CreatorIssuedKey {
+export interface CreatorDeployedKeyItem {
    id: string;
    handle: string;
    displayName: string;
@@ -49,20 +39,21 @@ export interface CreatorIssuedKey {
    isVerified: boolean;
    holderCount: number;
    totalTradingVolume: string;
+   status: string;
+   price: string;
    createdAt: string;
 }
 
-interface IssuedKeysCursor {
+interface DeployedKeysCursor {
    id: string;
    createdAt: string;
 }
 
-export interface CreatorIssuedKeysPage {
-   items: CreatorIssuedKey[];
+export interface CreatorDeployedKeysPage {
+   items: CreatorDeployedKeyItem[];
    nextCursor: string | null;
    hasMore: boolean;
    limit: number;
-   /** Aggregate stats across all keys for this creator (regardless of page). */
    stats: {
       totalKeys: number;
       totalHolders: number;
@@ -70,39 +61,27 @@ export interface CreatorIssuedKeysPage {
    };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 /**
- * Resolves a creator profile by ID or handle.
- * Returns null when not found.
+ * Resolves creator profiles and stellar wallet for a given wallet address.
  */
-async function resolveCreatorProfile(
-   creatorId: string
-): Promise<{
-   id: string;
-   handle: string;
-   displayName: string;
-   bio: string | null;
-   avatarUrl: string | null;
-   avatarCid: string | null;
-   twitter: string | null;
-   website: string | null;
-   discord: string | null;
-   isVerified: boolean;
-   followersCount: number;
-   createdAt: Date;
-   updatedAt: Date;
-} | null> {
-   return prisma.creatorProfile.findFirst({
+async function resolveWalletProfiles(wallet: string) {
+   const stellarWallet = await prisma.stellarWallet.findUnique({
+      where: { address: wallet },
+      select: { createdAt: true, userId: true },
+   });
+
+   const profiles = await prisma.creatorProfile.findMany({
       where: {
          OR: [
-            { id: creatorId },
-            { handle: creatorId },
-            { user: { stellarWallet: { address: creatorId } } },
+            ...(stellarWallet ? [{ userId: stellarWallet.userId }] : []),
+            { id: wallet },
+            { handle: wallet },
+            { user: { stellarWallet: { address: wallet } } },
          ],
       },
       select: {
          id: true,
+         userId: true,
          handle: true,
          displayName: true,
          bio: true,
@@ -112,109 +91,134 @@ async function resolveCreatorProfile(
          website: true,
          discord: true,
          isVerified: true,
+         tradingPaused: true,
+         deprecatedAt: true,
          followersCount: true,
          createdAt: true,
-         updatedAt: true,
       },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
    });
-}
 
-/**
- * Computes holder count and total trading volume for a given creator profile ID.
- */
-async function computeCreatorKeyStats(
-   creatorProfileId: string
-): Promise<{ holderCount: number; totalTradingVolume: bigint }> {
-   const [holderCount, trades] = await Promise.all([
-      prisma.keyOwnership.count({
-         where: { creatorId: creatorProfileId, balance: { gt: 0 } },
-      }),
-      prisma.trade.findMany({
-         where: { creatorId: creatorProfileId },
-         select: { price: true, quantity: true },
-      }),
-   ]);
+   const kycRecord = await prisma.kycRecord.findUnique({
+      where: { walletAddress: wallet },
+      select: { status: true },
+   });
 
-   let totalTradingVolume = 0n;
-   for (const trade of trades) {
-      try {
-         totalTradingVolume +=
-            BigInt(trade.price) * BigInt(Math.trunc(Number(trade.quantity)));
-      } catch {
-         // Skip malformed rows
-      }
+   if (!stellarWallet && profiles.length === 0) {
+      return null;
    }
 
-   return { holderCount, totalTradingVolume };
-}
-
-// ── Public service functions ──────────────────────────────────────────────────
-
-/**
- * Returns the public profile for a creator including social stats.
- *
- * Resolves by creator ID, handle, or wallet. Returns null when the creator does not
- * exist so callers can send a 404.
- */
-export async function getCreatorPublicProfile(
-   creatorId: string
-): Promise<CreatorPublicProfileWithStats | null> {
-   const profile = await resolveCreatorProfile(creatorId);
-   if (!profile) return null;
-
-   const { holderCount, totalTradingVolume } =
-      await computeCreatorKeyStats(profile.id);
-
-   const resolvedAvatarUrl =
-      resolvePinataGatewayUrl(profile.avatarCid) || profile.avatarUrl;
+   const isVerified =
+      (kycRecord && kycRecord.status.toUpperCase() === 'APPROVED') ||
+      profiles.some(p => p.isVerified);
 
    return {
-      id: profile.id,
-      handle: profile.handle,
-      displayName: profile.displayName,
-      bio: profile.bio,
-      avatarUrl: resolvedAvatarUrl,
-      avatarCid: profile.avatarCid,
-      twitter: profile.twitter,
-      website: profile.website,
-      discord: profile.discord,
-      socialLinks: {
-         twitter: profile.twitter,
-         website: profile.website,
-         discord: profile.discord,
-      },
-      isVerified: profile.isVerified,
-      createdAt: profile.createdAt.toISOString(),
-      updatedAt: profile.updatedAt.toISOString(),
-      stats: {
-         totalHolders: holderCount,
-         totalTradingVolume: totalTradingVolume.toString(),
-         followersCount: profile.followersCount,
-      },
+      wallet,
+      stellarWallet,
+      profiles,
+      isVerified,
    };
 }
 
-/**
- * Returns a cursor-paginated list of keys (CreatorProfile records) issued by
- * the same user who owns the given creator profile, together with aggregate
- * stats across all keys.
- *
- * Resolves the creator by ID or handle first. Returns null when the creator
- * does not exist.
- */
-export async function getCreatorIssuedKeys(
-   creatorId: string,
+export async function getCreatorPublicProfile(
+   wallet: string
+): Promise<CreatorPublicProfileResult | null> {
+   const cacheKey = `${PROFILE_CACHE_PREFIX}${wallet}`;
+   const cached = await cacheGetJson<CreatorPublicProfileResult>(cacheKey);
+   if (cached) {
+      return cached;
+   }
+
+   const resolved = await resolveWalletProfiles(wallet);
+   if (!resolved) return null;
+
+   const { profiles, isVerified } = resolved;
+   const creatorIds = profiles.map(p => p.id);
+
+   let totalHolders = 0;
+   let totalTradingVolume = 0n;
+   let totalFollowers = 0;
+   let totalScore = 0;
+
+   if (creatorIds.length > 0) {
+      const [holderCount, trades, reputations] = await Promise.all([
+         prisma.keyOwnership.count({
+            where: { creatorId: { in: creatorIds }, balance: { gt: 0 } },
+         }),
+         prisma.trade.findMany({
+            where: { creatorId: { in: creatorIds } },
+            select: { price: true, quantity: true },
+         }),
+         prisma.creatorReputation.findMany({
+            where: { creatorId: { in: creatorIds } },
+            select: { currentScore: true },
+         }),
+      ]);
+
+      totalHolders = holderCount;
+      for (const trade of trades) {
+         try {
+            totalTradingVolume +=
+               BigInt(trade.price) * BigInt(Math.trunc(Number(trade.quantity)));
+         } catch {
+            // skip
+         }
+      }
+      for (const rep of reputations) {
+         totalScore += rep.currentScore;
+      }
+      for (const p of profiles) {
+         totalFollowers += p.followersCount;
+      }
+   }
+
+   const avgRating =
+      creatorIds.length > 0
+         ? Number(((totalScore / creatorIds.length) / 200).toFixed(1))
+         : 0;
+   const clampedRating = Math.min(5.0, Math.max(0.0, avgRating));
+
+   const dates = [
+      resolved.stellarWallet?.createdAt,
+      ...profiles.map(p => p.createdAt),
+   ].filter(Boolean) as Date[];
+   const memberSince =
+      dates.length > 0
+         ? new Date(Math.min(...dates.map(d => d.getTime()))).toISOString()
+         : new Date().toISOString();
+
+   const primaryProfile = profiles[0] || null;
+
+   const result: CreatorPublicProfileResult = {
+      wallet,
+      memberSince,
+      totalKeys: profiles.length,
+      totalVolume: totalTradingVolume.toString(),
+      avgRating: clampedRating,
+      isVerified,
+      handle: primaryProfile?.handle ?? null,
+      displayName: primaryProfile?.displayName ?? null,
+      bio: primaryProfile?.bio ?? null,
+      avatarUrl: primaryProfile?.avatarUrl ?? null,
+      stats: {
+         totalHolders,
+         totalTradingVolume: totalTradingVolume.toString(),
+         followersCount: totalFollowers,
+      },
+   };
+
+   await cacheSetJson(cacheKey, result, PROFILE_CACHE_TTL_SECONDS);
+   return result;
+}
+
+export async function getCreatorDeployedKeys(
+   wallet: string,
    rawLimit?: string,
    rawCursor?: string
-): Promise<CreatorIssuedKeysPage | null> {
-   // 1. Resolve the creator profile to get userId
-   const profile = await prisma.creatorProfile.findFirst({
-      where: { OR: [{ id: creatorId }, { handle: creatorId }] },
-      select: { id: true, userId: true },
-   });
-   if (!profile) return null;
+): Promise<CreatorDeployedKeysPage | null> {
+   const resolved = await resolveWalletProfiles(wallet);
+   if (!resolved) return null;
 
-   // 2. Validate and parse the page size
    const requestedLimit =
       rawLimit === undefined ? DEFAULT_KEYS_PAGE_SIZE : Number(rawLimit);
    if (
@@ -225,11 +229,10 @@ export async function getCreatorIssuedKeys(
       throw new Error('Invalid keys pagination limit');
    }
 
-   // 3. Decode the cursor when provided
-   let cursor: IssuedKeysCursor | undefined;
+   let cursor: DeployedKeysCursor | undefined;
    if (rawCursor !== undefined) {
       try {
-         const decoded = decodeCursor<IssuedKeysCursor>(rawCursor);
+         const decoded = decodeCursor<DeployedKeysCursor>(rawCursor);
          if (
             typeof decoded.id !== 'string' ||
             !decoded.id ||
@@ -244,23 +247,36 @@ export async function getCreatorIssuedKeys(
       }
    }
 
-   // 4. Fetch page: all CreatorProfile records belonging to the same user
+   const userId = resolved.stellarWallet?.userId;
+   const profileIds = resolved.profiles.map(p => p.id);
+
+   if (profileIds.length === 0 && !userId) {
+      return {
+         items: [],
+         nextCursor: null,
+         hasMore: false,
+         limit: requestedLimit,
+         stats: { totalKeys: 0, totalHolders: 0, totalTradingVolume: '0' },
+      };
+   }
+
+   // Fetch keys in deployment order (oldest first: createdAt asc, id asc)
    const profiles = await prisma.creatorProfile.findMany({
       where: {
-         userId: profile.userId,
+         ...(userId ? { userId } : { id: { in: profileIds } }),
          ...(cursor
             ? {
                  OR: [
-                    { createdAt: { lt: new Date(cursor.createdAt) } },
+                    { createdAt: { gt: new Date(cursor.createdAt) } },
                     {
                        createdAt: new Date(cursor.createdAt),
-                       id: { lt: cursor.id },
+                       id: { gt: cursor.id },
                     },
                  ],
               }
             : {}),
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: requestedLimit + 1,
       select: {
          id: true,
@@ -269,6 +285,8 @@ export async function getCreatorIssuedKeys(
          bio: true,
          avatarUrl: true,
          isVerified: true,
+         tradingPaused: true,
+         deprecatedAt: true,
          createdAt: true,
       },
    });
@@ -276,11 +294,39 @@ export async function getCreatorIssuedKeys(
    const hasMore = profiles.length > requestedLimit;
    const pageProfiles = hasMore ? profiles.slice(0, requestedLimit) : profiles;
 
-   // 5. Compute per-key stats in parallel
-   const items: CreatorIssuedKey[] = await Promise.all(
+   const items: CreatorDeployedKeyItem[] = await Promise.all(
       pageProfiles.map(async p => {
-         const { holderCount, totalTradingVolume } =
-            await computeCreatorKeyStats(p.id);
+         const [holderCount, trades, priceSnapshot] = await Promise.all([
+            prisma.keyOwnership.count({
+               where: { creatorId: p.id, balance: { gt: 0 } },
+            }),
+            prisma.trade.findMany({
+               where: { creatorId: p.id },
+               select: { price: true, quantity: true },
+            }),
+            prisma.creatorPriceSnapshot.findUnique({
+               where: { creatorId: p.id },
+               select: { currentPrice: true },
+            }),
+         ]);
+
+         let totalTradingVolume = 0n;
+         for (const trade of trades) {
+            try {
+               totalTradingVolume +=
+                  BigInt(trade.price) * BigInt(Math.trunc(Number(trade.quantity)));
+            } catch {
+               // skip
+            }
+         }
+
+         const status = p.deprecatedAt
+            ? 'DEPRECATED'
+            : p.tradingPaused
+            ? 'PAUSED'
+            : 'ACTIVE';
+         const price = priceSnapshot ? priceSnapshot.currentPrice.toString() : '0';
+
          return {
             id: p.id,
             handle: p.handle,
@@ -290,14 +336,15 @@ export async function getCreatorIssuedKeys(
             isVerified: p.isVerified,
             holderCount,
             totalTradingVolume: totalTradingVolume.toString(),
+            status,
+            price,
             createdAt: p.createdAt.toISOString(),
          };
       })
    );
 
-   // 6. Compute aggregate stats across ALL keys for this user (not just this page)
    const allProfiles = await prisma.creatorProfile.findMany({
-      where: { userId: profile.userId },
+      where: userId ? { userId } : { id: { in: profileIds } },
       select: { id: true },
    });
    const allIds = allProfiles.map(p => p.id);
@@ -321,7 +368,7 @@ export async function getCreatorIssuedKeys(
             totalTradingVolume +=
                BigInt(trade.price) * BigInt(Math.trunc(Number(trade.quantity)));
          } catch {
-            // Skip malformed rows
+            // skip
          }
       }
    }

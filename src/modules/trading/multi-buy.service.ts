@@ -42,6 +42,7 @@ export async function executeMultiBuy(
       ledger: LedgerProvider;
       balance: BalanceProvider;
       supply: SupplyProvider;
+      depth?: { getMaxBuy(creatorId: string, buyer: string): Promise<bigint> };
    }
 ): Promise<MultiBuyResult[]> {
    if (legs.length === 0) {
@@ -74,9 +75,21 @@ export async function executeMultiBuy(
       );
    }
 
+   const depthErrors = new Map<string, bigint>();
+   if (providers.depth) {
+      for (const leg of legs) {
+         const maxAvailable = await providers.depth.getMaxBuy(leg.creator, buyer);
+         if (BigInt(leg.amount) > maxAvailable) {
+            depthErrors.set(leg.creator, maxAvailable);
+         }
+      }
+   }
+
    let worstCaseTotal = 0n;
    for (const leg of legs) {
-      worstCaseTotal += BigInt(leg.amount) * BigInt(leg.max_price);
+      if (!depthErrors.has(leg.creator)) {
+         worstCaseTotal += BigInt(leg.amount) * BigInt(leg.max_price);
+      }
    }
 
    const buyerBalance = await providers.balance.getXlmBalance(buyer);
@@ -94,6 +107,18 @@ export async function executeMultiBuy(
       const currentSupply = await providers.supply.getCreatorSupply(
          leg.creator
       );
+      const maxAvailable = depthErrors.get(leg.creator);
+      if (maxAvailable !== undefined) {
+         results.push({
+            creator: leg.creator,
+            amount: leg.amount,
+            total_cost: '0',
+            new_supply: currentSupply,
+            error: 'InsufficientDepth',
+            max_available: maxAvailable.toString(),
+         });
+         continue;
+      }
       const cost = computeBuyCost(currentSupply, leg.amount, PROTOCOL_FEE_BPS);
       const maxAllowed = BigInt(leg.max_price) * BigInt(leg.amount);
 

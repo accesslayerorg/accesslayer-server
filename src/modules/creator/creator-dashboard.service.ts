@@ -151,3 +151,45 @@ export async function getCreatorDashboard(
 
    return dashboard;
 }
+
+export async function getKeyMilestones(keyId: string) {
+   const creator = await prisma.creatorProfile.findFirst({
+      where: {
+         OR: [{ id: keyId }, { handle: keyId }],
+      },
+      select: {
+         id: true,
+         createdAt: true,
+      },
+   });
+
+   if (!creator) {
+      throw new KeyNotFoundError(keyId);
+   }
+
+   const resolvedKeyId = creator.id;
+
+   const [tradeCount, holderCount, dividendAgg] = await Promise.all([
+      prisma.trade.count({
+         where: { creatorId: resolvedKeyId },
+      }),
+      prisma.keyOwnership.count({
+         where: {
+            creatorId: resolvedKeyId,
+            balance: { gt: 0 },
+         },
+      }),
+      prisma.dividendDistribution.aggregate({
+         where: { creatorId: resolvedKeyId },
+         _sum: { totalAmountXlm: true },
+      }),
+   ]);
+
+   return {
+      createdAt: creator.createdAt,
+      tradeCount,
+      holderCount,
+      totalDividendsDistributed:
+         dividendAgg._sum.totalAmountXlm?.toString() ?? '0',
+   };
+}

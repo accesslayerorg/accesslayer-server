@@ -1,0 +1,23 @@
+// prisma/schema/early-incentive.prisma
+// Invoice early funding incentive slot tracking (#1180).
+
+/// Append-only log of EarlySlotFilled events. Slots filled is a count of these
+/// rows; the incentive configuration (total slots, bonus) is taken from the
+/// most recent event for the invoice. The unique chain position makes replays
+/// no-ops.
+model InvoiceEarlySlotEvent {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  slotsTotal Int
+  bonusBps   Int
+  investor   String?
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([invoiceId, ledger(sort: Desc), eventIndex(sort: Desc)])
+  @@map("invoice_early_slot_events")
+}

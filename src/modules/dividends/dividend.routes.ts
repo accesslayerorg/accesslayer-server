@@ -2,6 +2,7 @@ import { requireJwtAuth } from '../../middlewares/jwt-auth.middleware';
 import { Router } from 'express';
 import {
    httpGetDividendDistributions,
+   httpGetKeyWalletDividends,
    httpGetDividendHolders,
    httpDistributeDividend,
    httpGetHolderDividends,
@@ -16,6 +17,12 @@ const dividendRouter = Router();
  * Returns all past dividend distributions for a creator key with pagination.
  */
 dividendRouter.get('/:keyId/dividends', httpGetDividendDistributions);
+
+/**
+ * GET /keys/:keyId/dividends/:wallet
+ * Returns a wallet's claimable and claimed amounts for each snapshot.
+ */
+dividendRouter.get('/:keyId/dividends/:wallet', httpGetKeyWalletDividends);
 
 /**
  * POST /keys/:keyId/dividends/claim
@@ -49,4 +56,3 @@ dividendRouter.post('/:keyId/dividends', requireJwtAuth, httpDistributeDividend)
 dividendRouter.post('/creator/:keyId/dividends', requireJwtAuth, httpDistributeDividend);
 
 export default dividendRouter;
-

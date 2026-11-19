@@ -37,10 +37,11 @@ Public creator discovery and stats endpoints.
 
 - Request lifecycle reference: [`docs/creator-request-lifecycle.md`](./creator-request-lifecycle.md).
 
-| Method | Path                  | Description                                  |
-| :----- | :-------------------- | :------------------------------------------- |
-| `GET`  | `/creators`           | List creators with pagination and filtering. |
-| `GET`  | `/creators/:id/stats` | Return public stats for a specific creator.  |
+| Method | Path                       | Description                                           |
+| :----- | :------------------------- | :---------------------------------------------------- |
+| `GET`  | `/creators`                | List creators with pagination and filtering.          |
+| `GET`  | `/creators/:id/stats`      | Return public stats for a specific creator.           |
+| `GET`  | `/creators/:wallet/social` | Return on-chain synced social metadata for a creator. |
 
 ## Search Module
 
@@ -85,6 +86,28 @@ Wallet activity and trade history endpoints.
 | Method | Path                         | Description                                                   |
 | :----- | :--------------------------- | :------------------------------------------------------------ |
 | `GET`  | `/wallets/:address/activity` | Return paginated trade history (buys and sells) for a wallet. |
+
+## Referrals Module
+
+Referral tier tracking and upgrade history indexed from `ReferralTierUpgraded`
+events.
+
+- Referral tier reference: [`docs/referral-tiers.md`](./referral-tiers.md).
+
+| Method | Path                      | Description                                                            |
+| :----- | :------------------------ | :--------------------------------------------------------------------- |
+| `GET`  | `/referrals/tier`         | Current tier, cumulative volume, next threshold and reward rate (bps). |
+| `GET`  | `/referrals/tier/history` | Cursor-paginated tier upgrade history for a wallet.                    |
+
+Wallet-scoped referral reward earnings indexed from `ReferralRewardDistributed`
+events.
+
+- Referral earnings reference: [`docs/referral-earnings.md`](./referral-earnings.md).
+
+| Method | Path                          | Description                                                      |
+| :----- | :---------------------------- | :--------------------------------------------------------------- |
+| `GET`  | `/referrals/:wallet/earnings` | Paginated referral earnings history with an optional date range. |
+| `GET`  | `/referrals/:wallet/summary`  | Total earnings, tier 1/2/3 breakdown, and referred wallet count. |
 
 ## Ownership Module
 
@@ -146,6 +169,40 @@ the status transitions `active` → `passed` / `failed` / `quorum_not_met`.
 | `POST` | `/governance/proposals`            | Create a proposal and freeze snapshot voting weights (requires the key creator's JWT).       |
 | `POST` | `/governance/proposals/:id/vote`   | Cast a vote weighted by the wallet's snapshot staked balance (requires JWT).                 |
 | `GET`  | `/governance/proposals/escalating` | List proposals currently in quorum escalation (#935).                                        |
+
+## Traders Module
+
+Volume fee discount tiers and trader 30-day rolling volume lookups (#1030).
+
+| Method | Path                        | Description                                                                                              |
+| :----- | :-------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/traders/:wallet/discount` | Return current volume discount tier, discount bps, and 30-day rolling volume for any wallet (cached 5m). |
+
+## Whitelist Module
+
+Early-access whitelist status check and management endpoints (#1084).
+
+- Whitelist status query for a wallet on a creator key (cached 30s in Redis).
+- Cache invalidates on `WalletWhitelisted` and `WalletRemovedFromWhitelist` on-chain events.
+- Bulk check endpoint for multi-wallet pre-flight verification.
+
+| Method   | Path                              | Description                                                                       |
+| :------- | :-------------------------------- | :-------------------------------------------------------------------------------- |
+| `GET`    | `/keys/:key_id/whitelist/:wallet` | Return `is_whitelisted` and `whitelist_mode_enabled` flags for a wallet on a key. |
+| `POST`   | `/keys/:key_id/whitelist/check`   | Bulk check whitelist status for up to 100 wallets (`{ wallets: [] }`).            |
+| `GET`    | `/keys/:keyId/whitelist`          | Return synced whitelist entries for the key (creator JWT required).               |
+| `POST`   | `/keys/:keyId/whitelist`          | Bulk add wallets to key whitelist (creator JWT required).                         |
+| `DELETE` | `/keys/:keyId/whitelist/:wallet`  | Remove a wallet from key whitelist (creator JWT required).                        |
+
+## Key Leaderboard
+
+Wallet rankings are indexed from `LeaderboardUpdated` contract events and
+cached for 60 seconds. The cache is invalidated when a new event is indexed.
+
+| Method | Path                                       | Description                                            |
+| :----- | :----------------------------------------- | :----------------------------------------------------- |
+| `GET`  | `/keys/:key_id/leaderboard?metric=&limit=` | Ranked wallets for `volume`, `pnl`, or `holding_days`. |
+| `GET`  | `/keys/:key_id/leaderboard/:wallet`        | Wallet rank and score for all three metrics.           |
 
 ---
 

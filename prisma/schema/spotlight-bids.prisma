@@ -1,0 +1,16 @@
+model SpotlightBidEvent {
+  id          String   @id @default(cuid())
+  keyId       String
+  bidder      String
+  amount      Decimal  @db.Decimal(30, 7)
+  eventType   String
+  txHash      String
+  eventIndex  Int
+  ledger      Int
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, occurredAt(sort: Desc)])
+  @@index([bidder, occurredAt(sort: Desc)])
+}
