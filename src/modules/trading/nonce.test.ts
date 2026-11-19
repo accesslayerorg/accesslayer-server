@@ -26,6 +26,7 @@ import * as holdingSnapshotService from '../portfolio/holding-snapshot.service';
 import * as leaderboardService from '../keys/key-holder-leaderboard.service';
 import * as holdingsController from '../users/holdings.controller';
 import * as creatorDashboardService from '../creator/creator-dashboard.service';
+import * as liquidityDepthService from './liquidity-depth.service';
 
 // Mock Redis in-memory store for predictable unit/integration testing
 const redisMap = new Map<string, { value: string; expiresAt: number }>();
@@ -167,6 +168,7 @@ describe('Issue #1194 — Nonce-based replay protection for signed trade message
          creatorRoyaltyBps: 200,
          totalFeeBps: 300,
       } as any);
+      jest.spyOn(liquidityDepthService, 'getMaxAvailableDepth').mockResolvedValue(1000n);
 
       jest.spyOn(prisma.creatorProfile, 'findUnique').mockResolvedValue({
          id: creatorId,

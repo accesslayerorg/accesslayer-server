@@ -151,14 +151,14 @@ export function requireStellarSignature() {
          req.signatureVerified = true;
 
          // Replay protection: validate and consume single-use nonce when provided (#1039)
-         const nonceHeader =
-            readHeader(req, 'x-nonce') ?? (req.body as any)?.nonce;
-         if (
-            nonceHeader !== undefined &&
-            nonceHeader !== null &&
-            nonceHeader !== ''
-         ) {
-            const nonceNum = Number(nonceHeader);
+         const xNonceHeader = readHeader(req, 'x-nonce');
+         const bodyNonce = (req.body as any)?.nonce;
+         const hasIntegerNonce =
+            xNonceHeader !== undefined || typeof bodyNonce === 'number';
+
+         if (hasIntegerNonce) {
+            const rawNonce = xNonceHeader ?? bodyNonce;
+            const nonceNum = Number(rawNonce);
             if (!Number.isInteger(nonceNum) || nonceNum < 0) {
                sendError(
                   res,

@@ -6,6 +6,11 @@ import { buildAuthHeaders } from '../../utils/test/auth-request.utils';
 import { httpBuyCreatorKey, buySchema } from './buy.controller';
 import { buyGateway } from './buy.service';
 import { validateBody } from '../../middlewares/validate-body.middleware';
+import * as keyTradingService from '../keys/key-trading.service';
+import * as keyFreezeService from '../keys/key-freeze.service';
+import * as flashLoanService from '../indexer/flash-loan-guard-indexer.service';
+import * as keyCooldownService from '../keys/key-cooldown.service';
+import * as liquidityDepthService from '../trading/liquidity-depth.service';
 
 const app = express();
 app.use(express.json());
@@ -19,6 +24,14 @@ app.post(
 describe('POST creator buy balance guard', () => {
    const wallet = Keypair.random();
    const body = { quantity: 1, key_cost_xlm: 10, fee_xlm: 1, nonce: 'test-nonce-123' };
+
+   beforeEach(() => {
+      jest.spyOn(keyTradingService, 'assertTradingActive').mockResolvedValue();
+      jest.spyOn(keyFreezeService, 'assertPositionNotFrozen').mockResolvedValue();
+      jest.spyOn(flashLoanService, 'assertWalletNotSuspended').mockResolvedValue();
+      jest.spyOn(keyCooldownService, 'setBuyCooldownForWallet').mockResolvedValue('ok');
+      jest.spyOn(liquidityDepthService, 'getMaxAvailableDepth').mockResolvedValue(1000n);
+   });
 
    afterEach(() => jest.restoreAllMocks());
 

@@ -2888,4 +2888,18 @@ router.get(
 router.all('/:keyId/gate', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
+
+/**
+ * POST /api/v1/keys/:keyId/transfer
+ * Transfer keys to another wallet. Enforces Stellar signature, nonce replay protection,
+ * self-custody freeze, and balance checks (#1194).
+ */
+router.post(
+   '/:keyId/transfer',
+   requireStellarSignature(),
+   enforceTradeNonce(),
+   validateBody(transferSchema),
+   httpTransferCreatorKey
+);
+
 export default router;
