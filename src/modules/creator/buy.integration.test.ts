@@ -18,7 +18,7 @@ app.post(
 
 describe('POST creator buy balance guard', () => {
    const wallet = Keypair.random();
-   const body = { quantity: 1, key_cost_xlm: 10, fee_xlm: 1 };
+   const body = { quantity: 1, key_cost_xlm: 10, fee_xlm: 1, nonce: 'test-nonce-123' };
 
    afterEach(() => jest.restoreAllMocks());
 

@@ -52,6 +52,13 @@ import {
    requireKeyCreator,
    AuthenticatedRequest,
 } from '../../middlewares/jwt-auth.middleware';
+import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
+import { enforceTradeNonce } from '../../middlewares/trade-nonce.middleware';
+import { validateBody } from '../../middlewares/validate-body.middleware';
+import {
+   httpTransferCreatorKey,
+   transferSchema,
+} from '../creator/transfer.controller';
 import {
    adminGuard,
    AdminRequest,
@@ -2272,5 +2279,18 @@ router.post(
 router.all('/:keyId/unfreeze', (_req, res) => {
    res.set('Allow', 'POST').sendStatus(405);
 });
+
+/**
+ * POST /api/v1/keys/:keyId/transfer
+ * Transfer keys to another wallet. Enforces Stellar signature, nonce replay protection,
+ * self-custody freeze, and balance checks (#1194).
+ */
+router.post(
+   '/:keyId/transfer',
+   requireStellarSignature(),
+   enforceTradeNonce(),
+   validateBody(transferSchema),
+   httpTransferCreatorKey
+);
 
 export default router;

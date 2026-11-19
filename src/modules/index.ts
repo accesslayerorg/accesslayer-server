@@ -21,6 +21,7 @@ import invoiceRouter from './invoice/invoice.routes';
 import freezeRouter from './freeze/freeze.routes';
 import platformRouter from './platform/platform.routes';
 import searchRouter from './search/search.routes';
+import nonceRouter from './trading/nonce.routes';
 
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
@@ -79,6 +80,7 @@ router.use('/invoices', routeBodySizeLimit('default'), invoiceRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
+router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);

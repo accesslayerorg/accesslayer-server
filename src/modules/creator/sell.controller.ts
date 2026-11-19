@@ -51,6 +51,10 @@ export const sellSchema = z.object({
     */
    min_price: z.number().nonnegative(),
    fee_xlm: z.number().nonnegative().default(0),
+   /**
+    * Single-use nonce for replay protection (#1194).
+    */
+   nonce: z.string().min(1, 'nonce is required'),
 });
 
 export type SellRequestBody = z.infer<typeof sellSchema>;

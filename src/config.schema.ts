@@ -113,6 +113,9 @@ export const envSchema = z
       REDIS_URL: z.string().default('redis://localhost:6379'),
       ENABLE_REDIS_CACHE: booleanCoerce.default(true),
 
+      // Nonce replay protection for signed trade messages (#1194)
+      NONCE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
       // Key trade lockup
       LOCKUP_DURATION_SECONDS: z.coerce.number().int().nonnegative().default(0),
 

@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; 
 import router from './modules/index';
 import stakingRouter from './modules/staking/staking.routes';
 import statusRouter from './modules/status/status.routes';
+import nonceRouter from './modules/trading/nonce.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -97,6 +98,7 @@ app.get('/', (_, res: Response) => {
 
 // Routes
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
+app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 

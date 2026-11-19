@@ -24,11 +24,13 @@ import { normalizeTrailingSlash } from '../../middlewares/trailing-slash-normali
 import { validateCreatorParam } from '../../middlewares/creator-param.middleware';
 import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
 import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
+import { enforceTradeNonce } from '../../middlewares/trade-nonce.middleware';
 import { buyKeyRateLimit } from '../../middlewares/wallet-rate-limit.middleware';
 import { enforceBuyCooldown } from '../../middlewares/buy-cooldown.middleware';
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
 import { httpSellCreatorKey, sellSchema } from '../creator/sell.controller';
+import { httpTransferCreatorKey, transferSchema } from '../creator/transfer.controller';
 import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
 import {
    httpCreatePost,
@@ -59,6 +61,7 @@ creatorsRouter.post(
    // work so a paused platform/key rejects with 503 immediately.
    platformPauseGuard(),
    requireStellarSignature(),
+   enforceTradeNonce(),
    buyKeyRateLimit,
    enforceBuyCooldown(),
    validateBody(buySchema),
@@ -78,9 +81,27 @@ creatorsRouter.post(
    // Platform-wide and per-key pause validation (#988).
    platformPauseGuard(),
    requireStellarSignature(),
+   enforceTradeNonce(),
    buyKeyRateLimit,
    validateBody(sellSchema),
    httpSellCreatorKey
+);
+
+/**
+ * POST /api/v1/creators/:id/transfer
+ *
+ * Transfer keys to another wallet. Enforces Stellar signature, nonce replay protection,
+ * self-custody freeze, and balance checks (#1194).
+ */
+creatorsRouter.post(
+   '/:id/transfer',
+   validateCreatorParam('id'),
+   platformPauseGuard(),
+   requireStellarSignature(),
+   enforceTradeNonce(),
+   buyKeyRateLimit,
+   validateBody(transferSchema),
+   httpTransferCreatorKey
 );
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);

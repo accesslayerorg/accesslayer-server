@@ -21,6 +21,7 @@ export const ErrorCode = {
    NOT_A_CREATOR: 'not_a_creator',
    TOKEN_EXPIRY_TAMPERED: 'token_expiry_tampered',
    MISSING_IAT: 'missing_iat',
+   NONCE_INVALID: 'nonce_invalid',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
