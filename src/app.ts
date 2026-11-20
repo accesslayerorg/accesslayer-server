@@ -4,6 +4,7 @@ import { TspecDocsMiddleware } from 'tspec';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware'; // Add notFoundHandler import
 import router from './modules/index';
 import stakingRouter from './modules/staking/staking.routes';
+import ratesRouter from './routes/rates.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -94,6 +95,10 @@ app.get('/', (_, res: Response) => {
 });
 
 // Routes
+// XLM fiat rate proxy (#1219). Mounted at both the documented path
+// (/v1/rates) and the versioned API prefix used by every other route.
+app.use('/v1/rates', ratesRouter);
+app.use('/api/v1/rates', ratesRouter);
 app.use('/api/v1', router);
 app.use('/staking', stakingRouter);
 
