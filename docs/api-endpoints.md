@@ -460,6 +460,63 @@ endpoint returns `503`.
 
 ## Admin Endpoints
 
+### GET /admin/reports
+
+Moderator queue of key reports (#1226), newest first (`createdAt` desc, then
+`id` desc).
+
+- **Auth:** Wallet JWT for a wallet listed in `MODERATOR_WALLETS`. Other wallets
+  get `403`; missing/invalid tokens get `401`.
+- **Query Params:**
+   - `status` (optional): `open`, `reviewing`, `dismissed` or `actioned`
+   - `cursor` (optional): opaque `meta.nextCursor` value from the previous page
+   - `limit` (optional): integer `1`–`100`, default `20`
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "data": [
+         {
+            "id": "cm123...",
+            "keyId": "cm456...",
+            "reporter": "GREPORTER...",
+            "reason": "scam",
+            "details": null,
+            "status": "open",
+            "createdAt": "2026-11-20T10:00:00.000Z",
+            "updatedAt": "2026-11-20T10:00:00.000Z"
+         }
+      ],
+      "meta": { "limit": 20, "hasMore": true, "nextCursor": "eyJj...abc" }
+   }
+}
+```
+
+- **Errors:** `400` invalid `status`, `limit` or `cursor`; `401`; `403`.
+
+### PATCH /admin/reports/:id
+
+Move a key report through the moderation lifecycle (#1226).
+
+- **Auth:** Moderator wallet JWT (see `GET /admin/reports`)
+- **Body:** `{ "status": "reviewing" | "dismissed" | "actioned" }`
+- **Allowed transitions:**
+
+| From        | To                                   |
+| ----------- | ------------------------------------ |
+| `open`      | `reviewing`, `dismissed`, `actioned` |
+| `reviewing` | `dismissed`, `actioned`              |
+| `dismissed` | — (terminal)                         |
+| `actioned`  | — (terminal)                         |
+
+- **Response:** `200 OK` with the updated report (same shape as above)
+- **Errors:** `400` unknown status value (including `open`; a report cannot
+  be re-opened); `401`; `403`; `404` report not found; `409` transition not
+  allowed from the report's current status (also returned when another
+  moderator changed the status concurrently).
+
 ### POST /admin/proposals
 
 Create a new multisig proposal requiring multi-sig approval.
@@ -795,6 +852,47 @@ Paginated `FeeReceived` history (`source`, `amount`, `tx_hash`, `ledger`,
 ---
 
 ## Keys Endpoints
+
+### POST /keys/:keyId/reports
+
+Report a key for moderator review (#1226). Stored with status `open`.
+
+- **Auth:** Wallet JWT (`Authorization: Bearer <token>`)
+- **Rate limit:** 5 reports per wallet per rolling hour (Redis sliding window,
+  keyed by wallet). The sixth request returns `429` with `Retry-After`.
+- **Body:**
+
+```json
+{
+   "reason": "scam",
+   "details": "Optional context, max 500 characters"
+}
+```
+
+`reason` must be one of `scam`, `impersonation`, `harassment`, `other`.
+
+- **Response:** `201 Created`
+
+```json
+{
+   "success": true,
+   "message": "Report submitted",
+   "data": {
+      "id": "cm123...",
+      "keyId": "cm456...",
+      "reporter": "GREPORTER...",
+      "reason": "scam",
+      "details": "Optional context, max 500 characters",
+      "status": "open",
+      "createdAt": "2026-11-20T10:00:00.000Z",
+      "updatedAt": "2026-11-20T10:00:00.000Z"
+   }
+}
+```
+
+- **Errors:** `400` invalid `reason`, `details` over 500 characters or unknown
+  fields; `401` missing/invalid token; `404` key not found; `409` the wallet
+  already has an `open` report for this key; `429` rate limit exceeded.
 
 ### GET /keys/:keyId/leaderboard
 

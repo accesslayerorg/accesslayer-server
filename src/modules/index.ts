@@ -61,6 +61,7 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -86,6 +87,13 @@ router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorRouter);
 router.use('/metrics', routeBodySizeLimit('default'), metricsRouter);
 router.use('/ledger', routeBodySizeLimit('default'), ledgerRouter);
+// Moderator key report queue (#1226). Mounted ahead of adminRouter: these
+// routes use wallet-based moderator auth rather than the admin JWT guard.
+router.use(
+   '/admin/reports',
+   routeBodySizeLimit('admin'),
+   adminReportsRouter
+);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
