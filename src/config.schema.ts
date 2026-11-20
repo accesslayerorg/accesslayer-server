@@ -289,6 +289,10 @@ export const envSchema = z
       NONCE_REGISTRY_CONTRACT_ID: optionalNonEmptyString,
       NONCE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(30),
 
+      // Nonce-based replay protection for signed trade messages (#1194).
+      // Configurable TTL for one-time nonces stored in Redis (default 5 minutes).
+      TRADE_NONCE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
       // LP position registry contract
       LP_CONTRACT_ID: optionalNonEmptyString,
 

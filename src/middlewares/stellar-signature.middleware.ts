@@ -11,6 +11,7 @@ import { ErrorCode } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
 import {
    validateSignedActionNonce,
+   verifyAndConsumeTradeNonce,
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from '../modules/nonce';
@@ -19,6 +20,15 @@ export interface StellarSignedRequest extends Request {
    walletAddress?: string;
    signatureVerified?: boolean;
    nonce?: number;
+   tradeNonceVerified?: boolean;
+}
+
+export interface StellarSignatureOptions {
+   /**
+    * When true, enforces trade nonce-based replay protection (#1194).
+    * Requires `nonce` in signed payload, verified against Redis and deleted atomically.
+    */
+   tradeNonce?: boolean;
 }
 
 const SIGNATURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
@@ -55,7 +65,7 @@ function buildCanonicalMessage(body: unknown, timestamp: string): Buffer {
  * On success, attaches `walletAddress` and `signatureVerified=true` to the request.
  * On failure, returns 401 (missing/expired) or 403 (invalid signature).
  */
-export function requireStellarSignature() {
+export function requireStellarSignature(options: StellarSignatureOptions = {}) {
    return async (
       req: StellarSignedRequest,
       res: Response,
@@ -150,46 +160,80 @@ export function requireStellarSignature() {
          req.walletAddress = address;
          req.signatureVerified = true;
 
-         // Replay protection: validate and consume single-use nonce when provided (#1039)
-         const nonceHeader =
-            readHeader(req, 'x-nonce') ?? (req.body as any)?.nonce;
-         if (
-            nonceHeader !== undefined &&
-            nonceHeader !== null &&
-            nonceHeader !== ''
-         ) {
-            const nonceNum = Number(nonceHeader);
-            if (!Number.isInteger(nonceNum) || nonceNum < 0) {
+         // Trade nonce replay protection (#1194)
+         if (options.tradeNonce) {
+            const rawTradeNonce =
+               (req.body as any)?.nonce ?? readHeader(req, 'x-nonce');
+            if (
+               rawTradeNonce === undefined ||
+               rawTradeNonce === null ||
+               String(rawTradeNonce).trim() === ''
+            ) {
                sendError(
                   res,
-                  400,
-                  ErrorCode.BAD_REQUEST,
-                  'Invalid nonce format — must be a non-negative integer'
+                  401,
+                  ErrorCode.NONCE_INVALID,
+                  'Nonce is required in signed trade payload'
                );
                return;
             }
-            try {
-               await validateSignedActionNonce(
-                  address,
-                  nonceNum,
-                  'stellar_signed_action'
+
+            const isValid = await verifyAndConsumeTradeNonce(
+               address,
+               rawTradeNonce
+            );
+            if (!isValid) {
+               sendError(
+                  res,
+                  401,
+                  ErrorCode.NONCE_INVALID,
+                  'Nonce is invalid, expired, or already used'
                );
-               req.nonce = nonceNum;
-            } catch (nonceError) {
-               if (nonceError instanceof NonceAlreadyConsumedError) {
-                  sendConflict(res, nonceError.message);
-                  return;
-               }
-               if (nonceError instanceof NonceMismatchError) {
+               return;
+            }
+            req.tradeNonceVerified = true;
+         } else {
+            // Replay protection: validate and consume single-use nonce when provided (#1039)
+            const nonceHeader =
+               readHeader(req, 'x-nonce') ?? (req.body as any)?.nonce;
+            if (
+               nonceHeader !== undefined &&
+               nonceHeader !== null &&
+               nonceHeader !== ''
+            ) {
+               const nonceNum = Number(nonceHeader);
+               if (!Number.isInteger(nonceNum) || nonceNum < 0) {
                   sendError(
                      res,
                      400,
                      ErrorCode.BAD_REQUEST,
-                     nonceError.message
+                     'Invalid nonce format — must be a non-negative integer'
                   );
                   return;
                }
-               throw nonceError;
+               try {
+                  await validateSignedActionNonce(
+                     address,
+                     nonceNum,
+                     'stellar_signed_action'
+                  );
+                  req.nonce = nonceNum;
+               } catch (nonceError) {
+                  if (nonceError instanceof NonceAlreadyConsumedError) {
+                     sendConflict(res, nonceError.message);
+                     return;
+                  }
+                  if (nonceError instanceof NonceMismatchError) {
+                     sendError(
+                        res,
+                        400,
+                        ErrorCode.BAD_REQUEST,
+                        nonceError.message
+                     );
+                     return;
+                  }
+                  throw nonceError;
+               }
             }
          }
 

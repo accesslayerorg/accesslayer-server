@@ -36,6 +36,10 @@ export const buySchema = z.object({
     * current bonding-curve price exceeds it.
     */
    max_price: z.number().nonnegative().optional(),
+   /**
+    * One-time trade nonce for replay protection (#1194).
+    */
+   nonce: z.union([z.string(), z.number()]).optional(),
 });
 
 export type BuyRequestBody = z.infer<typeof buySchema>;

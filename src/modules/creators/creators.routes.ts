@@ -31,6 +31,11 @@ import { validateBody } from '../../middlewares/validate-body.middleware';
 import { idempotencyMiddleware } from '../../middlewares/idempotency.middleware';
 import { httpBuyCreatorKey, buySchema } from '../creator/buy.controller';
 import { httpSellCreatorKey, sellSchema } from '../creator/sell.controller';
+import {
+   httpTransferCreatorKey,
+   transferSchema,
+} from '../creator/transfer.controller';
+import { requireTradeNonce } from '../nonce/nonce.middleware';
 import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
 import {
    httpCreatePost,
@@ -60,7 +65,8 @@ creatorsRouter.post(
    // Platform-wide and per-key pause validation (#988) runs before any trade
    // work so a paused platform/key rejects with 503 immediately.
    platformPauseGuard(),
-   requireStellarSignature(),
+   requireStellarSignature({ tradeNonce: true }),
+   requireTradeNonce(),
    idempotencyMiddleware(),
    buyKeyRateLimit,
    enforceBuyCooldown(),
@@ -80,11 +86,26 @@ creatorsRouter.post(
    validateCreatorParam('id'),
    // Platform-wide and per-key pause validation (#988).
    platformPauseGuard(),
-   requireStellarSignature(),
+   requireStellarSignature({ tradeNonce: true }),
+   requireTradeNonce(),
    idempotencyMiddleware(),
    buyKeyRateLimit,
    validateBody(sellSchema),
    httpSellCreatorKey
+);
+/**
+ * POST /api/v1/creators/:id/transfer
+ *
+ * Transfer keys to another wallet with replay protection (#1194).
+ */
+creatorsRouter.post(
+   '/:id/transfer',
+   validateCreatorParam('id'),
+   platformPauseGuard(),
+   requireStellarSignature({ tradeNonce: true }),
+   requireTradeNonce(),
+   validateBody(transferSchema),
+   httpTransferCreatorKey
 );
 creatorsRouter.post('/:id/dividends', requireJwtAuth, httpDistributeDividend);
 creatorsRouter.get('/:id/posts', validateCreatorParam('id'), httpListPosts);
