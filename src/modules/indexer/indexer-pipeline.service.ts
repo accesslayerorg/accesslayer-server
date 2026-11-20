@@ -375,6 +375,13 @@ export async function processIndexerEvents(
    events: IndexerChainEvent[],
    options: { advanceCursor?: boolean } = {}
 ): Promise<void> {
+   const upgradeEvents = events.filter(event =>
+      ['upgrade_scheduled', 'upgrade_executed', 'upgrade_cancelled'].includes(event.eventType)
+   );
+   if (upgradeEvents.length > 0) {
+      const { processContractUpgradeEvents } = await import('../protocol/upgrade.service');
+      await processContractUpgradeEvents(upgradeEvents);
+   }
    const invoiceEvents = events.filter(event =>
       INVOICE_PROTOCOL_EVENT_TYPES.has(
          canonicalInvoiceEventType(event.eventType)
