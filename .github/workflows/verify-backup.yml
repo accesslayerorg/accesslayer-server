@@ -1,0 +1,28 @@
+name: Verify database backup
+
+on:
+   schedule:
+      - cron: '0 3 * * 0'
+   workflow_dispatch:
+
+jobs:
+   verify:
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      env:
+         DATABASE_URL: ${{ secrets.BACKUP_SOURCE_DATABASE_URL }}
+         BACKUP_S3_URI: ${{ secrets.BACKUP_S3_URI }}
+         ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+         AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+         AWS_DEFAULT_REGION: ${{ secrets.BACKUP_AWS_REGION }}
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+         - run: pnpm install --frozen-lockfile --ignore-scripts
+         - run: pnpm exec ts-node --transpile-only scripts/verify-backup.ts
