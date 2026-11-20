@@ -2,6 +2,7 @@
 import { prisma } from '../../utils/prisma.utils';
 import { KeyNotFoundError } from './key-fees.service';
 import { PositionFrozenError } from './key-freeze.service';
+import { onHolderBalanceChanged } from './key-holder-leaderboard.service';
 
 export async function transferKeys(
   keyId: string,
@@ -24,7 +25,7 @@ export async function transferKeys(
     throw new KeyNotFoundError(keyId);
   }
 
-  return prisma.$transaction(async (tx: any) => {
+  const transferred = await prisma.$transaction(async (tx: any) => {
     const sender = await tx.keyOwnership.findUnique({
       where: { ownerAddress_creatorId: { ownerAddress: fromAddress, creatorId: keyId } },
       select: { balance: true, frozen: true },
@@ -51,4 +52,9 @@ export async function transferKeys(
 
     return { from: fromAddress, to: toAddress, quantity, newBalance: Number(result.balance) };
   });
+
+  // Recompute the holder leaderboard once the transfer is committed (#1013).
+  await onHolderBalanceChanged(keyId);
+
+  return transferred;
 }

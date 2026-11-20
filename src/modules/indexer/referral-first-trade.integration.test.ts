@@ -18,7 +18,11 @@ jest.mock('../../utils/prisma.utils', () => {
             upsert: jest.fn(),
             aggregate: jest.fn(),
          },
-         creatorPriceSnapshot: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+         creatorPriceSnapshot: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+         },
          creatorPriceHistory: { create: jest.fn() },
          creatorProfile: { findUnique: jest.fn() },
          indexedLedger: { upsert: jest.fn() },
@@ -41,6 +45,9 @@ jest.mock('../../utils/logger.utils', () => ({
 
 jest.mock('../../utils/redis.utils', () => ({
    getRedis: jest.fn(() => ({ del: jest.fn().mockResolvedValue(1) })),
+   cacheGetJson: jest.fn().mockResolvedValue(null),
+   cacheSetJson: jest.fn().mockResolvedValue(undefined),
+   cacheInvalidate: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../referrals/referrals.service', () => ({
@@ -58,7 +65,9 @@ const mockLogger = logger as unknown as { warn: jest.Mock };
 
 const BUYER = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
-function buyEvent(overrides: Partial<IndexerChainEvent> = {}): IndexerChainEvent {
+function buyEvent(
+   overrides: Partial<IndexerChainEvent> = {}
+): IndexerChainEvent {
    return {
       txHash: '0xhash-buy',
       eventIndex: 0,
@@ -86,17 +95,19 @@ describe('referral reward wiring in processTradeEvents', () => {
       });
       (prisma as any).indexedLedger.upsert.mockResolvedValue({});
       (prisma as any).$transaction.mockImplementation(
-         async (cb: any) =>
-            cb({
-               activity: {
-                  findMany: jest.fn().mockResolvedValue([]),
-                  create: jest.fn(),
-               },
-               creatorProfile: {
-                  findUnique: jest.fn().mockResolvedValue(null),
-                  update: jest.fn(),
-               },
-            })
+         async (transaction: any) =>
+            Array.isArray(transaction)
+               ? Promise.all(transaction)
+               : transaction({
+                    activity: {
+                       findMany: jest.fn().mockResolvedValue([]),
+                       create: jest.fn(),
+                    },
+                    creatorProfile: {
+                       findUnique: jest.fn().mockResolvedValue(null),
+                       update: jest.fn(),
+                    },
+                 })
       );
    });
 

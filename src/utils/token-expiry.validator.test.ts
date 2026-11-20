@@ -1,4 +1,4 @@
-import { validateTokenExpiry } from '../utils/token-expiry.validator';
+import { validateTokenExpiry } from './token-expiry.validator';
 
 describe('validateTokenExpiry', () => {
    it('accepts a token where exp === iat + ttl', () => {
@@ -11,6 +11,7 @@ describe('validateTokenExpiry', () => {
       const result = validateTokenExpiry(payload);
 
       expect(result.valid).toBe(true);
+      expect(result.code).toBeUndefined();
    });
 
    it('rejects a token where exp > iat + ttl with token_expiry_tampered', () => {

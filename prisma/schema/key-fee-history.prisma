@@ -1,0 +1,21 @@
+// prisma/schema/key-fee-history.prisma
+// Fee tier change history indexed from FeeAdjusted contract events.
+
+model KeyFeeHistory {
+  id               String   @id @default(cuid())
+  keyId            String   @map("key_id")
+  feeBps           Int      @map("fee_bps")
+  previousFeeBps   Int?     @map("previous_fee_bps")
+  volumeBracket    String?  @map("volume_bracket")
+  rolling24hVolume String?  @map("rolling_24h_volume")
+  ledger           Int
+  txHash           String   @map("tx_hash")
+  eventIndex       Int      @map("event_index")
+  timestamp        DateTime
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, timestamp(sort: Desc)])
+  @@index([keyId])
+  @@map("key_fee_history")
+}

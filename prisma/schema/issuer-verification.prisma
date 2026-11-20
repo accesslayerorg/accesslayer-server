@@ -1,0 +1,34 @@
+// prisma/schema/issuer-verification.prisma
+// Issuer verification badge state fed by VerificationGranted / VerificationRevoked (#1179).
+
+/// Append-only log of verification events. The unique chain position makes
+/// replays no-ops, so IssuerVerification only changes for newly seen events.
+model IssuerVerificationEvent {
+  id         String    @id @default(cuid())
+  wallet     String
+  eventType  String
+  tier       String?
+  expiresAt  DateTime?
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  occurredAt DateTime
+  createdAt  DateTime  @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([wallet, occurredAt(sort: Desc)])
+  @@map("issuer_verification_events")
+}
+
+/// Current verification status per issuer wallet, derived from the event log.
+model IssuerVerification {
+  wallet     String    @id
+  isVerified Boolean   @default(false)
+  tier       String?
+  expiresAt  DateTime?
+  lastLedger Int
+  updatedAt  DateTime  @updatedAt
+
+  @@index([isVerified, expiresAt])
+  @@map("issuer_verification")
+}

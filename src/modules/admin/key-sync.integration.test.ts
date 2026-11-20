@@ -16,10 +16,11 @@ describe('Key Sync Integration Tests', () => {
       const adminWallet = '0xadmintestwallet1111111111111111111111111';
       adminToken = signWalletAccessToken(adminWallet, 'admin-sub', 3600);
 
-      // Clean up
+      // Clean up - delete in reverse dependency order
       await prisma.creatorPriceSnapshot.deleteMany({});
       await prisma.keyOwnership.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
 
       // Create test creator with initial state
@@ -67,9 +68,11 @@ describe('Key Sync Integration Tests', () => {
    });
 
    afterAll(async () => {
+      // Clean up - delete in reverse dependency order
       await prisma.creatorPriceSnapshot.deleteMany({});
       await prisma.keyOwnership.deleteMany({});
       await prisma.creatorProfile.deleteMany({});
+      await prisma.stellarWallet.deleteMany({});
       await prisma.user.deleteMany({});
    });
 
@@ -94,10 +97,10 @@ describe('Key Sync Integration Tests', () => {
       });
    });
 
-   describe('POST /admin/keys/:keyId/sync', () => {
+   describe('POST /api/v1/admin/keys/:keyId/sync', () => {
       it('AC1: should require admin JWT', async () => {
          const response = await request(app).post(
-            `/admin/keys/${testCreatorId}/sync`
+            `/api/v1/admin/keys/${testCreatorId}/sync`
          );
 
          expect(response.status).toBe(401);
@@ -107,7 +110,7 @@ describe('Key Sync Integration Tests', () => {
          // This would require an invalid admin token
          // For now, we test with missing JWT which returns 401
          const response = await request(app).post(
-            `/admin/keys/${testCreatorId}/sync`
+            `/api/v1/admin/keys/${testCreatorId}/sync`
          );
 
          expect([401, 403]).toContain(response.status);
@@ -115,7 +118,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('AC5: 404 returned for unknown key ID', async () => {
          const response = await request(app)
-            .post(`/admin/keys/unknown-key-id/sync`)
+            .post(`/api/v1/admin/keys/unknown-key-id/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(404);
@@ -123,7 +126,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should return 200 with sync result for valid creator', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -132,7 +135,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should include creatorId in response', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -141,7 +144,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should include changedFields array in response', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -150,7 +153,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should include timestamp in response', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -168,7 +171,7 @@ describe('Key Sync Integration Tests', () => {
 
          // Run sync
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -199,7 +202,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('AC2: should include old and new values for changed fields', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -216,7 +219,7 @@ describe('Key Sync Integration Tests', () => {
    describe('Acceptance Criteria - Full Coverage', () => {
       it('AC1: On-chain state read and written to database correctly', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -231,7 +234,7 @@ describe('Key Sync Integration Tests', () => {
 
          // Run sync
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -255,7 +258,7 @@ describe('Key Sync Integration Tests', () => {
          // This is tested implicitly - if the sync completes successfully,
          // it means the transaction either succeeded or rolled back properly
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          // Should either succeed or fail gracefully without corruption
@@ -264,7 +267,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('AC4: 403 returned for non-admin callers', async () => {
          const response = await request(app).post(
-            `/admin/keys/${testCreatorId}/sync`
+            `/api/v1/admin/keys/${testCreatorId}/sync`
          );
 
          // Without valid JWT, should return 401 (unauthorized) or 403 (forbidden)
@@ -273,7 +276,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('AC5: 404 returned for unknown key ID', async () => {
          const response = await request(app)
-            .post(`/admin/keys/completely-invalid-key/sync`)
+            .post(`/api/v1/admin/keys/completely-invalid-key/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(404);
@@ -283,7 +286,7 @@ describe('Key Sync Integration Tests', () => {
    describe('Response Format', () => {
       it('should return properly formatted success response', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -297,7 +300,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should return properly formatted error response for 404', async () => {
          const response = await request(app)
-            .post(`/admin/keys/unknown-key/sync`)
+            .post(`/api/v1/admin/keys/unknown-key/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(404);
@@ -307,7 +310,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should return properly formatted error response for missing auth', async () => {
          const response = await request(app).post(
-            `/admin/keys/${testCreatorId}/sync`
+            `/api/v1/admin/keys/${testCreatorId}/sync`
          );
 
          expect(response.status).toBe(401);
@@ -319,11 +322,11 @@ describe('Key Sync Integration Tests', () => {
    describe('Edge Cases', () => {
       it('should handle multiple syncs idempotently', async () => {
          const response1 = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          const response2 = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response1.status).toBe(200);
@@ -333,13 +336,13 @@ describe('Key Sync Integration Tests', () => {
       it('should handle concurrent sync requests safely', async () => {
          const promises = [
             request(app)
-               .post(`/admin/keys/${testCreatorId}/sync`)
+               .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
                .set('Authorization', `Bearer ${adminToken}`),
             request(app)
-               .post(`/admin/keys/${testCreatorId}/sync`)
+               .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
                .set('Authorization', `Bearer ${adminToken}`),
             request(app)
-               .post(`/admin/keys/${testCreatorId}/sync`)
+               .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
                .set('Authorization', `Bearer ${adminToken}`),
          ];
 
@@ -355,7 +358,7 @@ describe('Key Sync Integration Tests', () => {
          // This would require mocking the on-chain read to return different value
          // For now, verify the structure is correct
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -364,7 +367,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should detect currentPrice changes', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -372,7 +375,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should detect holderCount changes', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);
@@ -380,7 +383,7 @@ describe('Key Sync Integration Tests', () => {
 
       it('should detect tradingPaused changes', async () => {
          const response = await request(app)
-            .post(`/admin/keys/${testCreatorId}/sync`)
+            .post(`/api/v1/admin/keys/${testCreatorId}/sync`)
             .set('Authorization', `Bearer ${adminToken}`);
 
          expect(response.status).toBe(200);

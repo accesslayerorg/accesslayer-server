@@ -3,6 +3,13 @@ import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { Decimal } from '@prisma/client/runtime/library';
 import { getDelegatedVoteWeight } from '../governance/governance-delegation.service';
+import { applyVoteWeight, VoteTally } from '../../utils/vote-tally.utils';
+
+// Re-exported so existing callers/tests keep importing the tally helpers from
+// this module; the implementation lives in utils/vote-tally.utils.ts since
+// #878 (snapshot voting) shares it.
+export { applyVoteWeight };
+export type ProposalTotals = VoteTally;
 
 export class HolderNotEligibleError extends Error {
    constructor(wallet: string) {
@@ -25,54 +32,6 @@ export class OptionIndexOutOfRangeError extends Error {
       );
       this.name = 'OptionIndexOutOfRangeError';
    }
-}
-
-/**
- * Denormalised tally currently stored on a GovernanceProposal row.
- */
-export interface ProposalTotals {
-   totalVotingWeight: string;
-   results: Record<string, string>;
-}
-
-/**
- * Parses a tally value (stored as a string, or `0` / undefined when unset)
- * into a `bigint` for exact arithmetic. Totals and weights are integer key
- * counts, so `BigInt` on the raw string avoids the precision loss that
- * `Number(...)` would incur for large accumulated totals.
- */
-function toBigInt(value: string | number | undefined | null): bigint {
-   if (value === undefined || value === null || value === '') return 0n;
-   return typeof value === 'number'
-      ? BigInt(Math.round(value))
-      : BigInt(value);
-}
-
-/**
- * Folds one wallet's `weight` into the proposal's current tallies.
- *
- * Pure: invoked by {@link castKeyProposalVote} inside its transaction so the
- * read-modify-write of the denormalised totals is atomic with the vote insert.
- * Key counts are integers, so `bigint` avoids floating-point drift as totals
- * accumulate and preserves every existing option bucket.
- */
-export function applyVoteWeight(
-   current: ProposalTotals,
-   weight: string,
-   option: string
-): ProposalTotals {
-   const w = toBigInt(weight);
-   const currentResults = current.results ?? {};
-   const newTotal = toBigInt(current.totalVotingWeight) + w;
-   const newOptionWeight = toBigInt(currentResults[option] ?? 0) + w;
-
-   return {
-      totalVotingWeight: newTotal.toString(),
-      results: {
-         ...currentResults,
-         [option]: newOptionWeight.toString(),
-      },
-   };
 }
 
 export interface CastVoteResult {

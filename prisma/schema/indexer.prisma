@@ -1,5 +1,60 @@
 // prisma/schema/indexer.prisma
 
+/// Finality status of an ingested chain event with respect to the canonical
+/// ledger chain (#724).
+enum IngestedEventStatus {
+  /// Event has been ingested and its ledger is still considered canonical.
+  CONFIRMED
+  /// The event's ledger was rolled back by a reorg; its database side
+  /// effects have been reversed by the reorg-guard rollback.
+  REORGED
+}
+
+/// One row per ingested chain event, stamped with the ledger sequence and
+/// ledger hash it was observed in (#724).
+///
+/// Written by the reorg-aware ingestion entry point (`ingestLedger`) so a
+/// ledger rollback can identify exactly which events to mark REORGED and
+/// reverse, and so re-ingestion after a rollback is auditable.
+model IngestedEvent {
+  id             String              @id @default(cuid())
+
+  /// Ledger sequence the event was ingested in.
+  ledgerSequence Int
+  /// Hash of the ledger the event was ingested in.
+  ledgerHash     String
+
+  /// On-chain transaction hash (dedup key with eventIndex).
+  txHash         String
+  /// Index of the event within its transaction.
+  eventIndex     Int
+  /// Domain event type (e.g. KEY_BOUGHT, KEY_SOLD).
+  eventType      String
+
+  /// Wallet that performed the action, when applicable.
+  actor          String?
+  /// Creator/key the event applies to, when applicable.
+  creatorId      String?
+  /// Key quantity the event moved, as a decimal string, when applicable.
+  amount         String?
+  /// Per-key trade price in stroops, as a decimal string, when applicable.
+  priceStroops   String?
+  /// Trade timestamp carried by the event, when applicable.
+  tradeAt        DateTime?
+
+  status         IngestedEventStatus @default(CONFIRMED)
+  /// Set when a reorg rolled this event back.
+  reorgedAt      DateTime?
+
+  createdAt      DateTime             @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([ledgerSequence])
+  @@index([status])
+  @@index([creatorId])
+  @@map("ingested_events")
+}
+
 /**
  * Dead-letter queue (DLQ) for failed indexing jobs.
  * 

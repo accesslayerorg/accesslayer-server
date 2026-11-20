@@ -13,7 +13,15 @@ jest.mock('../../utils/prisma.utils', () => ({
          findFirst: (...args: unknown[]) => findFirstMock(...args),
          update: (...args: unknown[]) => updateMock(...args),
       },
+      user: { findFirst: jest.fn() },
+      stellarWallet: { findUnique: jest.fn() },
+      creatorSocialMetadata: { findUnique: jest.fn(), findFirst: jest.fn() },
    },
+}));
+
+jest.mock('../creators/creator-social.service', () => ({
+   buildCreatorSocialData: jest.fn(() => null),
+   getCreatorSocialSnapshot: jest.fn().mockResolvedValue(null),
 }));
 
 describe('getCreatorProfile', () => {
@@ -36,6 +44,7 @@ describe('getCreatorProfile', () => {
          updatedAt: null,
          perks: [],
          links: [],
+         social: null,
          tradingPaused: false,
          currentMilestone: 0,
          currentPrice: null,
@@ -54,6 +63,7 @@ describe('getCreatorProfile', () => {
          displayName: 'Paused Creator',
          bio: 'bio',
          avatarUrl: null,
+         avatarCid: null,
          perks: [],
          isVerified: false,
          tradingPaused: true,
@@ -61,6 +71,12 @@ describe('getCreatorProfile', () => {
          createdAt: new Date('2024-01-01T00:00:00.000Z'),
          updatedAt: new Date('2024-01-02T00:00:00.000Z'),
          priceSnapshot: null,
+         user: null,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
       });
 
       const result = await getCreatorProfile('creator-2');
@@ -75,12 +91,19 @@ describe('getCreatorProfile', () => {
          displayName: 'Paused Creator',
          bio: 'bio',
          avatarUrl: null,
+         avatarCid: null,
          perks: [],
          isVerified: false,
          tradingPaused: true,
          createdAt: new Date('2024-01-01T00:00:00.000Z'),
          updatedAt: new Date('2024-01-02T00:00:00.000Z'),
          priceSnapshot: null,
+         user: null,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
       });
 
       const result = await getCreatorProfile('creator-2');
@@ -94,11 +117,19 @@ describe('getCreatorProfile', () => {
          displayName: 'Active Creator',
          bio: 'bio',
          avatarUrl: null,
+         avatarCid: null,
          perks: [],
          isVerified: false,
          createdAt: new Date('2024-01-01T00:00:00.000Z'),
          updatedAt: new Date('2024-01-02T00:00:00.000Z'),
          priceSnapshot: null,
+         user: null,
+         tradingPaused: undefined,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
       });
 
       const result = await getCreatorProfile('creator-3');

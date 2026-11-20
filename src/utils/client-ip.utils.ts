@@ -23,7 +23,8 @@ const TRUSTED_PROXY_CIDRS = [
  * `isTrustedProxy` predicate to override (useful in tests or when the
  * deployment uses a known set of proxy IPs).
  */
-function isFromTrustedProxy(ip: string): boolean {
+function isFromTrustedProxy(rawIp: string): boolean {
+   const ip = rawIp.replace(/^::ffff:/, '');
    return TRUSTED_PROXY_CIDRS.some(({ prefix }) => ip.startsWith(prefix));
 }
 

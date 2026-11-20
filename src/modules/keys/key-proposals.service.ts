@@ -19,7 +19,12 @@ export interface Proposal {
    snapshotLedger: number;
    expiresAt: Date;
    closedAt: Date | null;
-   status: ProposalStatus;
+   /**
+    * Raw proposal status. Snapshot governance (#878) closes proposals as
+    * `passed`, `failed`, or `quorum_not_met`, so this is wider than the
+    * `active` / `closed` query filter.
+    */
+   status: string;
 }
 
 export async function getKeyProposals(
@@ -35,8 +40,12 @@ export async function getKeyProposals(
    }
 
    const where: Record<string, unknown> = { keyId };
-   if (status) {
-      where.status = status;
+   if (status === 'active') {
+      where.status = 'active';
+   } else if (status === 'closed') {
+      // Any terminal status counts as closed (passed / failed /
+      // quorum_not_met as well as the legacy `closed`).
+      where.status = { not: 'active' };
    }
 
    const proposals = await prisma.governanceProposal.findMany({
@@ -54,7 +63,7 @@ export async function getKeyProposals(
       snapshotLedger: p.snapshotLedger,
       expiresAt: p.expiresAt,
       closedAt: p.closedAt,
-      status: p.status as ProposalStatus,
+      status: p.status,
    }));
 }
 export async function getProposalForVoting(

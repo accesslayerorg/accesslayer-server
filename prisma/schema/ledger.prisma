@@ -10,6 +10,13 @@ model IndexedLedger {
 model LedgerCheckpoint {
   id                    Int      @id @default(autoincrement())
   ledger                Int
+  /// Hash of the ledger at `ledger`, as reported by the network (#724).
+  /// Stored for every ledger ingested by the reorg-aware pipeline so the
+  /// next ledger's `previousLedgerHash` can be verified against it.
+  /// Nullable only for checkpoints written before hash tracking existed.
+  ledgerHash            String?
+  /// The `previousLedgerHash` the ingested ledger carried, when available.
+  previousLedgerHash    String?
   lastProcessedEventIndex Int
   batchHash             String
   completedAt           DateTime @default(now())

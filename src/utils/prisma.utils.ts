@@ -5,6 +5,7 @@ import { requestContextStorage } from './als.utils';
 import { logger } from './logger.utils';
 import { describeDatabasePoolConfig } from './db-pool-config.utils';
 import { logDbPoolAcquire, logDbPoolRelease } from './db-pool-log.utils';
+import { databaseCircuitBreaker } from './circuit-breaker.utils';
 
 // Use global variable to prevent multiple instances in development
 declare global {
@@ -81,6 +82,13 @@ const queryStartTimes = new Map<symbol, number>();
 export const prisma = basePrisma.$extends({
    query: {
       $allOperations({ operation, model, args, query }: any) {
+         // Skip circuit breaker in test mode unless explicitly enabled.
+         // This avoids false positives from slow operations like TRUNCATE during test cleanup.
+         // Unit tests for circuit breaker still work because they test the
+         // circuit breaker directly, not through Prisma operations.
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+            databaseCircuitBreaker.checkState();
+         }
          const timeoutMs = envConfig.DB_QUERY_TIMEOUT_MS;
          const slowThresholdMs = envConfig.SLOW_QUERY_THRESHOLD_MS;
          const poolWarnThreshold = envConfig.DB_POOL_WAIT_WARN_MS;
@@ -203,7 +211,19 @@ export const prisma = basePrisma.$extends({
             }
          });
 
-         return Promise.race([queryPromise, timeoutPromise]);
+         return Promise.race([queryPromise, timeoutPromise])
+            .then(result => {
+               if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+                  databaseCircuitBreaker.recordSuccess();
+               }
+               return result;
+            })
+            .catch(err => {
+               if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+                  databaseCircuitBreaker.recordFailure(err);
+               }
+               throw err;
+            });
       },
    },
 });

@@ -1,0 +1,36 @@
+// prisma/schema/twap-snapshot.prisma
+//
+// TWAP observations indexed from TWAPUpdated contract events (#1082).
+//
+// - Append-only: every TWAPUpdated event becomes exactly one row, made
+//   idempotent by the unique (txHash, eventIndex) pair so replays and
+//   overlapping ingestion windows never create duplicates or drop events.
+// - The API serves the most recent row per (creatorId, window), ordered by
+//   computedAt then ledger then eventIndex, so out-of-order arrival never
+//   rolls a key back to an older value.
+// - `creatorId` is intentionally NOT a foreign key. An event can arrive
+//   before CREATOR_REGISTERED has been indexed; a FK would reject it and
+//   leave a permanent gap in the observation history.
+
+model TwapSnapshot {
+  id               String   @id @default(cuid())
+  /** Key ID (CreatorProfile.id) the observation belongs to. */
+  creatorId        String
+  /** Window the contract computed this TWAP for: "1h" | "4h" | "24h". */
+  window           String
+  /** Time-weighted average price in stroops. */
+  twapPrice        BigInt
+  /** Number of price observations the contract used for this TWAP. */
+  observationCount Int
+  /** When the contract computed this TWAP (from the event payload). */
+  computedAt       DateTime
+  ledger           Int
+  txHash           String
+  eventIndex       Int
+  indexedAt        DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([creatorId, window, computedAt(sort: Desc)])
+  @@index([ledger])
+  @@map("twap_snapshots")
+}
