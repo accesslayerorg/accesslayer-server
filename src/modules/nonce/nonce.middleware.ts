@@ -4,6 +4,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import {
    validateSignedActionNonce,
+   verifyAndConsumeTradeNonce,
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from './nonce.service';
@@ -117,5 +118,81 @@ export function requireNonceReplayProtection(
          }
          next(error);
       }
+   };
+}
+
+/**
+ * Middleware that validates single-use trade nonces stored in Redis (#1194).
+ * Requires nonce in signed trade payload.
+ * Atomically verifies and consumes nonce on receipt.
+ * Rejects missing, expired, or already-used nonces with HTTP 401 and error code 'nonce_invalid'.
+ */
+export function requireTradeNonce() {
+   return async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+   ): Promise<void> => {
+      if ((req as any).tradeNonceVerified) {
+         next();
+         return;
+      }
+
+      // Wallet address resolved from stellar signature, JWT, header, or body
+      const wallet =
+         (req as any).walletAddress ||
+         (req as any).user?.wallet ||
+         req.headers['x-wallet-address'] ||
+         (req.body as any)?.fromAddress ||
+         (req.body as any)?.wallet;
+
+      const rawNonce =
+         (req.body as any)?.nonce ??
+         req.headers['x-nonce'];
+
+      if (rawNonce === undefined || rawNonce === null || String(rawNonce).trim() === '') {
+         sendError(
+            res,
+            401,
+            ErrorCode.NONCE_INVALID,
+            'Nonce is required in signed payload'
+         );
+         return;
+      }
+
+      if (!wallet || typeof wallet !== 'string') {
+         sendError(
+            res,
+            401,
+            ErrorCode.NONCE_INVALID,
+            'Cannot validate nonce: wallet address could not be determined'
+         );
+         return;
+      }
+
+      const walletCheck = StellarAddressSchema.safeParse(wallet);
+      if (!walletCheck.success) {
+         sendError(
+            res,
+            401,
+            ErrorCode.NONCE_INVALID,
+            'Invalid wallet address for nonce validation'
+         );
+         return;
+      }
+
+      const isValid = await verifyAndConsumeTradeNonce(wallet, rawNonce);
+      if (!isValid) {
+         sendError(
+            res,
+            401,
+            ErrorCode.NONCE_INVALID,
+            'Nonce is invalid, expired, or already used'
+         );
+         return;
+      }
+
+      (req as any).tradeNonceVerified = true;
+      next();
    };
 }

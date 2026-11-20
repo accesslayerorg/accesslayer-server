@@ -6,6 +6,8 @@ import { GetNonceQuerySchema, ConsumeNonceBodySchema } from './nonce.schemas';
 import {
    getWalletNonce,
    consumeWalletNonce,
+   generateTradeNonce,
+   getTradeNonceTTL,
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from './nonce.service';
@@ -17,6 +19,7 @@ import {
    zodIssuesToDetails,
 } from '../../utils/api-response.utils';
 import { ErrorCode } from '../../constants/error.constants';
+import { StellarAddressSchema } from '../wallet/wallet.schemas';
 
 /**
  * GET /api/v1/nonce?wallet=
@@ -81,6 +84,40 @@ export async function httpConsumeWalletNonce(
          sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
          return;
       }
+      next(error);
+   }
+}
+
+/**
+ * GET /nonce/:wallet
+ * Issues a fresh one-time nonce stored in Redis with TTL for replay protection (#1194).
+ */
+export async function httpGetTradeNonce(
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void> {
+   try {
+      const wallet = req.params.wallet;
+      const parsed = StellarAddressSchema.safeParse(wallet);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid wallet address parameter',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      const nonce = await generateTradeNonce(parsed.data);
+      const ttl = getTradeNonceTTL();
+
+      sendSuccess(res, {
+         wallet: parsed.data,
+         nonce,
+         ttl,
+      });
+   } catch (error) {
       next(error);
    }
 }

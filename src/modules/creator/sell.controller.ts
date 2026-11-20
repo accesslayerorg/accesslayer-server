@@ -55,6 +55,10 @@ export const sellSchema = z.object({
     */
    min_price: z.number().nonnegative(),
    fee_xlm: z.number().nonnegative().default(0),
+   /**
+    * One-time trade nonce for replay protection (#1194).
+    */
+   nonce: z.union([z.string(), z.number()]).optional(),
 });
 
 export type SellRequestBody = z.infer<typeof sellSchema>;

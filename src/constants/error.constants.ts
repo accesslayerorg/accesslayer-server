@@ -29,6 +29,7 @@ export const ErrorCode = {
    DEPENDENCY_UNAVAILABLE: 'dependency_unavailable',
    MISSING_IDEMPOTENCY_KEY: 'missing_idempotency_key',
    REQUEST_IN_PROGRESS: 'request_in_progress',
+   NONCE_INVALID: 'nonce_invalid',
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

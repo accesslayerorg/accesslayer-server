@@ -1,6 +1,14 @@
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
+import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
+import { requireTradeNonce } from '../nonce/nonce.middleware';
+import { validateBody } from '../../middlewares/validate-body.middleware';
+import { platformPauseGuard } from '../../middlewares/platform-pause.middleware';
+import {
+   httpTransferCreatorKey,
+   transferSchema,
+} from '../creator/transfer.controller';
 import { getSubscriptionStatus } from './subscription-status.service';
 import {
    sendError,
@@ -2881,4 +2889,18 @@ router.get(
 router.all('/:keyId/gate', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
+
+/**
+ * POST /api/v1/keys/:keyId/transfer
+ * Transfer keys to another wallet with nonce-based replay protection (#1194).
+ */
+router.post(
+   '/:keyId/transfer',
+   platformPauseGuard(),
+   requireStellarSignature({ tradeNonce: true }),
+   requireTradeNonce(),
+   validateBody(transferSchema),
+   httpTransferCreatorKey
+);
+
 export default router;

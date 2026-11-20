@@ -1,10 +1,12 @@
 // src/modules/nonce/nonce.service.ts
 // Service layer for nonce management and replay-protected signed actions (#1039).
 
+import { randomBytes } from 'crypto';
 import {
    cacheGetJson,
    cacheSetJson,
    cacheInvalidate,
+   getRedisClient,
 } from '../../utils/redis.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
@@ -53,6 +55,7 @@ export function consumedNonceCacheKey(wallet: string, nonce: number): string {
 export function resetNonceStateForTests(): void {
    inMemoryConsumedNonces.clear();
    resetTrackedOnChainNonces();
+   resetTradeNonceStateForTests();
 }
 
 /**
@@ -174,4 +177,122 @@ export async function validateSignedActionNonce(
    provider: NonceContractProvider = defaultNonceContractProvider
 ): Promise<ConsumeNonceResult> {
    return consumeWalletNonce(wallet, nonce, action, provider);
+}
+
+// ── Trade Nonce Replay Protection (#1194) ──────────────────────────
+
+export const DEFAULT_TRADE_NONCE_TTL_SECONDS = 300; // 5 minutes
+
+export function getTradeNonceTTL(): number {
+   return (
+      (envConfig as any).TRADE_NONCE_TTL_SECONDS ??
+      DEFAULT_TRADE_NONCE_TTL_SECONDS
+   );
+}
+
+const inMemoryTradeNonces = new Map<string, { nonce: string; expiresAt: number }>();
+
+export function resetTradeNonceStateForTests(): void {
+   inMemoryTradeNonces.clear();
+}
+
+/**
+ * Generates a fresh one-time nonce for a wallet and stores it in Redis with TTL (#1194).
+ */
+export async function generateTradeNonce(wallet: string): Promise<string> {
+   const nonce = randomBytes(16).toString('hex');
+   const ttlSeconds = getTradeNonceTTL();
+   const expiresAt = Date.now() + ttlSeconds * 1000;
+
+   // In-memory backup for testing / resilience
+   inMemoryTradeNonces.set(wallet, { nonce, expiresAt });
+   inMemoryTradeNonces.set(`${wallet}:${nonce}`, { nonce, expiresAt });
+
+   const client = getRedisClient();
+   if (client) {
+      try {
+         await client
+            .multi()
+            .set(`nonce:${wallet}`, nonce, 'EX', ttlSeconds)
+            .set(`nonce:${wallet}:${nonce}`, nonce, 'EX', ttlSeconds)
+            .exec();
+      } catch (error) {
+         logger.warn(
+            { error: (error as Error).message, wallet },
+            'Failed to store trade nonce in Redis, falling back to in-memory store'
+         );
+      }
+   }
+
+   return nonce;
+}
+
+/**
+ * Atomically verifies and consumes a one-time trade nonce from Redis (#1194).
+ * Returns true if the nonce was valid and deleted atomically, or false if
+ * expired, already consumed, or invalid.
+ */
+export async function verifyAndConsumeTradeNonce(
+   wallet: string,
+   nonce: string | number
+): Promise<boolean> {
+   if (nonce === undefined || nonce === null || String(nonce).trim() === '') {
+      return false;
+   }
+
+   const nonceStr = String(nonce).trim();
+   const client = getRedisClient();
+
+   if (client && client.status === 'ready') {
+      try {
+         const luaScript = `
+            local val1 = redis.call('get', KEYS[1])
+            local val2 = redis.call('get', KEYS[2])
+            if val1 == ARGV[1] or val2 == ARGV[1] or val2 == '1' then
+               redis.call('del', KEYS[1])
+               redis.call('del', KEYS[2])
+               return 1
+            else
+               return 0
+            end
+         `;
+         const result = await client.eval(
+            luaScript,
+            2,
+            `nonce:${wallet}`,
+            `nonce:${wallet}:${nonceStr}`,
+            nonceStr
+         );
+
+         if (Number(result) === 1) {
+            inMemoryTradeNonces.delete(wallet);
+            inMemoryTradeNonces.delete(`${wallet}:${nonceStr}`);
+            return true;
+         } else {
+            return false;
+         }
+      } catch (error) {
+         logger.warn(
+            { error: (error as Error).message, wallet },
+            'Redis atomic trade nonce verification failed, checking in-memory store'
+         );
+      }
+   }
+
+   // In-memory fallback (when Redis is down, disabled, or mocked in tests)
+   const now = Date.now();
+   const record1 = inMemoryTradeNonces.get(wallet);
+   const record2 = inMemoryTradeNonces.get(`${wallet}:${nonceStr}`);
+
+   const match =
+      (record1 && record1.expiresAt > now && record1.nonce === nonceStr) ||
+      (record2 && record2.expiresAt > now && record2.nonce === nonceStr);
+
+   if (match) {
+      inMemoryTradeNonces.delete(wallet);
+      inMemoryTradeNonces.delete(`${wallet}:${nonceStr}`);
+      return true;
+   }
+
+   return false;
 }
