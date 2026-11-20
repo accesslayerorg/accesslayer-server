@@ -16,6 +16,7 @@ The server is responsible for:
 - access checks for gated off-chain content
 - trade webhooks for external integrations
 - a centralised Soroban contract interaction service that wraps all on-chain submissions with retry, error classification, transaction tracking, and resolution events ([Soroban Contract Service Reference](./docs/soroban-contract-service.md))
+- automatic key NFT badge awards triggered by qualifying on-chain activity (first buy, whale swap, governance vote, long-term hold, top trade) ([Badge Minting Trigger Service](./docs/badge-minting.md))
 
 See [Backend Domain Model and Endpoint Boundaries](./docs/architecture/domain-boundaries.md) for a technical overview, [Creator Data Model Reference](./docs/architecture/creator-data-model.md) for creator field definitions, [API Versioning](./docs/api-versioning.md) for details on schema versioning, [API Timeout Configuration](./docs/api-timeouts.md) for timeout defaults, [Rate Limiting Configuration](./docs/rate-limiting.md) for rate limit defaults and guidelines, and [Trade Webhooks Reference](./docs/webhooks.md) for webhook payload and delivery behavior.
 
@@ -245,6 +246,8 @@ Returns the latest indexed ledger number, its opaque cursor, and the timestamp o
 ## Indexer and ownership operations
 
 - Ownership snapshot cleanup scaffold: [docs/indexer/ownership-snapshot-cleanup.md](./docs/indexer/ownership-snapshot-cleanup.md)
+
+Invoice protocol endpoints, contract configuration, and worker integration: [Invoice Protocol](./docs/invoice-protocol.md).
 
 ## Metrics
 

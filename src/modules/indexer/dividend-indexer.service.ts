@@ -11,24 +11,50 @@ import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
  * Extended chain event interface for dividend distribution events.
  */
 export interface DividendDistributedEvent extends IndexerChainEvent {
-   eventType: 'DIVIDEND_DISTRIBUTED';
-   creatorId: string;
-   totalAmountXlm: string; // In stroops or XLM, as string for precision
-   holdersCount: number;
-   distributorAddress: string;
-   distributedAt: string; // ISO timestamp
+   eventType:
+      | 'DIVIDEND_DISTRIBUTED'
+      | 'DIVIDEND_SNAPSHOT_CREATED'
+      | 'DividendSnapshotCreated';
+   creatorId?: string;
+   keyId?: string;
+   totalAmountXlm?: string;
+   totalDistributed?: string | number;
+   holdersCount?: number;
+   holderCount?: number;
+   distributorAddress?: string;
+   distributedAt?: string;
+   claimWindowStart?: string;
+   claimWindowEnd?: string;
+   snapshotId?: string;
 }
 
 /**
  * Extended chain event interface for dividend claim events.
  */
 export interface DividendClaimedEvent extends IndexerChainEvent {
-   eventType: 'DIVIDEND_CLAIMED';
-   creatorId: string;
-   claimantAddress: string;
-   amountXlm: string | number;
+   eventType: 'DIVIDEND_CLAIMED' | 'DividendClaimed';
+   creatorId?: string;
+   keyId?: string;
+   claimantAddress?: string;
+   wallet?: string;
+   amountXlm?: string | number;
    distributionId?: string;
-   claimedAt: string; // ISO timestamp
+   snapshotId?: string;
+   claimedAt?: string;
+}
+
+function parseEventDate(value: unknown): Date | null {
+   let date: Date;
+   if (value instanceof Date) {
+      date = new Date(value.getTime());
+   } else if (typeof value === 'number') {
+      date = new Date(value < 100_000_000_000 ? value * 1000 : value);
+   } else if (typeof value === 'string' && value.trim() !== '') {
+      date = new Date(value);
+   } else {
+      return null;
+   }
+   return Number.isFinite(date.getTime()) ? date : null;
 }
 
 /**
@@ -42,116 +68,194 @@ export interface DividendClaimedEvent extends IndexerChainEvent {
  * - Writes a checkpoint record of the highest ledger processed.
  */
 export async function processDividendEvents(
-   events: IndexerChainEvent[]
+   events: IndexerChainEvent[],
+   options: { advanceCursor?: boolean } = {}
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
-      // Validate event type
-      if (
-         event.eventType !== 'DIVIDEND_DISTRIBUTED' &&
-         event.eventType !== 'DIVIDEND_CLAIMED'
-      ) {
+      const isClaimEvent = ['DIVIDEND_CLAIMED', 'DividendClaimed'].includes(
+         event.eventType
+      );
+      const isSnapshotEvent = [
+         'DIVIDEND_DISTRIBUTED',
+         'DIVIDEND_SNAPSHOT_CREATED',
+         'DividendSnapshotCreated',
+      ].includes(event.eventType);
+      if (!isClaimEvent && !isSnapshotEvent) {
          return;
       }
 
-      if (event.eventType === 'DIVIDEND_CLAIMED') {
+      if (isClaimEvent) {
          const typedEvent = event as DividendClaimedEvent;
-         const requiredFields = [
-            'creatorId',
-            'claimantAddress',
-            'amountXlm',
-            'claimedAt',
-            'ledger',
-            'txHash',
-         ];
+         const creatorId =
+            typedEvent.creatorId || typedEvent.keyId || typedEvent.key_id;
+         const claimantAddress =
+            typedEvent.claimantAddress ||
+            typedEvent.claimant_address ||
+            typedEvent.wallet ||
+            typedEvent.wallet_address;
+         const amountXlm =
+            typedEvent.amountXlm ??
+            typedEvent.amount_xlm ??
+            typedEvent.claimedAmount;
+         const claimedAt =
+            typedEvent.claimedAt || typedEvent.claimed_at || typedEvent.timestamp;
+         const snapshotReference =
+            typedEvent.distributionId ||
+            typedEvent.distribution_id ||
+            typedEvent.snapshotId ||
+            typedEvent.snapshot_id;
+         if (
+            !creatorId ||
+            !claimantAddress ||
+            !claimedAt ||
+            typeof event.ledger !== 'number' ||
+            !event.txHash
+         ) {
+            logger.warn(
+               { eventId: `${event.txHash}:${event.eventIndex}` },
+               'Skipping dividend claim event due to missing required fields'
+            );
+            return;
+         }
 
-         for (const field of requiredFields) {
-            if (
-               typedEvent[field as keyof DividendClaimedEvent] === undefined ||
-               typedEvent[field as keyof DividendClaimedEvent] === null ||
-               typedEvent[field as keyof DividendClaimedEvent] === ''
-            ) {
+         const claimedDate = parseEventDate(claimedAt);
+         const amount =
+            amountXlm === undefined || amountXlm === null
+               ? undefined
+               : Number(amountXlm);
+         if (
+            (amount !== undefined && !Number.isFinite(amount)) ||
+            !claimedDate
+         ) {
+            logger.warn(
+               { eventId: `${event.txHash}:${event.eventIndex}` },
+               'Skipping dividend claim event due to invalid amount or date'
+            );
+            return;
+         }
+
+         const claimDate = claimedDate;
+         const claimWasMarked = await prisma.$transaction(async tx => {
+            const distribution = snapshotReference
+               ? await tx.dividendDistribution.findFirst({
+                    where: {
+                       creatorId,
+                       OR: [
+                          { id: snapshotReference },
+                          { chainSnapshotId: snapshotReference },
+                       ],
+                    },
+                    select: { id: true },
+                 })
+               : null;
+            if (snapshotReference && !distribution) {
                logger.warn(
                   {
                      eventId: `${event.txHash}:${event.eventIndex}`,
-                     missingField: field,
+                     creatorId,
+                     snapshotReference,
                   },
-                  'Skipping dividend claim event due to missing required field'
+                  'Dividend claim references an unknown snapshot'
                );
-               return;
+               return false;
             }
-         }
-
-         const {
-            creatorId,
-            claimantAddress,
-            amountXlm,
-            distributionId,
-            claimedAt,
-            ledger,
-            txHash,
-         } = typedEvent;
-
-         const claimedDate = new Date(claimedAt);
-
-         // 1. Mark pending claim(s) as claimed
-         if (distributionId) {
-            await prisma.dividendClaim.updateMany({
-               where: {
-                  distributionId,
-                  recipientAddress: claimantAddress,
-               },
-               data: {
-                  claimedAt: claimedDate,
-               },
-            });
-         } else {
-            await prisma.dividendClaim.updateMany({
+            const pendingClaims = await tx.dividendClaim.findMany({
                where: {
                   recipientAddress: claimantAddress,
-                  distribution: { creatorId },
                   claimedAt: null,
+                  distribution: {
+                     creatorId,
+                     ...(distribution ? { id: distribution.id } : {}),
+                  },
                },
+               orderBy: [
+                  { distribution: { distributionDate: 'asc' } },
+                  { id: 'asc' },
+               ],
+               select: { id: true, amountXlm: true, distributionId: true },
+            });
+
+            const matchingClaims = pendingClaims.filter(
+               claim =>
+                  amount === undefined || Number(claim.amountXlm) === amount
+            );
+            if (!snapshotReference && matchingClaims.length !== 1) {
+               logger.warn(
+                  {
+                     eventId: `${event.txHash}:${event.eventIndex}`,
+                     creatorId,
+                     claimantAddress,
+                     matchingClaimCount: matchingClaims.length,
+                     amountXlm: amount,
+                  },
+                  'Dividend claim without a snapshot reference is ambiguous'
+               );
+               return false;
+            }
+            const matchingClaim = matchingClaims[0];
+            if (!matchingClaim) {
+               logger.warn(
+                  {
+                     eventId: `${event.txHash}:${event.eventIndex}`,
+                     creatorId,
+                     claimantAddress,
+                     snapshotReference,
+                     amountXlm: amount ?? null,
+                  },
+                  'No matching pending dividend claim found for claim event'
+               );
+               return false;
+            }
+
+            const claimUpdate = await tx.dividendClaim.updateMany({
+               where: { id: matchingClaim.id, claimedAt: null },
+               data: { claimedAt: claimDate },
+            });
+            if (claimUpdate.count === 0) {
+               return false;
+            }
+
+            await tx.activity.create({
                data: {
-                  claimedAt: claimedDate,
+                  type: 'DIVIDEND_CLAIMED',
+                  actor: claimantAddress,
+                  creatorId,
+                  payload: {
+                     amount_xlm: String(matchingClaim.amountXlm),
+                     claimant: claimantAddress,
+                     distribution_id: matchingClaim.distributionId,
+                     ledger_sequence: event.ledger,
+                     tx_hash: event.txHash,
+                  },
+                  createdAt: claimDate,
                },
             });
+            return true;
+         });
+         if (!claimWasMarked) {
+            return;
          }
 
-         // 2. Create Activity record
-         await prisma.activity.create({
-            data: {
-               type: 'DIVIDEND_CLAIMED' as any,
-               actor: claimantAddress,
-               creatorId,
-               payload: {
-                  amount_xlm: String(amountXlm),
-                  claimant: claimantAddress,
-                  distribution_id: distributionId || null,
-                  ledger_sequence: Number(ledger),
-                  tx_hash: String(txHash),
-               },
-               createdAt: claimedDate,
-            },
-         });
-
-         // 3. Invalidate dividend cache
          try {
             const { invalidateDividendCache } = await import(
                '../dividends/dividend.service'
             );
             await invalidateDividendCache(creatorId, claimantAddress);
-         } catch {
-            // Non-critical cache invalidation failure
+         } catch (error) {
+            logger.warn(
+               { error, creatorId, claimantAddress },
+               'Failed to invalidate dividend cache after claim'
+            );
          }
 
          logger.info(
             {
                creatorId,
                claimantAddress,
-               amountXlm,
-               distributionId,
-               ledger: Number(ledger),
-               txHash: String(txHash),
+               amountXlm: amount ?? null,
+               distributionId: snapshotReference,
+               ledger: event.ledger,
+               txHash: event.txHash,
             },
             'Dividend claim event processed'
          );
@@ -160,66 +264,78 @@ export async function processDividendEvents(
 
       // Type guard and required field validation
       const typedEvent = event as DividendDistributedEvent;
-      const requiredFields = [
-         'creatorId',
-         'totalAmountXlm',
-         'holdersCount',
-         'distributorAddress',
-         'distributedAt',
-         'ledger',
-      ];
-
-      for (const field of requiredFields) {
-         if (
-            typedEvent[field as keyof DividendDistributedEvent] === undefined ||
-            typedEvent[field as keyof DividendDistributedEvent] === null ||
-            typedEvent[field as keyof DividendDistributedEvent] === ''
-         ) {
-            logger.warn(
-               {
-                  eventId: `${event.txHash}:${event.eventIndex}`,
-                  missingField: field,
-               },
-               'Skipping dividend event due to missing required field'
-            );
-            return;
-         }
+      const creatorId =
+         typedEvent.creatorId || typedEvent.keyId || typedEvent.key_id;
+      const totalAmountXlm =
+         typedEvent.totalDistributed ??
+         typedEvent.total_distributed ??
+         typedEvent.totalAmountXlm ??
+         typedEvent.total_amount_xlm;
+      const distributedAt =
+         typedEvent.distributedAt ||
+         typedEvent.distributed_at ||
+         typedEvent.createdAt ||
+         typedEvent.timestamp;
+      const holdersCount =
+         typedEvent.holdersCount ??
+         typedEvent.holderCount ??
+         typedEvent.holders_count;
+      const distributorAddress =
+         typedEvent.distributorAddress ||
+         typedEvent.distributor_address ||
+         typedEvent.distributor ||
+         'unknown';
+      const ledger = event.ledger;
+      const txHash = event.txHash;
+      const distributionDate = parseEventDate(distributedAt);
+      if (
+         !creatorId ||
+         totalAmountXlm === undefined ||
+         typeof ledger !== 'number' ||
+         !txHash ||
+         !distributionDate
+      ) {
+         logger.warn(
+            { eventId: `${event.txHash}:${event.eventIndex}` },
+            'Skipping dividend snapshot event due to missing required fields'
+         );
+         return;
       }
 
-      const {
-         creatorId,
-         totalAmountXlm,
-         holdersCount,
-         distributorAddress,
-         distributedAt,
-         ledger,
-         txHash,
-      } = typedEvent;
-
-      // Calculate per-key amount
       let perKeyAmountXlm = '0';
-      if (holdersCount > 0) {
-         // Handle both decimal and integer inputs
-         const totalAsDecimal =
-            typeof totalAmountXlm === 'string'
-               ? parseFloat(totalAmountXlm)
-               : Number(totalAmountXlm);
-         const perKeyAmount = totalAsDecimal / holdersCount;
-         perKeyAmountXlm = perKeyAmount.toFixed(7); // 7 decimal places for Decimal(20,7)
+      const totalAsDecimal = Number(totalAmountXlm);
+      if (!Number.isFinite(totalAsDecimal) || totalAsDecimal < 0) {
+         logger.warn(
+            { eventId: `${event.txHash}:${event.eventIndex}`, totalAmountXlm },
+            'Skipping dividend snapshot event due to invalid total'
+         );
+         return;
       }
-
       // 1. Create DividendDistribution record
-      const distribution = await prisma.dividendDistribution.create({
-         data: {
-            creatorId,
-            distributionDate: new Date(distributedAt),
-            totalAmountXlm: parseFloat(totalAmountXlm),
-            holderCount: holdersCount,
-            perKeyAmountXlm: parseFloat(perKeyAmountXlm),
-            ledger: Number(ledger),
-            txHash: String(txHash),
-         },
-      });
+      const rawClaimWindowStart =
+         typedEvent.claimWindowStart ??
+         typedEvent.claim_window_start ??
+         typedEvent.claimStart;
+      const rawClaimWindowEnd =
+         typedEvent.claimWindowEnd ??
+         typedEvent.claim_window_end ??
+         typedEvent.claimEnd;
+      const claimWindowStart = rawClaimWindowStart
+         ? parseEventDate(rawClaimWindowStart)
+         : null;
+      const claimWindowEnd = rawClaimWindowEnd
+         ? parseEventDate(rawClaimWindowEnd)
+         : null;
+      if (
+         (rawClaimWindowStart && !claimWindowStart) ||
+         (rawClaimWindowEnd && !claimWindowEnd)
+      ) {
+         logger.warn(
+            { eventId: `${event.txHash}:${event.eventIndex}` },
+            'Skipping dividend snapshot event due to invalid timestamp'
+         );
+         return;
+      }
 
       // 2. Get all current key holders for this creator (balance > 0)
       const holders = await prisma.keyOwnership.findMany({
@@ -233,64 +349,117 @@ export async function processDividendEvents(
             balance: true,
          },
       });
-
-      // 3. Create DividendClaim records for each holder
-      if (holders.length > 0) {
-         const claims = holders.map(holder => {
-            // Calculate holder's payout: perKeyAmount * holderBalance
-            const holderBalance =
-               typeof holder.balance === 'string'
-                  ? parseFloat(holder.balance)
-                  : Number(holder.balance);
-            const holderPayout = (
-               parseFloat(perKeyAmountXlm) * holderBalance
-            ).toFixed(7);
-
-            return {
-               distributionId: distribution.id,
-               recipientAddress: holder.ownerAddress,
-               amountXlm: parseFloat(holderPayout),
-            };
-         });
-
-         await prisma.dividendClaim.createMany({
-            data: claims,
-            skipDuplicates: true,
-         });
+      const effectiveHolderCount = holdersCount ?? holders.length;
+      const totalKeyBalance = holders.reduce(
+         (total, holder) => total + Number(holder.balance),
+         0
+      );
+      const allocationDenominator =
+         event.eventType === 'DIVIDEND_SNAPSHOT_CREATED' ||
+         event.eventType === 'DividendSnapshotCreated'
+            ? totalKeyBalance
+            : effectiveHolderCount;
+      if (allocationDenominator > 0) {
+         perKeyAmountXlm = (totalAsDecimal / allocationDenominator).toFixed(7);
       }
 
-      // 4. Create Activity record for audit trail
-      await prisma.activity.create({
-         data: {
-            type: 'DIVIDEND_DISTRIBUTED',
-            actor: distributorAddress,
-            creatorId,
-            payload: {
-               total_amount_xlm: totalAmountXlm,
-               per_key_amount_xlm: perKeyAmountXlm,
-               holders_count: holdersCount,
-               distribution_id: distribution.id,
-               ledger_sequence: Number(ledger),
-            },
-            createdAt: new Date(distributedAt),
-         },
-      });
+      let distribution;
+      try {
+         distribution = await prisma.$transaction(async tx => {
+            const createdDistribution =
+               await tx.dividendDistribution.create({
+                  data: {
+                     creatorId,
+                     distributionDate,
+                     totalAmountXlm: totalAsDecimal,
+                     holderCount: effectiveHolderCount,
+                     perKeyAmountXlm: parseFloat(perKeyAmountXlm),
+                     claimWindowStart,
+                     claimWindowEnd,
+                     chainSnapshotId:
+                        typedEvent.snapshotId ??
+                        typedEvent.snapshot_id ??
+                        null,
+                     ledger,
+                     txHash,
+                     eventIndex: event.eventIndex,
+                  },
+               });
+
+            if (holders.length > 0) {
+               const claims = holders.map(holder => {
+                  const holderBalance = Number(holder.balance);
+                  const holderPayout = (
+                     parseFloat(perKeyAmountXlm) * holderBalance
+                  ).toFixed(7);
+
+                  return {
+                     distributionId: createdDistribution.id,
+                     recipientAddress: holder.ownerAddress,
+                     amountXlm: parseFloat(holderPayout),
+                  };
+               });
+               await tx.dividendClaim.createMany({
+                  data: claims,
+                  skipDuplicates: true,
+               });
+            }
+
+            await tx.activity.create({
+               data: {
+                  type: 'DIVIDEND_DISTRIBUTED',
+                  actor: distributorAddress,
+                  creatorId,
+                  payload: {
+                     total_amount_xlm: String(totalAsDecimal),
+                     per_key_amount_xlm: perKeyAmountXlm,
+                     holders_count: effectiveHolderCount,
+                     distribution_id: createdDistribution.id,
+                     ledger_sequence: ledger,
+                  },
+                  createdAt: distributionDate,
+               },
+            });
+            return createdDistribution;
+         });
+      } catch (error) {
+         if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            error.code === 'P2002'
+         ) {
+            logger.info(
+               { eventId: `${txHash}:${event.eventIndex}` },
+               'Duplicate dividend snapshot event skipped'
+            );
+            return;
+         }
+         throw error;
+      }
 
       // Invalidate the platform activity feed's cached first page (#936) so
       // this new DIVIDEND_DISTRIBUTED ("settlement") activity shows up promptly.
-      const { invalidateActivityFeedCache } =
-         await import('../activity/activity-feed.service');
-      await invalidateActivityFeedCache();
+      try {
+         const { invalidateActivityFeedCache } =
+            await import('../activity/activity-feed.service');
+         await invalidateActivityFeedCache();
+      } catch (error) {
+         logger.warn(
+            { error, creatorId },
+            'Failed to invalidate activity feed after dividend snapshot'
+         );
+      }
 
       logger.info(
          {
             distributionId: distribution.id,
             creatorId,
             totalAmountXlm,
-            holderCount: holdersCount,
+            holderCount: effectiveHolderCount,
             perKeyAmountXlm,
-            ledger: Number(ledger),
-            txHash: String(txHash),
+            ledger,
+            txHash,
          },
          'Dividend distribution processed'
       );
@@ -299,8 +468,11 @@ export async function processDividendEvents(
          const { invalidateCreatorDashboardCache } =
             await import('../creator/creator-dashboard.service');
          await invalidateCreatorDashboardCache(creatorId);
-      } catch {
-         // Non-critical cache invalidation failure
+      } catch (error) {
+         logger.warn(
+            { error, creatorId },
+            'Failed to invalidate creator dashboard after dividend snapshot'
+         );
       }
 
       try {
@@ -308,31 +480,35 @@ export async function processDividendEvents(
             '../dividends/dividend.service'
          );
          await invalidateDividendCache(creatorId);
-      } catch {
-         // Non-critical cache invalidation failure
+      } catch (error) {
+         logger.warn(
+            { error, creatorId },
+            'Failed to invalidate dividend cache after snapshot'
+         );
       }
    });
 
-   // Update checkpoint with highest ledger processed
-   const uniqueEvents = dedupeChainEvents(events);
-   const processedLedgers = uniqueEvents
-      .map(e => e.ledger)
-      .filter((l): l is number => typeof l === 'number');
+   if (options.advanceCursor !== false) {
+      // Update checkpoint with highest ledger processed.
+      const uniqueEvents = dedupeChainEvents(events);
+      const processedLedgers = uniqueEvents
+         .map(e => e.ledger)
+         .filter((l): l is number => typeof l === 'number');
 
-   if (processedLedgers.length > 0) {
-      const maxLedger = Math.max(...processedLedgers);
-      // Compute batch hash for deduplication detection
-      const identifiers = uniqueEvents
-         .map(e => `${e.txHash}:${e.eventIndex}`)
-         .sort()
-         .join('|');
-      const { createHash } = await import('crypto');
-      const batchHash = createHash('sha256')
-         .update(identifiers, 'utf8')
-         .digest('hex')
-         .slice(0, 16);
-      const cursor = `${maxLedger}-000`;
-      await updateIndexedLedger(maxLedger, cursor, batchHash);
+      if (processedLedgers.length > 0) {
+         const maxLedger = Math.max(...processedLedgers);
+         const identifiers = uniqueEvents
+            .map(e => `${e.txHash}:${e.eventIndex}`)
+            .sort()
+            .join('|');
+         const { createHash } = await import('crypto');
+         const batchHash = createHash('sha256')
+            .update(identifiers, 'utf8')
+            .digest('hex')
+            .slice(0, 16);
+         const cursor = `${maxLedger}-000`;
+         await updateIndexedLedger(maxLedger, cursor, batchHash);
+      }
    }
 }
 
@@ -360,36 +536,80 @@ export function parseDividendContractLog(
    }
 
    const topic0 = String(log.topics[0]).toLowerCase();
-   const timestamp = log.timestamp
-      ? new Date(log.timestamp).toISOString()
-      : new Date().toISOString();
+   const timestamp =
+      parseEventDate(log.timestamp)?.toISOString() ?? new Date().toISOString();
+   const isSnapshotCreatedTopic =
+      topic0 === 'dividendsnapshotcreated' ||
+      topic0 === 'dividend_snapshot_created';
 
    if (
+      isSnapshotCreatedTopic ||
       topic0 === 'dividend_distributed' ||
       topic0 === 'dividenddistributed' ||
       topic0 === 'distributed'
    ) {
-      const creatorId = log.topics[1] || log.data?.creatorId || log.contractId;
+      const creatorId =
+         log.data?.creatorId ||
+         log.data?.keyId ||
+         log.data?.key_id ||
+         log.topics[1] ||
+         log.contractId;
       const totalAmountXlm = String(
-         log.data?.totalAmountXlm || log.data?.totalAmount || log.topics[2] || '0'
+         log.data?.totalDistributed ??
+            log.data?.total_distributed ??
+            log.data?.totalAmountXlm ??
+            log.data?.total_amount_xlm ??
+            log.data?.totalAmount ??
+            log.topics[2] ??
+            '0'
       );
       const holdersCount = Number(
-         log.data?.holdersCount || log.data?.holderCount || log.topics[3] || 0
+         log.data?.holdersCount ??
+            log.data?.holders_count ??
+            log.data?.holderCount ??
+            log.data?.holder_count ??
+            log.topics[3] ??
+            0
       );
       const distributorAddress = String(
          log.data?.distributorAddress ||
+            log.data?.distributor_address ||
             log.data?.distributor ||
-            log.topics[4] ||
+            (isSnapshotCreatedTopic ? '' : log.topics[4]) ||
             ''
       );
 
       return {
-         eventType: 'DIVIDEND_DISTRIBUTED',
+         eventType:
+            topic0 === 'dividendsnapshotcreated' ||
+            topic0 === 'dividend_snapshot_created'
+               ? 'DIVIDEND_SNAPSHOT_CREATED'
+               : 'DIVIDEND_DISTRIBUTED',
          creatorId,
          totalAmountXlm,
+         totalDistributed: totalAmountXlm,
          holdersCount,
          distributorAddress,
-         distributedAt: timestamp,
+         distributedAt:
+            log.data?.distributedAt ||
+            log.data?.distributed_at ||
+            log.data?.createdAt ||
+            log.data?.timestamp ||
+            timestamp,
+         claimWindowStart:
+            log.data?.claimWindowStart ||
+            log.data?.claim_window_start ||
+            log.data?.claimStart ||
+            undefined,
+         claimWindowEnd:
+            log.data?.claimWindowEnd ||
+            log.data?.claim_window_end ||
+            log.data?.claimEnd ||
+            undefined,
+         snapshotId:
+            log.data?.snapshotId ||
+            log.data?.snapshot_id ||
+            (isSnapshotCreatedTopic ? log.topics[4] : undefined),
          ledger: log.ledger,
          txHash: log.txHash,
          eventIndex: log.eventIndex ?? 0,
@@ -401,23 +621,55 @@ export function parseDividendContractLog(
       topic0 === 'dividendclaimed' ||
       topic0 === 'claimed'
    ) {
-      const creatorId = log.topics[1] || log.data?.creatorId || log.contractId;
+      const creatorId =
+         log.data?.creatorId ||
+         log.data?.keyId ||
+            log.data?.key_id ||
+            log.topics[1] ||
+            log.contractId;
       const claimantAddress = String(
-         log.topics[2] || log.data?.claimantAddress || log.data?.claimant || ''
+            log.data?.claimantAddress ||
+               log.data?.claimant_address ||
+               log.data?.claimant ||
+               log.data?.wallet ||
+               log.data?.walletAddress ||
+               log.data?.wallet_address ||
+               log.topics[2] ||
+               ''
       );
-      const amountXlm = String(
-         log.data?.amountXlm || log.data?.amount || log.topics[3] || '0'
-      );
+      const rawAmount =
+            log.data?.amountXlm ??
+            log.data?.amount_xlm ??
+            log.data?.amount ??
+            log.data?.claimedAmount ??
+            log.data?.claimed_amount ??
+            log.topics[3] ??
+            undefined;
+      const amountXlm =
+            rawAmount === undefined ? undefined : String(rawAmount);
       const distributionId =
-         log.data?.distributionId || log.topics[4] || undefined;
+         log.data?.distributionId ||
+         log.data?.distribution_id ||
+         log.data?.snapshotId ||
+         log.data?.snapshot_id ||
+         log.topics[4] ||
+         undefined;
 
       return {
-         eventType: 'DIVIDEND_CLAIMED',
+         eventType:
+            topic0 === 'dividendclaimed'
+               ? 'DividendClaimed'
+               : 'DIVIDEND_CLAIMED',
          creatorId,
          claimantAddress,
          amountXlm,
          distributionId,
-         claimedAt: timestamp,
+         snapshotId: distributionId,
+         claimedAt:
+            log.data?.claimedAt ||
+            log.data?.claimed_at ||
+            log.data?.timestamp ||
+            timestamp,
          ledger: log.ledger,
          txHash: log.txHash,
          eventIndex: log.eventIndex ?? 0,

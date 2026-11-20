@@ -1,5 +1,7 @@
 import { adminGuard } from '../../middlewares/admin-guard.middleware';
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { envConfig } from '../../config';
 
 describe('adminGuard middleware', () => {
    let mockReq: Partial<Request>;
@@ -8,12 +10,13 @@ describe('adminGuard middleware', () => {
 
    beforeEach(() => {
       mockReq = { headers: {} };
-      mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
       mockNext = jest.fn();
    });
 
    it('should call next when valid admin ID is provided', () => {
-      mockReq.headers = { 'x-admin-id': 'admin-123' };
+      const token = jwt.sign({ sub: 'admin-123', role: 'admin' }, envConfig.JWT_SECRET);
+      mockReq.headers = { authorization: `Bearer ${token}` };
 
       adminGuard(mockReq as any, mockRes as Response, mockNext);
 
@@ -22,22 +25,23 @@ describe('adminGuard middleware', () => {
    });
 
    it('should return 403 when admin ID is missing', () => {
-      mockReq.headers = {};
+      const token = jwt.sign({ sub: 'user-1', role: 'user' }, envConfig.JWT_SECRET);
+      mockReq.headers = { authorization: `Bearer ${token}` };
 
       adminGuard(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.json).toHaveBeenCalledWith(
          expect.objectContaining({
-            type: 'FORBIDDEN',
-            message: 'Admin authorization required.',
+            success: false,
          })
       );
       expect(mockNext).not.toHaveBeenCalled();
    });
 
-   it('should extract admin ID from array header', () => {
-      mockReq.headers = { 'x-admin-id': ['admin-456'] };
+   it('should extract admin ID from token', () => {
+      const token = jwt.sign({ sub: 'admin-456', role: 'admin' }, envConfig.JWT_SECRET);
+      mockReq.headers = { authorization: `Bearer ${token}` };
 
       adminGuard(mockReq as any, mockRes as Response, mockNext);
 
@@ -45,12 +49,12 @@ describe('adminGuard middleware', () => {
       expect((mockReq as any).adminId).toBe('admin-456');
    });
 
-   it('should return 403 with timestamp when authorization fails', () => {
+   it('should return 401 with unauthorized error when authorization fails', () => {
       adminGuard(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith(
          expect.objectContaining({
-            timestamp: expect.any(String),
+            success: false,
          })
       );
    });

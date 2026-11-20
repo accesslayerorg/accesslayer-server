@@ -1,0 +1,13 @@
+// prisma/schema/spotlight.prisma
+
+model Spotlight {
+  id           String   @id @default(cuid())
+  keyId        String
+  winnerWallet String
+  winningBid   Decimal  @db.Decimal(20, 7)
+  startsAt     DateTime
+  endsAt       DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([endsAt])
+}

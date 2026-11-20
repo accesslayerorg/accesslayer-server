@@ -1,0 +1,32 @@
+// prisma/schema/status.prisma
+// Platform status and incident log models for status page (#1015).
+
+model PlatformIncident {
+  id          String    @id @default(cuid())
+  title       String
+  services    String[]
+  status      String    @default("investigating")
+  impact      String    @default("minor")
+  startedAt   DateTime  @default(now())
+  resolution  String?
+  resolvedAt  DateTime?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("platform_incidents")
+}
+
+model PlatformStatusProbe {
+  id          String   @id @default(cuid())
+  service     String
+  status      String
+  latencyMs   Int?
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([service, createdAt])
+  @@map("platform_status_probes")
+}

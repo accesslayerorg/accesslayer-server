@@ -82,4 +82,4 @@ function run() {
    console.log('deprecation.middleware tests passed');
 }
 
-run();
+test('sets the configured deprecation response headers', run);

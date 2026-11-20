@@ -62,7 +62,11 @@ export async function fetchActivityFeed(
    const where: any = {};
    if (creatorId) where.creatorId = creatorId;
    if (actor) where.actor = actor;
-   if (type) where.type = type;
+   if (type) {
+      where.type = type;
+   } else {
+      where.type = { in: ['KEY_BOUGHT', 'KEY_SOLD'] };
+   }
 
    const [items, total] = await Promise.all([
       prisma.activity.findMany({

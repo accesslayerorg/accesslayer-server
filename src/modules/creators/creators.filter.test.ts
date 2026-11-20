@@ -84,4 +84,4 @@ function run() {
    console.log('creators.filter whitespace normalization tests passed');
 }
 
-run();
+test('normalizes creator list filters and rejects unsupported values', run);

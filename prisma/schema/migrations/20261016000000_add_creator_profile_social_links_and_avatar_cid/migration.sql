@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "CreatorProfile" ADD COLUMN IF NOT EXISTS "avatar_cid" TEXT,
+ADD COLUMN IF NOT EXISTS "twitter" TEXT,
+ADD COLUMN IF NOT EXISTS "website" TEXT,
+ADD COLUMN IF NOT EXISTS "discord" TEXT;

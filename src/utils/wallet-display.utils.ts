@@ -8,8 +8,8 @@ export function truncateWallet(address: string): string {
    if (!address) {
       return '';
    }
-   if (address.length < 8) {
+   if (address.length <= 8) {
       return address;
    }
-   return `${address.slice(0, 4)}…${address.slice(-4)}`;
+   return address.slice(0, 4) + '\u2026' + address.slice(-4);
 }

@@ -2,7 +2,7 @@
 // Values are non-functional placeholders sufficient for schema validation.
 
 process.env.MODE ??= 'test';
-process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/test';
+process.env.DATABASE_URL ??= 'postgresql://accesslayer:local-test-only@localhost:5432/accesslayer_test';
 process.env.GMAIL_USER ??= 'test@example.com';
 process.env.GMAIL_APP_PASSWORD ??= 'test-password';
 process.env.GOOGLE_CLIENT_ID ??= 'test-google-client-id';

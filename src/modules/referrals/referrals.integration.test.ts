@@ -20,9 +20,11 @@ jest.mock('../../utils/prisma.utils', () => ({
       },
       referralEvent: {
          create: jest.fn(),
+         findMany: jest.fn(),
          aggregate: jest.fn(),
          groupBy: jest.fn(),
       },
+      registeredKey: { findFirst: jest.fn(), findMany: jest.fn() },
    },
 }));
 
@@ -50,6 +52,7 @@ const referralCreate = prisma.referral.create as jest.Mock;
 const referralCount = prisma.referral.count as jest.Mock;
 const eventAggregate = prisma.referralEvent.aggregate as jest.Mock;
 const eventGroupBy = prisma.referralEvent.groupBy as jest.Mock;
+const eventFindMany = prisma.referralEvent.findMany as jest.Mock;
 
 const REFERRER = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const REFEREE = 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
@@ -77,6 +80,8 @@ describe('referral routes', () => {
    beforeEach(() => {
       jest.clearAllMocks();
       eventGroupBy.mockResolvedValue([]);
+      eventFindMany.mockResolvedValue([]);
+      referralFindMany.mockResolvedValue([]);
    });
 
    describe('POST /api/v1/referrals/register', () => {
@@ -328,6 +333,73 @@ describe('referral routes', () => {
             nextCursor: null,
             hasMore: false,
          });
+      });
+   });
+
+   describe('GET /api/v1/referrals/stats', () => {
+      it('returns lifetime earnings, referral count, and current on-chain pending balance', async () => {
+         referralCount.mockResolvedValue(2);
+         eventAggregate.mockResolvedValue({ _sum: { amount: '12.5' } });
+
+         const res = await supertest(app)
+            .get(`/api/v1/referrals/stats?wallet=${REFERRER}`)
+            .set(auth(REFERRER));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data).toEqual({
+            wallet: REFERRER,
+            totalReferees: 2,
+            totalEarned: 12.5,
+            pendingRewards: 0,
+         });
+      });
+
+      it('does not let a caller query another wallet', async () => {
+         const res = await supertest(app)
+            .get(`/api/v1/referrals/stats?wallet=${REFEREE}`)
+            .set(auth(REFERRER));
+
+         expect(res.status).toBe(403);
+         expect(referralCount).not.toHaveBeenCalled();
+      });
+   });
+
+   describe('GET /api/v1/referrals/history', () => {
+      it('returns reward events in descending timestamp order', async () => {
+         eventFindMany.mockResolvedValue([
+            {
+               id: 'event-2',
+               keyId: 'key-1',
+               amount: '1.5',
+               txHash: 'tx-2',
+               eventIndex: 1,
+               refereeAddress: REFEREE,
+               createdAt: new Date('2026-10-02T00:00:00.000Z'),
+            },
+            {
+               id: 'event-1',
+               keyId: 'key-1',
+               amount: '0.5',
+               txHash: 'tx-1',
+               eventIndex: 0,
+               refereeAddress: REFEREE,
+               createdAt: new Date('2026-10-01T00:00:00.000Z'),
+            },
+         ]);
+
+         const res = await supertest(app)
+            .get(`/api/v1/referrals/history?wallet=${REFERRER}&limit=1`)
+            .set(auth(REFERRER));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.events).toEqual([
+            expect.objectContaining({ id: 'event-2', amountXlm: 1.5 }),
+         ]);
+         expect(res.body.data.pagination.hasMore).toBe(true);
+         expect(eventFindMany).toHaveBeenCalledWith(expect.objectContaining({
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: 2,
+         }));
       });
    });
 

@@ -20,6 +20,7 @@ import {
    getDividendDistributionById,
    creatorExists,
    getHolderDividends,
+   getKeyWalletDividends,
    buildClaimTransaction,
 } from './dividend.service';
 
@@ -71,10 +72,18 @@ export const httpGetDividendDistributions: AsyncController = async (
       // Format response
       const entries = result.distributions.map((dist) => ({
          distributionId: dist.id,
+         snapshotId: dist.chainSnapshotId || dist.id,
          totalAmount: Number(dist.totalAmount),
+         totalDistributed: Number(dist.totalAmount),
          holderCount: dist.holderCount,
          perKeyAmount: Number(dist.perKeyAmount),
          distributedAt: new Date(dist.distributedAt).toISOString(),
+         claimWindowStart: dist.claimWindowStart
+            ? new Date(dist.claimWindowStart).toISOString()
+            : null,
+         claimWindowEnd: dist.claimWindowEnd
+            ? new Date(dist.claimWindowEnd).toISOString()
+            : null,
       }));
 
       return sendSuccess(res, {
@@ -84,6 +93,54 @@ export const httpGetDividendDistributions: AsyncController = async (
             hasMore: result.hasMore,
             nextCursor: result.nextCursor,
          },
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+/**
+ * GET /keys/:keyId/dividends/:wallet
+ * Returns per-snapshot claimable and claimed amounts for a wallet.
+ */
+export const httpGetKeyWalletDividends: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const { keyId, wallet } = req.params as {
+         keyId: string;
+         wallet: string;
+      };
+      const parsedWallet = GetHolderDividendsParamsSchema.safeParse({ wallet });
+      if (!parsedWallet.success) {
+         return sendValidationError(res, 'Invalid Stellar wallet address', [
+            {
+               field: 'wallet',
+               message: 'Wallet must be a valid Stellar public key (G...)',
+            },
+         ]);
+      }
+
+      const exists = await creatorExists(keyId);
+      if (!exists) {
+         return sendNotFound(res, 'Creator');
+      }
+
+      const snapshots = await getKeyWalletDividends({
+         creatorId: keyId,
+         wallet: parsedWallet.data.wallet,
+      });
+      return sendSuccess(res, {
+         keyId,
+         wallet: parsedWallet.data.wallet,
+         snapshots: snapshots.map(snapshot => ({
+            ...snapshot,
+            claimWindowStart: snapshot.claimWindowStart?.toISOString() ?? null,
+            claimWindowEnd: snapshot.claimWindowEnd?.toISOString() ?? null,
+            distributedAt: snapshot.distributedAt.toISOString(),
+         })),
       });
    } catch (error) {
       next(error);

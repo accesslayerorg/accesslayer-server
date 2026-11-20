@@ -8,8 +8,8 @@
 // Uses Jest mocks with a minimal fixture set — no database required.
 // Follows the same conventions as creator-list-page-size-boundary.integration.test.ts
 
-import { httpListCreators } from './creators.controllers.js';
-import * as creatorsUtils from './creators.utils.js';
+import { httpListCreators } from './creators.controllers';
+import * as creatorsUtils from './creators.utils';
 
 // ── Lightweight request/response mocks ────────────────────────────────────────
 
@@ -92,9 +92,9 @@ describe('GET /api/v1/creators — negative page size', () => {
 
       const body = res.json.mock.calls[0][0];
       expect(body).toHaveProperty('success', false);
-      expect(body).toHaveProperty('message');
-      expect(body).toHaveProperty('data');
-      expect(Array.isArray(body.data)).toBe(true);
+      expect(body).toHaveProperty('error.message');
+      expect(body).toHaveProperty('error.details');
+      expect(Array.isArray(body.error.details)).toBe(true);
    });
 
    it('error details include the limit field', async () => {
@@ -105,9 +105,9 @@ describe('GET /api/v1/creators — negative page size', () => {
       await httpListCreators(req, res, makeNext());
 
       const body = res.json.mock.calls[0][0];
-      expect(body.data.length).toBeGreaterThan(0);
-      expect(body.data[0]).toHaveProperty('field');
-      expect(body.data[0].field).toBe('limit');
+      expect(body.error.details.length).toBeGreaterThan(0);
+      expect(body.error.details[0]).toHaveProperty('field');
+      expect(body.error.details[0].field).toBe('limit');
    });
 
    it('error message indicates invalid value', async () => {
@@ -118,8 +118,8 @@ describe('GET /api/v1/creators — negative page size', () => {
       await httpListCreators(req, res, makeNext());
 
       const body = res.json.mock.calls[0][0];
-      expect(body.data[0]).toHaveProperty('message');
-      expect(body.data[0].message).toBeDefined();
+      expect(body.error.details[0]).toHaveProperty('message');
+      expect(body.error.details[0].message).toBeDefined();
    });
 
    it('response does not include items array for negative limit', async () => {

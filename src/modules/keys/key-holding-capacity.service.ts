@@ -1,5 +1,5 @@
 // src/modules/keys/key-holding-capacity.service.ts
-// Wallet holding cap and remaining purchase capacity for a key (#945).
+// Wallet holding cap and remaining purchase capacity for a key (#913).
 
 import { prisma } from '../../utils/prisma.utils';
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
@@ -14,8 +14,10 @@ export interface KeyHoldingCapacity {
    wallet: string;
    current_holding: number;
    cap: number;
-   remaining: number;
+   remaining_capacity: number;
    cap_percentage: number;
+   /** Whether the requested quantity fits within the remaining capacity. */
+   allowed: boolean;
 }
 
 /**
@@ -45,59 +47,94 @@ export function computeCapPercentage(holding: number, cap: number): number {
 }
 
 /**
- * Returns the wallet's current holding, configured cap, and remaining
- * purchase capacity on a key. Holding is read from the indexed on-chain
- * position (KeyOwnership). Cached for 10s per key + wallet.
+ * Returns the wallet's current holding, configured cap, remaining purchase
+ * capacity, and whether the requested quantity fits within the cap.
+ * Holding is read from the indexed on-chain position (KeyOwnership).
+ * Cached for 10s per key + wallet.
+ *
+ * @param keyId         - Creator profile ID or handle.
+ * @param walletAddress - Stellar wallet address.
+ * @param quantity      - Optional buy quantity to validate. Defaults to 0
+ *                        (allowed will be true as long as any capacity remains).
  */
 export async function getKeyHoldingCapacity(
    keyId: string,
-   walletAddress: string
+   walletAddress: string,
+   quantity = 0
 ): Promise<KeyHoldingCapacity> {
    const cacheKey = `keys:holding-capacity:${keyId}:${walletAddress}`;
-   const cached = await cacheGetJson<KeyHoldingCapacity>(cacheKey);
+   const cached =
+      await cacheGetJson<Omit<KeyHoldingCapacity, 'allowed'>>(cacheKey);
+
+   let current_holding: number;
+   let cap: number;
+   let remaining_capacity: number;
+   let cap_percentage: number;
+   let resolvedKeyId: string;
+
    if (cached) {
-      return cached;
-   }
-
-   const creator = await prisma.creatorProfile.findFirst({
-      where: { OR: [{ id: keyId }, { handle: keyId }] },
-      select: {
-         id: true,
-         holderCapBps: true,
-         supplyCap: true,
-         circulatingSupply: true,
-      },
-   });
-   if (!creator) {
-      throw new KeyNotFoundError(keyId);
-   }
-
-   const ownership = await prisma.keyOwnership.findUnique({
-      where: {
-         ownerAddress_creatorId: {
-            ownerAddress: walletAddress,
-            creatorId: creator.id,
+      current_holding = cached.current_holding;
+      cap = cached.cap;
+      remaining_capacity = cached.remaining_capacity;
+      cap_percentage = cached.cap_percentage;
+      resolvedKeyId = cached.keyId;
+   } else {
+      const creator = await prisma.creatorProfile.findFirst({
+         where: { OR: [{ id: keyId }, { handle: keyId }] },
+         select: {
+            id: true,
+            holderCapBps: true,
+            supplyCap: true,
+            circulatingSupply: true,
          },
-      },
-      select: { balance: true },
-   });
+      });
+      if (!creator) {
+         throw new KeyNotFoundError(keyId);
+      }
 
-   const currentHolding = Number(ownership?.balance ?? 0);
-   const cap = computeHoldingCap(
-      creator.holderCapBps,
-      creator.supplyCap,
-      Number(creator.circulatingSupply)
-   );
+      const ownership = await prisma.keyOwnership.findUnique({
+         where: {
+            ownerAddress_creatorId: {
+               ownerAddress: walletAddress,
+               creatorId: creator.id,
+            },
+         },
+         select: { balance: true },
+      });
 
-   const capacity: KeyHoldingCapacity = {
-      keyId: creator.id,
+      current_holding = Number(ownership?.balance ?? 0);
+      cap = computeHoldingCap(
+         creator.holderCapBps,
+         creator.supplyCap,
+         Number(creator.circulatingSupply)
+      );
+      remaining_capacity = Math.max(cap - current_holding, 0);
+      cap_percentage = computeCapPercentage(current_holding, cap);
+      resolvedKeyId = creator.id;
+
+      const toCache: Omit<KeyHoldingCapacity, 'allowed'> = {
+         keyId: resolvedKeyId,
+         wallet: walletAddress,
+         current_holding,
+         cap,
+         remaining_capacity,
+         cap_percentage,
+      };
+      await cacheSetJson(cacheKey, toCache, HOLDING_CAPACITY_CACHE_TTL_SECONDS);
+   }
+
+   // `allowed` is computed per-request from the (possibly cached) capacity
+   // values and the caller-supplied quantity so different quantity checks
+   // against the same wallet share the same cached base data.
+   const allowed = current_holding + quantity <= cap;
+
+   return {
+      keyId: resolvedKeyId,
       wallet: walletAddress,
-      current_holding: currentHolding,
+      current_holding,
       cap,
-      remaining: Math.max(cap - currentHolding, 0),
-      cap_percentage: computeCapPercentage(currentHolding, cap),
+      remaining_capacity,
+      cap_percentage,
+      allowed,
    };
-
-   await cacheSetJson(cacheKey, capacity, HOLDING_CAPACITY_CACHE_TTL_SECONDS);
-   return capacity;
 }

@@ -36,7 +36,17 @@ export async function getCreatorProfileHandler(req: Request, res: Response) {
          );
       }
 
-      const profile = await getCreatorProfile(paramsResult.data.creatorId);
+      const rawIdentifier =
+         paramsResult.data.wallet ||
+         paramsResult.data.creatorId ||
+         req.params.wallet ||
+         req.params.creatorId ||
+         req.params.id;
+      const identifier = Array.isArray(rawIdentifier)
+         ? rawIdentifier[0]
+         : String(rawIdentifier);
+
+      const profile = await getCreatorProfile(identifier);
       attachTimestampHeader(res);
       return sendSuccess(res, profile, 200, 'Creator profile retrieved');
    } catch (error) {
@@ -80,15 +90,25 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
       // validateBody(UpsertCreatorProfileBodySchema) middleware on this route.
       const body = req.body as UpsertCreatorProfileBody;
 
+      const rawIdentifier =
+         paramsResult.data.wallet ||
+         paramsResult.data.creatorId ||
+         req.params.wallet ||
+         req.params.creatorId ||
+         req.params.id;
+      const identifier = Array.isArray(rawIdentifier)
+         ? rawIdentifier[0]
+         : String(rawIdentifier);
+
       const profile = await upsertCreatorProfile(
-         paramsResult.data.creatorId,
+         identifier,
          body
       );
       return sendSuccess(
          res,
          profile,
          202,
-         'Creator profile write accepted (placeholder)'
+         'Creator profile updated successfully'
       );
    } catch (error) {
       logger.error(

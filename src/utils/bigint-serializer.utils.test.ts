@@ -75,4 +75,4 @@ function run() {
    console.log('bigint-serializer.utils tests passed');
 }
 
-run();
+test('serializes BigInt values in JSON and nested data', run);
