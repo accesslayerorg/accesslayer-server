@@ -76,3 +76,20 @@ export const RemoveWhitelistParamsSchema = z.object({
    keyId: z.string().min(1),
    wallet: StellarAddressSchema,
 });
+
+/** Body for PUT /keys/:keyId/whitelist. */
+export const UpdateWhitelistRootBodySchema = z.object({
+   whitelist_root: z
+      .string()
+      .length(64, 'Whitelist root must be a SHA-256 hex digest')
+      .regex(
+         /^[0-9a-fA-F]{64}$/,
+         'Whitelist root must be a SHA-256 hex digest'
+      ),
+   admin_wallet: StellarAddressSchema,
+   admin_signature: z.string().min(1, 'Admin signature is required'),
+});
+
+export type UpdateWhitelistRootBody = z.infer<
+   typeof UpdateWhitelistRootBodySchema
+>;

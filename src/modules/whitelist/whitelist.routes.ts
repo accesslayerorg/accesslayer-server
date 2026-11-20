@@ -6,6 +6,7 @@ import {
    httpGetWhitelistStatus,
    httpListWhitelist,
    httpRemoveFromWhitelist,
+   httpUpdateWhitelistRoot,
 } from './whitelist.controllers';
 
 const whitelistRouter = Router();
@@ -66,6 +67,12 @@ whitelistRouter.get(
    normalizeKeyId,
    requireKeyCreator('keyId'),
    httpListWhitelist
+);
+
+whitelistRouter.put(
+   ['/:key_id/whitelist', '/:keyId/whitelist'],
+   normalizeKeyId,
+   httpUpdateWhitelistRoot
 );
 
 /**
