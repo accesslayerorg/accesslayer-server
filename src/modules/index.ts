@@ -61,6 +61,8 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import commentsRouter from './comments/comments.routes';
+import { commentsModerationRouter } from './comments/comments.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -105,6 +107,7 @@ router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
+router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
@@ -148,6 +151,7 @@ router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
+router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
 router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
