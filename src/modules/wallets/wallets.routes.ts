@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
+import {
+   httpGetWalletGains,
+   httpGetWalletGainsCsv,
+} from "./wallet-gains.controllers";
 import { httpGetWalletFollowing } from "./wallet-following.controllers";
 import { httpGetWalletFeed } from "./wallet-feed.controllers";
 import {
@@ -48,6 +52,23 @@ walletsRouter.get(
  * Returns all creator key holdings for a given Stellar wallet address.
  */
 walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
+
+/**
+ * GET /api/v1/wallets/:address/gains?year=YYYY
+ *
+ * Realized gains per sell (average-cost accounting) for the given UTC year,
+ * with totals. Returns an empty rows array and zero totals when the wallet
+ * has no sells in that year.
+ */
+walletsRouter.get("/:address/gains", httpGetWalletGains);
+
+/**
+ * GET /api/v1/wallets/:address/gains.csv?year=YYYY
+ *
+ * Same data as /gains, streamed as a CSV attachment with columns
+ * date, key, quantity, proceeds, cost_basis, gain.
+ */
+walletsRouter.get("/:address/gains.csv", httpGetWalletGainsCsv);
 
 /**
  * GET /api/v1/wallets/:address/following
