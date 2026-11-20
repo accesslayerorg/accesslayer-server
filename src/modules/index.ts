@@ -43,6 +43,7 @@ import governanceRouter from './governance/governance.routes';
 import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
+import ordersRouter from './orders/order.routes';
 import holdersRouter from './dividends/holders.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
@@ -113,5 +114,6 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
+router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 
 export default router;

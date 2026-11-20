@@ -36,6 +36,10 @@ import { connectRedis, disconnectRedis } from './utils/redis.utils';
 import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
+import {
+   startOrderMatcherWorker,
+   stopOrderMatcherWorker,
+} from './workers/order-matcher.worker';
 
 async function startServer() {
    try {
@@ -88,6 +92,7 @@ async function startServer() {
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
       startFlashLoanViolationCleanupJob();
+      startOrderMatcherWorker();
       initKeyCreationMetadataSync();
 
       const server = app.listen(envConfig.PORT, () => {
@@ -127,6 +132,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
       stopFlashLoanViolationCleanupJob();
+      stopOrderMatcherWorker();
       await prisma.$disconnect();
       logger.info('Database connection closed');
 
