@@ -17,6 +17,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import tspecOptions from './tspec.config';
+import { createDocsRouter } from './docs/docs.routes';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
 import { requestIdMiddleware } from './middlewares/request-id.middleware';
@@ -113,6 +114,8 @@ app.get('/', (_, res: Response) => {
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
+// OpenAPI spec + Swagger UI (#1224). Registered before the main router.
+app.use('/api/v1', createDocsRouter());
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
