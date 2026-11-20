@@ -9,6 +9,10 @@ import {
 } from './admin.controllers';
 import { httpSyncKeyState } from './key-sync.controllers';
 import {
+   allowlistCsvUpload,
+   httpImportKeyAllowlist,
+} from './key-allowlist.controller';
+import {
    httpCreateMultisigProposal,
    httpGetMultisigProposalQueue,
    httpGetMultisigProposalById,
@@ -121,6 +125,12 @@ const adminRouter = Router();
 
 adminRouter.patch('/creators/:id/metadata', httpUpdateCreatorMetadata);
 adminRouter.post('/indexer/replay', adminGuard, httpReplayIndexerEvents);
+adminRouter.post(
+   '/keys/:keyId/allowlist/import',
+   adminGuard,
+   allowlistCsvUpload,
+   httpImportKeyAllowlist
+);
 adminRouter.post('/keys/:keyId/pause', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
