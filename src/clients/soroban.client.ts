@@ -18,7 +18,7 @@ async function defaultPostJson(url: string, body: unknown): Promise<unknown> {
    const controller = new AbortController();
    const timeout = setTimeout(
       () => controller.abort(),
-      envConfig.DB_QUERY_TIMEOUT_MS
+      envConfig.SOROBAN_RPC_TIMEOUT_MS
    );
 
    try {
