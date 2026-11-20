@@ -139,6 +139,12 @@ export const envSchema = z
       // referee, on their first trade only (see src/modules/referrals).
       REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
 
+      // Referral abuse detection (#1241): comma-separated Stellar addresses
+      // of known high-volume funders (exchange or anchor hot wallets). Wallets
+      // funded by these accounts are not treated as sharing a funding source
+      // or forming a sybil cluster, since many unrelated users share them.
+      REFERRAL_ABUSE_FUNDER_ALLOWLIST: optionalNonEmptyString,
+
       // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
       // Stellar addresses of the admin quorum. When unset, deprecation still
       // requires two distinct valid admin signatures but no allowlist is

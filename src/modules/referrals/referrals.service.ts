@@ -14,9 +14,12 @@
 // earnings endpoint aggregates.
 
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
+import { ReferralAbuseService } from '../../services/referral-abuse.service';
+import { prefetchFundingSource } from '../../services/wallet-funding.service';
 import {
    buildPaginatedResponse,
    PaginatedResponse,
@@ -211,6 +214,10 @@ export async function registerReferral(
          },
          'Referral relationship registered'
       );
+
+      // Resolve the referee's funding source now (best effort, never throws)
+      // so a sybil cluster is visible before any of its members trade (#1241).
+      await prefetchFundingSource(referee);
 
       return {
          referralId: referral.id,
@@ -436,29 +443,55 @@ export async function recordFirstTradeReferralReward(
       (input.tradeValueXlm * envConfig.REFERRAL_REWARD_BPS) / 10_000
    );
 
-   // Claim the first trade and write its fee in one transaction. If the fee
-   // insert fails, the first-trade stamp rolls back too, allowing a replay to
-   // retry instead of permanently losing the reward.
-   const referrerAddress = await prisma.$transaction(async (tx) => {
+   // Cheap pre-check that also supplies the referral id and referrer for abuse
+   // detection (#1241). Done outside the transaction on purpose: evaluation
+   // may call Horizon, which must never run inside a database transaction.
+   const referral = await prisma.referral.findUnique({
+      where: { refereeAddress },
+      select: { id: true, referrerAddress: true, firstTradeAt: true },
+   });
+   if (!referral || referral.firstTradeAt) {
+      return false;
+   }
+
+   // A Horizon outage throws here, aborting the event so the indexer retries
+   // instead of paying an unchecked reward.
+   const decision = await ReferralAbuseService.evaluate({
+      referrerAddress: referral.referrerAddress,
+      refereeAddress,
+   });
+
+   // Claim the first trade and write its fee (or the hold that withholds it)
+   // in one transaction. If the write fails, the first-trade stamp rolls back
+   // too, allowing a replay to retry instead of permanently losing the reward.
+   const outcome = await prisma.$transaction(async (tx) => {
       const claimed = await tx.referral.updateMany({
          where: { refereeAddress, firstTradeAt: null },
          data: { firstTradeAt: tradeAt, firstTradeKeyId: input.keyId },
       });
 
-      // `count === 0` means the wallet is not referred, or a previous event
-      // already claimed the reward.
+      // `count === 0` means a concurrent event already claimed the reward.
       if (claimed.count === 0) {
          return null;
       }
 
-      const referral = await tx.referral.findUnique({
-         where: { refereeAddress },
-         select: { referrerAddress: true },
-      });
-      if (!referral) {
-         throw new Error(
-            `Referral for wallet ${refereeAddress} disappeared while claiming its first trade`
-         );
+      if (decision.action !== 'allow') {
+         await tx.referralHold.create({
+            data: {
+               referralId: referral.id,
+               reason: decision.reason,
+               status: decision.action === 'reject' ? 'REJECTED' : 'PENDING',
+               details: decision.details as Prisma.InputJsonValue,
+               referrerAddress: referral.referrerAddress,
+               refereeAddress,
+               keyId: input.keyId,
+               rewardXlm,
+               txHash: input.txHash ?? null,
+               eventIndex: input.eventIndex ?? null,
+               tradedAt: tradeAt,
+            },
+         });
+         return { paid: false as const, decision };
       }
 
       if (rewardXlm > 0) {
@@ -477,12 +510,29 @@ export async function recordFirstTradeReferralReward(
          });
       }
 
-      return referral.referrerAddress;
+      return { paid: true as const };
    });
 
-   if (!referrerAddress) {
+   if (!outcome) {
       return false;
    }
+
+   if (!outcome.paid) {
+      logger.warn(
+         {
+            type: 'referral_reward_withheld',
+            referrerAddress: referral.referrerAddress,
+            refereeAddress,
+            keyId: input.keyId,
+            action: outcome.decision.action,
+            reason: outcome.decision.reason,
+         },
+         'Referral reward withheld by abuse detection'
+      );
+      return false;
+   }
+
+   const referrerAddress = referral.referrerAddress;
 
    logger.info(
       {
