@@ -56,6 +56,7 @@ import {
    startOrderMatcherWorker,
    stopOrderMatcherWorker,
 } from './workers/order-matcher.worker';
+import {
    attachPriceWebSocketGateway,
    closePriceWebSocketGateway,
 } from './modules/price-stream/price-stream.gateway';
