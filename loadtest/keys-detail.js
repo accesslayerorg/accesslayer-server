@@ -23,7 +23,7 @@ export default function () {
       'returned key profile': r => {
          try {
             const body = JSON.parse(r.body);
-            return !!(body.data?.id || body.data?.profile?.id);
+            return !!(body.data?.id || body.data?.creatorId || body.data?.profile?.id);
          } catch (_e) {
             return false;
          }

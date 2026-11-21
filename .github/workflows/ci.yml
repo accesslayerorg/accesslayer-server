@@ -106,6 +106,10 @@ jobs:
          REDIS_URL: redis://localhost:6379
          PORT: 3000
          NODE_ENV: test
+         MODE: test
+         DISABLE_RATE_LIMIT: 'true'
+         QUERY_COST_BUDGET: 10000000
+         QUERY_COST_ADMIN_WALLETS: GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR
          ENABLE_REDIS_CACHE: 'true'
          JWT_SECRET: accesslayer_default_development_jwt_secret_key_32_bytes
          JWT_ISSUER: accesslayer-server
