@@ -96,6 +96,24 @@ export const errorHandler: ErrorRequestHandler = (
       });
    }
 
+   // Handle Circuit Breaker fast-fail (503 dependency_unavailable with Retry-After header)
+   if (
+      err.name === 'CircuitBreakerOpenError' ||
+      err.errorCode === ErrorCode.DEPENDENCY_UNAVAILABLE ||
+      (err.statusCode === 503 && err.errorCode === 'dependency_unavailable')
+   ) {
+      const retryAfter =
+         typeof err.retryAfter === 'number' ? err.retryAfter : 30;
+      res.setHeader('Retry-After', String(retryAfter));
+      res.status(503).json(
+         buildErrorResponse(
+            ErrorCode.DEPENDENCY_UNAVAILABLE,
+            err.message || 'Service dependency unavailable'
+         )
+      );
+      return;
+   }
+
    // Handle Zod validation errors
    if (err instanceof z.ZodError || err.name === 'ZodError') {
       const issues: z.ZodIssue[] = err.errors ?? err.issues ?? [];

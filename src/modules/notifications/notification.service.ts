@@ -301,6 +301,42 @@ async function buildPriceMoved(
    return notifications;
 }
 
+async function buildPriceAlertTriggered(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const alerts = await prisma.priceAlert.findMany({
+      where: { walletAddress, triggeredAt: { not: null } },
+      orderBy: { triggeredAt: 'desc' },
+      take: 50,
+      select: {
+         id: true,
+         creatorId: true,
+         direction: true,
+         targetPrice: true,
+         triggeredPrice: true,
+         triggeredAt: true,
+      },
+   });
+
+   return alerts.flatMap(alert => {
+      if (!alert.triggeredAt) return [];
+      return [{
+         id: `price_alert_triggered:${alert.id}`,
+         type: NOTIFICATION_TYPES.PRICE_ALERT_TRIGGERED,
+         createdAt: alert.triggeredAt.toISOString(),
+         read: isRead(alert.triggeredAt, lastReadAt),
+         payload: {
+            alertId: alert.id,
+            keyId: alert.creatorId,
+            direction: alert.direction,
+            targetPrice: alert.targetPrice.toString(),
+            triggeredPrice: alert.triggeredPrice?.toString() ?? null,
+         },
+      }];
+   });
+}
+
 export async function listNotifications(
    walletAddress: string,
    now: Date = new Date()
@@ -311,12 +347,14 @@ export async function listNotifications(
       trades,
       lockups,
       priceMoved,
+      priceAlertTriggered,
       keyDeprecated,
       circuitBreakerTrips,
    ] = await Promise.all([
       buildTradeCompleted(walletAddress, lastReadAt),
       buildLockupExpiring(walletAddress, lastReadAt, now),
       buildPriceMoved(walletAddress, lastReadAt, now),
+      buildPriceAlertTriggered(walletAddress, lastReadAt),
       buildKeyDeprecated(walletAddress, lastReadAt),
       buildCircuitBreakerTripped(walletAddress, lastReadAt),
    ]);
@@ -325,6 +363,7 @@ export async function listNotifications(
       ...trades,
       ...lockups,
       ...priceMoved,
+      ...priceAlertTriggered,
       ...keyDeprecated,
       ...circuitBreakerTrips,
    ].sort(

@@ -154,6 +154,33 @@ describe('jwtAuth — structured rejection logging (#767)', () => {
          expect(next).not.toHaveBeenCalled();
       });
 
+      it('includes the wallet and the ISO expiry time from the token claims', () => {
+         const expiredToken = signExpiredToken(60);
+         const { exp } = jwt.decode(expiredToken) as { exp: number };
+         jwtAuth(
+            makeReq({ headers: { authorization: `Bearer ${expiredToken}` } }),
+            makeRes(),
+            jest.fn()
+         );
+
+         const log = (logger.warn as jest.Mock).mock.calls[0][0];
+         expect(log.wallet).toBe('GTESTWALLET');
+         expect(log.expired_at).toBe(new Date(exp * 1000).toISOString());
+      });
+
+      it('never includes the raw token string in the log', () => {
+         const expiredToken = signExpiredToken(60);
+         jwtAuth(
+            makeReq({ headers: { authorization: `Bearer ${expiredToken}` } }),
+            makeRes(),
+            jest.fn()
+         );
+
+         const [fields, message] = (logger.warn as jest.Mock).mock.calls[0];
+         expect(JSON.stringify(fields)).not.toContain(expiredToken);
+         expect(message).not.toContain(expiredToken);
+      });
+
       it('includes endpoint and ip_address', () => {
          const expiredToken = signExpiredToken(30);
          jwtAuth(

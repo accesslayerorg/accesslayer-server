@@ -1,10 +1,8 @@
 import { prisma } from '../../utils/prisma.utils';
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
-// Removed unused import
-import { computeWallet30dVolume } from '../../utils/trading-volume.utils';
-import { loadFeeTierConfig } from '../protocol/fee-tier.service';
 import { computeBuyCost, computeSellPayout } from '../../utils/pricing.utils';
 import { KeyNotFoundError } from './key-fees.service';
+import { getTraderDiscount } from '../traders/trader-discount.service';
 
 export interface DynamicFeeConfig {
    baseFeeBps: number;
@@ -16,7 +14,12 @@ export interface DynamicFeeResult {
       volumeTierDiscountBps: number;
       protocolBps: number;
       royaltyBps: number;
+      discountTier?: number;
+      tier?: number;
+      tierLabel?: string;
    };
+   discountTier?: number;
+   tier?: number;
    effectiveRate: number;
    totals: {
       feeStroops: string; // "key units"
@@ -88,21 +91,17 @@ export async function getDynamicFeeRate(
 
    // 3. Protocol Fee & Volume Tier Discount
    let protocolFeeBps = baseFeeBps;
+   let discountTier = 0;
+   let tierLabel = 'TIER_0';
+   let volumeTierDiscountBps = 0;
+
    if (wallet) {
-      const volume30d = await computeWallet30dVolume(wallet);
-      const tiers = await loadFeeTierConfig();
-      
-      // Find the highest threshold tier the wallet qualifies for
-      const applicableTier = tiers
-         .filter(t => BigInt(t.volumeThreshold) <= volume30d)
-         .sort((a, b) => Number(BigInt(b.volumeThreshold) - BigInt(a.volumeThreshold)))[0];
-         
-      if (applicableTier && applicableTier.feeBps < baseFeeBps) {
-         protocolFeeBps = applicableTier.feeBps;
-      }
+      const traderDiscount = await getTraderDiscount(wallet);
+      discountTier = traderDiscount.tier;
+      tierLabel = traderDiscount.tierLabel;
+      volumeTierDiscountBps = traderDiscount.discountBps;
+      protocolFeeBps = Math.max(0, baseFeeBps - volumeTierDiscountBps);
    }
-   
-   const volumeTierDiscountBps = Math.max(0, baseFeeBps - protocolFeeBps);
    
    // Effective Rate (Total BPS)
    const totalFeeBps = protocolFeeBps + royaltyBps;
@@ -140,7 +139,12 @@ export async function getDynamicFeeRate(
          volumeTierDiscountBps: volumeTierDiscountBps,
          protocolBps: protocolFeeBps,
          royaltyBps: royaltyBps,
+         discountTier,
+         tier: discountTier,
+         tierLabel,
       },
+      discountTier,
+      tier: discountTier,
       effectiveRate,
       totals: {
          feeStroops: feeStroops.toString(),

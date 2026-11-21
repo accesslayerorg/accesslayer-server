@@ -78,10 +78,14 @@ describe('Dividend Pool Distribution API Endpoints (#965)', () => {
          expect(res.body.data.entries).toHaveLength(2);
          expect(res.body.data.entries[0]).toEqual({
             distributionId: 'dist-1',
+            snapshotId: 'dist-1',
             totalAmount: 500,
+            totalDistributed: 500,
             holderCount: 5,
             perKeyAmount: 100,
             distributedAt: new Date('2026-09-01T12:00:00Z').toISOString(),
+            claimWindowStart: null,
+            claimWindowEnd: null,
          });
          expect(res.body.data.pagination).toEqual({
             limit: 10,
@@ -155,6 +159,67 @@ describe('Dividend Pool Distribution API Endpoints (#965)', () => {
          jest.spyOn(prisma.creatorProfile, 'findUnique').mockResolvedValue(null);
          const res = await request(app).get('/keys/nonexistent-key/dividends');
          expect(res.status).toBe(404);
+      });
+   });
+
+   describe('GET /keys/:keyId/dividends/:wallet', () => {
+      it('returns each snapshot with the wallet claimable and claimed amounts', async () => {
+         jest.spyOn(redisUtils, 'cacheGetJson').mockResolvedValue(null);
+         jest.spyOn(prisma.creatorProfile, 'findUnique').mockResolvedValue({
+            id: TEST_KEY_ID,
+         } as any);
+         jest.spyOn(prisma.dividendDistribution, 'findMany').mockResolvedValue([
+            {
+               id: 'snapshot-1',
+               creatorId: TEST_KEY_ID,
+               distributionDate: new Date('2026-09-01T12:00:00Z'),
+               totalAmountXlm: 500,
+               claimWindowStart: new Date('2026-09-01T12:00:00Z'),
+               claimWindowEnd: new Date('2026-09-08T12:00:00Z'),
+               claims: [
+                  {
+                     amountXlm: 42.5,
+                     claimedAt: null,
+                  },
+               ],
+            },
+            {
+               id: 'snapshot-2',
+               creatorId: TEST_KEY_ID,
+               distributionDate: new Date('2026-08-01T12:00:00Z'),
+               totalAmountXlm: 250,
+               claimWindowStart: null,
+               claimWindowEnd: null,
+               claims: [
+                  {
+                     amountXlm: 15,
+                     claimedAt: new Date('2026-08-02T12:00:00Z'),
+                  },
+               ],
+            },
+         ] as any);
+
+         const res = await request(app).get(
+            `/keys/${TEST_KEY_ID}/dividends/${TEST_WALLET_1}`
+         );
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.snapshots).toEqual([
+            expect.objectContaining({
+               snapshotId: 'snapshot-1',
+               totalDistributed: 500,
+               claimableAmount: 42.5,
+               claimedAmount: 0,
+               claimWindowStart: new Date('2026-09-01T12:00:00Z').toISOString(),
+            }),
+            expect.objectContaining({
+               snapshotId: 'snapshot-2',
+               totalDistributed: 250,
+               claimableAmount: 0,
+               claimedAmount: 15,
+               claimWindowStart: null,
+            }),
+         ]);
       });
    });
 
@@ -354,6 +419,16 @@ describe('Dividend Pool Distribution API Endpoints (#965)', () => {
       });
 
       it('AC4: indexes DIVIDEND_CLAIMED events and updates claimedAt', async () => {
+         jest
+            .spyOn(prisma.dividendDistribution, 'findFirst')
+            .mockResolvedValue({ id: 'dist-1' } as any);
+         jest.spyOn(prisma.dividendClaim, 'findMany').mockResolvedValue([
+            {
+               id: 'claim-1',
+               distributionId: 'dist-1',
+               amountXlm: 50,
+            },
+         ] as any);
          const updateManySpy = jest
             .spyOn(prisma.dividendClaim, 'updateMany')
             .mockResolvedValue({ count: 1 } as any);
@@ -381,10 +456,7 @@ describe('Dividend Pool Distribution API Endpoints (#965)', () => {
          ]);
 
          expect(updateManySpy).toHaveBeenCalledWith({
-            where: {
-               distributionId: 'dist-1',
-               recipientAddress: TEST_WALLET_1,
-            },
+            where: { id: 'claim-1', claimedAt: null },
             data: {
                claimedAt: new Date('2026-09-28T12:00:00Z'),
             },
@@ -420,6 +492,13 @@ describe('Dividend Pool Distribution API Endpoints (#965)', () => {
          const updateSpy = jest
             .spyOn(prisma.dividendClaim, 'updateMany')
             .mockResolvedValue({ count: 1 } as any);
+         jest.spyOn(prisma.dividendClaim, 'findMany').mockResolvedValue([
+            {
+               id: 'claim-raw-1',
+               distributionId: 'dist-raw-1',
+               amountXlm: 35.5,
+            },
+         ] as any);
          jest.spyOn(prisma.activity, 'create').mockResolvedValue({} as any);
 
          await processDividendContractLogs([log]);

@@ -1,0 +1,34 @@
+model KeyPoll {
+  id        String        @id @default(cuid())
+  keyId     String
+  pollId    String
+  question  String
+  options   Json
+  expiresAt DateTime
+  status    String        @default("active")
+  closedAt  DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([keyId, pollId])
+  @@index([keyId, status])
+  @@index([keyId, expiresAt])
+  @@map("key_polls")
+}
+
+model KeyPollVote {
+  id          String   @id @default(cuid())
+  keyId       String
+  pollId      String
+  wallet      String
+  optionIndex Int
+  weight      Decimal  @db.Decimal(30, 7)
+  txHash      String
+  eventIndex  Int
+  castAt      DateTime @default(now())
+
+  @@unique([keyId, pollId, wallet])
+  @@unique([txHash, eventIndex])
+  @@index([keyId, pollId, optionIndex])
+  @@map("poll_votes")
+}

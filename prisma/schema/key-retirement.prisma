@@ -1,0 +1,19 @@
+/// Append-only retirement/deprecation lifecycle event log.
+model KeyRetirement {
+  id           String    @id @default(cuid())
+  keyId        String
+  eventType    String
+  status       String
+  buybackPrice Decimal?  @db.Decimal(36, 7)
+  noticeExpiry DateTime?
+  reason       String?
+  occurredAt   DateTime
+  txHash       String
+  eventIndex   Int
+  ledger       Int
+  createdAt    DateTime  @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, occurredAt(sort: Desc)])
+  @@map("key_retirement")
+}

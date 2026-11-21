@@ -42,6 +42,27 @@ export const ReferredWalletsQuerySchema = z
 
 export type ReferredWalletsQuery = z.infer<typeof ReferredWalletsQuerySchema>;
 
+/** Query shared by the wallet-specific stats and event history endpoints. */
+export const ReferralWalletQuerySchema = z
+   .object({
+      wallet: z.string().trim().min(1).optional(),
+      limit: safeIntParam({
+         defaultValue: DEFAULT_REFERRED_PAGE_SIZE,
+         min: MIN_PAGE_SIZE,
+         max: MAX_PAGE_SIZE,
+         label: 'Limit',
+      }),
+      cursor: z.string().optional(),
+   })
+   .strict();
+export type ReferralWalletQuery = z.infer<typeof ReferralWalletQuerySchema>;
+
+/** Key whose per-contract accrued reward balance should be claimed. */
+export const ReferralClaimSchema = z
+   .object({ keyId: z.string().trim().min(1).max(128) })
+   .strict();
+export type ReferralClaimInput = z.infer<typeof ReferralClaimSchema>;
+
 /** Opaque cursor payload for the referred wallets list. */
 export interface ReferredCursorPayload {
    /** ISO timestamp the list is ordered by (referral join time). */

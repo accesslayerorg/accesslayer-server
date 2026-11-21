@@ -25,11 +25,14 @@ model StakingPosition {
   lockedAt          DateTime  @default(now())
   unlocksAt         DateTime?
   tier              Int       @default(0)
+  /// Set when the position is unstaked; null while the stake is active (#881).
+  unstakedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   @@index([wallet])
   @@index([keyId])
+  @@index([wallet, unstakedAt])
   @@map("staking_positions")
 }
 

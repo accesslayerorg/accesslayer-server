@@ -8,6 +8,8 @@ The Access Layer server implements rate limiting to protect the system against r
 
 Rate limiting is implemented using the `express-rate-limit` middleware, which registers a global limiter applied to all incoming API requests (except for health checks and doc serving paths that bypass it or have their own handling).
 
+A few routes additionally mount a stricter per-endpoint limiter on top of the global limiter (see [Custom Per-Endpoint Thresholds](#custom-per-endpoint-thresholds)). A request to one of those routes must satisfy both limits.
+
 - **Middleware Location:** [rate.middleware.ts](file:///c:/Users/PC/Desktop/accesslayer-server/src/middlewares/rate.middleware.ts)
 - **Application Setup:** [app.ts](file:///c:/Users/PC/Desktop/accesslayer-server/src/app.ts) (mounted via `app.use(appRateLimit)`)
 
@@ -77,7 +79,18 @@ The response returns a JSON object following the API error pattern:
 
 ## Custom Per-Endpoint Thresholds
 
-Currently, **all endpoints share the global rate limit**, and there are no custom per-endpoint thresholds configured.
+Most endpoints only use the global limit described above. The endpoints below add a stricter per-endpoint limiter that is evaluated **in addition to** the global limit — a request must satisfy both to succeed.
+
+| Endpoint                                       | Limit | Window       | Key       | Source                                                                                       |
+| :--------------------------------------------- | :---- | :----------- | :-------- | :------------------------------------------------------------------------------------------- |
+| `GET /v1/rates/xlm`<br>`GET /api/v1/rates/xlm` | `60`  | `60` seconds | Client IP | [rates.routes.ts](file:///c:/Users/PC/Desktop/accesslayer-server/src/routes/rates.routes.ts) |
+
+Notes on the fiat-rate limiter:
+
+- Both mounts share a single limiter instance, so requests to `/v1/rates/xlm` and `/api/v1/rates/xlm` draw from the same per-IP budget.
+- The limit exists to protect the upstream fiat-rate provider against abuse. Cached responses (`stale: false` or `stale: true`) still count toward the limit.
+- Exceeding it returns `429 Too Many Requests` with the standard `RATE_LIMIT_EXCEEDED` body and `retryAfterSeconds: 60`.
+- It uses `express-rate-limit`'s default in-memory store, so counters are per server process and reset on restart.
 
 If you are developing new endpoints that are computationally expensive or susceptible to abuse (e.g., wallet authentication, payment initiation, email dispatch, heavy database query searches), you should define custom limits.
 

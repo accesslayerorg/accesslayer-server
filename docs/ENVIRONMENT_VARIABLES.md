@@ -25,6 +25,7 @@ Complete reference for all server configuration environment variables.
 | `MODE`         | enum         | No       | `development`   | Environment mode: `development`, `production`, or `test` |
 | `BACKEND_URL`  | string (URL) | Yes      | -               | Full URL where the backend is accessible                 |
 | `FRONTEND_URL` | string (URL) | Yes      | -               | Full URL of the frontend application for CORS            |
+| `PUBLIC_SITE_URL` | string (URL) | Yes   | -               | Public origin of the website; used for absolute URLs in `sitemap.xml` and `robots.txt` (startup fails when missing) |
 | `API_VERSION`  | string       | No       | `1.0.0`         | API version string returned in response headers          |
 | `APP_SECRET`   | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)         |
 
@@ -32,11 +33,11 @@ Complete reference for all server configuration environment variables.
 
 ## Protocol
 
-| Variable                          | Type   | Required | Default | Description                                                                                       |
-| --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
-| `REFERRAL_REWARD_BPS`             | number | No       | `500`   | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910). |
-| `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
+| -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
+| `REFERRAL_REWARD_BPS`                  | number  | No       | `500`     | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910).                                                                                  |
+| `ADMIN_MULTISIG_WALLETS`               | string  | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
 | Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
 | -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
@@ -90,20 +91,26 @@ Complete reference for all server configuration environment variables.
 | `PAYSTACK_SECRET_KEY` | string | Yes      | -       | Paystack secret key for payment processing |
 | `PAYSTACK_PUBLIC_KEY` | string | No       | -       | Paystack public key (optional)             |
 
+### Pinata (IPFS Gateway)
+
+| Variable             | Type         | Required | Default                             | Description                                                                 |
+| -------------------- | ------------ | -------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| `PINATA_GATEWAY_URL` | string (URL) | No       | `https://gateway.pinata.cloud/ipfs` | Base gateway used to resolve IPFS avatar CIDs into public URLs for creators |
+
 ---
 
 ## Stellar Network
 
-| Variable                  | Type         | Required | Default                               | Description                                   |
-| ------------------------- | ------------ | -------- | ------------------------------------- | --------------------------------------------- |
-| `STELLAR_NETWORK`         | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet` |
-| `STELLAR_HORIZON_URL`     | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                  |
-| `STELLAR_SOROBAN_RPC_URL` | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                          |
-| `SOROBAN_SUBMIT_MAX_ATTEMPTS` | number | No       | `3`     | Max submission attempts for transient failures (#899)  |
-| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number | No       | `1000`  | Exponential backoff base delay between submit attempts (#899) |
-| `SOROBAN_SUBMIT_MAX_DELAY_MS` | number | No       | `15000` | Cap for submit retry backoff delays (#899)             |
-| `SOROBAN_POLL_INTERVAL_MS`    | number | No       | `5000`  | Delay between transaction confirmation polls (#899)    |
-| `SOROBAN_POLL_TIMEOUT_MS`     | number | No       | `120000`| Total polling budget per transaction confirmation (#899) |
+| Variable                       | Type         | Required | Default                               | Description                                                   |
+| ------------------------------ | ------------ | -------- | ------------------------------------- | ------------------------------------------------------------- |
+| `STELLAR_NETWORK`              | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet`                 |
+| `STELLAR_HORIZON_URL`          | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                                  |
+| `STELLAR_SOROBAN_RPC_URL`      | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                                          |
+| `SOROBAN_SUBMIT_MAX_ATTEMPTS`  | number       | No       | `3`                                   | Max submission attempts for transient failures (#899)         |
+| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number       | No       | `1000`                                | Exponential backoff base delay between submit attempts (#899) |
+| `SOROBAN_SUBMIT_MAX_DELAY_MS`  | number       | No       | `15000`                               | Cap for submit retry backoff delays (#899)                    |
+| `SOROBAN_POLL_INTERVAL_MS`     | number       | No       | `5000`                                | Delay between transaction confirmation polls (#899)           |
+| `SOROBAN_POLL_TIMEOUT_MS`      | number       | No       | `120000`                              | Total polling budget per transaction confirmation (#899)      |
 
 ---
 
@@ -196,6 +203,12 @@ no need to thread it through function arguments.
 ---
 
 ## Security Notes
+
+### Moderation
+
+| Variable            | Type   | Required | Default | Description                                                                                                                               |
+| ------------------- | ------ | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `MODERATOR_WALLETS` | string | No       | -       | Comma-separated wallet addresses (case-insensitive) allowed to use `GET/PATCH /admin/reports`. When unset, every wallet gets `403` there. |
 
 ### Credentials Requiring Regular Rotation
 

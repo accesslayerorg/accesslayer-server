@@ -6,40 +6,178 @@ import {
 } from './dividend.service';
 import { processDividendEvents } from '../indexer/dividend-indexer.service';
 import { IndexerChainEvent } from '../../utils/indexer-event-processor.utils';
+import * as redisUtils from '../../utils/redis.utils';
 
 describe('Dividend Service Integration Tests', () => {
    let testCreatorId: string;
    let testDistributionId: string;
+   const distributions: Array<{ id: string; [key: string]: any }> = [];
+   const claims: Array<{ id: string; [key: string]: any }> = [];
+   const holdings: Array<{ id: string; [key: string]: any }> = [];
+   let nextDistributionId = 0;
+   let nextClaimId = 0;
+
+   function applyPagination<T extends { id: string }>(
+      rows: T[],
+      args: {
+         cursor?: { id: string };
+         skip?: number;
+         take?: number;
+      }
+   ): T[] {
+      let paged = rows;
+      if (args.cursor) {
+         const cursorIndex = paged.findIndex(
+            row => row.id === args.cursor?.id
+         );
+         if (cursorIndex >= 0) {
+            paged = paged.slice(cursorIndex + (args.skip ?? 0));
+         }
+      }
+      return args.take === undefined ? paged : paged.slice(0, args.take);
+   }
+
+   beforeAll(() => {
+      testCreatorId = 'dividend-test-creator';
+      jest.spyOn(redisUtils, 'cacheGetJson').mockResolvedValue(null);
+      jest.spyOn(redisUtils, 'cacheSetJson').mockResolvedValue();
+
+      jest.spyOn(prisma.user, 'create').mockResolvedValue({
+         id: 'dividend-test-user',
+      } as any);
+      jest.spyOn(prisma.creatorProfile, 'create').mockResolvedValue({
+         id: testCreatorId,
+      } as any);
+      jest.spyOn(prisma.keyOwnership as any, 'create').mockImplementation(
+         async ({ data }: any) => {
+            const holding = { id: `holding-${holdings.length + 1}`, ...data };
+            holdings.push(holding);
+            return holding as any;
+         }
+      );
+      jest.spyOn(prisma.keyOwnership as any, 'findMany').mockImplementation(
+         async ({ where }: any = {}) =>
+            holdings.filter(
+               holding =>
+                  (!where?.creatorId || holding.creatorId === where.creatorId) &&
+                  (where?.balance?.gt === undefined ||
+                     Number(holding.balance) > where.balance.gt)
+            ) as any
+      );
+      jest.spyOn(prisma.keyOwnership as any, 'findFirst').mockImplementation(
+         async ({ where }: any = {}) =>
+            (holdings.find(
+               holding =>
+                  holding.ownerAddress === where?.ownerAddress &&
+                  holding.creatorId === where?.creatorId
+            ) as any) ?? null
+      );
+
+      jest.spyOn(prisma.dividendDistribution as any, 'create').mockImplementation(
+         async ({ data }: any) => {
+            const distribution = {
+               id: `dividend-test-snapshot-${++nextDistributionId}`,
+               ...data,
+            };
+            distributions.push(distribution);
+            return distribution as any;
+         }
+      );
+      jest.spyOn(prisma.dividendDistribution as any, 'findFirst').mockImplementation(
+         async ({ where }: any = {}) =>
+            (distributions.find(
+               distribution =>
+                  (!where?.id || distribution.id === where.id) &&
+                  (!where?.creatorId ||
+                     distribution.creatorId === where.creatorId)
+            ) as any) ?? null
+      );
+      jest.spyOn(prisma.dividendDistribution as any, 'findUnique').mockImplementation(
+         async ({ where }: any) =>
+            (distributions.find(
+               distribution => distribution.id === where?.id
+            ) as any) ?? null
+      );
+      jest.spyOn(prisma.dividendDistribution as any, 'findMany').mockImplementation(
+         async ({ where, ...pagination }: any = {}) => {
+            const rows = distributions
+               .filter(
+                  distribution =>
+                     !where?.creatorId ||
+                     distribution.creatorId === where.creatorId
+               )
+               .sort((a, b) => {
+                  const dateOrder =
+                     new Date(b.distributionDate).getTime() -
+                     new Date(a.distributionDate).getTime();
+                  return dateOrder || b.id.localeCompare(a.id);
+               });
+            return applyPagination(rows, pagination) as any;
+         }
+      );
+      jest.spyOn(prisma.dividendClaim as any, 'createMany').mockImplementation(
+         async ({ data }: any) => {
+            let createdCount = 0;
+            for (const row of data) {
+               if (
+                  !claims.some(
+                     claim =>
+                        claim.distributionId === row.distributionId &&
+                        claim.recipientAddress === row.recipientAddress
+                  )
+               ) {
+                  claims.push({
+                     id: `dividend-test-claim-${++nextClaimId}`,
+                     claimedAt: null,
+                     ...row,
+                  });
+                  createdCount++;
+               }
+            }
+            return { count: createdCount } as any;
+         }
+      );
+      jest.spyOn(prisma.dividendClaim as any, 'findMany').mockImplementation(
+         async ({ where, ...pagination }: any = {}) => {
+            const rows = claims
+               .filter(
+                  claim =>
+                     (!where?.distributionId ||
+                        claim.distributionId === where.distributionId) &&
+                     (!where?.recipientAddress ||
+                        claim.recipientAddress === where.recipientAddress)
+               )
+               .sort((a, b) => {
+                  const addressOrder = a.recipientAddress.localeCompare(
+                     b.recipientAddress
+                  );
+                  return addressOrder || a.id.localeCompare(b.id);
+               });
+            return applyPagination(rows, pagination) as any;
+         }
+      );
+      jest.spyOn(prisma.dividendClaim as any, 'updateMany').mockImplementation(
+         async ({ where, data }: any) => {
+            let count = 0;
+            for (const claim of claims) {
+               if (
+                  (!where?.id || claim.id === where.id) &&
+                  (!where?.distributionId ||
+                     claim.distributionId === where.distributionId) &&
+                  (!where?.recipientAddress ||
+                     claim.recipientAddress === where.recipientAddress) &&
+                  (where?.claimedAt !== null || claim.claimedAt === null)
+               ) {
+                  Object.assign(claim, data);
+                  count++;
+               }
+            }
+            return { count } as any;
+         }
+      );
+   });
 
    beforeAll(async () => {
-      // Clean up
-      await prisma.dividendClaim.deleteMany({});
-      await prisma.dividendDistribution.deleteMany({});
-      await prisma.keyOwnership.deleteMany({});
-      await prisma.creatorProfile.deleteMany({});
-      await prisma.user.deleteMany({});
-
-      // Create test creator
-      const user = await prisma.user.create({
-         data: {
-            email: `test-${Date.now()}@example.com`,
-            passwordHash: 'hash123',
-            firstName: 'Test',
-            lastName: 'User',
-            stellarWallet: { create: { address: 'GBTEST0001' } },
-         },
-      });
-
-      const creator = await prisma.creatorProfile.create({
-         data: {
-            userId: user.id,
-            handle: `test-creator-${Date.now()}`,
-            displayName: 'Test Creator',
-         },
-      });
-
-      testCreatorId = creator.id;
-
       // Create test key holders
       const holders = [
          'GHOLDER0000000000000000000000000000000001',
@@ -59,12 +197,7 @@ describe('Dividend Service Integration Tests', () => {
    });
 
    afterAll(async () => {
-      // Clean up
-      await prisma.dividendClaim.deleteMany({});
-      await prisma.dividendDistribution.deleteMany({});
-      await prisma.keyOwnership.deleteMany({});
-      await prisma.creatorProfile.deleteMany({});
-      await prisma.user.deleteMany({});
+      jest.restoreAllMocks();
    });
 
    describe('Dividend Distribution Creation', () => {

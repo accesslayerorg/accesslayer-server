@@ -12,6 +12,7 @@ export interface FreezeStatus {
   keyId: string;
   isFrozen: boolean;
   reason: string | null;
+  expiryTimestamp: string | null;
   frozenAt: string | null;
   frozenBy: string | null;
   proposalId: string | null;
@@ -22,16 +23,21 @@ export async function getFreezeStatus(keyId: string): Promise<FreezeStatus> {
   if (cached) return cached;
 
   const row = await prisma.keyFreeze.findUnique({ where: { keyId } });
+  const expiryTimestamp = row?.expiryTimestamp?.toISOString() ?? null;
+  const hasExpired = row?.expiryTimestamp
+    ? row.expiryTimestamp.getTime() <= Date.now()
+    : false;
   const status: FreezeStatus = row
     ? {
         keyId: row.keyId,
-        isFrozen: row.isFrozen,
+        isFrozen: row.isFrozen && !hasExpired,
         reason: row.reason,
+        expiryTimestamp,
         frozenAt: row.frozenAt ? row.frozenAt.toISOString() : null,
         frozenBy: row.frozenBy,
         proposalId: row.proposalId,
       }
-    : { keyId, isFrozen: false, reason: null, frozenAt: null, frozenBy: null, proposalId: null };
+    : { keyId, isFrozen: false, reason: null, expiryTimestamp: null, frozenAt: null, frozenBy: null, proposalId: null };
 
   setCachedFreezeStatus(keyId, status);
   return status;
@@ -120,39 +126,72 @@ export async function indexFreezeEvent(input: {
   eventIndex: number;
   payload: Record<string, unknown>;
 }): Promise<void> {
-  await prisma.freezeEvent.create({
-    data: {
-      keyId: input.keyId,
-      eventType: input.eventType,
-      ledger: BigInt(input.ledger),
-      txHash: input.txHash,
-      eventIndex: input.eventIndex,
-      payload: input.payload as any,
-    },
-  });
+  const occurredAt = parseEventDate(input.payload.occurredAt) ?? new Date();
+  const expiryTimestamp = parseEventDate(
+    input.payload.expiryTimestamp ?? input.payload.expiresAt ?? input.payload.expiry
+  );
+  const reason = typeof input.payload.reason === 'string' ? input.payload.reason : null;
 
-  if (input.eventType === 'FREEZE') {
-    await prisma.keyFreeze.upsert({
-      where: { keyId: input.keyId },
-      create: {
-        keyId: input.keyId,
-        isFrozen: true,
-        reason: String(input.payload.reason ?? ''),
-        frozenAt: new Date(),
-      },
-      update: {
-        isFrozen: true,
-        reason: String(input.payload.reason ?? ''),
-        frozenAt: new Date(),
-      },
+  try {
+    await prisma.$transaction(async (tx: any) => {
+      await tx.freezeEvent.create({
+        data: {
+          keyId: input.keyId,
+          eventType: input.eventType,
+          ledger: BigInt(input.ledger),
+          txHash: input.txHash,
+          eventIndex: input.eventIndex,
+          payload: input.payload as any,
+        },
+      });
+
+      if (input.eventType === 'FREEZE') {
+        await tx.keyFreeze.upsert({
+          where: { keyId: input.keyId },
+          create: { keyId: input.keyId, isFrozen: true, reason, expiryTimestamp, frozenAt: occurredAt },
+          update: { isFrozen: true, reason, expiryTimestamp, frozenAt: occurredAt, unfrozenAt: null },
+        });
+      } else if (input.eventType === 'UNFREEZE') {
+        await tx.keyFreeze.upsert({
+          where: { keyId: input.keyId },
+          create: { keyId: input.keyId, isFrozen: false, unfrozenAt: occurredAt },
+          update: { isFrozen: false, reason: null, expiryTimestamp: null, unfrozenAt: occurredAt },
+        });
+      }
     });
-  } else if (input.eventType === 'UNFREEZE') {
-    await prisma.keyFreeze.upsert({
-      where: { keyId: input.keyId },
-      create: { keyId: input.keyId, isFrozen: false, unfrozenAt: new Date() },
-      update: { isFrozen: false, unfrozenAt: new Date() },
-    });
+  } catch (error) {
+    // A chain replay is expected and must not overwrite newer status.
+    if ((error as { code?: string })?.code === 'P2002') return;
+    throw error;
   }
 
   invalidateFreezeCache(input.keyId);
+}
+
+export async function getFreezeHistory(keyId: string) {
+  const rows = await prisma.freezeEvent.findMany({
+    where: { keyId, eventType: { in: ['FREEZE', 'UNFREEZE'] } },
+    orderBy: [{ ledger: 'desc' }, { eventIndex: 'desc' }],
+  });
+  return rows.map((row: any) => ({
+    eventType: row.eventType,
+    reason: typeof row.payload?.reason === 'string' ? row.payload.reason : null,
+    expiryTimestamp: parseEventDate(
+      row.payload?.expiryTimestamp ?? row.payload?.expiresAt ?? row.payload?.expiry
+    )?.toISOString() ?? null,
+    ledger: Number(row.ledger),
+    txHash: row.txHash,
+    eventIndex: row.eventIndex,
+    occurredAt: parseEventDate(row.payload?.occurredAt)?.toISOString() ?? row.createdAt.toISOString(),
+  }));
+}
+
+function parseEventDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const timestamp = typeof value === 'number' && Math.abs(value) < 1_000_000_000_000
+    ? value * 1000
+    : value;
+  const parsed = new Date(timestamp);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
