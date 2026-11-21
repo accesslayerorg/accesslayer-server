@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { creatorReadMetrics, queueMetrics } from './metrics.controllers';
+import {
+   cacheWarmMetrics,
+   creatorReadMetrics,
+   queueMetrics,
+} from './metrics.controllers';
 
 const router = Router();
 
@@ -8,5 +12,8 @@ router.get('/queues', queueMetrics);
 
 // Creator read request duration metrics
 router.get('/creators', creatorReadMetrics);
+
+// Cache warmer duration and failure metrics
+router.get('/cache-warm', cacheWarmMetrics);
 
 export default router;
