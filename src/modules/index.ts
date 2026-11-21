@@ -1,3 +1,5 @@
+import campaignsRouter from './campaigns/campaigns.routes';
+import { protocolPolRouter, keyBackstopsRouter } from './pol/pol.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
@@ -66,6 +68,7 @@ import commentsRouter from './comments/comments.routes';
 import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
+import { relatedKeysRouter } from '../routes/keys.routes';
 
 const router = Router();
 
@@ -110,6 +113,7 @@ router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
+router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 
 // Keys: existing keysRouter first, then freezeRouter so /:keyId/freeze and
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
@@ -167,5 +171,9 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+
+router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);
+router.use('/protocol', routeBodySizeLimit('default'), protocolPolRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
 
 export default router;

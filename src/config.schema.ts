@@ -213,6 +213,14 @@ export const envSchema = z
          )
          .default('https://soroban-testnet.stellar.org'),
 
+      // Limit-order keeper: required profit over simulated network fee.
+      ORDER_KEEPER_PROFIT_MARGIN_BPS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .safe()
+         .default(1000),
+
       // Soroban contract interaction service (#899): submission retries with
       // exponential backoff, confirmation polling, and resolution events.
       SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
@@ -250,6 +258,20 @@ export const envSchema = z
          .int()
          .positive()
          .default(300),
+
+      // Key price velocity circuit breaker (#1195): after each indexed trade
+      // the key is paused when its price moved more than this percentage, in
+      // either direction, against the price WINDOW_SIZE trades earlier.
+      KEY_PRICE_VELOCITY_THRESHOLD_PCT: z.coerce
+         .number()
+         .positive()
+         .default(50),
+      KEY_PRICE_VELOCITY_WINDOW_SIZE: z.coerce
+         .number()
+         .int()
+         .min(1)
+         .max(500)
+         .default(10),
 
       // Key content gate config cache (#1150)
       GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce

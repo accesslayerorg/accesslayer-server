@@ -37,6 +37,10 @@ import {
    stopStatusProbeJob,
 } from './jobs/status-probe.job';
 import {
+   startCacheWarmerWorker,
+   stopCacheWarmerWorker,
+} from './workers/cache-warmer.worker';
+import {
    startSessionActivityCleanupJob,
    stopSessionActivityCleanupJob,
 } from './jobs/session-activity-cleanup.job';
@@ -114,6 +118,7 @@ async function startServer() {
       startFlashLoanViolationCleanupJob();
       startOrderMatcherWorker();
       startStatusProbeJob();
+      startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
       initKeyCreationMetadataSync();
@@ -160,6 +165,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopFlashLoanViolationCleanupJob();
       stopOrderMatcherWorker();
       stopStatusProbeJob();
+      stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
       stopAutoInvestListener();

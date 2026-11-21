@@ -1,13 +1,15 @@
 // src/modules/referrals/referrals.controller.ts
-// Handlers for the referral programme endpoints (#910):
+// Handlers for the referral programme endpoints (#910, #1198):
 //   POST /api/v1/referrals/register
 //   GET  /api/v1/referrals/earnings
 //   GET  /api/v1/referrals/referred
+//   GET  /api/v1/wallets/:address/referrals
 //
-// All three require a JWT; the wallet is always taken from the token, never
+// The first three require a JWT; the wallet is always taken from the token, never
 // from the request body, so a caller can only act on its own referral data.
+// The wallet referrals stats endpoint is public and takes the address from the URL param.
 
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import {
    ErrorCode,
    sendError,
@@ -19,24 +21,11 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { CursorChecksumError } from '../../utils/cursor.utils';
 import { logger } from '../../utils/logger.utils';
 import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
-import {
-   ReferralClaimSchema,
-   ReferralWalletQuerySchema,
-   ReferredWalletsQuerySchema,
-   RegisterReferralSchema,
-} from './referrals.schemas';
-import {
-   buildReferralClaimTransaction,
-   getPendingReferralRewards,
-   getReferralHistory,
-   NothingToClaimError,
-   ReferralContractUnavailableError,
-   ReferralKeyNotFoundError,
-} from './referrals-api.service';
-import { prisma } from '../../utils/prisma.utils';
+import { ReferredWalletsQuerySchema, RegisterReferralSchema } from './referrals.schemas';
 import {
    AlreadyReferredError,
    getReferralEarnings,
+   getReferralStats,
    listReferredWallets,
    ReferralCodeNotFoundError,
    registerReferral,
@@ -218,148 +207,61 @@ export async function httpGetReferredWallets(
    }
 }
 
-function walletFromQuery(req: AuthenticatedRequest, requestedWallet?: string): string | null {
-   const authenticatedWallet = req.user!.wallet;
-   if (requestedWallet && requestedWallet !== authenticatedWallet) return null;
-   return authenticatedWallet;
-}
-
-/** GET /api/v1/referrals/stats?wallet=... */
-export async function httpGetReferralStats(
-   req: AuthenticatedRequest,
+/**
+ * GET /api/v1/wallets/:address/referrals
+ *
+ * Returns referral statistics for a wallet: referral count, tier, total earned,
+ * and pending claim. This is a public endpoint that does not require authentication.
+ */
+export async function httpGetWalletReferrals(
+   req: Request,
    res: Response
 ): Promise<void> {
    try {
-      const parsed = ReferralWalletQuerySchema.safeParse(req.query);
-      if (!parsed.success) {
-         sendValidationError(
-            res,
-            'Invalid query parameters',
-            zodIssuesToDetails(parsed.error.issues)
-         );
-         return;
-      }
-      const wallet = walletFromQuery(req, parsed.data.wallet);
-      if (!wallet) {
-         sendError(
-            res,
-            403,
-            ErrorCode.FORBIDDEN,
-            'Wallet does not match the authenticated account'
-         );
+      const addressParam = req.params.address;
+      const address = Array.isArray(addressParam) ? addressParam[0] : addressParam;
+
+      if (!address) {
+         sendValidationError(res, 'Wallet address is required', [
+            { field: 'address', message: 'Wallet address is required' },
+         ]);
          return;
       }
 
-      const [totalReferees, earned, pendingRewards] = await Promise.all([
-         prisma.referral.count({ where: { referrerAddress: wallet } }),
-         prisma.referralEvent.aggregate({
-            where: { walletAddress: wallet },
-            _sum: { amount: true },
-         }),
-         getPendingReferralRewards(wallet),
-      ]);
+      const trimmedAddress = address.trim();
+
+      // Basic Stellar address validation (G... or M... followed by 55 chars)
+      if (!/^[GM][A-Z0-9]{55}$/.test(trimmedAddress)) {
+         sendValidationError(res, 'Invalid wallet address format', [
+            { field: 'address', message: 'Invalid wallet address format' },
+         ]);
+         return;
+      }
+
+      const stats = await getReferralStats(trimmedAddress);
 
       attachTimestampHeader(res);
-      sendSuccess(res, {
-         wallet,
-         totalReferees,
-         totalEarned: Number(earned._sum.amount ?? 0),
-         pendingRewards,
-      });
+      sendSuccess(
+         res,
+         stats,
+         200,
+         'Referral stats retrieved successfully'
+      );
    } catch (error) {
-      if (error instanceof ReferralContractUnavailableError) {
-         sendError(res, 503, ErrorCode.SERVICE_UNAVAILABLE, error.message);
-         return;
-      }
-      logger.error({ type: 'referral_stats_failed', error }, 'Failed to retrieve referral stats');
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve referral stats');
-   }
-}
-
-/** GET /api/v1/referrals/history?wallet=... */
-export async function httpGetReferralHistory(
-   req: AuthenticatedRequest,
-   res: Response
-): Promise<void> {
-   try {
-      const parsed = ReferralWalletQuerySchema.safeParse(req.query);
-      if (!parsed.success) {
-         sendValidationError(
-            res,
-            'Invalid query parameters',
-            zodIssuesToDetails(parsed.error.issues)
-         );
-         return;
-      }
-      const wallet = walletFromQuery(req, parsed.data.wallet);
-      if (!wallet) {
-         sendError(
-            res,
-            403,
-            ErrorCode.FORBIDDEN,
-            'Wallet does not match the authenticated account'
-         );
-         return;
-      }
-
-      const page = await getReferralHistory(wallet, parsed.data);
-      attachTimestampHeader(res);
-      sendSuccess(res, {
-         wallet,
-         events: page.items,
-         pagination: {
-            limit: parsed.data.limit,
-            nextCursor: page.nextCursor,
-            hasMore: page.nextCursor !== null,
+      logger.error(
+         {
+            type: 'wallet_referrals_stats_failed',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            address: req.params.address,
+            error,
          },
-      });
-   } catch (error) {
-      if (error instanceof CursorChecksumError) {
-         sendValidationError(res, 'Invalid cursor', [{ field: 'cursor', message: error.message }]);
-         return;
-      }
-      logger.error(
-         { type: 'referral_history_failed', error },
-         'Failed to retrieve referral history'
+         'Failed to retrieve wallet referral stats'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to retrieve referral history');
-   }
-}
-
-/** POST /api/v1/referrals/claim */
-export async function httpBuildReferralClaim(
-   req: AuthenticatedRequest,
-   res: Response
-): Promise<void> {
-   try {
-      const parsed = ReferralClaimSchema.safeParse(req.body);
-      if (!parsed.success) {
-         sendValidationError(res, 'Invalid request body', zodIssuesToDetails(parsed.error.issues));
-         return;
-      }
-      const result = await buildReferralClaimTransaction({
-         wallet: req.user!.wallet,
-         keyId: parsed.data.keyId,
-      });
-      attachTimestampHeader(res);
-      sendSuccess(res, result, 201, 'Unsigned referral claim transaction built successfully');
-   } catch (error) {
-      if (error instanceof ReferralKeyNotFoundError) {
-         sendError(res, 404, ErrorCode.NOT_FOUND, error.message);
-         return;
-      }
-      if (error instanceof NothingToClaimError) {
-         sendError(res, 400, ErrorCode.BAD_REQUEST, error.message);
-         return;
-      }
-      if (error instanceof ReferralContractUnavailableError) {
-         sendError(res, 503, ErrorCode.SERVICE_UNAVAILABLE, error.message);
-         return;
-      }
-      logger.error(
-         { type: 'referral_claim_build_failed', error },
-         'Failed to build referral claim transaction'
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve referral stats'
       );
-      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to build referral claim transaction');
    }
 }
