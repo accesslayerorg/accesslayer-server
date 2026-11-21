@@ -73,6 +73,9 @@ model ReferralEvent {
   // Fee amount in XLM
   amount        Decimal
 
+  // Tier multiplier applied at the time of this reward (1.0, 1.5, or 2.0)
+  tierMultiplier Float    @default(1.0)
+
   // Transaction correlation
   txHash        String?
   eventIndex    Int?

@@ -37,6 +37,10 @@ import {
    stopStatusProbeJob,
 } from './jobs/status-probe.job';
 import {
+   startCacheWarmerWorker,
+   stopCacheWarmerWorker,
+} from './workers/cache-warmer.worker';
+import {
    startSessionActivityCleanupJob,
    stopSessionActivityCleanupJob,
 } from './jobs/session-activity-cleanup.job';
@@ -53,6 +57,9 @@ import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
 import {
+   startOrderMatcherWorker,
+   stopOrderMatcherWorker,
+} from './workers/order-matcher.worker';
    attachPriceWebSocketGateway,
    closePriceWebSocketGateway,
 } from './modules/price-stream/price-stream.gateway';
@@ -108,7 +115,9 @@ async function startServer() {
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
       startFlashLoanViolationCleanupJob();
+      startOrderMatcherWorker();
       startStatusProbeJob();
+      startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
       initKeyCreationMetadataSync();
@@ -153,7 +162,9 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
       stopFlashLoanViolationCleanupJob();
+      stopOrderMatcherWorker();
       stopStatusProbeJob();
+      stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
       stopAutoInvestListener();

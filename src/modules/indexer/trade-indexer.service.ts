@@ -94,6 +94,24 @@ export async function processTradeEvent(
       },
    });
 
+   // Price velocity circuit breaker (#1195): pause the key straight after a
+   // trade that moves its price past the threshold. A failure here is logged
+   // loudly but does not fail indexing of the trade itself.
+   try {
+      const { checkPriceVelocityAfterTrade } =
+         await import('../keys/price-velocity-breaker.service');
+      await checkPriceVelocityAfterTrade(db, {
+         creatorId: event.creator_id,
+         txHash: event.tx_hash,
+         ledger: event.ledger,
+      });
+   } catch (error) {
+      logger.error(
+         { error, creatorId: event.creator_id, tx_hash: event.tx_hash },
+         'Price velocity circuit breaker check failed'
+      );
+   }
+
    try {
       const { accrueLpRewards } = await import('./lp-indexer.service');
       await accrueLpRewards(event.creator_id, Number(event.price));

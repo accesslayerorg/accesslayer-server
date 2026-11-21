@@ -3,6 +3,7 @@
 //   POST /referrals/register
 //   GET  /referrals/earnings
 //   GET  /referrals/referred
+//   GET  /wallets/:address/referrals
 
 import { z } from 'zod';
 import { safeIntParam } from '../../utils/query.utils';
@@ -108,3 +109,16 @@ export const ReferralEarningsBreakdownItemSchema = z.object({
 export type ReferralEarningsBreakdownItem = z.infer<
    typeof ReferralEarningsBreakdownItemSchema
 >;
+
+/** GET /wallets/:address/referrals response. */
+export const ReferralStatsSchema = z.object({
+   /** Total number of wallets that registered with this wallet's referral code. */
+   referralCount: z.number(),
+   /** Current tier based on referral count. */
+   tier: z.enum(['BRONZE', 'SILVER', 'GOLD']),
+   /** Total XLM earned from referral rewards (all time). */
+   totalEarned: z.number(),
+   /** XLM earned but not yet claimed (pending). */
+   pendingClaim: z.number(),
+});
+export type ReferralStats = z.infer<typeof ReferralStatsSchema>;
