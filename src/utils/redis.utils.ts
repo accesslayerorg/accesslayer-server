@@ -105,6 +105,50 @@ export async function cacheGet(key: string): Promise<string | null> {
 }
 
 /**
+ * Read the remaining TTL for a cached key in milliseconds.
+ * Returns 0 for a missing key and null when Redis or its TTL is unavailable.
+ */
+export async function cacheTtlMs(key: string): Promise<number | null> {
+   if (
+      (envConfig.MODE !== 'test' ||
+         process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') &&
+      redisCircuitBreaker.isOpen()
+   ) {
+      return null;
+   }
+   const client = getRedisClient();
+   if (!client) return null;
+   try {
+      const ttlMs = await client.pttl(key);
+      if (
+         envConfig.MODE !== 'test' ||
+         process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1'
+      ) {
+         redisCircuitBreaker.recordSuccess();
+      }
+      if (ttlMs === -2) return 0;
+      if (ttlMs < 0) return null;
+      return ttlMs;
+   } catch (error) {
+      if (
+         envConfig.MODE !== 'test' ||
+         process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1'
+      ) {
+         redisCircuitBreaker.recordFailure(error);
+      }
+      logger.warn(
+         {
+            type: 'redis_pttl_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis PTTL failed; cache TTL is unknown'
+      );
+      return null;
+   }
+}
+
+/**
  * Read a raw string value. Returns `null` on miss or when Redis is
  * unavailable so callers treat outages as cache misses.
  */
