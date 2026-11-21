@@ -142,10 +142,10 @@ jobs:
            run: pnpm exec prisma db push --skip-generate
 
          - name: Seed database (10,000 keys, 100,000 trades)
-           run: pnpm exec ts-node loadtest/seed.ts
+           run: pnpm exec ts-node --transpile-only loadtest/seed.ts
 
          - name: Verify seed idempotency
-           run: pnpm exec ts-node loadtest/seed.ts
+           run: pnpm exec ts-node --transpile-only loadtest/seed.ts
 
          - name: Setup k6
            uses: grafana/setup-k6-action@v1

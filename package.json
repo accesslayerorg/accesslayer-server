@@ -29,7 +29,7 @@
       "studio": "pnpm exec prisma studio",
       "validate-api": "tspec validate",
       "bundle": "bash src/scripts/bundle-code.sh",
-      "loadtest:seed": "ts-node loadtest/seed.ts",
+      "loadtest:seed": "ts-node --transpile-only loadtest/seed.ts",
       "loadtest:smoke": "k6 run --summary-export=loadtest-summary.json loadtest/smoke.js",
       "loadtest:soak": "k6 run --summary-export=loadtest-summary.json loadtest/soak.js"
    },
