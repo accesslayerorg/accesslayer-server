@@ -21,4 +21,6 @@ model Trade {
   @@index([ledger])
   @@index([paymentAsset])
   @@index([creatorId, paymentAsset])
+  /// Per-wallet, per-key chronological scans for realized gains (#1218).
+  @@index([buyer, creatorId, timestamp])
 }

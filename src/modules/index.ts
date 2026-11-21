@@ -52,6 +52,7 @@ import governanceRouter from './governance/governance.routes';
 import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
+import ordersRouter from './orders/order.routes';
 import holdersRouter from './dividends/holders.routes';
 import multisigRouter from './multisig/multisig.routes';
 import discoveryRouter from './keys/discovery.routes';
@@ -61,6 +62,9 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import commentsRouter from './comments/comments.routes';
+import { commentsModerationRouter } from './comments/comments.routes';
+import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -86,6 +90,13 @@ router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorRouter);
 router.use('/metrics', routeBodySizeLimit('default'), metricsRouter);
 router.use('/ledger', routeBodySizeLimit('default'), ledgerRouter);
+// Moderator key report queue (#1226). Mounted ahead of adminRouter: these
+// routes use wallet-based moderator auth rather than the admin JWT guard.
+router.use(
+   '/admin/reports',
+   routeBodySizeLimit('admin'),
+   adminReportsRouter
+);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
@@ -105,6 +116,7 @@ router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
+router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
@@ -145,9 +157,11 @@ router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
+router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
+router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
 router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);

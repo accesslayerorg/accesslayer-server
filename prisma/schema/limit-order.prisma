@@ -1,0 +1,25 @@
+// prisma/schema/limit-order.prisma
+// Client limit orders (#1220). Stored off-chain and evaluated by the
+// order matcher against the latest indexed curve price.
+
+model LimitOrder {
+  id          String    @id @default(cuid())
+  wallet      String
+  keyId       String
+  /// "BUY" | "SELL"
+  side        String
+  /// Target curve price in XLM.
+  targetPrice Decimal   @db.Decimal(20, 7)
+  quantity    Decimal   @db.Decimal(20, 7)
+  /// "OPEN" | "EXECUTABLE" | "EXPIRED". Cancelling deletes the row.
+  status      String    @default("OPEN")
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([wallet])
+  @@index([keyId, status])
+  /// Covers the matcher's keyset scan of OPEN orders by (createdAt, id).
+  @@index([status, createdAt])
+  @@map("limit_orders")
+}
