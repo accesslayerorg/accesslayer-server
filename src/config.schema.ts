@@ -251,6 +251,20 @@ export const envSchema = z
          .positive()
          .default(300),
 
+      // Key price velocity circuit breaker (#1195): after each indexed trade
+      // the key is paused when its price moved more than this percentage, in
+      // either direction, against the price WINDOW_SIZE trades earlier.
+      KEY_PRICE_VELOCITY_THRESHOLD_PCT: z.coerce
+         .number()
+         .positive()
+         .default(50),
+      KEY_PRICE_VELOCITY_WINDOW_SIZE: z.coerce
+         .number()
+         .int()
+         .min(1)
+         .max(500)
+         .default(10),
+
       // Key content gate config cache (#1150)
       GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
          .number()

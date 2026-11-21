@@ -167,6 +167,13 @@ import {
 } from './circuit-breaker.service';
 import { circuitBreakerQuerySchema } from './circuit-breaker.schemas';
 import {
+   BreakerKeyNotFoundError,
+   BreakerNotTrippedError,
+   ResetSignatureError,
+   resetPriceVelocityBreaker,
+   verifyResetSignature,
+} from './price-velocity-breaker.service';
+import {
    simulateKeyTrade,
    type SimulateSide,
    InsufficientCirculatingSupplyError,
@@ -789,6 +796,83 @@ router.get('/:keyId/circuit-breaker', async (req, res, next) => {
       next(error);
    }
 });
+
+/**
+ * PUT /api/v1/keys/:keyId/circuit-breaker/reset
+ *
+ * Resumes trading on a key paused by the price velocity circuit breaker
+ * (#1195). Requires an admin JWT and an Ed25519 signature from a wallet in
+ * ADMIN_MULTISIG_WALLETS over SHA256("circuit-breaker-reset:<keyId>:<timestamp>").
+ *
+ * Headers: x-wallet-address, x-wallet-signature (base64), x-timestamp (Unix ms,
+ * within 5 minutes).
+ *
+ * Responses:
+ *   200 — { keyId, tradingPaused: false, resetTripId, resetAt }
+ *   400 — missing or malformed signature headers
+ *   401 — missing/invalid admin JWT, or expired signature
+ *   403 — signer is not an admin wallet, or the signature does not verify
+ *   404 — key not found
+ *   409 — the breaker is not tripped for this key
+ */
+router.put(
+   '/:keyId/circuit-breaker/reset',
+   adminGuard,
+   async (req, res, next) => {
+      const keyId = String(req.params.keyId);
+      const header = (name: string): string | undefined => {
+         const raw = req.headers[name];
+         const value = Array.isArray(raw) ? raw[0] : raw;
+         return typeof value === 'string' && value.trim()
+            ? value.trim()
+            : undefined;
+      };
+      const adminWallet = header('x-wallet-address');
+      const signature = header('x-wallet-signature');
+      const timestamp = header('x-timestamp');
+      if (!adminWallet || !signature || !timestamp) {
+         sendError(
+            res,
+            400,
+            ErrorCode.BAD_REQUEST,
+            'Missing required signature headers: x-wallet-address, x-wallet-signature, x-timestamp'
+         );
+         return;
+      }
+
+      try {
+         verifyResetSignature({ keyId, adminWallet, signature, timestamp });
+         sendSuccess(
+            res,
+            await resetPriceVelocityBreaker(prisma, keyId, adminWallet)
+         );
+      } catch (error) {
+         if (error instanceof ResetSignatureError) {
+            const code =
+               error.status === 400
+                  ? ErrorCode.BAD_REQUEST
+                  : error.status === 401
+                    ? ErrorCode.UNAUTHORIZED
+                    : ErrorCode.FORBIDDEN;
+            sendError(res, error.status, code, error.message);
+            return;
+         }
+         if (error instanceof BreakerKeyNotFoundError) {
+            sendNotFound(res, 'Key');
+            return;
+         }
+         if (error instanceof BreakerNotTrippedError) {
+            sendConflict(res, error.message);
+            return;
+         }
+         logger.error(
+            { error, keyId },
+            'PUT /keys/:keyId/circuit-breaker/reset failed'
+         );
+         next(error);
+      }
+   }
+);
 
 /**
  * GET /api/v1/keys/:keyId/oracle-price
