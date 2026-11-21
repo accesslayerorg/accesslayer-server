@@ -53,6 +53,9 @@ import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
 import {
+   startOrderMatcherWorker,
+   stopOrderMatcherWorker,
+} from './workers/order-matcher.worker';
    attachPriceWebSocketGateway,
    closePriceWebSocketGateway,
 } from './modules/price-stream/price-stream.gateway';
@@ -108,6 +111,7 @@ async function startServer() {
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
       startFlashLoanViolationCleanupJob();
+      startOrderMatcherWorker();
       startStatusProbeJob();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
@@ -153,6 +157,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
       stopFlashLoanViolationCleanupJob();
+      stopOrderMatcherWorker();
       stopStatusProbeJob();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
