@@ -62,6 +62,7 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import { flagRouter } from './flags/feature-flags.routes';
 import commentsRouter from './comments/comments.routes';
 import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
@@ -169,5 +170,6 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/flags', routeBodySizeLimit('default'), flagRouter);
 
 export default router;
