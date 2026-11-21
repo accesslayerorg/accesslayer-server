@@ -19,6 +19,7 @@ import { requestEntryLoggerMiddleware } from './middlewares/request-entry-logger
 import { requestCompletionLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { envConfig } from './config';
+import { v1KeysRouter } from './routes/keys.routes';
 
 const app: Express = express();
 
@@ -89,6 +90,7 @@ app.get('/', (_, res: Response) => {
 });
 
 // Routes
+app.use('/v1', v1KeysRouter);
 app.use('/api/v1', router);
 
 // Catches body-parse errors (including entity.too.large from the per-group

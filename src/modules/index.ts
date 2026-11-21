@@ -16,6 +16,7 @@ import alertsRouter from './alerts/alert.router';
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
+import { keysRouter } from '../routes/keys.routes';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 
 const router = Router();
@@ -40,5 +41,6 @@ router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
+router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 
 export default router;
