@@ -1,13 +1,15 @@
 // src/modules/referrals/referrals.controller.ts
-// Handlers for the referral programme endpoints (#910):
+// Handlers for the referral programme endpoints (#910, #1198):
 //   POST /api/v1/referrals/register
 //   GET  /api/v1/referrals/earnings
 //   GET  /api/v1/referrals/referred
+//   GET  /api/v1/wallets/:address/referrals
 //
-// All three require a JWT; the wallet is always taken from the token, never
+// The first three require a JWT; the wallet is always taken from the token, never
 // from the request body, so a caller can only act on its own referral data.
+// The wallet referrals stats endpoint is public and takes the address from the URL param.
 
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import {
    ErrorCode,
    sendError,
@@ -23,6 +25,7 @@ import { ReferredWalletsQuerySchema, RegisterReferralSchema } from './referrals.
 import {
    AlreadyReferredError,
    getReferralEarnings,
+   getReferralStats,
    listReferredWallets,
    ReferralCodeNotFoundError,
    registerReferral,
@@ -200,6 +203,65 @@ export async function httpGetReferredWallets(
          500,
          ErrorCode.INTERNAL_ERROR,
          'Failed to retrieve referred wallets'
+      );
+   }
+}
+
+/**
+ * GET /api/v1/wallets/:address/referrals
+ *
+ * Returns referral statistics for a wallet: referral count, tier, total earned,
+ * and pending claim. This is a public endpoint that does not require authentication.
+ */
+export async function httpGetWalletReferrals(
+   req: Request,
+   res: Response
+): Promise<void> {
+   try {
+      const addressParam = req.params.address;
+      const address = Array.isArray(addressParam) ? addressParam[0] : addressParam;
+
+      if (!address) {
+         sendValidationError(res, 'Wallet address is required', [
+            { field: 'address', message: 'Wallet address is required' },
+         ]);
+         return;
+      }
+
+      const trimmedAddress = address.trim();
+
+      // Basic Stellar address validation (G... or M... followed by 55 chars)
+      if (!/^[GM][A-Z0-9]{55}$/.test(trimmedAddress)) {
+         sendValidationError(res, 'Invalid wallet address format', [
+            { field: 'address', message: 'Invalid wallet address format' },
+         ]);
+         return;
+      }
+
+      const stats = await getReferralStats(trimmedAddress);
+
+      attachTimestampHeader(res);
+      sendSuccess(
+         res,
+         stats,
+         200,
+         'Referral stats retrieved successfully'
+      );
+   } catch (error) {
+      logger.error(
+         {
+            type: 'wallet_referrals_stats_failed',
+            ...(req.requestId ? { requestId: req.requestId } : {}),
+            address: req.params.address,
+            error,
+         },
+         'Failed to retrieve wallet referral stats'
+      );
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to retrieve referral stats'
       );
    }
 }

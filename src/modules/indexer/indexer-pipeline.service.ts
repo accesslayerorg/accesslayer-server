@@ -16,7 +16,7 @@ import { dedupeChainEvents } from '../../utils/indexer-dedupe.utils';
 import { logSellTransactionConfirmed } from '../../utils/sell-transaction-logger.utils';
 import { persistCirculatingSupply } from './persist-circulating-supply.service';
 import { invalidateVolumeLeaderboardCache } from '../creators/creator-leaderboard-volume.service';
-import { recordFirstTradeReferralReward } from '../referrals/referrals.service';
+import { recordTradeReferralReward } from '../referrals/referrals.service';
 import { invalidateCreatorPortfolioStatsCache } from '../creators/creator-portfolio.service';
 import { invalidateActivityFeedCache } from '../activity/activity-feed.service';
 
@@ -95,9 +95,9 @@ export async function processTradeEvents(
 
       // Run referral bookkeeping before the non-transactional trade writes so
       // a failure can abort this event and let the indexer retry it.
-      // The conditional claim makes a successful referral write replay-safe.
+      // Rewards are now paid on EVERY trade by a referred wallet.
       try {
-         await recordFirstTradeReferralReward({
+         await recordTradeReferralReward({
             refereeAddress: actor,
             keyId: creatorId,
             tradeValueXlm: pricePerKeyXlm * tradeQty,
@@ -111,7 +111,7 @@ export async function processTradeEvents(
                eventId: `${event.txHash}:${event.eventIndex}`,
                error,
             },
-            'Failed to record referral first trade reward'
+            'Failed to record referral trade reward'
          );
          throw error;
       }

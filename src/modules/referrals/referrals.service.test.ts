@@ -1,10 +1,10 @@
-// Unit tests: referral tracking and reward distribution (#910)
+// Unit tests: referral tracking and reward distribution (#1198)
 //
 // Covers the acceptance criteria:
 //   - referral registration stores the relationship correctly
 //   - earnings endpoint returns accurate totals and a per-referral breakdown
 //   - referred wallets list shows join date and first-trade status
-//   - referral fee is recorded only on the referred wallet's first trade
+//   - referral fee is recorded on every referred trade with tier multiplier
 //   - duplicate referral registration for the same wallet is rejected
 
 jest.mock('../../utils/prisma.utils', () => {
@@ -24,6 +24,9 @@ jest.mock('../../utils/prisma.utils', () => {
       referralCode: { findUnique: jest.fn(), create: jest.fn() },
       referral,
       referralEvent,
+      protocolConfig: {
+         upsert: jest.fn().mockResolvedValue({ protocolFeeBps: 500 }),
+      },
       $transaction: jest.fn((callback: (tx: unknown) => unknown) =>
          callback({ referral, referralEvent })
       ),
@@ -33,15 +36,15 @@ jest.mock('../../utils/prisma.utils', () => {
 });
 
 import { prisma } from '../../utils/prisma.utils';
-import { envConfig } from '../../config';
 import { encodeCursor } from '../../utils/cursor.utils';
 import {
    AlreadyReferredError,
    generateReferralCode,
    getOrCreateReferralCode,
    getReferralEarnings,
+   getReferralStats,
    listReferredWallets,
-   recordFirstTradeReferralReward,
+   recordTradeReferralReward,
    ReferralCodeNotFoundError,
    registerReferral,
    SelfReferralError,
@@ -58,6 +61,7 @@ const referralUpdateMany = prisma.referral.updateMany as jest.Mock;
 const eventCreate = prisma.referralEvent.create as jest.Mock;
 const eventAggregate = prisma.referralEvent.aggregate as jest.Mock;
 const eventGroupBy = prisma.referralEvent.groupBy as jest.Mock;
+const protocolConfigUpsert = prisma.protocolConfig.upsert as jest.Mock;
 
 const REFERRER = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const REFEREE = 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
@@ -350,6 +354,45 @@ describe('getReferralEarnings', () => {
    });
 });
 
+describe('getReferralStats', () => {
+   beforeEach(() => {
+      jest.clearAllMocks();
+      protocolConfigUpsert.mockResolvedValue({ protocolFeeBps: 500 });
+   });
+
+   it('returns referral count, tier, total earned, and pending claim', async () => {
+      referralCount.mockResolvedValue(5);
+      eventAggregate.mockResolvedValue({ _sum: { amount: '25.5' } });
+
+      const stats = await getReferralStats(REFERRER);
+
+      expect(stats).toEqual({
+         referralCount: 5,
+         tier: 'BRONZE',
+         totalEarned: 25.5,
+         pendingClaim: 25.5,
+      });
+   });
+
+   it('returns SILVER tier for 10-49 referrals', async () => {
+      referralCount.mockResolvedValue(25);
+      eventAggregate.mockResolvedValue({ _sum: { amount: '100' } });
+
+      const stats = await getReferralStats(REFERRER);
+
+      expect(stats.tier).toBe('SILVER');
+   });
+
+   it('returns GOLD tier for 50+ referrals', async () => {
+      referralCount.mockResolvedValue(75);
+      eventAggregate.mockResolvedValue({ _sum: { amount: '500' } });
+
+      const stats = await getReferralStats(REFERRER);
+
+      expect(stats.tier).toBe('GOLD');
+   });
+});
+
 describe('listReferredWallets', () => {
    beforeEach(() => {
       jest.clearAllMocks();
@@ -462,18 +505,19 @@ describe('listReferredWallets', () => {
    });
 });
 
-describe('recordFirstTradeReferralReward', () => {
+describe('recordTradeReferralReward', () => {
    beforeEach(() => {
       jest.clearAllMocks();
+      protocolConfigUpsert.mockResolvedValue({ protocolFeeBps: 500 });
    });
 
-   it('records the referral fee against the referrer on the first trade', async () => {
+   it('records the referral reward on every trade with tier multiplier', async () => {
       const tradeAt = new Date('2026-09-05T12:00:00.000Z');
-      referralUpdateMany.mockResolvedValue({ count: 1 });
       referralFindUnique.mockResolvedValue({ referrerAddress: REFERRER });
+      referralCount.mockResolvedValue(5); // Bronze tier (1x)
       eventCreate.mockResolvedValue({});
 
-      const paid = await recordFirstTradeReferralReward({
+      const paid = await recordTradeReferralReward({
          refereeAddress: REFEREE,
          keyId: 'key-1',
          tradeValueXlm: 10,
@@ -483,17 +527,17 @@ describe('recordFirstTradeReferralReward', () => {
       });
 
       expect(paid).toBe(true);
-      expect(referralUpdateMany).toHaveBeenCalledWith({
-         where: { refereeAddress: REFEREE, firstTradeAt: null },
-         data: { firstTradeAt: tradeAt, firstTradeKeyId: 'key-1' },
-      });
-      // 10 XLM * 500bps = 0.5 XLM
+      // No firstTradeAt update anymore
+      expect(referralUpdateMany).not.toHaveBeenCalled();
+      // Reward = trade_value * protocol_fee_bps/10000 * REFERRAL_REWARD_BPS/10000 * tier_multiplier
+      // = 10 * 500/10000 * 500/10000 * 1.0 = 10 * 0.05 * 0.05 * 1.0 = 0.025
       expect(eventCreate).toHaveBeenCalledWith({
          data: {
             walletAddress: REFERRER,
             refereeAddress: REFEREE,
             keyId: 'key-1',
-            amount: 0.5,
+            amount: 0.025,
+            tierMultiplier: 1.0,
             txHash: 'tx-1',
             eventIndex: 0,
             createdAt: tradeAt,
@@ -501,10 +545,60 @@ describe('recordFirstTradeReferralReward', () => {
       });
    });
 
-   it('does not record a fee for a wallet that was never referred', async () => {
-      referralUpdateMany.mockResolvedValue({ count: 0 });
+   it('applies 1.5x tier multiplier for SILVER tier (10-49 referrals)', async () => {
+      const tradeAt = new Date('2026-09-05T12:00:00.000Z');
+      referralFindUnique.mockResolvedValue({ referrerAddress: REFERRER });
+      referralCount.mockResolvedValue(25); // Silver tier (1.5x)
+      eventCreate.mockResolvedValue({});
 
-      const paid = await recordFirstTradeReferralReward({
+      const paid = await recordTradeReferralReward({
+         refereeAddress: REFEREE,
+         keyId: 'key-1',
+         tradeValueXlm: 10,
+         tradeAt,
+      });
+
+      expect(paid).toBe(true);
+      // Reward = 10 * 0.05 * 0.05 * 1.5 = 0.0375
+      expect(eventCreate).toHaveBeenCalledWith(
+         expect.objectContaining({
+            data: expect.objectContaining({
+               amount: 0.0375,
+               tierMultiplier: 1.5,
+            }),
+         })
+      );
+   });
+
+   it('applies 2x tier multiplier for GOLD tier (50+ referrals)', async () => {
+      const tradeAt = new Date('2026-09-05T12:00:00.000Z');
+      referralFindUnique.mockResolvedValue({ referrerAddress: REFERRER });
+      referralCount.mockResolvedValue(75); // Gold tier (2x)
+      eventCreate.mockResolvedValue({});
+
+      const paid = await recordTradeReferralReward({
+         refereeAddress: REFEREE,
+         keyId: 'key-1',
+         tradeValueXlm: 10,
+         tradeAt,
+      });
+
+      expect(paid).toBe(true);
+      // Reward = 10 * 0.05 * 0.05 * 2.0 = 0.05
+      expect(eventCreate).toHaveBeenCalledWith(
+         expect.objectContaining({
+            data: expect.objectContaining({
+               amount: 0.05,
+               tierMultiplier: 2.0,
+            }),
+         })
+      );
+   });
+
+   it('does not record a fee for a wallet that was never referred', async () => {
+      referralFindUnique.mockResolvedValue(null);
+
+      const paid = await recordTradeReferralReward({
          refereeAddress: REFEREE,
          keyId: 'key-1',
          tradeValueXlm: 10,
@@ -514,46 +608,47 @@ describe('recordFirstTradeReferralReward', () => {
       expect(eventCreate).not.toHaveBeenCalled();
    });
 
-   it('records a fee only once across repeated trades', async () => {
-      referralUpdateMany
-         .mockResolvedValueOnce({ count: 1 })
-         .mockResolvedValueOnce({ count: 0 });
+   it('records a fee on every trade (not just first trade)', async () => {
+      const tradeAt = new Date('2026-09-05T12:00:00.000Z');
       referralFindUnique.mockResolvedValue({ referrerAddress: REFERRER });
+      referralCount.mockResolvedValue(5);
       eventCreate.mockResolvedValue({});
 
+      // First trade
       await expect(
-         recordFirstTradeReferralReward({
+         recordTradeReferralReward({
             refereeAddress: REFEREE,
             keyId: 'key-1',
             tradeValueXlm: 10,
+            tradeAt,
          })
       ).resolves.toBe(true);
+
+      // Second trade - should also pay out
       await expect(
-         recordFirstTradeReferralReward({
+         recordTradeReferralReward({
             refereeAddress: REFEREE,
             keyId: 'key-2',
             tradeValueXlm: 25,
+            tradeAt,
          })
-      ).resolves.toBe(false);
+      ).resolves.toBe(true);
 
-      expect(eventCreate).toHaveBeenCalledTimes(1);
+      expect(eventCreate).toHaveBeenCalledTimes(2);
    });
 
-   it('stamps the first trade but skips the fee row when the reward rounds to zero', async () => {
-      const bps = envConfig.REFERRAL_REWARD_BPS;
-      referralUpdateMany.mockResolvedValue({ count: 1 });
+   it('skips the fee row when the reward rounds to zero', async () => {
       referralFindUnique.mockResolvedValue({ referrerAddress: REFERRER });
+      referralCount.mockResolvedValue(5);
       eventCreate.mockResolvedValue({});
 
-      const paid = await recordFirstTradeReferralReward({
+      const paid = await recordTradeReferralReward({
          refereeAddress: REFEREE,
          keyId: 'key-1',
          tradeValueXlm: 0,
       });
 
-      expect(bps).toBeGreaterThanOrEqual(0);
-      expect(paid).toBe(true);
-      expect(referralUpdateMany).toHaveBeenCalled();
+      expect(paid).toBe(false);
       expect(eventCreate).not.toHaveBeenCalled();
    });
 });

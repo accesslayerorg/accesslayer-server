@@ -2,6 +2,7 @@ import { Router } from "express";
 import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
 import { httpGetWalletFollowing } from "./wallet-following.controllers";
+import { httpGetWalletReferrals } from "../referrals/referrals.controller";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
@@ -37,5 +38,13 @@ walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
  * alphabetically by display name. Requires JWT authentication.
  */
 walletsRouter.get('/:address/following', jwtAuth, httpGetWalletFollowing);
+
+/**
+ * GET /api/v1/wallets/:address/referrals
+ *
+ * Returns referral statistics for a wallet: referral count, tier, total earned,
+ * and pending claim. Public endpoint, no authentication required.
+ */
+walletsRouter.get('/:address/referrals', httpGetWalletReferrals);
 
 export default walletsRouter;
