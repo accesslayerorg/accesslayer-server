@@ -1,0 +1,26 @@
+/// Protocol liquidity amounts in native contract integer units (stroops).
+model PolReserve {
+  id             String   @id
+  balance        Decimal  @default(0) @db.Decimal(39, 0)
+  deployedAmount Decimal  @default(0) @db.Decimal(39, 0)
+  repaidAmount   Decimal  @default(0) @db.Decimal(39, 0)
+  updatedAt      DateTime @updatedAt
+  @@map("pol_reserves")
+}
+
+/// Append-only funding/backstop/repayment receipts. Insert and aggregate delta
+/// share a transaction; chain position uniqueness makes replays no-ops.
+model Backstop {
+  id         String   @id @default(cuid())
+  keyId      String?
+  type       String
+  amount     Decimal  @db.Decimal(39, 0)
+  ledger     Int
+  eventIndex Int
+  txHash     String
+  timestamp  DateTime
+  createdAt  DateTime @default(now())
+  @@unique([txHash, eventIndex])
+  @@index([keyId, ledger, eventIndex])
+  @@map("pol_backstops")
+}
