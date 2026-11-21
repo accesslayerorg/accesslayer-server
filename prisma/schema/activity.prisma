@@ -5,6 +5,24 @@ enum ActivityType {
   KEY_BOUGHT
   KEY_SOLD
   PROFILE_UPDATED
+  DIVIDEND_DISTRIBUTED
+  DIVIDEND_CLAIMED
+  KEYS_CLAIMED
+  KEY_BURNED
+  KEY_TRANSFERRED
+  KEY_TRANSFERRED_IN
+  KEY_TRANSFERRED_OUT
+  SUPPLY_CAP_SET
+  TRADING_PAUSE_PROPOSED
+  TRADING_PAUSE_APPROVED
+  GOVERNANCE_PROPOSAL_CREATED
+  GOVERNANCE_VOTE_CAST
+  TIMELOCK_LOCKUP_PROPOSED
+  CIRCUIT_BREAKER_THRESHOLD_UPDATED
+  GRADUATED_CURVE_CONFIGURED
+  KEY_DEPRECATED
+  SUPPLY_FULLY_FUNDED
+  MILESTONE_CROSSED
 }
 
 model Activity {
@@ -28,4 +46,25 @@ model Activity {
   @@index([creatorId])
   @@index([actor])
   @@index([type])
+}
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  type        String       // buy, sell, transfer_in, transfer_out, burn, dividend
+  actor       String       // wallet address
+  keyId       String?
+  creatorName String?
+  amount      Decimal?     @default(0)
+  target      String?
+  txHash      String?
+  payload     Json?
+  timestamp   DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+
+  @@unique([txHash, actor, type])
+  @@index([actor])
+  @@index([keyId])
+  @@index([type])
+  @@index([timestamp(sort: Desc)])
+  @@map("activity_log")
 }

@@ -101,6 +101,14 @@ describe('GET /api/v1/creators/leaderboard', () => {
       expect(items[2].creator).toBe(CREATOR_LOW.address);
    });
 
+   it('includes total_count equal to the number of creators in the database', async () => {
+      const res = await supertest(app).get('/api/v1/creators/leaderboard');
+
+      expect(res.status).toBe(200);
+      // Three creators were seeded; all three are below the 100-entry cap.
+      expect(res.body.data.total_count).toBe(3);
+   });
+
    it('breaks the tie between equal holder counts alphabetically by creator address', async () => {
       const res = await supertest(app).get('/api/v1/creators/leaderboard');
 

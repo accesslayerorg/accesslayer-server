@@ -3,6 +3,8 @@ import { CreatorHoldersQuerySchema } from './creator-holders.schemas';
 import {
    findCreatorByIdOrHandle,
    fetchCreatorHolders,
+   fetchCreatorHoldersByCursor,
+   decodeHoldersCursor,
 } from './creator-holders.service';
 import {
    sendSuccess,
@@ -48,6 +50,36 @@ export const httpGetCreatorHolders: AsyncController = async (
 
       const creator = await findCreatorByIdOrHandle(String(creatorId));
       if (!handleCreatorParamNotFound(res, creator)) return;
+
+      if (parsed.data.cursor) {
+         const decoded = decodeHoldersCursor(parsed.data.cursor);
+         if (!decoded.ok) {
+            return sendValidationError(res, 'Invalid pagination cursor', [
+               { field: 'cursor', message: 'Cursor is malformed or has expired' },
+            ]);
+         }
+
+         const page = await fetchCreatorHoldersByCursor(
+            creator.id,
+            parsed.data,
+            decoded.ownerAddress
+         );
+         if (!page) {
+            return sendValidationError(res, 'Invalid pagination cursor', [
+               { field: 'cursor', message: 'Cursor does not match a known holder' },
+            ]);
+         }
+
+         attachTimestampHeader(res);
+         return sendSuccess(res, {
+            items: page.holders,
+            meta: {
+               limit: parsed.data.limit,
+               hasMore: page.hasMore,
+               nextCursor: page.nextCursor,
+            },
+         });
+      }
 
       const [holders, total] = await fetchCreatorHolders(
          creator.id,

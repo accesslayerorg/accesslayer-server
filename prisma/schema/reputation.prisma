@@ -1,0 +1,43 @@
+// prisma/schema/reputation.prisma
+// Creator reputation scoring based on on-chain activities and milestones
+
+model CreatorReputation {
+  id                String   @id @default(cuid())
+  creatorId         String   @unique
+  currentScore      Int      @default(0)
+  tier              String   @default("IRON") // IRON, BRONZE, SILVER, GOLD, PLATINUM
+  
+  // Breakdown of reputation factors
+  keyLaunches       Int      @default(0)     // Number of new keys launched
+  milestonesReached Int      @default(0)     // Number of supply milestones reached
+  governanceVotes   Int      @default(0)     // Number of governance votes cast
+  deprecations      Int      @default(0)     // Number of keys deprecated
+  
+  lastUpdatedAt     DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  history           CreatorReputationHistory[]
+
+  @@index([creatorId])
+  @@index([currentScore(sort: Desc)])
+  @@index([tier])
+}
+
+model CreatorReputationHistory {
+  id                String   @id @default(cuid())
+  reputationId      String
+  creatorId         String
+  score             Int
+  tier              String
+  ledger            Int
+  txHash            String?
+  eventType         String   // KEY_LAUNCHED, MILESTONE_REACHED, GOVERNANCE_VOTE, KEY_DEPRECATED, etc.
+  recordedAt        DateTime @default(now())
+
+  reputation        CreatorReputation @relation(fields: [reputationId], references: [id], onDelete: Cascade)
+
+  @@unique([ledger, txHash, eventType])
+  @@index([creatorId])
+  @@index([reputationId])
+  @@index([recordedAt(sort: Desc)])
+}

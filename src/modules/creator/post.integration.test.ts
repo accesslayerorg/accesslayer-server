@@ -13,13 +13,15 @@ jest.mock('../../utils/prisma.utils', () => ({
    },
 }));
 
-import { httpCreatePost, httpListPosts } from './post.controller';
+import { httpCreatePost, httpListPosts, postSchema } from './post.controller';
+import { validateBody } from '../../middlewares/validate-body.middleware';
 
 const app = express();
 app.use(express.json());
 app.post(
    '/api/v1/creators/:id/posts',
    requireStellarSignature(),
+   validateBody(postSchema),
    httpCreatePost
 );
 app.get('/api/v1/creators/:id/posts', httpListPosts);

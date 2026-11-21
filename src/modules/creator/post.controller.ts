@@ -3,15 +3,13 @@ import { z } from 'zod';
 import type { StellarSignedRequest } from '../../middlewares/stellar-signature.middleware';
 import { ErrorCode } from '../../constants/error.constants';
 import { prisma } from '../../utils/prisma.utils';
-import {
-   sendError,
-   sendSuccess,
-   zodIssuesToDetails,
-} from '../../utils/api-response.utils';
+import { sendError, sendSuccess } from '../../utils/api-response.utils';
 
-const postSchema = z.object({
+export const postSchema = z.object({
    content: z.string().trim().min(1).max(5000),
 });
+
+export type CreatePostBody = z.infer<typeof postSchema>;
 
 function serializePost(
    post: {
@@ -33,17 +31,9 @@ export async function httpCreatePost(
    req: StellarSignedRequest,
    res: Response
 ): Promise<void> {
-   const parsed = postSchema.safeParse(req.body);
-   if (!parsed.success) {
-      sendError(
-         res,
-         422,
-         ErrorCode.VALIDATION_ERROR,
-         'Post content is required',
-         zodIssuesToDetails(parsed.error.issues)
-      );
-      return;
-   }
+   // Body is already validated and stripped of unknown fields by the
+   // validateBody(postSchema) middleware on this route.
+   const body = req.body as CreatePostBody;
 
    const creatorId = String(req.params.id);
    const creator = await prisma.creatorProfile.findFirst({
@@ -63,7 +53,7 @@ export async function httpCreatePost(
    }
 
    const post = await prisma.creatorPost.create({
-      data: { creatorId: creator.id, content: parsed.data.content },
+      data: { creatorId: creator.id, content: body.content },
    });
    sendSuccess(res, serializePost(post, req.walletAddress!), 201);
 }

@@ -9,13 +9,47 @@ model KeyOwnership {
   // The ID or handle of the creator whose keys are owned
   creatorId     String
   
-  // The amount of keys owned
-  balance       Decimal  @default(0)
-  
+   // The amount of keys owned
+   balance       Decimal  @default(0)
+   costBasis     Decimal? @default(0)
+
+   /// Lifetime realised P&L in XLM, persisted at sell execution time (#897).
+   realisedPnl   Decimal? @default(0)
+
+   /// Timestamp of the owner's most recent buy of this key, if any.
+   lastBuyAt     DateTime?
+
+   /// When the current lockup window ends for this holding, if any.
+   lockupExpiresAt DateTime?
+
+   /// Self-custody freeze flag: frozen positions cannot trade or transfer (#885).
+   frozen         Boolean   @default(false)
+   /// When the holder froze this position, if currently frozen (#885).
+   frozenAt       DateTime?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@unique([ownerAddress, creatorId])
   @@index([ownerAddress])
   @@index([creatorId])
+}
+
+/// Payment record for a holder buyback on a deprecated key (#882).
+/// Written in the same transaction that zeroes the holder balance so the
+/// balance reduction and the payment are atomic.
+model KeyBuyback {
+  id              String   @id @default(cuid())
+  keyId           String
+  holderAddress   String
+  quantity        Decimal
+  pricePerKeyXlm  Decimal  @db.Decimal(20, 7)
+  amountXlm       Decimal  @db.Decimal(20, 7)
+  txHash          String?
+  processedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([keyId])
+  @@index([holderAddress])
+  @@index([processedAt(sort: Desc)])
 }

@@ -1,4 +1,4 @@
-import { httpReplayIndexerEvents } from './admin.controllers';
+import { httpReplayIndexerEvents, httpUpdateCreatorMetadata } from './admin.controllers';
 import { emitAuditEvent } from '../../utils/audit.utils';
 import { AdminRequest } from '../../middlewares/admin-guard.middleware';
 import { Response } from 'express';
@@ -105,5 +105,91 @@ describe('httpReplayIndexerEvents', () => {
          })
       );
       expect(res.status).toHaveBeenCalledWith(200);
+   });
+});
+
+describe('httpUpdateCreatorMetadata — tradingPaused', () => {
+   const { prisma } = require('../../utils/prisma.utils');
+   const next = jest.fn();
+
+   const createRes = (): Response =>
+      ({
+         status: jest.fn().mockReturnThis(),
+         json: jest.fn(),
+         set: jest.fn().mockReturnThis(),
+         header: jest.fn().mockReturnThis(),
+      }) as unknown as Response;
+
+   beforeEach(() => {
+      jest.clearAllMocks();
+   });
+
+   it('persists tradingPaused and emits a pause audit event', async () => {
+      prisma.creatorProfile.findUnique.mockResolvedValue({
+         id: 'creator-1',
+         isVerified: false,
+         tradingPaused: false,
+      });
+      prisma.creatorProfile.update.mockResolvedValue({
+         id: 'creator-1',
+         isVerified: false,
+         tradingPaused: true,
+      });
+
+      const req = {
+         params: { id: 'creator-1' },
+         headers: { 'x-admin-id': 'admin-9' },
+         body: { tradingPaused: true },
+      } as unknown as AdminRequest;
+      const res = createRes();
+
+      await httpUpdateCreatorMetadata(req, res, next);
+
+      expect(prisma.creatorProfile.update).toHaveBeenCalledWith({
+         where: { id: 'creator-1' },
+         data: { tradingPaused: true },
+      });
+      expect(emitAuditEvent).toHaveBeenCalledWith(
+         expect.objectContaining({
+            actor: 'admin-9',
+            action: 'pause_creator_trading',
+            targetId: 'creator-1',
+            metadata: expect.objectContaining({
+               tradingPaused: expect.objectContaining({ before: false, after: true }),
+            }),
+         })
+      );
+   });
+
+   it('emits a resume audit event when unpausing', async () => {
+      prisma.creatorProfile.findUnique.mockResolvedValue({
+         id: 'creator-2',
+         isVerified: false,
+         tradingPaused: true,
+      });
+      prisma.creatorProfile.update.mockResolvedValue({
+         id: 'creator-2',
+         isVerified: false,
+         tradingPaused: false,
+      });
+
+      const req = {
+         params: { id: 'creator-2' },
+         headers: { 'x-admin-id': 'admin-10' },
+         body: { tradingPaused: false },
+      } as unknown as AdminRequest;
+      const res = createRes();
+
+      await httpUpdateCreatorMetadata(req, res, next);
+
+      expect(emitAuditEvent).toHaveBeenCalledWith(
+         expect.objectContaining({
+            action: 'resume_creator_trading',
+            targetId: 'creator-2',
+            metadata: expect.objectContaining({
+               tradingPaused: expect.objectContaining({ before: true, after: false }),
+            }),
+         })
+      );
    });
 });

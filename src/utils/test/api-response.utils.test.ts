@@ -6,6 +6,8 @@ import {
    buildErrorResponse,
    zodIssuesToDetails,
    ErrorCode,
+   ErrorCodeType,
+   InvalidErrorCode,
 } from '../api-response.utils';
 import { requestContextStorage } from '../als.utils';
 
@@ -133,6 +135,12 @@ describe('buildErrorResponse', () => {
          []
       );
       expect(body.error).not.toHaveProperty('details');
+   });
+
+   it('throws InvalidErrorCode when the code is an empty string', () => {
+      expect(() => buildErrorResponse('' as ErrorCodeType, 'message')).toThrow(
+         InvalidErrorCode
+      );
    });
 
    it('requestId in response matches the requestId in the server log context', () => {

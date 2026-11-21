@@ -1,0 +1,31 @@
+// prisma/schema/follow.prisma
+
+model Follow {
+  id              String   @id @default(cuid())
+  followerAddress String
+  creatorId       String
+  createdAt       DateTime @default(now())
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+   @@unique([followerAddress, creatorId])
+   @@index([creatorId])
+   @@index([followerAddress])
+}
+
+/// Wallet-to-creator follow relationships (distinct from the creator
+/// follower graph tracked by `Follow`). Backed by the `wallet_creator_follows`
+/// table created by the add_wallet_creator_follows migration.
+model WalletCreatorFollow {
+   id            String        @id @default(cuid())
+   walletAddress String
+   creatorId     String
+   createdAt     DateTime      @default(now())
+
+   creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+   @@unique([walletAddress, creatorId])
+   @@index([creatorId])
+   @@index([walletAddress])
+   @@map("wallet_creator_follows")
+}

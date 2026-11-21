@@ -1,0 +1,32 @@
+// prisma/schema/freeze.prisma
+model KeyFreeze {
+  id         String    @id @default(cuid())
+  keyId      String    @unique   // matches KeyOwnership.creatorId (the "key" identifier in this repo)
+  isFrozen   Boolean   @default(false)
+  reason     String?
+  expiryTimestamp DateTime?
+  frozenAt   DateTime?
+  frozenBy   String?
+  unfrozenAt DateTime?
+  proposalId String?
+  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime  @default(now())
+
+  @@index([isFrozen])
+  @@map("key_freeze_status")
+}
+
+model FreezeEvent {
+  id         String   @id @default(cuid())
+  keyId      String
+  eventType  String   // FREEZE | UNFREEZE | PROPOSAL_CREATED
+  ledger     BigInt
+  txHash     String
+  eventIndex Int
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, ledger])
+  @@index([ledger])
+}

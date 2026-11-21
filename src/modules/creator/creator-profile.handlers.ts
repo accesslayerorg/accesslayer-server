@@ -10,7 +10,7 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { logger } from '../../utils/logger.utils';
 import {
    CreatorProfileParamsSchema,
-   UpsertCreatorProfileBodySchema,
+   UpsertCreatorProfileBody,
 } from './creator-profile.schemas';
 import {
    getCreatorProfile,
@@ -36,7 +36,17 @@ export async function getCreatorProfileHandler(req: Request, res: Response) {
          );
       }
 
-      const profile = await getCreatorProfile(paramsResult.data.creatorId);
+      const rawIdentifier =
+         paramsResult.data.wallet ||
+         paramsResult.data.creatorId ||
+         req.params.wallet ||
+         req.params.creatorId ||
+         req.params.id;
+      const identifier = Array.isArray(rawIdentifier)
+         ? rawIdentifier[0]
+         : String(rawIdentifier);
+
+      const profile = await getCreatorProfile(identifier);
       attachTimestampHeader(res);
       return sendSuccess(res, profile, 200, 'Creator profile retrieved');
    } catch (error) {
@@ -76,45 +86,29 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
          );
       }
 
-      const bodyResult = UpsertCreatorProfileBodySchema.safeParse(req.body);
-      if (!bodyResult.success) {
-         // Log missing required fields with structured context
-         const missingFields = bodyResult.error.issues
-            .filter(
-               (issue: any) =>
-                  issue.code === 'invalid_type' &&
-                  issue.received === 'undefined'
-            )
-            .map((issue: any) => issue.path.join('.'));
+      // Body is already validated and stripped of unknown fields by the
+      // validateBody(UpsertCreatorProfileBodySchema) middleware on this route.
+      const body = req.body as UpsertCreatorProfileBody;
 
-         if (missingFields.length > 0) {
-            logger.warn(
-               {
-                  type: 'creator_profile_validation_error',
-                  handler: 'upsertCreatorProfileHandler',
-                  missingFields,
-                  ...(req.requestId ? { requestId: req.requestId } : {}),
-               },
-               'Missing required fields in creator profile payload'
-            );
-         }
-
-         return sendValidationError(
-            res,
-            'Invalid creator profile payload',
-            zodIssuesToDetails(bodyResult.error.issues)
-         );
-      }
+      const rawIdentifier =
+         paramsResult.data.wallet ||
+         paramsResult.data.creatorId ||
+         req.params.wallet ||
+         req.params.creatorId ||
+         req.params.id;
+      const identifier = Array.isArray(rawIdentifier)
+         ? rawIdentifier[0]
+         : String(rawIdentifier);
 
       const profile = await upsertCreatorProfile(
-         paramsResult.data.creatorId,
-         bodyResult.data
+         identifier,
+         body
       );
       return sendSuccess(
          res,
          profile,
          202,
-         'Creator profile write accepted (placeholder)'
+         'Creator profile updated successfully'
       );
    } catch (error) {
       logger.error(

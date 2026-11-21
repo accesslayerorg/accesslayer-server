@@ -82,7 +82,9 @@ describe('bodyParseErrorMiddleware', () => {
             expect(res.json).toHaveBeenCalledWith(
                expect.objectContaining({
                   success: false,
-                  message: 'Invalid JSON in request body',
+                  error: expect.objectContaining({
+                     message: 'Invalid JSON in request body',
+                  }),
                })
             );
             expect(next).not.toHaveBeenCalled();

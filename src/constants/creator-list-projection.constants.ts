@@ -19,6 +19,7 @@
  * - isVerified: Verification status badge
  * - createdAt: Creator registration timestamp
  * - updatedAt: Creator profile update timestamp
+ * - deprecatedAt: Deprecation timestamp (null while the key is active)
  * - priceSnapshot: Nested price read model (currentPrice, price24hAgo, lastTradeAt)
  */
 export const CREATOR_LIST_DEFAULT_SELECT = {
@@ -29,6 +30,7 @@ export const CREATOR_LIST_DEFAULT_SELECT = {
    isVerified: true,
    createdAt: true,
    updatedAt: true,
+   deprecatedAt: true,
    priceSnapshot: {
       select: {
          currentPrice: true,

@@ -3,14 +3,16 @@ import request from 'supertest';
 import { Keypair } from '@stellar/stellar-base';
 import { requireStellarSignature } from '../../middlewares/stellar-signature.middleware';
 import { buildAuthHeaders } from '../../utils/test/auth-request.utils';
-import { httpBuyCreatorKey } from './buy.controller';
+import { httpBuyCreatorKey, buySchema } from './buy.controller';
 import { buyGateway } from './buy.service';
+import { validateBody } from '../../middlewares/validate-body.middleware';
 
 const app = express();
 app.use(express.json());
 app.post(
    '/api/v1/creators/:id/buy',
    requireStellarSignature(),
+   validateBody(buySchema),
    httpBuyCreatorKey
 );
 

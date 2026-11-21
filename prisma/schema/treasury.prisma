@@ -1,0 +1,48 @@
+// prisma/schema/treasury.prisma
+// Platform treasury read models fed by FeeReceived / FundsAllocated (#1181).
+// Amounts are stored in the contract's smallest unit (stroops).
+
+/// Gross fee inflow per source. A balance only moves when its matching
+/// TreasuryInflow row is newly inserted, so replayed events cannot double-count.
+model TreasuryBalance {
+  source    String   @id
+  balance   Decimal  @db.Decimal(40, 0)
+  updatedAt DateTime @updatedAt
+
+  @@map("treasury_balance")
+}
+
+/// Append-only log of FeeReceived events. The unique chain position is the
+/// idempotency guard for replays.
+model TreasuryInflow {
+  id         String   @id @default(cuid())
+  source     String
+  amount     Decimal  @db.Decimal(40, 0)
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([source, occurredAt(sort: Desc)])
+  @@index([occurredAt(sort: Desc)])
+  @@map("treasury_inflows")
+}
+
+/// Append-only log of FundsAllocated events (treasury outflows).
+model TreasuryAllocation {
+  id          String   @id @default(cuid())
+  destination String
+  amount      Decimal  @db.Decimal(40, 0)
+  purpose     String
+  txHash      String
+  eventIndex  Int
+  ledger      Int
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([occurredAt(sort: Desc)])
+  @@map("treasury_allocations")
+}

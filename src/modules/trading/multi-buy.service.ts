@@ -1,5 +1,5 @@
 import { logger } from '../../utils/logger.utils';
-import { computeBuyCost } from '../../utils/pricing.utils';
+import { computeBuyCost, getBuyUnitPrice } from '../../utils/pricing.utils';
 import { MultiBuyLeg, MultiBuyResult } from './multi-buy.schemas';
 
 const PROTOCOL_FEE_BPS = 500;
@@ -7,7 +7,15 @@ const PROTOCOL_FEE_BPS = 500;
 export class MultiBuyError extends Error {
    constructor(
       public readonly code: string,
-      message: string
+      message: string,
+      public readonly details?: {
+         /** Current unit price (stroops) at the time of rejection (#884). */
+         currentPrice?: string;
+         /** Creator/leg the rejection applies to. */
+         creator?: string;
+         /** Submitted per-unit max_price bound (stroops). */
+         maxPrice?: string;
+      }
    ) {
       super(message);
       this.name = 'MultiBuyError';
@@ -34,6 +42,7 @@ export async function executeMultiBuy(
       ledger: LedgerProvider;
       balance: BalanceProvider;
       supply: SupplyProvider;
+      depth?: { getMaxBuy(creatorId: string, buyer: string): Promise<bigint> };
    }
 ): Promise<MultiBuyResult[]> {
    if (legs.length === 0) {
@@ -66,9 +75,21 @@ export async function executeMultiBuy(
       );
    }
 
+   const depthErrors = new Map<string, bigint>();
+   if (providers.depth) {
+      for (const leg of legs) {
+         const maxAvailable = await providers.depth.getMaxBuy(leg.creator, buyer);
+         if (BigInt(leg.amount) > maxAvailable) {
+            depthErrors.set(leg.creator, maxAvailable);
+         }
+      }
+   }
+
    let worstCaseTotal = 0n;
    for (const leg of legs) {
-      worstCaseTotal += BigInt(leg.amount) * BigInt(leg.max_price);
+      if (!depthErrors.has(leg.creator)) {
+         worstCaseTotal += BigInt(leg.amount) * BigInt(leg.max_price);
+      }
    }
 
    const buyerBalance = await providers.balance.getXlmBalance(buyer);
@@ -86,13 +107,30 @@ export async function executeMultiBuy(
       const currentSupply = await providers.supply.getCreatorSupply(
          leg.creator
       );
+      const maxAvailable = depthErrors.get(leg.creator);
+      if (maxAvailable !== undefined) {
+         results.push({
+            creator: leg.creator,
+            amount: leg.amount,
+            total_cost: '0',
+            new_supply: currentSupply,
+            error: 'InsufficientDepth',
+            max_available: maxAvailable.toString(),
+         });
+         continue;
+      }
       const cost = computeBuyCost(currentSupply, leg.amount, PROTOCOL_FEE_BPS);
       const maxAllowed = BigInt(leg.max_price) * BigInt(leg.amount);
 
       if (cost > maxAllowed) {
+         const currentPrice = getBuyUnitPrice(
+            currentSupply,
+            PROTOCOL_FEE_BPS
+         ).toString();
          throw new MultiBuyError(
             'slippage_exceeded',
-            `Cost ${cost} for creator ${leg.creator} exceeds max_price ${leg.max_price} * ${leg.amount} = ${maxAllowed}`
+            `Cost ${cost} for creator ${leg.creator} exceeds max_price ${leg.max_price} * ${leg.amount} = ${maxAllowed}`,
+            { currentPrice, creator: leg.creator, maxPrice: leg.max_price }
          );
       }
 

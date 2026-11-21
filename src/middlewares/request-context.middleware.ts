@@ -10,6 +10,7 @@ export const requestContextMiddleware = (
       path: req.originalUrl || req.url,
       method: req.method,
       requestId: req.requestId as string | undefined,
+      traceId: req.traceId as string | undefined,
    };
 
    requestContextStorage.run(context, () => {

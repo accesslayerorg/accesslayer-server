@@ -1,0 +1,50 @@
+// prisma/schema/buyback.prisma
+
+model BuybackPool {
+  id                String   @id @default(cuid())
+  creatorId         String   @unique
+  balanceXlm        Decimal  @default(0) @db.Decimal(20, 7)
+  lastUpdatedAt     DateTime @updatedAt
+  lastEventLedger   Int?
+  createdAt         DateTime @default(now())
+
+  contributions     BuybackContribution[]
+
+  @@index([creatorId])
+  @@index([lastUpdatedAt(sort: Desc)])
+}
+
+model BuybackContribution {
+  id                String   @id @default(cuid())
+  poolId            String
+  creatorId         String
+  amountXlm         Decimal  @db.Decimal(20, 7)
+  sourceType        String   @default("SELL_TAX") // SELL_TAX, ADMIN_DEPOSIT, etc.
+  ledger            Int
+  txHash            String
+  eventIndex        Int
+  createdAt         DateTime @default(now())
+
+  pool              BuybackPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@unique([ledger, txHash, eventIndex])
+  @@index([creatorId])
+  @@index([poolId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model BuybackExecution {
+  id                String   @id @default(cuid())
+  creatorId         String
+  amountXlm         Decimal  @db.Decimal(20, 7)
+  executedBy        String   // Admin wallet
+  status            String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  txHash            String?
+  failureReason     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}

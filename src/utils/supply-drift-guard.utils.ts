@@ -16,6 +16,7 @@ function driftKey(creatorWallet: string): string {
 
 export async function isDriftHalted(creatorWallet: string): Promise<boolean> {
    const redis = getRedis();
+   if (!redis) return false;
    const exists = await redis.exists(driftKey(creatorWallet));
    return exists === 1;
 }
@@ -46,7 +47,9 @@ export async function verifySupplyAndGuard(
       );
 
       const redis = getRedis();
-      await redis.set(driftKey(creatorWallet), '1');
+      if (redis) {
+         await redis.set(driftKey(creatorWallet), '1');
+      }
       return false;
    }
 
@@ -55,6 +58,7 @@ export async function verifySupplyAndGuard(
 
 export async function clearDrift(creatorWallet: string): Promise<void> {
    const redis = getRedis();
+   if (!redis) return;
    await redis.del(driftKey(creatorWallet));
    logger.info(
       { creator_wallet: creatorWallet },

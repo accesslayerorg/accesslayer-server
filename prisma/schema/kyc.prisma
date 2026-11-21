@@ -1,0 +1,13 @@
+// prisma/schema/kyc.prisma
+
+model KycRecord {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique
+  status        String    @default("APPROVED")
+  approvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([walletAddress])
+  @@index([status])
+}

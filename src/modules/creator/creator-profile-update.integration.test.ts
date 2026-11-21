@@ -171,7 +171,10 @@ describe('PUT /api/v1/creators/:creatorId/profile — display name and bio persi
       );
    });
 
-   it('returns 400 when display name is too long', async () => {
+   // Status is 422 (not 400) because the request body fails schema
+   // validation via the shared validateBody middleware (#780) — 400 is
+   // reserved for malformed path params on this route.
+   it('returns 422 when display name is too long', async () => {
       const res = await supertest(app)
          .put(`/api/v1/creators/${TEST_CREATOR_ID}/profile`)
          .set('x-wallet-address', OWNER_WALLET_ADDRESS)
@@ -180,7 +183,7 @@ describe('PUT /api/v1/creators/:creatorId/profile — display name and bio persi
             bio: 'Some bio',
          });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(422);
       expect(res.body).toEqual(
          expect.objectContaining({
             success: false,
@@ -193,7 +196,7 @@ describe('PUT /api/v1/creators/:creatorId/profile — display name and bio persi
       expect(res.body.error.details[0].field).toBe('displayName');
    });
 
-   it('returns 400 when display name is empty string', async () => {
+   it('returns 422 when display name is empty string', async () => {
       const res = await supertest(app)
          .put(`/api/v1/creators/${TEST_CREATOR_ID}/profile`)
          .set('x-wallet-address', OWNER_WALLET_ADDRESS)
@@ -202,7 +205,7 @@ describe('PUT /api/v1/creators/:creatorId/profile — display name and bio persi
             bio: 'Some bio',
          });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(422);
       expect(res.body).toEqual(
          expect.objectContaining({
             success: false,

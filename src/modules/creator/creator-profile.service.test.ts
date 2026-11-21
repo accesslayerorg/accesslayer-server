@@ -13,7 +13,15 @@ jest.mock('../../utils/prisma.utils', () => ({
          findFirst: (...args: unknown[]) => findFirstMock(...args),
          update: (...args: unknown[]) => updateMock(...args),
       },
+      user: { findFirst: jest.fn() },
+      stellarWallet: { findUnique: jest.fn() },
+      creatorSocialMetadata: { findUnique: jest.fn(), findFirst: jest.fn() },
    },
+}));
+
+jest.mock('../creators/creator-social.service', () => ({
+   buildCreatorSocialData: jest.fn(() => null),
+   getCreatorSocialSnapshot: jest.fn().mockResolvedValue(null),
 }));
 
 describe('getCreatorProfile', () => {
@@ -36,6 +44,9 @@ describe('getCreatorProfile', () => {
          updatedAt: null,
          perks: [],
          links: [],
+         social: null,
+         tradingPaused: false,
+         currentMilestone: 0,
          currentPrice: null,
          price24hAgo: null,
          priceChange24h: null,
@@ -44,6 +55,86 @@ describe('getCreatorProfile', () => {
             isProfileComplete: false,
          },
       });
+   });
+
+   it('surfaces the current milestone tier from the persisted creator profile', async () => {
+      findFirstMock.mockResolvedValue({
+         id: 'creator-2',
+         displayName: 'Paused Creator',
+         bio: 'bio',
+         avatarUrl: null,
+         avatarCid: null,
+         perks: [],
+         isVerified: false,
+         tradingPaused: true,
+         currentMilestone: 2,
+         createdAt: new Date('2024-01-01T00:00:00.000Z'),
+         updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+         priceSnapshot: null,
+         user: null,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
+      });
+
+      const result = await getCreatorProfile('creator-2');
+
+      expect(result.tradingPaused).toBe(true);
+      expect(result.currentMilestone).toBe(2);
+   });
+
+   it('surfaces tradingPaused from the persisted creator profile', async () => {
+      findFirstMock.mockResolvedValue({
+         id: 'creator-2',
+         displayName: 'Paused Creator',
+         bio: 'bio',
+         avatarUrl: null,
+         avatarCid: null,
+         perks: [],
+         isVerified: false,
+         tradingPaused: true,
+         createdAt: new Date('2024-01-01T00:00:00.000Z'),
+         updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+         priceSnapshot: null,
+         user: null,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
+      });
+
+      const result = await getCreatorProfile('creator-2');
+
+      expect(result.tradingPaused).toBe(true);
+   });
+
+   it('defaults tradingPaused to false when the profile omits it', async () => {
+      findFirstMock.mockResolvedValue({
+         id: 'creator-3',
+         displayName: 'Active Creator',
+         bio: 'bio',
+         avatarUrl: null,
+         avatarCid: null,
+         perks: [],
+         isVerified: false,
+         createdAt: new Date('2024-01-01T00:00:00.000Z'),
+         updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+         priceSnapshot: null,
+         user: null,
+         tradingPaused: undefined,
+         twitter: null,
+         website: null,
+         discord: null,
+         socialLinks: [],
+         walletAddress: null,
+      });
+
+      const result = await getCreatorProfile('creator-3');
+
+      expect(result.tradingPaused).toBe(false);
    });
 
    it('echoes the creator id verbatim so callers can correlate the response', async () => {

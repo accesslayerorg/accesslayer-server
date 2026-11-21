@@ -1,7 +1,12 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../utils/prisma.utils';
-import { sendSuccess } from '../../utils/api-response.utils';
+import {
+   sendSuccess,
+   sendError,
+   ErrorCode,
+} from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
+import { logger } from '../../utils/logger.utils';
 
 /**
  * Controller for GET /api/v1/ledger/status
@@ -38,10 +43,12 @@ export const httpGetLedgerStatus = async (
          updatedAt: status.updatedAt.toISOString(),
       });
    } catch (error) {
-      console.error('Failed to fetch ledger status:', error);
-      res.status(500).json({
-         success: false,
-         message: 'Failed to fetch ledger status',
-      });
+      logger.error({ error }, 'Failed to fetch ledger status');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to fetch ledger status'
+      );
    }
 };

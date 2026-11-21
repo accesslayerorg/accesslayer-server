@@ -1,0 +1,42 @@
+// prisma/schema/vesting.prisma
+
+model VestingSchedule {
+  id            String   @id @default(cuid())
+  keyId         String
+  wallet        String
+  totalKeys     Decimal
+  startLedger   Int
+  endLedger     Int
+  claimedKeys   Decimal @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  claimHistory  VestingClaimHistory[]
+
+  @@unique([keyId, wallet])
+  @@index([keyId, wallet])
+}
+
+/// One row per successful on-chain VestingClaimed event (or optimistic claim).
+/// Lets us return a paginated history of past claims with tx hashes.
+model VestingClaimHistory {
+  id               String   @id @default(cuid())
+  /// Links back to the parent vesting schedule.
+  vestingId        String
+  keyId            String
+  wallet           String
+  /// Keys released in this single claim (stringified Decimal for BigInt safety).
+  claimedAmount    String
+  /// On-chain transaction hash; null for optimistic writes awaiting confirmation.
+  txHash           String?
+  /// Ledger sequence the claim was included in (null until confirmed on-chain).
+  ledger           Int?
+  claimedAt        DateTime @default(now())
+
+  vesting          VestingSchedule @relation(fields: [vestingId], references: [id])
+
+  @@index([vestingId])
+  @@index([keyId, wallet])
+  @@index([claimedAt(sort: Desc)])
+  @@map("vesting_claim_history")
+}

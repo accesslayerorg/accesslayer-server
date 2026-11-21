@@ -28,6 +28,16 @@ import {
    creatorProfileExists,
    getCreatorProfile,
 } from '../creator/creator-profile.service';
+import { MAX_PAGE_SIZE } from '../../constants/pagination.constants';
+import { StellarAddressSchema } from '../wallet/wallet.schemas';
+import {
+   fetchCreatorPortfolioKeys,
+   findCreatorPortfolio,
+   getCreatorPortfolioStats,
+} from './creator-portfolio.service';
+
+/** Hard cap applied to every leaderboard response regardless of caller-supplied limit. */
+const LEADERBOARD_MAX_ENTRIES = MAX_PAGE_SIZE; // 100
 
 /**
  * Controller for GET /api/v1/creators
@@ -182,6 +192,34 @@ export const httpGetCreator: AsyncController = async (req, res, next) => {
       const rawId = req.params.id;
       const creatorId = Array.isArray(rawId) ? rawId[0] : rawId;
 
+      if (StellarAddressSchema.safeParse(creatorId).success) {
+         const portfolio = await findCreatorPortfolio(creatorId);
+         if (portfolio.length === 0) return sendNotFound(res, 'Creator');
+
+         const [stats] = await Promise.all([
+            getCreatorPortfolioStats(creatorId),
+         ]);
+         const profile = portfolio[0];
+         res.setHeader('Cache-Control', 'public, max-age=60');
+         attachTimestampHeader(res);
+         return sendSuccess(
+            res,
+            {
+               wallet: creatorId,
+               profile: {
+                  handle: profile.handle,
+                  displayName: profile.displayName,
+                  bio: profile.bio,
+                  avatarUrl: profile.avatarUrl,
+                  createdAt: profile.createdAt,
+               },
+               stats,
+            },
+            200,
+            'Creator portfolio retrieved successfully'
+         );
+      }
+
       if (!(await creatorProfileExists(creatorId))) {
          return sendNotFound(res, 'Creator');
       }
@@ -194,19 +232,86 @@ export const httpGetCreator: AsyncController = async (req, res, next) => {
    }
 };
 
+/** Controller for GET /api/v1/creators/:wallet/keys. */
+export const httpGetCreatorPortfolioKeys: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const rawWallet = req.params.wallet;
+      const wallet = Array.isArray(rawWallet) ? rawWallet[0] : rawWallet;
+      if (!StellarAddressSchema.safeParse(wallet).success) {
+         return sendValidationError(res, 'Invalid wallet address', [
+            {
+               field: 'wallet',
+               message: 'A valid Stellar wallet address is required',
+            },
+         ]);
+      }
+
+      const rawLimit = req.query.limit;
+      const rawCursor = req.query.cursor;
+      if (
+         (rawLimit !== undefined && typeof rawLimit !== 'string') ||
+         (rawCursor !== undefined && typeof rawCursor !== 'string')
+      ) {
+         return sendValidationError(res, 'Invalid keys pagination parameters', [
+            {
+               field: 'pagination',
+               message: 'limit and cursor must each be provided once',
+            },
+         ]);
+      }
+
+      const page = await fetchCreatorPortfolioKeys(wallet, rawLimit, rawCursor);
+      attachTimestampHeader(res);
+      return sendSuccess(res, page, 200, 'Creator keys retrieved successfully');
+   } catch (error) {
+      if (
+         error instanceof Error &&
+         error.message.startsWith('Invalid keys pagination')
+      ) {
+         return sendValidationError(res, 'Invalid keys pagination parameters', [
+            { field: 'pagination', message: error.message },
+         ]);
+      }
+      next(error);
+   }
+};
+
 /**
  * Controller for GET /api/v1/creators/leaderboard
  *
  * Returns creators ranked by holder count descending. Ties are broken
  * alphabetically by creator (Stellar wallet) address so the ordering is
  * stable across requests regardless of database iteration order.
+ *
+ * The response is capped at LEADERBOARD_MAX_ENTRIES (100) regardless of
+ * how many creators exist in the database or what `limit` the caller
+ * passes. Passing a `limit` query param above 100 is silently clamped to
+ * 100; passing a value below 1 is clamped to 1. The total number of
+ * creators in the database is always returned as `total_count` so clients
+ * can tell whether more entries exist beyond the cap.
  */
 export const httpGetCreatorLeaderboard: AsyncController = async (
-   _req,
+   req,
    res,
    next
 ) => {
    try {
+      // Parse and clamp the caller-supplied limit.
+      // Any value above LEADERBOARD_MAX_ENTRIES is silently capped.
+      const rawLimit = parseInt(
+         Array.isArray(req.query.limit)
+            ? String(req.query.limit[0])
+            : String(req.query.limit ?? ''),
+         10
+      );
+      const effectiveLimit = isNaN(rawLimit)
+         ? LEADERBOARD_MAX_ENTRIES
+         : Math.min(Math.max(1, rawLimit), LEADERBOARD_MAX_ENTRIES);
+
       const creators = await prisma.creatorProfile.findMany({
          select: {
             id: true,
@@ -258,13 +363,17 @@ export const httpGetCreatorLeaderboard: AsyncController = async (
          return 0;
       });
 
-      const items = entries.map((entry, index) => ({
+      // total_count reflects all creators before applying the cap so
+      // clients know whether entries were truncated.
+      const total_count = entries.length;
+
+      const items = entries.slice(0, effectiveLimit).map((entry, index) => ({
          rank: index + 1,
          ...entry,
       }));
 
       attachTimestampHeader(res);
-      sendSuccess(res, { items });
+      sendSuccess(res, { items, total_count });
    } catch (error) {
       next(error);
    }
@@ -383,13 +492,15 @@ export const httpGetTrendingCreators: AsyncController = async (
       );
 
       // Sort by volume descending
-      creatorsWithVolume.sort((a: { volume_24h: string }, b: { volume_24h: string }) => {
-         const volA = BigInt(a.volume_24h);
-         const volB = BigInt(b.volume_24h);
-         if (volB > volA) return 1;
-         if (volB < volA) return -1;
-         return 0;
-      });
+      creatorsWithVolume.sort(
+         (a: { volume_24h: string }, b: { volume_24h: string }) => {
+            const volA = BigInt(a.volume_24h);
+            const volB = BigInt(b.volume_24h);
+            if (volB > volA) return 1;
+            if (volB < volA) return -1;
+            return 0;
+         }
+      );
 
       // Slice list based on limit
       const items = creatorsWithVolume.slice(0, limit);

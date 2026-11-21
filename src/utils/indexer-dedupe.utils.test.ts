@@ -48,4 +48,4 @@ function run() {
    console.log('indexer-dedupe.utils tests passed');
 }
 
-run();
+test('deduplicates chain events while preserving the first occurrence', run);

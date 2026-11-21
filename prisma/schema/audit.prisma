@@ -7,3 +7,16 @@ model AuditEvent {
   metadata    Json?
   createdAt   DateTime @default(now())
 }
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorWallet   String
+  actionType    String
+  targetId      String?
+  payload       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([actionType, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([actorWallet])
+}

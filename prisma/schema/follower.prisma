@@ -1,0 +1,31 @@
+// prisma/schema/follower.prisma
+
+enum FollowDirection {
+  FOLLOW
+  UNFOLLOW
+}
+
+model FollowerCounterShard {
+  id            String   @id @default(cuid())
+  creatorWallet String
+  nodeId        String
+  increments    BigInt   @default(0)
+  decrements    BigInt   @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([creatorWallet, nodeId])
+  @@index([creatorWallet])
+  @@map("follower_counter_shards")
+}
+
+model FollowEvent {
+  id             String          @id @default(cuid())
+  followerWallet String
+  creatorWallet  String
+  direction      FollowDirection
+  createdAt      DateTime        @default(now())
+
+  @@unique([followerWallet, creatorWallet])
+  @@index([creatorWallet])
+  @@map("follow_events")
+}

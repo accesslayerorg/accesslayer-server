@@ -4,21 +4,43 @@ import {
    sendValidationError,
    sendCreatorParamNotFound,
    sendForbidden,
+   sendError,
 } from '../../utils/api-response.utils';
 import { prisma } from '../../utils/prisma.utils';
 import { emitAuditEvent } from '../../utils/audit.utils';
+import { createAuditEntry } from './audit-log.service';
 import { AdminRequest } from '../../middlewares/admin-guard.middleware';
 import { Response } from 'express';
 import { z } from 'zod';
 import { acquireJobLock } from '../../utils/background-job-lock.utils';
 import { logger } from '../../utils/logger.utils';
 import { ErrorCode } from '../../constants/error.constants';
+import { updateProtocolFeeBps } from '../keys/key-fees.service';
 
 const UpdateCreatorMetadataSchema = z.object({
    isVerified: z.boolean().optional(),
+   tradingPaused: z.boolean().optional(),
 });
 
 type UpdateCreatorMetadataInput = z.infer<typeof UpdateCreatorMetadataSchema>;
+
+const GetAuditLogSchema = z.object({
+   limit: z
+      .preprocess(
+         (val) => (val === undefined || val === '' ? 50 : Number(val)),
+         z.number().int().positive().transform((val) => Math.min(val, 100))
+      ),
+   cursor: z.string().optional(),
+   actionType: z.string().optional(),
+   fromDate: z.string().optional(),
+   toDate: z.string().optional(),
+   from: z.string().optional(),
+   to: z.string().optional(),
+   startDate: z.string().optional(),
+   endDate: z.string().optional(),
+});
+
+type GetAuditLogInput = z.infer<typeof GetAuditLogSchema>;
 
 export const httpUpdateCreatorMetadata: AsyncController = async (
    req,
@@ -66,6 +88,7 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
 
       const previousValues = {
          isVerified: creator.isVerified,
+         tradingPaused: creator.tradingPaused,
       };
 
       const updated = await prisma.creatorProfile.update({
@@ -84,12 +107,26 @@ export const httpUpdateCreatorMetadata: AsyncController = async (
       });
 
       if (Object.keys(changes).length > 0) {
+         const action =
+            'tradingPaused' in changes
+               ? changes.tradingPaused && (changes.tradingPaused as any).after === true
+                  ? 'pause_creator_trading'
+                  : 'resume_creator_trading'
+               : 'update_creator_metadata';
          await emitAuditEvent({
             actor: actorId,
-            action: 'update_creator_metadata',
+            action,
             target: 'CreatorProfile',
             targetId: id,
             metadata: changes,
+         });
+
+         // Log to queryable audit log
+         await createAuditEntry({
+            actorWallet: actorId,
+            actionType: 'update_creator_metadata',
+            targetId: id,
+            payload: changes,
          });
       }
 
@@ -148,19 +185,18 @@ export const httpReplayIndexerEvents: AsyncController = async (
       });
 
       if (!lock.acquired) {
-         return res.status(409).json({
-            success: false,
-            error: {
-               code: ErrorCode.CONFLICT,
-               message: 'Indexer replay job is already running',
-               details: [
-                  {
-                     field: 'indexerReplayLock',
-                     message: `Lock is held by ${lock.holder || 'another worker'} until ${lock.expiresAt || 'unknown time'}`,
-                  },
-               ],
-            },
-         });
+         return sendError(
+            res,
+            409,
+            ErrorCode.CONFLICT,
+            'Indexer replay job is already running',
+            [
+               {
+                  field: 'indexerReplayLock',
+                  message: `Lock is held by ${lock.holder || 'another worker'} until ${lock.expiresAt || 'unknown time'}`,
+               },
+            ]
+         );
       }
 
       const replayInitiated = {
@@ -195,9 +231,145 @@ export const httpReplayIndexerEvents: AsyncController = async (
             targetId: String(startLedger),
             metadata: { startLedger, endLedger: endLedger || null, dryRun },
          });
+
+         // Log to queryable audit log
+         await createAuditEntry({
+            actorWallet: adminId || 'unknown',
+            actionType: 'replay_indexer_events',
+            targetId: String(startLedger),
+            payload: { startLedger, endLedger: endLedger || null, dryRun },
+         });
       }
 
       sendSuccess(res, replayInitiated);
+   } catch (error) {
+      next(error);
+   }
+};
+
+const UpdateProtocolFeeSchema = z.object({
+   protocolFeeBps: z.number().int().min(0).max(10000),
+});
+
+export const httpUpdateProtocolFee = async (
+   req: AdminRequest,
+   res: Response,
+   next: (error: unknown) => void
+): Promise<void> => {
+   try {
+      const parsed = UpdateProtocolFeeSchema.safeParse(req.body);
+      if (!parsed.success) {
+         sendValidationError(res, 'Invalid request body', [
+            { field: 'protocolFeeBps', message: 'Must be an integer 0–10000' },
+         ]);
+         return;
+      }
+
+      const updated = await updateProtocolFeeBps(parsed.data.protocolFeeBps);
+
+      await emitAuditEvent({
+         actor: req.adminId || 'unknown',
+         action: 'protocol_fee_updated',
+         target: 'ProtocolConfig',
+         targetId: 'default',
+         metadata: { protocolFeeBps: updated.protocolFeeBps },
+      });
+
+      // Log to queryable audit log
+      await createAuditEntry({
+         actorWallet: req.adminId || 'unknown',
+         actionType: 'protocol_fee_updated',
+         targetId: 'default',
+         payload: { protocolFeeBps: updated.protocolFeeBps },
+      });
+
+      sendSuccess(res, updated);
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const httpSetKeyTradingPaused = async (
+   req: AdminRequest,
+   res: Response,
+   next: (error: unknown) => void
+): Promise<void> => {
+   try {
+      const creatorId = String(req.params.keyId);
+      const tradingPaused = req.path.endsWith('/pause');
+      const creator = await prisma.creatorProfile.findUnique({
+         where: { id: creatorId },
+         select: { id: true, tradingPaused: true },
+      });
+      if (!creator) {
+         sendCreatorParamNotFound(res);
+         return;
+      }
+      const updated = await prisma.creatorProfile.update({
+         where: { id: creatorId },
+         data: { tradingPaused },
+      });
+      if (creator.tradingPaused !== tradingPaused) {
+         const actionType = tradingPaused
+            ? 'key_trading_paused'
+            : 'key_trading_resumed';
+         await emitAuditEvent({
+            actor: req.adminId!,
+            action: actionType,
+            target: 'CreatorKey',
+            targetId: creatorId,
+         });
+
+         // Log to queryable audit log
+         await createAuditEntry({
+            actorWallet: req.adminId!,
+            actionType,
+            targetId: creatorId,
+            payload: { tradingPaused },
+         });
+      }
+      sendSuccess(res, updated);
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const httpGetAuditLog: AsyncController = async (
+   req: AdminRequest,
+   res: Response,
+   next
+) => {
+   try {
+      const parsed = GetAuditLogSchema.safeParse(req.query);
+      if (!parsed.success) {
+         return sendValidationError(res, 'Invalid query parameters', [
+            {
+               field: 'query',
+               message: 'Invalid pagination or filter parameters',
+            },
+         ]);
+      }
+
+      const input = parsed.data as GetAuditLogInput;
+      const { getAuditLogs } = await import('./audit-log.service');
+
+      const result = await getAuditLogs({
+         limit: input.limit,
+         cursor: input.cursor,
+         actionType: input.actionType,
+         fromDate: input.fromDate || input.from || input.startDate,
+         toDate: input.toDate || input.to || input.endDate,
+      });
+
+      sendSuccess(res, {
+         entries: result.entries,
+         pagination: {
+            limit: input.limit,
+            cursor: input.cursor,
+            nextCursor: result.nextCursor ?? null,
+            hasMore: result.hasMore,
+         },
+      });
    } catch (error) {
       next(error);
    }

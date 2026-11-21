@@ -1,0 +1,117 @@
+// prisma/schema/governance.prisma
+
+model GovernanceProposal {
+  id                String   @id @default(cuid())
+  keyId             String
+  proposalId        String
+  title             String
+  options           Json     // string[] of option labels
+  totalVotingWeight String   @default("0")
+  results           Json     // { [option: string]: string } option -> weight
+  snapshotLedger    Int
+  /// Total eligible voting weight captured at the snapshot block (#878).
+  /// Sum of every wallet's staked balance for the key at proposal creation.
+  snapshotTotalWeight String @default("0")
+  /// Quorum threshold in basis points of snapshotTotalWeight (#878).
+  /// 3000 = 30% of the snapshot's staked weight must participate.
+  quorumBps         Int      @default(3000)
+  expiresAt         DateTime
+  closedAt          DateTime?
+  /// Execution timestamp, set when ProposalExecuted is indexed (#governance).
+  executedAt        DateTime?
+  status            String   @default("active") // active | passed | failed | quorum_not_met | executed
+
+  // Escalation tracking (#935), synced from ProposalExtended contract events.
+  escalationCount   Int       @default(0)
+  originalDeadline  DateTime?
+  extendedDeadline  DateTime?
+  maxEscalations    Int       @default(3)
+  escalatedAt       DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([keyId, proposalId])
+  @@index([keyId, status])
+  @@index([keyId, expiresAt])
+  @@index([escalationCount, status])
+}
+
+model GovernanceEscalationEventLog {
+  id         String   @id @default(cuid())
+  keyId      String
+  proposalId String
+  ledger     Int?
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, proposalId])
+}
+
+model PauseProposal {
+  id              String    @id @default(cuid())
+  proposalId      String    @unique
+  keyId           String
+  proposerWallet  String
+  approverWallet  String?
+  txHash          String?
+  status          String    @default("pending") // pending | executed | rejected | cancelled
+  createdAt       DateTime  @default(now())
+  executedAt      DateTime?
+
+  @@index([keyId, status])
+  @@index([proposerWallet])
+  @@map("pause_proposals")
+}
+
+/// Per-wallet voting weight frozen at proposal creation (#878).
+///
+/// The server cannot reconstruct historical staked balances, so the snapshot
+/// is captured at creation time against the proposal's snapshot block: each
+/// wallet's staked balance for the key is summed and stored here. Votes read
+/// their weight from this row, so holdings moved after creation cannot
+/// change a vote's weight.
+model GovernanceVotingSnapshot {
+  id         String   @id @default(cuid())
+  keyId      String
+  proposalId String
+  wallet     String
+  /// Staked balance of `wallet` for `keyId` at the snapshot block.
+  weight     Decimal  @db.Decimal(30, 7) @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([keyId, proposalId, wallet])
+  @@index([keyId, proposalId])
+  @@map("governance_voting_snapshots")
+}
+
+model GovernanceVote {
+  id          String   @id @default(cuid())
+  keyId       String
+  proposalId  String
+  voter       String
+  optionIndex Int
+  weight      Decimal  @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([keyId, proposalId, voter])
+  @@index([keyId, proposalId])
+  @@map("proposal_votes")
+}
+
+model TimelockProposal {
+  id                 String    @id @default(cuid())
+  proposalId         String    @unique
+  changeType         String
+  payload            Json
+  executionNotBefore DateTime
+  status             String    @default("pending") // pending | executed | cancelled
+  createdAt          DateTime  @default(now())
+  executedAt         DateTime?
+
+  @@index([status])
+  @@map("timelock_proposals")
+}
+

@@ -23,6 +23,13 @@ export async function acquireSequencerLock(
    creatorWallet: string
 ): Promise<{ release: () => Promise<void> }> {
    const redis = getRedis();
+
+   if (!redis) {
+      // Redis caching is disabled: degrade to a no-op lock so single-instance
+      // operation continues without distributed coordination.
+      return { release: async () => {} };
+   }
+
    const key = lockKey(creatorWallet);
    const lockValue = `${process.pid}:${Date.now()}`;
    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;

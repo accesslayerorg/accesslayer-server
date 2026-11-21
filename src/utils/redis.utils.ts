@@ -1,49 +1,296 @@
-import Redis from 'ioredis';
+// src/utils/redis.utils.ts
+// Shared Redis access layer built on ioredis.
+//
+// A single lazy singleton is used so modules can `import { redis } from ...`
+// without worrying about connection lifecycle. All commands are wrapped so a
+// down/unreachable Redis degrades to "cache miss" instead of throwing inside
+// request handlers — caching must never take the API down.
+//
+// When ENABLE_REDIS_CACHE is false (or the connection fails) callers get
+// null reads and no-op writes, keeping behaviour correct but uncached.
+
+import { Redis } from 'ioredis';
 import { envConfig } from '../config';
 import { logger } from './logger.utils';
+import { redisCircuitBreaker } from './circuit-breaker.utils';
 
-let redis: Redis | null = null;
+const globalForRedis = globalThis as unknown as {
+   __accesslayerRedis?: Redis | null;
+};
 
-export function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis(envConfig.REDIS_URL, {
-      lazyConnect: true,
-      retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxRetriesPerRequest: null,
-    });
+function createRedisClient(): Redis | null {
+   if (!envConfig.ENABLE_REDIS_CACHE) {
+      return null;
+   }
 
-    redis.on('error', (err) => {
-      logger.error({ err }, 'Redis connection error');
-    });
+   try {
+      const client = new Redis(envConfig.REDIS_URL, {
+         lazyConnect: false,
+         maxRetriesPerRequest: 1,
+         enableOfflineQueue: false,
+         retryStrategy: (attempt: number) =>
+            process.env.NODE_ENV === 'test' || envConfig.MODE === 'test'
+               ? null
+               : Math.min(attempt * 500, 5000),
+      });
 
-    redis.on('connect', () => {
-      logger.info('Connected to Redis');
-    });
+      client.on('ready', () => {
+         // Skip circuit breaker in test mode to avoid false positives
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+            redisCircuitBreaker.recordSuccess();
+         }
+      });
 
-    redis.on('close', () => {
-      logger.warn('Redis connection closed');
-    });
-  }
-  return redis;
+      client.on('error', (error: Error) => {
+         // Skip circuit breaker in test mode to avoid false positives
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+            redisCircuitBreaker.recordFailure(error);
+         }
+         logger.error(
+            { type: 'redis_error', error: error.message },
+            'Redis client error'
+         );
+      });
+
+      return client;
+   } catch (error) {
+      logger.error(
+         {
+            type: 'redis_init_failed',
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Failed to initialise Redis client'
+      );
+      return null;
+   }
 }
 
-export async function connectRedis(): Promise<void> {
-  const r = getRedis();
-  if (r.status === 'wait' || r.status === 'close' || r.status === 'end') {
-    await r.connect();
-  }
+/** Lazily-created shared Redis client. `null` when caching is disabled. */
+export function getRedisClient(): Redis | null {
+   if (globalForRedis.__accesslayerRedis === undefined) {
+      globalForRedis.__accesslayerRedis = createRedisClient();
+   }
+   return globalForRedis.__accesslayerRedis;
 }
 
+/**
+ * Read a string value from Redis. Returns `null` on miss or when Redis is
+ * unavailable so callers treat outages as cache misses.
+ */
+export async function cacheGet(key: string): Promise<string | null> {
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') && redisCircuitBreaker.isOpen()) return null;
+   const client = getRedisClient();
+   if (!client) return null;
+   try {
+      const val = await client.get(key);
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordSuccess();
+      }
+      return val;
+   } catch (error) {
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordFailure(error);
+      }
+      logger.warn(
+         {
+            type: 'redis_get_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis GET failed; treating as cache miss'
+      );
+      return null;
+   }
+}
+
+/**
+ * Read a raw string value. Returns `null` on miss or when Redis is
+ * unavailable so callers treat outages as cache misses.
+ */
+export async function cacheGetRaw(key: string): Promise<string | null> {
+   return cacheGet(key);
+}
+
+/**
+ * Read and JSON-parse a cached value. Returns `null` on miss, parse failure,
+ * or Redis unavailability.
+ */
+export async function cacheGetJson<T>(key: string): Promise<T | null> {
+   const raw = await cacheGet(key);
+   if (raw === null) return null;
+   try {
+      return JSON.parse(raw) as T;
+   } catch {
+      logger.warn(
+         { type: 'redis_cache_corrupt', key },
+         'Cached value failed JSON parsing; treating as cache miss'
+      );
+      return null;
+   }
+}
+
+/**
+ * Write a JSON-serialisable value with a TTL in seconds. No-op failures are
+ * logged at warn level; callers never need to handle them.
+ */
+export async function cacheSetJson(
+   key: string,
+   value: unknown,
+   ttlSeconds: number
+): Promise<void> {
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') && redisCircuitBreaker.isOpen()) return;
+   const client = getRedisClient();
+   if (!client) return;
+   try {
+      await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordSuccess();
+      }
+   } catch (error) {
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_REDIS_CIRCUIT_BREAKER === '1') {
+         redisCircuitBreaker.recordFailure(error);
+      }
+      logger.warn(
+         {
+            type: 'redis_set_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET failed; skipping cache write'
+      );
+   }
+}
+
+/** Store a raw response payload (status + body) for idempotency replay. */
+export async function cacheSetRaw(
+   key: string,
+   value: string,
+   ttlSeconds: number
+): Promise<void> {
+   const client = getRedisClient();
+   if (!client) return;
+   try {
+      await client.set(key, value, 'EX', ttlSeconds);
+   } catch (error) {
+      logger.warn(
+         {
+            type: 'redis_set_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET failed; skipping cache write'
+      );
+   }
+}
+
+/**
+ * Set a key only if it does not already exist (atomic SET NX) with an expiration.
+ * Returns true if the key was set, or false if it already existed.
+ * When Redis is unavailable or circuit breaker is open, returns true so requests proceed.
+ */
+export async function cacheSetRawNx(
+   key: string,
+   value: string,
+   ttlSeconds: number
+): Promise<boolean> {
+   if (redisCircuitBreaker.isOpen()) return true;
+   const client = getRedisClient();
+   if (!client) return true;
+   try {
+      const result = await client.set(key, value, 'EX', ttlSeconds, 'NX');
+      redisCircuitBreaker.recordSuccess();
+      return result === 'OK';
+   } catch (error) {
+      redisCircuitBreaker.recordFailure(error);
+      logger.warn(
+         {
+            type: 'redis_set_nx_failed',
+            key,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis SET NX failed; allowing request through'
+      );
+      return true;
+   }
+}
+
+/**
+ * Delete one or more keys. Accepts glob patterns which are expanded via SCAN
+ * so invalidation never blocks Redis with KEYS.
+ */
+export async function cacheInvalidate(
+   ...keysOrPatterns: string[]
+): Promise<void> {
+   const client = getRedisClient();
+   if (!client || keysOrPatterns.length === 0) return;
+
+   const literalKeys: string[] = [];
+   const patterns: string[] = [];
+
+   for (const key of keysOrPatterns) {
+      if (key.includes('*') || key.includes('?') || key.includes('[')) {
+         patterns.push(key);
+      } else {
+         literalKeys.push(key);
+      }
+   }
+
+   try {
+      for (let i = 0; i < literalKeys.length; i += 100) {
+         await client.del(...literalKeys.slice(i, i + 100));
+      }
+
+      for (const pattern of patterns) {
+         let cursor = '0';
+         do {
+            const [nextCursor, matched] = await client.scan(
+               cursor,
+               'MATCH',
+               pattern,
+               'COUNT',
+               200
+            );
+            cursor = nextCursor;
+            if (matched.length > 0) {
+               await client.del(...matched);
+            }
+         } while (cursor !== '0');
+      }
+   } catch (error) {
+      logger.warn(
+         {
+            type: 'redis_invalidate_failed',
+            keysOrPatterns,
+            error: error instanceof Error ? error.message : String(error),
+         },
+         'Redis invalidation failed'
+      );
+   }
+}
+
+/** Close the shared client (used by tests and graceful shutdown). */
 export async function disconnectRedis(): Promise<void> {
-  if (redis) {
-    await redis.quit();
-    redis = null;
-  }
+   const client = globalForRedis.__accesslayerRedis;
+   if (client) {
+      await client.quit().catch(() => client.disconnect());
+      globalForRedis.__accesslayerRedis = undefined;
+   }
 }
 
-export function isRedisReady(): boolean {
-  return redis !== null && redis.status === 'ready';
+/**
+ * Ensure the shared Redis client is initialised and connected. No-op (resolves
+ * immediately) when caching is disabled via ENABLE_REDIS_CACHE.
+ */
+export async function connectRedis(): Promise<void> {
+   const client = getRedisClient();
+   if (client && client.status !== 'ready') {
+      await client.connect().catch(() => {
+         // Connection failures are non-fatal; caching degrades to cache-miss.
+      });
+   }
 }
+
+export const getRedis = getRedisClient;
+export const redis = getRedisClient;

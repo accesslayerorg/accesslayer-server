@@ -24,6 +24,8 @@ export type CreatorListItem = {
    price24hAgo: string | null;
    /** Computed percentage change: ((current - 24h) / 24h) * 100. null when no baseline. */
    priceChange24h: number | null;
+   /** True when the key has been deprecated (see GET /keys/:keyId/deprecation). */
+   deprecated: boolean;
 };
 
 type ExpectedFieldType = 'string' | 'boolean' | 'number' | 'Date';
@@ -134,5 +136,6 @@ export const mapCreatorListItem = async (
       currentPrice: currentPrice !== null ? currentPrice.toString() : null,
       price24hAgo: price24hAgo !== null ? price24hAgo.toString() : null,
       priceChange24h,
+      deprecated: safeRead(creator, 'deprecatedAt', null) !== null,
    };
 };

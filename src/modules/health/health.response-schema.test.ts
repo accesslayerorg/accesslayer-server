@@ -26,6 +26,16 @@ jest.mock('../../utils/indexer-cursor-staleness.utils', () => ({
    checkIndexerCursorStalenessFromStore: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../utils/redis.utils', () => ({
+   getRedisClient: jest.fn(() => ({
+      ping: jest.fn().mockResolvedValue('PONG'),
+   })),
+}));
+
+jest.mock('../../clients/horizon.client', () => ({
+   horizonGet: jest.fn().mockResolvedValue({ ok: true }),
+}));
+
 import { Request, Response } from 'express';
 import {
    healthCheck,
@@ -62,43 +72,65 @@ function mockRequest(): Request {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/v1/health — liveness
+// GET /api/v1/health — liveness + dependency probes
 // ---------------------------------------------------------------------------
 
-describe('GET /health — liveness response schema', () => {
-   it('always returns HTTP 200', () => {
+describe('GET /health — response schema', () => {
+   beforeEach(() => {
+      queryRawMock.mockReset();
+   });
+
+   it('returns HTTP 200 when all dependencies are healthy', async () => {
+      queryRawMock.mockResolvedValue([{ '?column?': 1 }]);
       const res = mockResponse();
-      simpleHealthCheck(mockRequest(), res);
+      await simpleHealthCheck(mockRequest(), res);
       expect(res.statusCode).toBe(200);
    });
 
-   it('has success field always set to true', () => {
+   it('returns HTTP 503 when any dependency is degraded', async () => {
+      queryRawMock.mockRejectedValue(new Error('connection refused'));
       const res = mockResponse();
-      simpleHealthCheck(mockRequest(), res);
+      await simpleHealthCheck(mockRequest(), res);
+      expect(res.statusCode).toBe(503);
+   });
+
+   it('has success field set to true when healthy', async () => {
+      queryRawMock.mockResolvedValue([{ '?column?': 1 }]);
+      const res = mockResponse();
+      await simpleHealthCheck(mockRequest(), res);
       expect(res.body.success).toBe(true);
    });
 
-   it('has message field set to "OK"', () => {
+   it('has timestamp field as a valid ISO-8601 string', async () => {
+      queryRawMock.mockResolvedValue([{ '?column?': 1 }]);
       const res = mockResponse();
-      simpleHealthCheck(mockRequest(), res);
-      expect(res.body.message).toBe('OK');
-   });
-
-   it('has timestamp field as a valid ISO-8601 string', () => {
-      const res = mockResponse();
-      simpleHealthCheck(mockRequest(), res);
+      await simpleHealthCheck(mockRequest(), res);
       expect(typeof res.body.timestamp).toBe('string');
       expect(new Date(res.body.timestamp).toISOString()).toBe(
          res.body.timestamp
       );
    });
 
-   it('response contains exactly the documented fields', () => {
+   it('lists database, redis, and horizon checks with individual statuses', async () => {
+      queryRawMock.mockResolvedValue([{ '?column?': 1 }]);
       const res = mockResponse();
-      simpleHealthCheck(mockRequest(), res);
-      expect(Object.keys(res.body).sort()).toEqual(
-         ['message', 'success', 'timestamp'].sort()
-      );
+      await simpleHealthCheck(mockRequest(), res);
+      const names = res.body.checks.map((c: any) => c.name);
+      expect(names).toContain('database');
+      expect(names).toContain('redis');
+      expect(names).toContain('horizon');
+      for (const check of res.body.checks) {
+         expect(['ok', 'degraded']).toContain(check.status);
+      }
+   });
+
+   it('includes a degraded array listing degraded dependencies when any fail', async () => {
+      queryRawMock.mockRejectedValue(new Error('connection refused'));
+      const res = mockResponse();
+      await simpleHealthCheck(mockRequest(), res);
+      expect(res.body.status).toBe('degraded');
+      expect(Array.isArray(res.body.degraded)).toBe(true);
+      expect(res.body.degraded).toContain('database');
    });
 });
 

@@ -5,6 +5,7 @@ Complete reference for all server configuration environment variables.
 ## Categories
 
 - [Application Core](#application-core)
+- [Protocol](#protocol)
 - [Database](#database)
 - [Third-Party Services](#third-party-services)
 - [Stellar Network](#stellar-network)
@@ -26,6 +27,26 @@ Complete reference for all server configuration environment variables.
 | `FRONTEND_URL` | string (URL) | Yes      | -               | Full URL of the frontend application for CORS            |
 | `API_VERSION`  | string       | No       | `1.0.0`         | API version string returned in response headers          |
 | `APP_SECRET`   | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)         |
+
+---
+
+## Protocol
+
+| Variable                          | Type   | Required | Default | Description                                                                                       |
+| --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
+| `REFERRAL_REWARD_BPS`             | number | No       | `500`   | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910). |
+| `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
+| -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
+| `ADMIN_MULTISIG_WALLETS`               | string  | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| `FLASH_LOAN_VIOLATION_THRESHOLD`       | number  | No       | `3`       | Uncleared `FlashLoanGuardTriggered` violations before a wallet is alerted and auto-suspended (#938)                                                                                                       |
+| `FLASH_LOAN_AUTO_SUSPEND_ENABLED`      | boolean | No       | `true`    | Auto-suspend wallets that exceed the flash loan violation threshold (#938)                                                                                                                                |
+| `FLASH_LOAN_VIOLATION_COOLDOWN_HOURS`  | number  | No       | `24`      | How long a violation counts towards the threshold before the cooldown cleanup clears it (#938)                                                                                                            |
+| `FLASH_LOAN_SUSPENSION_DURATION_HOURS` | number  | No       | `0`       | Auto-suspension length in hours; `0` suspends until the violation history clears (#938)                                                                                                                   |
+| `FLASH_LOAN_CLEANUP_ENABLED`           | boolean | No       | `true`    | Enables the flash loan violation cooldown cleanup job (#938)                                                                                                                                              |
+| `FLASH_LOAN_CLEANUP_INTERVAL_MINUTES`  | number  | No       | `60`      | Minutes between flash loan violation cooldown cleanup passes (#938)                                                                                                                                       |
 
 ---
 
@@ -69,6 +90,12 @@ Complete reference for all server configuration environment variables.
 | `PAYSTACK_SECRET_KEY` | string | Yes      | -       | Paystack secret key for payment processing |
 | `PAYSTACK_PUBLIC_KEY` | string | No       | -       | Paystack public key (optional)             |
 
+### Pinata (IPFS Gateway)
+
+| Variable             | Type         | Required | Default                             | Description                                                                 |
+| -------------------- | ------------ | -------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| `PINATA_GATEWAY_URL` | string (URL) | No       | `https://gateway.pinata.cloud/ipfs` | Base gateway used to resolve IPFS avatar CIDs into public URLs for creators |
+
 ---
 
 ## Stellar Network
@@ -78,6 +105,11 @@ Complete reference for all server configuration environment variables.
 | `STELLAR_NETWORK`         | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet` |
 | `STELLAR_HORIZON_URL`     | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                  |
 | `STELLAR_SOROBAN_RPC_URL` | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                          |
+| `SOROBAN_SUBMIT_MAX_ATTEMPTS` | number | No       | `3`     | Max submission attempts for transient failures (#899)  |
+| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number | No       | `1000`  | Exponential backoff base delay between submit attempts (#899) |
+| `SOROBAN_SUBMIT_MAX_DELAY_MS` | number | No       | `15000` | Cap for submit retry backoff delays (#899)             |
+| `SOROBAN_POLL_INTERVAL_MS`    | number | No       | `5000`  | Delay between transaction confirmation polls (#899)    |
+| `SOROBAN_POLL_TIMEOUT_MS`     | number | No       | `120000`| Total polling budget per transaction confirmation (#899) |
 
 ---
 
@@ -115,12 +147,30 @@ Complete reference for all server configuration environment variables.
 
 ### Logging
 
-| Variable                       | Type    | Required | Default | Description                                    |
-| ------------------------------ | ------- | -------- | ------- | ---------------------------------------------- |
-| `ENABLE_REQUEST_LOGGING`       | boolean | No       | `true`  | Log incoming HTTP requests                     |
-| `ENABLE_RESPONSE_TIMING`       | boolean | No       | `true`  | Include response timing in logs and headers    |
-| `ENABLE_API_VERSION_HEADER`    | boolean | No       | `true`  | Include `X-API-Version` header in responses    |
-| `ENABLE_SCHEMA_VERSION_HEADER` | boolean | No       | `true`  | Include `X-Schema-Version` header in responses |
+| Variable                       | Type    | Required | Default | Description                                                        |
+| ------------------------------ | ------- | -------- | ------- | ------------------------------------------------------------------ |
+| `ENABLE_REQUEST_LOGGING`       | boolean | No       | `true`  | Log incoming HTTP requests                                         |
+| `ENABLE_RESPONSE_TIMING`       | boolean | No       | `true`  | Include response timing in logs and headers                        |
+| `ENABLE_API_VERSION_HEADER`    | boolean | No       | `true`  | Include `X-API-Version` header in responses                        |
+| `ENABLE_SCHEMA_VERSION_HEADER` | boolean | No       | `true`  | Include `X-Schema-Version` header in responses                     |
+| `LOG_LEVEL`                    | string  | No       | `info`  | Minimum Pino log level (`debug`, `info`, `warn`, `error`, `fatal`) |
+
+Logs are emitted via [Pino](https://getpino.io/). In `development` mode they are pretty-printed
+via `pino-pretty`; in `test` and `production` they are newline-delimited JSON with `time`,
+`level`, and — whenever the log call happens within a request's call stack — `traceId`.
+
+#### Distributed tracing
+
+| Variable                 | Type   | Required | Default | Description                                                                                                                                                  |
+| ------------------------ | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TRACE_ID_TRUSTED_TOKEN` | string | No       | (unset) | Shared secret. A caller presenting it in `x-internal-service-token` may supply its own `X-Trace-Id` header, which is reused instead of generating a new one. |
+
+Every request is assigned a trace ID by `requestIdMiddleware`, stored in `AsyncLocalStorage`
+(`src/utils/als.utils.ts`) for the lifetime of the request, and returned in both the
+`X-Request-ID` and `X-Trace-Id` response headers. Because Pino's logger reads the trace ID out of
+`AsyncLocalStorage` via a `mixin`, every log line emitted anywhere in that request's call
+stack — middleware, service, or database layer — automatically carries the same `traceId`, with
+no need to thread it through function arguments.
 
 ### Query Performance
 

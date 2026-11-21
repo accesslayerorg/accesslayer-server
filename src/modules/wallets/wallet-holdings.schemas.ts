@@ -39,6 +39,8 @@ export const HoldingEntrySchema = z.object({
    key_count: z.any(),
    current_price: z.any().nullable(),
    total_value: z.any().nullable(),
+   /** Self-custody freeze status (#885); absent rows are treated as unfrozen. */
+   frozen: z.boolean().optional(),
 });
 
 export type HoldingEntry = z.infer<typeof HoldingEntrySchema>;

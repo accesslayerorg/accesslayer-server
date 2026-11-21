@@ -1,95 +1,107 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+// src/utils/jwt.utils.ts
+// JWT issuing and verification for wallet-scoped access tokens.
+//
+// Access tokens carry the caller's Stellar wallet address in the `wallet`
+// claim plus the standard `sub`/`iat`/`exp`/`iss` claims. Route guards verify
+// the token and compare `req.user.wallet` against path parameters to enforce
+// ownership (e.g. GET /users/:wallet/holdings).
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret';
+import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
+import { envConfig } from '../config';
 
-export interface JwtPayload {
+export interface WalletAccessTokenPayload extends JwtPayload {
    sub: string;
-   iat: number;
-   exp: number;
-   [key: string]: unknown;
+   wallet: string;
 }
 
-function base64UrlEncode(input: string): string {
-   return Buffer.from(input, 'utf8')
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-}
-
-function base64UrlDecode(input: string): string {
-   const padded = input.replace(/-/g, '+').replace(/_/g, '/');
-   const padding = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
-   return Buffer.from(padded + padding, 'base64').toString('utf8');
-}
-
-function sign(data: string): string {
-   return createHmac('sha256', JWT_SECRET).update(data).digest('base64url');
+/** Error thrown when a token is missing, malformed, expired, or invalid. */
+export class JwtVerifyError extends Error {
+   constructor(message: string) {
+      super(message);
+      this.name = 'JwtVerifyError';
+   }
 }
 
 /**
- * Signs a minimal HMAC-SHA256 JWT-style token. Not a full JWT implementation
- * (no header alg negotiation), but structurally compatible: header.payload.signature.
+ * Sign an access token bound to a Stellar wallet address.
+ *
+ * @param wallet - Stellar wallet address embedded as the `wallet` claim.
+ * @param subject - Optional subject (defaults to the wallet address).
+ * @param expiresInSeconds - Override TTL; defaults to config.
  */
-export function signJwt(
-   payload: { sub: string; [key: string]: unknown },
-   expiresInSeconds: number
+export function signWalletAccessToken(
+   wallet: string,
+   subject?: string,
+   expiresInSeconds: number = envConfig.JWT_ACCESS_TOKEN_TTL_SECONDS
 ): string {
-   const now = Math.floor(Date.now() / 1000);
-   const fullPayload: JwtPayload = {
-      ...payload,
-      sub: payload.sub,
-      iat: now,
-      exp: now + expiresInSeconds,
+   const options: SignOptions = {
+      expiresIn: expiresInSeconds,
+      issuer: envConfig.JWT_ISSUER,
    };
 
-   const header = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-   const body = base64UrlEncode(JSON.stringify(fullPayload));
-   const signature = sign(`${header}.${body}`);
-
-   return `${header}.${body}.${signature}`;
-}
-
-export class JwtError extends Error {
-   code: 'malformed' | 'invalid_signature';
-
-   constructor(code: 'malformed' | 'invalid_signature', message: string) {
-      super(message);
-      this.name = 'JwtError';
-      this.code = code;
-   }
+   return jwt.sign(
+      { wallet },
+      envConfig.JWT_SECRET,
+      { ...options, subject: subject ?? wallet }
+   );
 }
 
 /**
- * Decodes and verifies the signature of a token WITHOUT checking expiry.
- * Callers that need to distinguish "expired" from "not yet due for refresh"
- * must check `exp` against the current time themselves.
+ * Verify a bearer token and return its decoded payload.
  *
- * @throws {JwtError} when the token is malformed or the signature is invalid
+ * @throws {JwtVerifyError} when the token is missing/malformed/expired or
+ *         fails signature or issuer validation.
  */
-export function decodeJwt(token: string): JwtPayload {
-   const parts = token.split('.');
-   if (parts.length !== 3) {
-      throw new JwtError('malformed', 'Token must have three segments');
+export function verifyWalletAccessToken(token: string): WalletAccessTokenPayload {
+   if (!token || typeof token !== 'string') {
+      throw new JwtVerifyError('Missing bearer token');
    }
 
-   const [header, body, signature] = parts;
-
-   const expectedSignature = sign(`${header}.${body}`);
-   const providedSigBuf = Buffer.from(signature);
-   const expectedSigBuf = Buffer.from(expectedSignature);
-
-   const signaturesMatch =
-      providedSigBuf.length === expectedSigBuf.length &&
-      timingSafeEqual(providedSigBuf, expectedSigBuf);
-
-   if (!signaturesMatch) {
-      throw new JwtError('invalid_signature', 'Token signature is invalid');
-   }
-
+   let decoded: JwtPayload | string;
    try {
-      return JSON.parse(base64UrlDecode(body)) as JwtPayload;
-   } catch {
-      throw new JwtError('malformed', 'Token payload is not valid JSON');
+      decoded = jwt.verify(token, envConfig.JWT_SECRET, {
+         issuer: envConfig.JWT_ISSUER,
+      });
+   } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+         throw new JwtVerifyError('Access token has expired');
+      }
+      throw new JwtVerifyError('Invalid access token');
    }
+
+   if (typeof decoded === 'string' || typeof decoded.wallet !== 'string' || !decoded.wallet) {
+      throw new JwtVerifyError('Access token payload missing wallet claim');
+   }
+
+   return decoded as WalletAccessTokenPayload;
 }
+
+/**
+ * Extract the bearer token from an `Authorization` header value
+ * (`Bearer <token>`). Returns undefined when absent or malformed.
+ */
+export function extractBearerToken(authHeader: unknown): string | undefined {
+   if (typeof authHeader !== 'string') return undefined;
+   const [scheme, token] = authHeader.split(' ');
+   if (!token || scheme?.toLowerCase() !== 'bearer') return undefined;
+   return token.trim() || undefined;
+}
+
+
+
+export function decodeJwt(token: string): any {
+   return jwt.decode(token);
+}
+
+export function signJwt(
+   payload: { sub?: string; wallet?: string } | string,
+   expiresInSeconds: number = envConfig.JWT_ACCESS_TOKEN_TTL_SECONDS
+): string {
+   if (typeof payload === "string") {
+      return signWalletAccessToken(payload, undefined, expiresInSeconds);
+   }
+   const wallet = payload.wallet || payload.sub || "";
+   return signWalletAccessToken(wallet, payload.sub, expiresInSeconds);
+}
+
+export const JwtError = JwtVerifyError;

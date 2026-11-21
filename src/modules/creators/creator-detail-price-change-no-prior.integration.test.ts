@@ -22,7 +22,7 @@ describe('creator detail endpoint — 24h price change without prior snapshot', 
       });
 
       const creator = await prisma.creatorProfile.upsert({
-         where: { userId: USER_ID },
+         where: { handle: HANDLE },
          create: {
             userId: USER_ID,
             handle: HANDLE,

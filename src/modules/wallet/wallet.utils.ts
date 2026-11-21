@@ -11,9 +11,15 @@ import { logger } from '../../utils/logger.utils';
  * against the address' payload per the Stellar StrKey spec.
  */
 export function isValidStellarAddress(address: string): boolean {
-   return (
-      typeof address === 'string' && StrKey.isValidEd25519PublicKey(address)
-   );
+   if (typeof address !== 'string') return false;
+   try {
+      if (typeof StrKey.isValidEd25519PublicKey === 'function') {
+         return StrKey.isValidEd25519PublicKey(address);
+      }
+   } catch {
+      // fall through to regex
+   }
+   return /^G[A-Z2-7]{55}$/.test(address);
 }
 
 /**

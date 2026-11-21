@@ -1,0 +1,35 @@
+// prisma/schema/contract-transaction.prisma
+// Centralised Soroban contract interaction service (#899).
+
+/// A Soroban contract transaction submitted through the contract interaction
+/// service. Rows are created as soon as the RPC returns a transaction hash
+/// (status PENDING) and are updated when the transaction is observed on a
+/// ledger (CONFIRMED) or rejected on-chain (FAILED).
+model ContractTransaction {
+  id              String   @id @default(cuid())
+  /// Stellar/Soroban transaction hash (hex, as returned by sendTransaction).
+  txHash          String   @unique
+  /// Logical operation routed through the service: buy | sell | stake |
+  /// governance | claim.
+  operation       String
+  /// Wallet that requested the submission.
+  submitterWallet String
+  /// PENDING | CONFIRMED | FAILED
+  status          String   @default("PENDING")
+  /// Number of submit attempts made by the retry loop (1 = first attempt).
+  attempts        Int      @default(1)
+  /// Last error message seen during submission or confirmation polling.
+  lastError       String?
+  /// Machine-readable error kind: user | transient (null when resolved OK).
+  errorKind       String?
+  /// Ledger sequence that included the transaction (null until confirmed).
+  ledger          Int?
+  /// Base64 XDR of the transaction result (null until resolved).
+  resultXdr       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([submitterWallet])
+  @@index([createdAt])
+}

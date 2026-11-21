@@ -73,7 +73,7 @@ describe('createAlert', () => {
             direction: DB_ALERT.direction,
             target_price: DB_ALERT.targetPrice,
             registered_at: DB_ALERT.createdAt,
-            wallet_address: 'GAAA***AAAA',
+            wallet_address: 'GAAA…AAAA',
          }),
          'Price alert registered'
       );
@@ -137,7 +137,7 @@ describe('deleteAlert', () => {
       const result = await deleteAlert('alert-1', VALID_ADDRESS);
 
       expect(mockedPrisma.priceAlert.findFirst).toHaveBeenCalledWith({
-         where: { id: 'alert-1', walletAddress: VALID_ADDRESS },
+         where: { id: 'alert-1' },
       });
       expect(mockedPrisma.priceAlert.delete).toHaveBeenCalledWith({
          where: { id: 'alert-1' },
@@ -149,7 +149,7 @@ describe('deleteAlert', () => {
             alert_id: DB_ALERT.id,
             creator_id: DB_ALERT.creatorId,
             cancelled_at: expect.any(Date),
-            wallet_address: 'GAAA***AAAA',
+            wallet_address: 'GAAA…AAAA',
          }),
          'Price alert cancelled'
       );
@@ -168,12 +168,14 @@ describe('deleteAlert', () => {
    });
 
    it('does not delete an alert belonging to a different wallet address', async () => {
-      (mockedPrisma.priceAlert.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockedPrisma.priceAlert.findFirst as jest.Mock).mockResolvedValue(DB_ALERT);
 
-      const result = await deleteAlert(
-         'alert-1',
-         'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
-      );
-      expect(result).toBeNull();
+      await expect(
+         deleteAlert(
+            'alert-1',
+            'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
+         )
+      ).rejects.toThrow('You do not have permission to delete this alert');
+      expect(mockedPrisma.priceAlert.delete).not.toHaveBeenCalled();
    });
 });

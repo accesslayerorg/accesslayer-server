@@ -26,7 +26,7 @@ describe('#417 price snapshot — fields update after a simulated trade', () => 
       });
 
       const creator = await prisma.creatorProfile.upsert({
-         where: { userId: USER_ID },
+         where: { handle: HANDLE },
          create: {
             userId: USER_ID,
             handle: HANDLE,

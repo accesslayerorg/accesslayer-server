@@ -39,6 +39,12 @@ export const CreatorHoldersQuerySchema = z
          .enum(CREATOR_HOLDER_SORT_FIELDS)
          .optional()
          .default('key_balance'),
+      /**
+       * Opaque cursor produced by a previous page's `nextCursor` field.
+       * When provided, the endpoint switches to keyset (cursor-based)
+       * pagination and `offset` is ignored.
+       */
+      cursor: z.string().min(1).optional(),
    })
    .strict();
 

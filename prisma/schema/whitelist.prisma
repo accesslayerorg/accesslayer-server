@@ -1,0 +1,11 @@
+// prisma/schema/whitelist.prisma
+
+model Whitelist {
+  id        String   @id @default(cuid())
+  address   String
+  creatorId String
+  createdAt DateTime @default(now())
+
+  @@unique([address, creatorId])
+  @@index([creatorId])
+}

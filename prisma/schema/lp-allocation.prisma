@@ -1,0 +1,24 @@
+// prisma/schema/lp-allocation.prisma
+// Liquidity-pool allocations sent from bonding-curve buys, recorded from the
+// LPAllocationSent contract event. Used to report cumulative LP contributed
+// per key and total protocol-owned liquidity across all keys (#943).
+
+/// One LPAllocationSent contract event. Append-only: the protocol only
+/// ever sends LP into the pool from buys in the current scope (no
+/// corresponding "LP removed" event exists yet), so cumulative amount
+/// contributed and current LP balance are the same figure for now.
+model LpAllocation {
+  id          String   @id @default(cuid())
+  creatorId   String
+  amountXlm   Decimal  @db.Decimal(20, 7)
+  ledger      Int
+  txHash      String
+  eventIndex  Int
+  allocatedAt DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([creatorId])
+  @@index([allocatedAt(sort: Desc)])
+  @@index([ledger])
+}

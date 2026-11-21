@@ -3,6 +3,9 @@ import { createHash } from 'crypto';
 import { envConfig } from '../config';
 import { requestContextStorage } from './als.utils';
 import { logger } from './logger.utils';
+import { describeDatabasePoolConfig } from './db-pool-config.utils';
+import { logDbPoolAcquire, logDbPoolRelease } from './db-pool-log.utils';
+import { databaseCircuitBreaker } from './circuit-breaker.utils';
 
 // Use global variable to prevent multiple instances in development
 declare global {
@@ -78,7 +81,14 @@ const queryStartTimes = new Map<symbol, number>();
 // Extend Prisma with query timeout, slow-query detection, and pool wait tracking
 export const prisma = basePrisma.$extends({
    query: {
-      $allOperations({ operation, model, args, query }) {
+      $allOperations({ operation, model, args, query }: any) {
+         // Skip circuit breaker in test mode unless explicitly enabled.
+         // This avoids false positives from slow operations like TRUNCATE during test cleanup.
+         // Unit tests for circuit breaker still work because they test the
+         // circuit breaker directly, not through Prisma operations.
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+            databaseCircuitBreaker.checkState();
+         }
          const timeoutMs = envConfig.DB_QUERY_TIMEOUT_MS;
          const slowThresholdMs = envConfig.SLOW_QUERY_THRESHOLD_MS;
          const poolWarnThreshold = envConfig.DB_POOL_WAIT_WARN_MS;
@@ -114,6 +124,21 @@ export const prisma = basePrisma.$extends({
             }, timeoutMs);
          });
 
+         const poolConfig = describeDatabasePoolConfig();
+         const poolSize =
+            typeof poolConfig.poolSize === 'number' ? poolConfig.poolSize : 10;
+
+         const acquiredAt = new Date();
+         const waitTimeMs = acquiredAt.getTime() - waitStart;
+         const acquireIdleCount = Math.max(0, poolSize - activeQueries);
+
+         logDbPoolAcquire({
+            poolSize,
+            idleCount: acquireIdleCount,
+            waitTimeMs,
+            acquiredAt,
+         });
+
          const start = Date.now();
          const queryPromise = query(args).finally(() => {
             clearTimeout(timeoutId);
@@ -121,13 +146,21 @@ export const prisma = basePrisma.$extends({
             activeQueries--;
             queryStartTimes.delete(queryId);
 
+            const heldForMs = Date.now() - acquiredAt.getTime();
+            const releaseIdleCount = Math.max(0, poolSize - activeQueries);
+            logDbPoolRelease({
+               poolSize,
+               idleCount: releaseIdleCount,
+               heldForMs,
+            });
+
             // Log if wait time exceeds thresholds
             if (waitTime > poolErrorThreshold) {
                logger.error(
                   {
                      type: 'database_pool_wait_exceeded',
                      waitTimeMs: waitTime,
-                     poolSize: 10, // Default Prisma pool size
+                     poolSize,
                      queueDepth: activeQueries,
                      endpoint: context?.path,
                      operation,
@@ -141,7 +174,7 @@ export const prisma = basePrisma.$extends({
                   {
                      type: 'database_pool_wait_exceeded',
                      waitTimeMs: waitTime,
-                     poolSize: 10, // Default Prisma pool size
+                     poolSize,
                      queueDepth: activeQueries,
                      endpoint: context?.path,
                      operation,
@@ -178,7 +211,19 @@ export const prisma = basePrisma.$extends({
             }
          });
 
-         return Promise.race([queryPromise, timeoutPromise]);
+         return Promise.race([queryPromise, timeoutPromise])
+            .then(result => {
+               if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+                  databaseCircuitBreaker.recordSuccess();
+               }
+               return result;
+            })
+            .catch(err => {
+               if (envConfig.MODE !== 'test' || process.env.ENABLE_DB_CIRCUIT_BREAKER === '1') {
+                  databaseCircuitBreaker.recordFailure(err);
+               }
+               throw err;
+            });
       },
    },
 });

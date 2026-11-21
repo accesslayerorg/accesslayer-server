@@ -13,10 +13,26 @@ export const CREATOR_DETAIL_DEFAULT_SELECT = {
    displayName: true,
    bio: true,
    avatarUrl: true,
+   avatarCid: true,
+   twitter: true,
+   website: true,
+   discord: true,
    perks: true,
    isVerified: true,
+   tradingPaused: true,
+   currentMilestone: true,
+   relaunchCount: true,
    createdAt: true,
    updatedAt: true,
+   user: {
+      select: {
+         stellarWallet: {
+            select: {
+               address: true,
+            },
+         },
+      },
+   },
    priceSnapshot: {
       select: {
          currentPrice: true,

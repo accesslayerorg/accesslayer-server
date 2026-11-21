@@ -46,6 +46,7 @@ export const envSchema = z
       DATABASE_URL: z
          .string()
          .min(1, 'DATABASE_URL is required in the environment variables'),
+      NODE_ID: z.string().default('node-local'),
 
       GMAIL_USER: z.string(),
       GMAIL_APP_PASSWORD: z.string(),
@@ -85,29 +86,76 @@ export const envSchema = z
       ENABLE_SCHEMA_VERSION_HEADER: booleanCoerce.default(true),
       ENABLE_REQUEST_LOGGING: booleanCoerce.default(true),
       DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
+      DB_POOL_WAIT_WARN_MS: z.coerce.number().int().positive().default(2000),
+      DB_POOL_WAIT_ERROR_MS: z.coerce.number().int().positive().default(5000),
+      WEBHOOK_MAX_PER_CREATOR: z.coerce.number().int().positive().default(5),
+      WEBHOOK_RETRY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
 
       APP_SECRET: z
          .string()
          .min(32, 'APP_SECRET should be at least 32 characters')
          .default('accesslayer_default_development_secret_key_32_bytes_long'),
 
-      REDIS_URL: z.string().default('redis://localhost:6379'),
-
+      // JWT auth
       JWT_SECRET: z
          .string()
          .min(32, 'JWT_SECRET should be at least 32 characters')
-         .default('accesslayer_jwt_development_secret_key_32_bytes_long'),
-      JWT_EXPIRES_IN: z.string().default('24h'),
+         .default('accesslayer_default_development_jwt_secret_key_32_bytes'),
+      JWT_ISSUER: z.string().default('accesslayer-server'),
+      JWT_EXPIRES_IN: z.string().default('15m'),
+      JWT_ACCESS_TOKEN_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(900),
 
-      SSE_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
-      SSE_QUEUE_CAPACITY: z.coerce.number().int().positive().default(500),
-      SSE_QUEUE_FULL_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-      SSE_THROTTLE_DURATION_MS: z.coerce.number().int().positive().default(60000),
-      SSE_MAX_CONNECTIONS_PER_WALLET: z.coerce.number().int().positive().default(2),
-      SSE_MAX_SUBSCRIPTIONS_PER_WALLET: z.coerce.number().int().positive().default(5),
-      SSE_SUBSCRIPTION_TTL_MS: z.coerce.number().int().positive().default(86400000),
-      SSE_REPLAY_MAX_EVENTS: z.coerce.number().int().positive().default(1000),
-      SSE_PRUNE_INTERVAL_MS: z.coerce.number().int().positive().default(300000),
+      // Redis cache
+      REDIS_URL: z.string().default('redis://localhost:6379'),
+      ENABLE_REDIS_CACHE: booleanCoerce.default(true),
+
+      // Key trade lockup
+      LOCKUP_DURATION_SECONDS: z.coerce.number().int().nonnegative().default(0),
+
+      // Staking lock period options (#881): comma-separated `name=seconds`
+      // pairs. Clients pick one by name when staking; the lock expires
+      // `seconds` after the stake is created.
+      STAKING_LOCK_PERIOD_OPTIONS: z
+         .string()
+         .default(
+            'flexible=0,30d=2592000,90d=7776000,180d=15552000,365d=31536000'
+         ),
+
+      // Protocol revenue distribution (#883): length of each distribution
+      // cycle in days. Trading fees are aggregated into a pool per cycle and
+      // claimed proportionally to stake weight (see src/modules/revenue).
+      REVENUE_DISTRIBUTION_CYCLE_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(7),
+
+      // Referral programme (#910): share of a referred wallet's first trade
+      // paid to the referrer, in basis points (500 = 5%). Paid once per
+      // referee, on their first trade only (see src/modules/referrals).
+      REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
+
+      // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
+      // Stellar addresses of the admin quorum. When unset, deprecation still
+      // requires two distinct valid admin signatures but no allowlist is
+      // enforced (development default).
+      ADMIN_MULTISIG_WALLETS: optionalNonEmptyString,
+
+      // Leaderboard volume
+      LEADERBOARD_VOLUME_WINDOW_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(7),
+      LEADERBOARD_VOLUME_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300),
 
       INDEXER_JITTER_FACTOR: z.coerce.number().min(0).max(1).default(0.1),
       BACKGROUND_JOB_LOCK_TTL_MS: z.coerce
@@ -115,9 +163,7 @@ export const envSchema = z
          .int()
          .positive()
          .default(300000),
-      SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(200),
-      DB_POOL_WAIT_WARN_MS: z.coerce.number().int().positive().default(500),
-      DB_POOL_WAIT_ERROR_MS: z.coerce.number().int().positive().default(2000),
+      SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
       CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS: z.coerce
          .number()
          .int()
@@ -133,19 +179,14 @@ export const envSchema = z
          .positive()
          .default(300000),
 
-      // Webhook settings
-      WEBHOOK_MAX_PER_CREATOR: z.coerce.number().int().positive().default(5),
-      WEBHOOK_RETRY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
-      WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
-         .number()
-         .int()
-         .positive()
-         .default(1000),
-
       // Indexer feature flags
       ENABLE_INDEXER_DEDUPE: booleanCoerce.default(true),
       ENABLE_INDEXER_DLQ: booleanCoerce.default(true),
       ENABLE_INDEXER_CURSOR_STALENESS_WARNING: booleanCoerce.default(true),
+
+      // Stellar auth — optional server keypair secret used for SEP-10 challenge
+      // signing. When absent the server falls back to an ephemeral random keypair.
+      STELLAR_AUTH_SECRET: optionalNonEmptyString,
 
       // Stellar network
       STELLAR_NETWORK: z
@@ -166,7 +207,88 @@ export const envSchema = z
             'STELLAR_SOROBAN_RPC_URL must be a valid URL (e.g. https://soroban-testnet.stellar.org)'
          )
          .default('https://soroban-testnet.stellar.org'),
-      STELLAR_AUTH_SECRET: optionalNonEmptyString,
+
+      // Soroban contract interaction service (#899): submission retries with
+      // exponential backoff, confirmation polling, and resolution events.
+      SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      SOROBAN_SUBMIT_BASE_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1000),
+      SOROBAN_SUBMIT_MAX_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(15000),
+      SOROBAN_POLL_INTERVAL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5000),
+      SOROBAN_POLL_TIMEOUT_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120000),
+
+      // Circuit breaker (#987): deployed contract id holding the per-key
+      // max_bps configuration, and the TTL (seconds) for the cached contract
+      // read. Defaults to a 5-minute refresh window.
+      CIRCUIT_BREAKER_CONTRACT_ID: optionalNonEmptyString,
+      CIRCUIT_BREAKER_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300),
+
+      // Key content gate config cache (#1150)
+      GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      
+      // Dynamic fee contract (#1055)
+      DYNAMIC_FEE_CONTRACT_ID: optionalNonEmptyString,
+
+      // Nonce registry contract (#1039): deployed contract id holding the
+      // on-chain single-use nonce registry, and short TTL for cached nonces.
+      NONCE_REGISTRY_CONTRACT_ID: optionalNonEmptyString,
+      NONCE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(30),
+
+      // LP position registry contract
+      LP_CONTRACT_ID: optionalNonEmptyString,
+
+      // Staking contract (#1086): deployed staking contract used for live
+      // get_stake_rewards simulation calls. When unset, accrued rewards
+      // degrade gracefully to '0' rather than failing.
+      STAKING_CONTRACT_ID: optionalNonEmptyString,
+
+      // Invoice protocol adapters. Unconfigured reads/execution fail closed.
+      ISSUER_REPUTATION_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_TRANSFER_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_MARKET_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_MARKET_ABI: optionalNonEmptyString,
+      INVOICE_FRAUD_CONTRACT_ID: optionalNonEmptyString,
+      INVOICE_TIMELOCK_CONTRACT_ID: optionalNonEmptyString,
+
+      // Portfolio health score contract (get_health_score). Unset fails the
+      // /investors/:wallet/health-score read closed with 503.
+      PORTFOLIO_HEALTH_CONTRACT_ID: optionalNonEmptyString,
+
+      // Social metadata sync (Pinata gateway used to resolve avatar CIDs)
+      PINATA_GATEWAY_URL: z
+         .string()
+         .url(
+            'PINATA_GATEWAY_URL must be a valid URL (e.g. https://gateway.pinata.cloud/ipfs)'
+         )
+         .default('https://gateway.pinata.cloud/ipfs'),
 
       // Ownership snapshot cleanup job
       OWNERSHIP_SNAPSHOT_TABLE_NAME: z
@@ -186,6 +308,95 @@ export const envSchema = z
          .positive()
          .default(60),
 
+      // Price history cleanup job (#893) — prunes creator_price_history rows
+      // older than the retention window so TWAP/range queries stay fast.
+      PRICE_HISTORY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      PRICE_HISTORY_CLEANUP_ENABLED: z.coerce.boolean().default(true),
+      PRICE_HISTORY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      // Session activity logging + anomaly detection (#1035)
+      SESSION_ACTIVITY_LOGGING_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_RETENTION_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      SESSION_ACTIVITY_CLEANUP_ENABLED: booleanCoerce.default(true),
+      SESSION_ACTIVITY_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+      SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+      SESSION_ANOMALY_RATE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(120),
+      SESSION_ANOMALY_UNUSUAL_HOUR_START: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(1),
+      SESSION_ANOMALY_UNUSUAL_HOUR_END: z.coerce
+         .number()
+         .int()
+         .min(0)
+         .max(23)
+         .default(5),
+
+      // Price movement detection job (feeds price_moved notifications)
+      DETECT_PRICE_MOVEMENTS_ENABLED: booleanCoerce.default(true),
+      DETECT_PRICE_MOVEMENTS_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+
+      // TWAP computation job (#963) — recomputes 1h/4h/24h TWAP per active key.
+      TWAP_COMPUTATION_ENABLED: booleanCoerce.default(true),
+      TWAP_COMPUTATION_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+
+      // Minimum number of observations a TWAPUpdated snapshot must carry for
+      // GET /keys/:key_id/twap to treat it as valid (#1082). Below this the
+      // endpoint responds with TWAPInvalid instead of a price.
+      TWAP_MIN_OBSERVATIONS: z.coerce.number().int().positive().default(3),
+
+      // Governance proposal sync job
+      GOVERNANCE_SYNC_ENABLED: booleanCoerce.default(false),
+      GOVERNANCE_SYNC_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+
+      // Key sunset watch (#931): number of consecutive inactive days before a
+      // key is considered "near threshold" and surfaced by GET /keys/sunset-watch.
+      // Keys whose on-chain KeySunsetFlagged event has been processed always
+      // appear regardless of this threshold. Defaults to 30 days.
+      KEY_SUNSET_INACTIVITY_THRESHOLD_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+
       // Request body size limits (see docs/body-size-limits.md).
       // Accepts any size string understood by the `bytes` package used
       // internally by body-parser (e.g. '100kb', '1mb', '10mb').
@@ -193,7 +404,271 @@ export const envSchema = z
       BODY_SIZE_LIMIT_AUTH: optionalNonEmptyString,
       BODY_SIZE_LIMIT_ADMIN: optionalNonEmptyString,
       BODY_SIZE_LIMIT_CREATORS: optionalNonEmptyString,
+
+      // Distributed tracing
+      // Shared secret trusted internal callers present in the
+      // `x-internal-service-token` header to have their incoming
+      // `X-Trace-Id` header honored instead of a freshly generated one.
+      // Left unset by default, so no caller is trusted unless configured.
+      TRACE_ID_TRUSTED_TOKEN: optionalNonEmptyString,
+      INTERNAL_SERVICE_KEY: optionalNonEmptyString,
+
+      // Query cost governor (#755): rolling per-wallet (or per-IP, when
+      // unauthenticated) database query budget. See
+      // src/middlewares/query-cost-governor.middleware.ts.
+      QUERY_COST_BUDGET: z.coerce.number().int().positive().default(200),
+      QUERY_COST_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+      // JSON object overriding/extending the default route->cost map in
+      // src/constants/query-cost.constants.ts, e.g.
+      // '{"GET /search": 8, "GET /custom-route": 2}'. Merged over the
+      // defaults, not a full replacement, so operators only need to
+      // specify what differs.
+      QUERY_COST_MAP_JSON: optionalNonEmptyString,
+      // Comma-separated wallet addresses that bypass the governor entirely.
+      QUERY_COST_ADMIN_WALLETS: optionalNonEmptyString,
+      HORIZON_WEBHOOK_SECRET: optionalNonEmptyString,
+      WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1000),
+      SSE_HEARTBEAT_INTERVAL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(15000),
+      SSE_QUEUE_CAPACITY: z.coerce.number().int().positive().default(1000),
+      SSE_QUEUE_FULL_TIMEOUT_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5000),
+      SSE_REPLAY_MAX_EVENTS: z.coerce.number().int().positive().default(100),
+
+      // SSE subscription management (src/modules/subscriptions) — a wallet's
+      // subscription set, persisted in Redis, distinct from the per-connection
+      // heartbeat/queue/replay tuning above.
+      SSE_MAX_CONNECTIONS_PER_WALLET: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(10),
+      SSE_SUBSCRIPTION_TTL_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300000),
+      SSE_MAX_SUBSCRIPTIONS_PER_WALLET: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(10),
+      SSE_THROTTLE_DURATION_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(1000),
+
+      // Oracle price feed staleness threshold and cache TTL.
+      // ORACLE_STALENESS_THRESHOLD_MS: how old an oracle price can be before
+      //   the response includes `isStale: true`. Default: 5 minutes.
+      // ORACLE_CACHE_TTL_MS: how long the oracle-price response is cached in
+      //   Redis. Should match the typical oracle update frequency. Default: 30 s.
+      ORACLE_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(300_000),
+      ORACLE_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
+
+      // Flash loan guard (#938): violations indexed from
+      // FlashLoanGuardTriggered contract events. A wallet that reaches
+      // FLASH_LOAN_VIOLATION_THRESHOLD uncleared violations is alerted and,
+      // when FLASH_LOAN_AUTO_SUSPEND_ENABLED is true, suspended for
+      // FLASH_LOAN_SUSPENSION_DURATION_HOURS (0 = indefinite, lifted once the
+      // violation history ages out). Violations older than
+      // FLASH_LOAN_VIOLATION_COOLDOWN_HOURS stop counting towards the
+      // threshold and are cleared by the cleanup job.
+      FLASH_LOAN_VIOLATION_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(3),
+      FLASH_LOAN_AUTO_SUSPEND_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_VIOLATION_COOLDOWN_HOURS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
+      FLASH_LOAN_SUSPENSION_DURATION_HOURS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .default(0),
+      FLASH_LOAN_CLEANUP_ENABLED: booleanCoerce.default(true),
+      FLASH_LOAN_CLEANUP_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      // Creator key on-chain metadata sync (#986)
+      METADATA_STALENESS_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(10 * 60 * 1000), // 10 minutes
+
+      // Multi-tier circuit breaker configuration (#726)
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+      CIRCUIT_BREAKER_RATE_THRESHOLD: z.coerce
+         .number()
+         .min(1)
+         .max(100)
+         .default(50),
+      CIRCUIT_BREAKER_COOLDOWN_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(30),
+      CIRCUIT_BREAKER_WINDOW_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+
+      // Per-dependency overrides for Soroban RPC
+      CIRCUIT_BREAKER_SOROBAN_RPC_FAILURE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_SOROBAN_RPC_RATE_THRESHOLD: z.coerce
+         .number()
+         .min(1)
+         .max(100)
+         .optional(),
+      CIRCUIT_BREAKER_SOROBAN_RPC_COOLDOWN_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_SOROBAN_RPC_WINDOW_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+
+      // Per-dependency overrides for Horizon
+      CIRCUIT_BREAKER_HORIZON_FAILURE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_HORIZON_RATE_THRESHOLD: z.coerce
+         .number()
+         .min(1)
+         .max(100)
+         .optional(),
+      CIRCUIT_BREAKER_HORIZON_COOLDOWN_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_HORIZON_WINDOW_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+
+      // Per-dependency overrides for Redis
+      CIRCUIT_BREAKER_REDIS_FAILURE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_REDIS_RATE_THRESHOLD: z.coerce
+         .number()
+         .min(1)
+         .max(100)
+         .optional(),
+      CIRCUIT_BREAKER_REDIS_COOLDOWN_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_REDIS_WINDOW_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+
+      // Per-dependency overrides for Database connection pool
+      CIRCUIT_BREAKER_DATABASE_FAILURE_THRESHOLD: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_DATABASE_RATE_THRESHOLD: z.coerce
+         .number()
+         .min(1)
+         .max(100)
+         .optional(),
+      CIRCUIT_BREAKER_DATABASE_COOLDOWN_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+      CIRCUIT_BREAKER_DATABASE_WINDOW_SECONDS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .optional(),
+
+      // Campaign evaluation and expiry cron (#campaign-cron)
+      CAMPAIGN_CRON_ENABLED: booleanCoerce.default(true),
+      CAMPAIGN_EVALUATION_INTERVAL_HOURS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
+      CAMPAIGN_END_CHECK_INTERVAL_MINUTES: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(60),
+      CAMPAIGN_QUALIFICATION_BATCH_SIZE: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(100),
+      CAMPAIGN_QUALIFICATION_CONCURRENCY: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(5),
+
+      // Key NFT badge minting trigger service (#1148). Minting is disabled
+      // until both the contract id and the server minter secret are set.
+      BADGE_CONTRACT_ID: optionalNonEmptyString,
+      BADGE_MINTER_SECRET: optionalNonEmptyString,
+      // Single-swap size (XLM) that earns the WHALE_HOLDER badge.
+      BADGE_WHALE_THRESHOLD_XLM: z.coerce.number().positive().default(10000),
+      // Continuous hold (days) that earns the DIAMOND_HANDS badge.
+      BADGE_HOLD_MILESTONE_DAYS: z.coerce.number().int().positive().default(365),
+      // Highest leaderboard rank (inclusive) that earns the TOP_TRADER badge.
+      BADGE_TOP_TRADER_MAX_RANK: z.coerce.number().int().positive().default(10),
+      // Max mint attempts before a transient failure is treated as terminal.
+      BADGE_MINT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+      // Slow request threshold (#754): warn-level log for requests exceeding this duration
+      SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })
+   .passthrough()
+   .catchall(z.any())
    .superRefine((data, ctx) => {
       if (data.MODE === 'production' && data.STELLAR_NETWORK === 'testnet') {
          ctx.addIssue({
