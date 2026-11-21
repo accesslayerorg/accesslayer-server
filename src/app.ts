@@ -20,6 +20,7 @@ import morgan from 'morgan';
 import shareRouter from './modules/share/share.routes';
 import sitemapRouter from './modules/sitemap/sitemap.routes';
 import tspecOptions from './tspec.config';
+import { createDocsRouter } from './docs/docs.routes';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
 import { requestIdMiddleware } from './middlewares/request-id.middleware';
@@ -119,6 +120,8 @@ app.get('/', (_, res: Response) => {
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
+// OpenAPI spec + Swagger UI (#1224). Registered before the main router.
+app.use('/api/v1', createDocsRouter());
 
 // XLM fiat rate proxy (#1219). Mounted at both the documented path
 // (/v1/rates) and the versioned API prefix used by every other route.
