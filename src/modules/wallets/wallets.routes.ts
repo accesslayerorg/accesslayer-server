@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
+import { httpGetWalletFollowing } from "./wallet-following.controllers";
+import { httpGetWalletFeed } from "./wallet-feed.controllers";
+import { httpGetWalletVaultHealth } from "./wallet-vault-health.controllers";
 import {
    httpGetWalletGains,
    httpGetWalletGainsCsv,
@@ -36,6 +39,12 @@ walletsRouter.get(
 walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
 
 /**
+ * GET /api/v1/wallets/:address/vault/health
+ *
+ * Returns the health factor and liquidation price for the wallet's open
+ * lending-vault position. 404 when the wallet has no open position.
+ */
+walletsRouter.get("/:address/vault/health", httpGetWalletVaultHealth);
  * GET /api/v1/wallets/:address/gains?year=YYYY
  *
  * Realized gains per sell (average-cost accounting) for the given UTC year,

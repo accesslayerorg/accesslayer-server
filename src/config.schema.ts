@@ -686,6 +686,13 @@ export const envSchema = z
       BADGE_TOP_TRADER_MAX_RANK: z.coerce.number().int().positive().default(10),
       // Max mint attempts before a transient failure is treated as terminal.
       BADGE_MINT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+
+      // Lending vault health monitor and liquidation keeper. Liquidations stay
+      // disabled until the contract id and keeper secret are both set.
+      VAULT_HEALTH_MONITOR_ENABLED: booleanCoerce.default(true),
+      VAULT_LIQUIDATION_KEEPER_ENABLED: booleanCoerce.default(true),
+      VAULT_LENDING_CONTRACT_ID: optionalNonEmptyString,
+      LIQUIDATION_KEEPER_SECRET: optionalNonEmptyString,
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
       SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })
