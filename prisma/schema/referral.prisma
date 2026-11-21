@@ -75,6 +75,9 @@ model ReferralEvent {
   // Fee amount in XLM
   amount        Decimal
 
+  // Tier multiplier applied at the time of this reward (1.0, 1.5, or 2.0)
+  tierMultiplier Float    @default(1.0)
+
   // Transaction correlation
   txHash        String?
   eventIndex    Int?
@@ -201,10 +204,10 @@ enum ReferralHoldStatus {
   REJECTED
 }
 
-/// A referral reward withheld by abuse detection (#1241). Created on the
-/// referee's first trade, in the same transaction that claims it, so there is
-/// at most one hold per referral. It carries everything needed to pay the
-/// reward later when an admin releases it.
+/// Abuse-detection verdict for a referral (#1241). At most one per referral.
+/// While PENDING, every reward the referral earns is withheld as a
+/// `ReferralHoldReward` row; releasing the hold pays them all, once. Once
+/// RELEASED later trades pay normally, and once REJECTED they never pay.
 model ReferralHold {
   id              String             @id @default(cuid())
   referralId      String             @unique
@@ -217,21 +220,36 @@ model ReferralHold {
   /// Evidence for reviewers (funder address, cluster size, window).
   details         Json?
 
-  // The withheld reward.
   referrerAddress String
   refereeAddress  String
-  keyId           String
-  rewardXlm       Decimal            @db.Decimal(20, 7)
-  txHash          String?
-  eventIndex      Int?
-  tradedAt        DateTime
 
   resolvedBy      String?
   resolvedAt      DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
+  rewards         ReferralHoldReward[]
+
   @@index([status, createdAt])
+}
+
+/// One reward withheld by a PENDING `ReferralHold` (#1241): everything needed
+/// to write the `ReferralEvent` fee row if an admin releases the hold.
+model ReferralHoldReward {
+  id             String       @id @default(cuid())
+  holdId         String
+  hold           ReferralHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+
+  keyId          String
+  rewardXlm      Decimal      @db.Decimal(20, 7)
+  /// Tier multiplier in effect when the reward was earned.
+  tierMultiplier Float        @default(1.0)
+  txHash         String?
+  eventIndex     Int?
+  tradedAt       DateTime
+  createdAt      DateTime     @default(now())
+
+  @@index([holdId])
 }
 
 /// Cached account funding source: the account that issued the

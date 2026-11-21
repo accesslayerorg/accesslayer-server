@@ -96,6 +96,7 @@ export async function httpResolveReferralHold(
             referralId: hold.referralId,
             reason: hold.reason,
             rewardXlm: hold.rewardXlm,
+            withheldTrades: hold.withheldTrades,
          },
       });
 

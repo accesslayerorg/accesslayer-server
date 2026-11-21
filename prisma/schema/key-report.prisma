@@ -1,0 +1,43 @@
+// Key reports (#1226): wallet-submitted abuse reports against a creator key,
+// triaged by moderators through the admin report queue.
+
+enum KeyReportReason {
+  scam
+  impersonation
+  harassment
+  other
+}
+
+/// Lifecycle: open -> reviewing | dismissed | actioned; reviewing -> dismissed | actioned.
+/// dismissed and actioned are terminal.
+enum KeyReportStatus {
+  open
+  reviewing
+  dismissed
+  actioned
+}
+
+model KeyReport {
+  id        String          @id @default(cuid())
+  keyId     String
+  /// Stellar wallet address of the reporting wallet.
+  reporter  String
+  reason    KeyReportReason
+  /// Optional free-text context, max 500 characters (enforced at the API).
+  details   String?         @db.VarChar(500)
+  status    KeyReportStatus @default(open)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  key CreatorProfile @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  // keyId-only lookups are served by the leading column of the composite below.
+  @@index([reporter])
+  /// Duplicate-open-report lookup (keyId + reporter + status = open).
+  @@index([keyId, reporter, status])
+  /// Moderator queue: filter by status, stable order by createdAt desc, id desc.
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  /// Unfiltered moderator queue ordering.
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("key_reports")
+}

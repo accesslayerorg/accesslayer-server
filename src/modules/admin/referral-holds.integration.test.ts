@@ -7,14 +7,16 @@ jest.mock('../../utils/prisma.utils', () => {
       updateMany: jest.fn(),
       findMany: jest.fn(),
    };
-   const referralEvent = { create: jest.fn() };
+   const referralHoldReward = { findMany: jest.fn(), groupBy: jest.fn() };
+   const referralEvent = { createMany: jest.fn() };
    return {
       prisma: {
          referralHold,
+         referralHoldReward,
          referralEvent,
          auditLog: { create: jest.fn().mockResolvedValue({}) },
          $transaction: jest.fn((cb: (tx: unknown) => unknown) =>
-            cb({ referralHold, referralEvent })
+            cb({ referralHold, referralHoldReward, referralEvent })
          ),
       },
    };
@@ -26,10 +28,15 @@ import app from '../../app';
 import { envConfig } from '../../config';
 import { prisma } from '../../utils/prisma.utils';
 
+// The first request boots the whole app, which is slow on a cold start.
+jest.setTimeout(60_000);
+
 const holdFindUnique = prisma.referralHold.findUnique as jest.Mock;
 const holdUpdateMany = prisma.referralHold.updateMany as jest.Mock;
 const holdFindMany = prisma.referralHold.findMany as jest.Mock;
-const eventCreate = prisma.referralEvent.create as jest.Mock;
+const rewardFindMany = prisma.referralHoldReward.findMany as jest.Mock;
+const rewardGroupBy = prisma.referralHoldReward.groupBy as jest.Mock;
+const eventCreateMany = prisma.referralEvent.createMany as jest.Mock;
 const auditCreate = prisma.auditLog.create as jest.Mock;
 
 const adminToken = jwt.sign(
@@ -51,11 +58,6 @@ function holdRow(overrides: Record<string, unknown> = {}) {
       details: { funder: 'GFUNDER' },
       referrerAddress: 'GREFERRER',
       refereeAddress: 'GREFEREE',
-      keyId: 'key-1',
-      rewardXlm: 0.5,
-      txHash: 'tx-1',
-      eventIndex: 0,
-      tradedAt: new Date('2026-11-05T12:00:00.000Z'),
       resolvedBy: null,
       resolvedAt: null,
       createdAt: new Date('2026-11-05T12:00:01.000Z'),
@@ -63,9 +65,25 @@ function holdRow(overrides: Record<string, unknown> = {}) {
    };
 }
 
+const withheld = {
+   id: 'rw-1',
+   holdId: 'hold-1',
+   keyId: 'key-1',
+   rewardXlm: 0.5,
+   tierMultiplier: 1,
+   txHash: 'tx-1',
+   eventIndex: 0,
+   tradedAt: new Date('2026-11-05T12:00:00.000Z'),
+};
+
 beforeEach(() => {
    jest.clearAllMocks();
    auditCreate.mockResolvedValue({});
+   rewardFindMany.mockResolvedValue([withheld]);
+   rewardGroupBy.mockResolvedValue([
+      { holdId: 'hold-1', _sum: { rewardXlm: 0.5 }, _count: { _all: 1 } },
+   ]);
+   eventCreateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('GET /api/v1/admin/referral-holds', () => {
@@ -95,6 +113,7 @@ describe('GET /api/v1/admin/referral-holds', () => {
          reason: 'FUNDING_CLUSTER',
          refereeAddress: 'GREFEREE',
          rewardXlm: 0.5,
+         withheldTrades: 1,
       });
       expect(holdFindMany).toHaveBeenCalledWith(
          expect.objectContaining({ where: { status: 'PENDING' }, take: 11 })
@@ -150,12 +169,11 @@ describe('PATCH /api/v1/admin/referral-holds/:id', () => {
          .set(auth(userToken))
          .send({ status: 'RELEASED' })
          .expect(403);
-      expect(eventCreate).not.toHaveBeenCalled();
+      expect(eventCreateMany).not.toHaveBeenCalled();
    });
 
    it('release pays the reward once and writes an audit entry', async () => {
       statefulHold();
-      eventCreate.mockResolvedValue({});
 
       const first = await request(app)
          .patch('/api/v1/admin/referral-holds/hold-1')
@@ -168,7 +186,7 @@ describe('PATCH /api/v1/admin/referral-holds/:id', () => {
          status: 'RELEASED',
          resolvedBy: 'admin-1',
       });
-      expect(eventCreate).toHaveBeenCalledTimes(1);
+      expect(eventCreateMany).toHaveBeenCalledTimes(1);
       expect(auditCreate).toHaveBeenCalledWith({
          data: expect.objectContaining({
             actorWallet: 'admin-1',
@@ -183,7 +201,7 @@ describe('PATCH /api/v1/admin/referral-holds/:id', () => {
          .set(auth(adminToken))
          .send({ status: 'RELEASED' })
          .expect(409);
-      expect(eventCreate).toHaveBeenCalledTimes(1);
+      expect(eventCreateMany).toHaveBeenCalledTimes(1);
    });
 
    it('reject never pays', async () => {
@@ -196,7 +214,7 @@ describe('PATCH /api/v1/admin/referral-holds/:id', () => {
          .expect(200);
 
       expect(res.body.data.status).toBe('REJECTED');
-      expect(eventCreate).not.toHaveBeenCalled();
+      expect(eventCreateMany).not.toHaveBeenCalled();
       expect(auditCreate).toHaveBeenCalledWith({
          data: expect.objectContaining({
             actionType: 'referral_hold_rejected',
@@ -223,7 +241,7 @@ describe('PATCH /api/v1/admin/referral-holds/:id', () => {
          .set(auth(adminToken))
          .send({ status: 'RELEASED' })
          .expect(409);
-      expect(eventCreate).not.toHaveBeenCalled();
+      expect(eventCreateMany).not.toHaveBeenCalled();
    });
 
    it.each([

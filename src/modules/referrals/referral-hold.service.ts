@@ -1,11 +1,15 @@
 // src/modules/referrals/referral-hold.service.ts
-// Admin review of referral rewards withheld by abuse detection (#1241).
+// Admin review of referrals flagged by abuse detection (#1241).
 //
-// A PENDING hold can be released (pays the withheld reward) or rejected (never
-// pays). Resolution is a conditional PENDING -> RELEASED/REJECTED update in the
-// same transaction as the payout, so two concurrent releases, or a release
-// replayed after a timeout, can only ever pay once. REJECTED holds created by
-// detection itself (self-referral, shared funding, linked wallets) are final.
+// While a hold is PENDING every reward the referral earns is withheld as a
+// `ReferralHoldReward` row (see `recordTradeReferralReward`). An admin can then:
+//   - release: pay every withheld reward, once; later trades pay normally
+//   - reject:  never pay; later trades are ignored
+//
+// Resolution is a conditional PENDING -> RELEASED/REJECTED update in the same
+// transaction as the payout, so two concurrent releases, or a release replayed
+// after a timeout, can only ever pay once. REJECTED holds created by detection
+// itself (self-referral, shared funding, linked wallets) are final.
 
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
@@ -50,9 +54,10 @@ export interface ReferralHoldView {
    details: unknown;
    referrerAddress: string;
    refereeAddress: string;
-   keyId: string;
+   /** Total XLM withheld across all trades held under this hold. */
    rewardXlm: number;
-   tradedAt: string;
+   /** Number of trades whose reward is held under this hold. */
+   withheldTrades: number;
    resolvedBy: string | null;
    resolvedAt: string | null;
    createdAt: string;
@@ -66,17 +71,42 @@ interface HoldRow {
    details: unknown;
    referrerAddress: string;
    refereeAddress: string;
-   keyId: string;
-   rewardXlm: unknown;
-   txHash: string | null;
-   eventIndex: number | null;
-   tradedAt: Date;
    resolvedBy: string | null;
    resolvedAt: Date | null;
    createdAt: Date;
 }
 
-function toView(row: HoldRow): ReferralHoldView {
+interface WithheldTotals {
+   rewardXlm: number;
+   trades: number;
+}
+
+type RewardReader = Pick<typeof prisma, 'referralHoldReward'>;
+
+/** Withheld reward totals per hold, in one grouped query. */
+async function withheldTotals(
+   db: RewardReader,
+   holdIds: string[]
+): Promise<Map<string, WithheldTotals>> {
+   const totals = new Map<string, WithheldTotals>();
+   if (holdIds.length === 0) return totals;
+
+   const grouped = await db.referralHoldReward.groupBy({
+      by: ['holdId'],
+      where: { holdId: { in: holdIds } },
+      _sum: { rewardXlm: true },
+      _count: { _all: true },
+   });
+   for (const row of grouped) {
+      totals.set(row.holdId, {
+         rewardXlm: roundXlm(Number(row._sum.rewardXlm ?? 0)),
+         trades: row._count._all,
+      });
+   }
+   return totals;
+}
+
+function toView(row: HoldRow, totals?: WithheldTotals): ReferralHoldView {
    return {
       id: row.id,
       referralId: row.referralId,
@@ -85,9 +115,8 @@ function toView(row: HoldRow): ReferralHoldView {
       details: row.details ?? null,
       referrerAddress: row.referrerAddress,
       refereeAddress: row.refereeAddress,
-      keyId: row.keyId,
-      rewardXlm: roundXlm(Number(row.rewardXlm)),
-      tradedAt: row.tradedAt.toISOString(),
+      rewardXlm: totals?.rewardXlm ?? 0,
+      withheldTrades: totals?.trades ?? 0,
       resolvedBy: row.resolvedBy,
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
@@ -149,13 +178,23 @@ export async function listReferralHolds(
       take: limit + 1,
    })) as HoldRow[];
 
-   return buildPaginatedResponse(rows.map(toView), limit, item =>
-      encodeCursor({ createdAt: item.createdAt, id: item.id })
+   const page = rows.slice(0, limit);
+   const totals = await withheldTotals(
+      prisma,
+      page.map(row => row.id)
+   );
+
+   // Build views for the whole fetch (including the look-ahead row) so
+   // buildPaginatedResponse can slice and cursor as usual.
+   return buildPaginatedResponse(
+      rows.map(row => toView(row, totals.get(row.id))),
+      limit,
+      item => encodeCursor({ createdAt: item.createdAt, id: item.id })
    );
 }
 
 /**
- * Releases or rejects a PENDING hold. Releasing pays the withheld reward
+ * Releases or rejects a PENDING hold. Releasing pays every withheld reward
  * exactly once, in the same transaction as the status change.
  *
  * @throws {ReferralHoldNotFoundError} when the hold does not exist
@@ -168,7 +207,7 @@ export async function resolveReferralHold(
 ): Promise<ReferralHoldView> {
    const resolvedAt = new Date();
 
-   const resolved = await prisma.$transaction(async tx => {
+   const { hold, totals } = await prisma.$transaction(async tx => {
       const existing = (await tx.referralHold.findUnique({
          where: { id },
       })) as HoldRow | null;
@@ -177,7 +216,9 @@ export async function resolveReferralHold(
       }
 
       // The status guard is the once-only gate: only one caller can move a
-      // hold out of PENDING, and only that caller pays.
+      // hold out of PENDING, and only that caller pays. It also takes the row
+      // lock that serialises against trades withholding a new reward, so the
+      // rewards read below include every reward committed before release.
       const claimed = await tx.referralHold.updateMany({
          where: { id, status: 'PENDING' },
          data: { status: resolution, resolvedBy: adminId, resolvedAt },
@@ -186,29 +227,42 @@ export async function resolveReferralHold(
          throw new ReferralHoldAlreadyResolvedError(id, existing.status);
       }
 
-      if (resolution === 'RELEASED' && Number(existing.rewardXlm) > 0) {
-         await tx.referralEvent.create({
-            data: {
-               walletAddress: existing.referrerAddress,
-               refereeAddress: existing.refereeAddress,
-               keyId: existing.keyId,
-               amount: existing.rewardXlm as number,
-               ...(existing.txHash ? { txHash: existing.txHash } : {}),
-               ...(existing.eventIndex !== null &&
-               existing.eventIndex !== undefined
-                  ? { eventIndex: existing.eventIndex }
-                  : {}),
-               createdAt: existing.tradedAt,
-            },
+      if (resolution === 'RELEASED') {
+         const rewards = await tx.referralHoldReward.findMany({
+            where: { holdId: id },
+            orderBy: [{ tradedAt: 'asc' }, { id: 'asc' }],
          });
+         if (rewards.length > 0) {
+            await tx.referralEvent.createMany({
+               data: rewards
+                  .filter(reward => Number(reward.rewardXlm) > 0)
+                  .map(reward => ({
+                     walletAddress: existing.referrerAddress,
+                     refereeAddress: existing.refereeAddress,
+                     keyId: reward.keyId,
+                     amount: reward.rewardXlm,
+                     tierMultiplier: reward.tierMultiplier,
+                     ...(reward.txHash ? { txHash: reward.txHash } : {}),
+                     ...(reward.eventIndex !== null &&
+                     reward.eventIndex !== undefined
+                        ? { eventIndex: reward.eventIndex }
+                        : {}),
+                     createdAt: reward.tradedAt,
+                  })),
+            });
+         }
       }
 
+      const totals = await withheldTotals(tx, [id]);
       return {
-         ...existing,
-         status: resolution,
-         resolvedBy: adminId,
-         resolvedAt,
-      } as HoldRow;
+         hold: {
+            ...existing,
+            status: resolution,
+            resolvedBy: adminId,
+            resolvedAt,
+         } as HoldRow,
+         totals: totals.get(id),
+      };
    });
 
    logger.info(
@@ -219,12 +273,13 @@ export async function resolveReferralHold(
                : 'referral_hold_rejected',
          holdId: id,
          adminId,
-         referrerAddress: resolved.referrerAddress,
-         refereeAddress: resolved.refereeAddress,
-         rewardXlm: Number(resolved.rewardXlm),
+         referrerAddress: hold.referrerAddress,
+         refereeAddress: hold.refereeAddress,
+         rewardXlm: totals?.rewardXlm ?? 0,
+         withheldTrades: totals?.trades ?? 0,
       },
       'Referral hold resolved'
    );
 
-   return toView(resolved);
+   return toView(hold, totals);
 }

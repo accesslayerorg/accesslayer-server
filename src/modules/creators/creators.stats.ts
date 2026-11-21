@@ -41,7 +41,7 @@ export interface PublicCreatorStats {
  * Uses `as const satisfies` to retain literal types for type-safe indexing
  * while enforcing that all public fields map to valid CreatorMetrics keys.
  */
-const CREATOR_STATS_FIELD_MAP = {
+export const CREATOR_STATS_FIELD_MAP = {
    holderCount: 'holderCount',
    totalSupply: 'totalSupply',
    totalVolume: 'totalVolume',
