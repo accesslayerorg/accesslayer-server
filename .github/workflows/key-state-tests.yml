@@ -1,0 +1,52 @@
+name: key-state tests
+
+on:
+   pull_request:
+   push:
+      branches: [main]
+
+permissions:
+   contents: read
+
+jobs:
+   key-state:
+      runs-on: ubuntu-24.04
+      timeout-minutes: 20
+      services:
+         postgres:
+            image: postgres:16@sha256:72d22ce26d04fe56a5384e9f6b026152d1cf05db602a7a3524a3ed337d5f5752
+            env:
+               POSTGRES_USER: accesslayer
+               POSTGRES_DB: key_state_test
+               POSTGRES_HOST_AUTH_METHOD: trust
+            ports:
+               - 5432:5432
+            options: >-
+               --health-cmd "pg_isready -U accesslayer -d key_state_test"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+      env:
+         DATABASE_URL: postgresql://accesslayer@localhost:5432/key_state_test
+         PUPPETEER_SKIP_DOWNLOAD: '1'
+         RUN_SCHEDULED_TRANSFER_INTEGRATION: '1'
+         RUN_AIRDROP_INTEGRATION: '1'
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+         - run: pnpm install --frozen-lockfile
+         - run: pnpm exec prisma generate
+         - name: Create disposable test schema
+           run: pnpm exec prisma db push --skip-generate
+         - name: Feature unit and database HTTP regressions
+           run: >-
+              pnpm test --config jest.key-state.config.js --runInBand
+              --globals='{"ts-jest":{"isolatedModules":true}}'

@@ -63,10 +63,12 @@ export async function syncKeyBalances(
       getOnChainBalance: (ownerAddress, creatorId) =>
          reader.getBalance(ownerAddress, creatorId),
       updateBalance: async (id, balance) => {
-         await prisma.keyOwnership.update({
+         const corrected = await prisma.keyOwnership.update({
             where: { id },
             data: { balance },
          });
+         const { onHolderBalanceChanged } = await import('../modules/keys/key-holder-leaderboard.service');
+         await onHolderBalanceChanged(corrected.creatorId);
       },
       logCorrection: fields => {
          logger.info(fields, 'Corrected stale key balance from on-chain state');

@@ -247,6 +247,12 @@ export async function onHolderBalanceChanged(
             // best-effort only
          }
       }
+      try {
+         const { onConcentrationBalanceChanged } = await import('../concentration/concentration.service');
+         await onConcentrationBalanceChanged(creatorId);
+      } catch (error) {
+         logger.warn({ error, creatorId }, 'Balance statistic cache invalidation failed');
+      }
    }
 }
 
