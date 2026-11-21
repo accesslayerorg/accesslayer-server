@@ -136,6 +136,7 @@ These values have defaults and can be overridden:
 | `STELLAR_NETWORK`                             | enum    | `testnet`                           | Stellar network selection             |
 | `STELLAR_HORIZON_URL`                         | URL     | testnet URL                         | Horizon endpoint                      |
 | `STELLAR_SOROBAN_RPC_URL`                     | URL     | testnet URL                         | Soroban RPC endpoint                  |
+| `ORDER_KEEPER_PROFIT_MARGIN_BPS`              | number  | `1000`                              | Minimum keeper reward premium over estimated fees in basis points (#1279) |
 | `OWNERSHIP_SNAPSHOT_TABLE_NAME`               | string  | `creator_ownership_snapshots`       | Snapshot table name                   |
 | `OWNERSHIP_SNAPSHOT_CLEANUP_DRY_RUN`          | boolean | `true`                              | Log deletes without executing         |
 | `OWNERSHIP_SNAPSHOT_RETENTION_DAYS`           | number  | `30`                                | Retention window in days              |
@@ -165,6 +166,7 @@ These values have defaults and can be overridden:
 | `STELLAR_NETWORK`                             | enum    | `testnet`                     | Stellar network selection     |
 | `STELLAR_HORIZON_URL`                         | URL     | testnet URL                   | Horizon endpoint              |
 | `STELLAR_SOROBAN_RPC_URL`                     | URL     | testnet URL                   | Soroban RPC endpoint          |
+| `ORDER_KEEPER_PROFIT_MARGIN_BPS`              | number  | 1000                          | Minimum keeper reward premium over estimated fees in basis points (#1279) |
 | `SOROBAN_SUBMIT_MAX_ATTEMPTS`                 | number  | 3                             | Max submit attempts for transient failures (#899) |
 | `SOROBAN_SUBMIT_BASE_DELAY_MS`                | number  | 1000                          | Submit retry backoff base delay (#899)            |
 | `SOROBAN_SUBMIT_MAX_DELAY_MS`                 | number  | 15000                         | Submit retry backoff cap (#899)                   |

@@ -213,6 +213,14 @@ export const envSchema = z
          )
          .default('https://soroban-testnet.stellar.org'),
 
+      // Limit-order keeper: required profit over simulated network fee.
+      ORDER_KEEPER_PROFIT_MARGIN_BPS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .safe()
+         .default(1000),
+
       // Soroban contract interaction service (#899): submission retries with
       // exponential backoff, confirmation polling, and resolution events.
       SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
