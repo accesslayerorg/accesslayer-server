@@ -1,0 +1,38 @@
+// prisma/schema/price-velocity-breaker.prisma
+// Off-chain price velocity circuit breaker (#1195).
+//
+// After each indexed trade the server compares the key's price with its price
+// WINDOW_SIZE trades earlier. When the move exceeds the configured threshold
+// the key's trading is paused and one row is written here. The row stays
+// `tripped` until an admin resets it with a signed request, which also lifts
+// the pause.
+
+/// One price velocity breaker trip for a key.
+model PriceVelocityBreakerTrip {
+  id               String    @id @default(cuid())
+  /// Creator profile id of the paused key.
+  keyId            String
+  /// Signed percentage move that tripped the breaker (e.g. -62.5).
+  velocityPct      Decimal   @db.Decimal(20, 6)
+  /// Threshold in force at trip time, in percent.
+  thresholdPct     Decimal   @db.Decimal(20, 6)
+  /// Number of trades the velocity was measured across.
+  windowSize       Int
+  /// Price of the trade that tripped the breaker.
+  currentPrice     String
+  /// Price `windowSize` trades earlier.
+  referencePrice   String
+  /// Trade that tripped the breaker.
+  tradeTxHash      String
+  tradeLedger      Int
+  /// tripped | reset
+  status           String    @default("tripped")
+  triggeredAt      DateTime  @default(now())
+  /// Admin wallet whose signature reset the breaker.
+  resetByWallet    String?
+  resetAt          DateTime?
+
+  @@index([keyId, status])
+  @@index([triggeredAt])
+  @@map("price_velocity_breaker_trips")
+}

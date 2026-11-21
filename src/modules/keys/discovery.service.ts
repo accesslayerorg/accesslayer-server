@@ -12,7 +12,7 @@ import { prisma } from '../../utils/prisma.utils';
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
-const DISCOVERY_TTL_MS = 5 * 60 * 1000; // 5-minute TTL per acceptance criteria
+export const DISCOVERY_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 50;
 
 type CacheEntry<T> = { body: T; expiresAt: number };
@@ -26,6 +26,26 @@ export function invalidateDiscoveryCache(): void {
    _cache.clear();
 }
 
+export type DiscoveryCacheQuery = 'trending' | 'new' | 'graduating';
+
+export function buildDiscoveryCacheKey(
+   query: DiscoveryCacheQuery,
+   limit: number
+): string {
+   return `discovery:${query}:${limit}:g${generation}`;
+}
+
+export function getDiscoveryCacheRemainingTtlMs(key: string): number {
+   const entry = _cache.get(key);
+   if (!entry) return 0;
+   const remainingMs = entry.expiresAt - Date.now();
+   if (remainingMs <= 0) {
+      _cache.delete(key);
+      return 0;
+   }
+   return remainingMs;
+}
+
 function cacheGet<T>(key: string): T | undefined {
    const entry = _cache.get(key) as CacheEntry<T> | undefined;
    if (!entry) return undefined;
@@ -36,7 +56,11 @@ function cacheGet<T>(key: string): T | undefined {
    return entry.body;
 }
 
-function cacheSet<T>(key: string, body: T, ttlMs: number = DISCOVERY_TTL_MS): void {
+function cacheSet<T>(
+   key: string,
+   body: T,
+   ttlMs: number = DISCOVERY_CACHE_TTL_MS
+): void {
    if (_cache.size >= MAX_CACHE_ENTRIES) {
       const sorted = [..._cache.entries()].sort(
          (a, b) => a[1].expiresAt - b[1].expiresAt
@@ -182,7 +206,7 @@ export interface TrendingResponse {
 }
 
 export async function getTrending(limit: number): Promise<TrendingResponse> {
-   const cacheKey = `discovery:trending:${limit}:g${generation}`;
+   const cacheKey = buildDiscoveryCacheKey('trending', limit);
    const hit = cacheGet<TrendingResponse>(cacheKey);
    if (hit) return hit;
 
@@ -199,7 +223,9 @@ export async function getTrending(limit: number): Promise<TrendingResponse> {
       .flatMap(([id, vol]) => {
          const p = profiles.get(id);
          if (!p) return [];
-         return [{ ...baseKey(p, vol), velocity_badge: velocityBadge(vol, topVolume) }];
+         return [
+            { ...baseKey(p, vol), velocity_badge: velocityBadge(vol, topVolume) },
+         ];
       });
 
    const body: TrendingResponse = { items, cached_at: Date.now() };
@@ -217,7 +243,7 @@ export interface NewResponse {
 const NEW_KEY_WINDOW_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export async function getNewKeys(limit: number): Promise<NewResponse> {
-   const cacheKey = `discovery:new:${limit}:g${generation}`;
+   const cacheKey = buildDiscoveryCacheKey('new', limit);
    const hit = cacheGet<NewResponse>(cacheKey);
    if (hit) return hit;
 
@@ -252,7 +278,7 @@ export interface GraduatingResponse {
 
 /** Keys whose circulating supply is within 10 % of their final supply milestone. */
 export async function getGraduating(limit: number): Promise<GraduatingResponse> {
-   const cacheKey = `discovery:graduating:${limit}:g${generation}`;
+   const cacheKey = buildDiscoveryCacheKey('graduating', limit);
    const hit = cacheGet<GraduatingResponse>(cacheKey);
    if (hit) return hit;
 
@@ -301,7 +327,6 @@ export async function getGraduating(limit: number): Promise<GraduatingResponse> 
    cacheSet(cacheKey, body);
    return body;
 }
-
 
 // ─── GET /discovery/spotlight ─────────────────────────────────────────────────
 

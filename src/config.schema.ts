@@ -251,6 +251,20 @@ export const envSchema = z
          .positive()
          .default(300),
 
+      // Key price velocity circuit breaker (#1195): after each indexed trade
+      // the key is paused when its price moved more than this percentage, in
+      // either direction, against the price WINDOW_SIZE trades earlier.
+      KEY_PRICE_VELOCITY_THRESHOLD_PCT: z.coerce
+         .number()
+         .positive()
+         .default(50),
+      KEY_PRICE_VELOCITY_WINDOW_SIZE: z.coerce
+         .number()
+         .int()
+         .min(1)
+         .max(500)
+         .default(10),
+
       // Key content gate config cache (#1150)
       GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
          .number()
@@ -431,6 +445,9 @@ export const envSchema = z
       QUERY_COST_MAP_JSON: optionalNonEmptyString,
       // Comma-separated wallet addresses that bypass the governor entirely.
       QUERY_COST_ADMIN_WALLETS: optionalNonEmptyString,
+      // Comma-separated wallet addresses allowed to triage key reports via
+      // the /admin/reports moderator queue (#1226).
+      MODERATOR_WALLETS: optionalNonEmptyString,
       HORIZON_WEBHOOK_SECRET: optionalNonEmptyString,
       WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
          .number()
