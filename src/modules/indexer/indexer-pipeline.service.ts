@@ -688,6 +688,31 @@ export async function processIndexerEvents(
       await processStakingEpochEvents(stakingEpochEvents);
    }
 
+   const campaignEvents = events.filter(event =>
+      ['CampaignCreated', 'CAMPAIGN_CREATED', 'campaign_created', 'WalletQualified',
+         'WALLET_QUALIFIED', 'wallet_qualified', 'RewardClaimed', 'REWARD_CLAIMED',
+         'reward_claimed', 'camp_new', 'qual', 'claim'].includes(event.eventType) &&
+         (event.campaignId !== undefined || event.campaign_id !== undefined));
+   if (campaignEvents.length) {
+      const { processCampaignEvents } = await import('./campaign-indexer.service');
+      await processCampaignEvents(campaignEvents);
+   }
+   const delegationEvents = events.filter(event =>
+      ['DELEGATION_SET', 'VotingDelegated', 'VOTING_DELEGATED', 'voting_delegated',
+         'DELEGATION_REVOKED', 'DelegationRevoked', 'delegation_revoked'].includes(event.eventType));
+   if (delegationEvents.length) {
+      const { processVotingDelegationEvents } =
+         await import('../governance/governance-delegation-indexer.service');
+      await processVotingDelegationEvents(delegationEvents);
+   }
+   const polEvents = events.filter(event =>
+      ['pol_funded', 'POL_FUNDED', 'PolFunded', 'backstop_applied', 'BACKSTOP_APPLIED',
+         'BackstopApplied', 'backstop_repaid', 'BACKSTOP_REPAID', 'BackstopRepaid'].includes(event.eventType));
+   if (polEvents.length) {
+      const { processPolEvents } = await import('../pol/pol-indexer.service');
+      await processPolEvents(polEvents);
+   }
+
    if (options.advanceCursor !== false)
       await advanceIndexerCursorForBatch(events);
 }

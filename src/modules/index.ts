@@ -1,3 +1,5 @@
+import campaignsRouter from './campaigns/campaigns.routes';
+import { protocolPolRouter, keyBackstopsRouter } from './pol/pol.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
@@ -169,5 +171,9 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+
+router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);
+router.use('/protocol', routeBodySizeLimit('default'), protocolPolRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
 
 export default router;
