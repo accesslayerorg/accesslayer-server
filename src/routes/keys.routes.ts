@@ -65,14 +65,14 @@ export const relatedKeysHandler = async (
    }
 };
 
-export const keysRouter = Router();
-keysRouter.get('/:keyId/related', relatedKeysHandler);
+export const relatedKeysRouter = Router();
+relatedKeysRouter.get('/:keyId/related', relatedKeysHandler);
 
-export const v1KeysRouter = Router();
-v1KeysRouter.get('/keys/:keyId/related', relatedKeysHandler);
+export const v1RelatedKeysRouter = Router();
+v1RelatedKeysRouter.get('/keys/:keyId/related', relatedKeysHandler);
 
 const router = Router();
-router.use(keysRouter);
-router.use(v1KeysRouter);
+router.use(relatedKeysRouter);
+router.use(v1RelatedKeysRouter);
 
 export default router;
