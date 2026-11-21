@@ -1,3 +1,4 @@
+import { getRoyaltyEnforcement } from '../marketplaces/marketplace.service';
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
@@ -1001,7 +1002,8 @@ router.get('/:keyId', async (req, res, next) => {
          return sendNotFound(res, 'Key');
       }
       const profile = await getCreatorProfile(keyId);
-      sendSuccess(res, profile, 200, 'Key retrieved successfully');
+      const enforcement = await getRoyaltyEnforcement(keyId);
+      sendSuccess(res, { ...profile, royaltyEnforced: enforcement.royaltyEnforced }, 200, 'Key retrieved successfully');
    } catch (error) {
       next(error);
    }
