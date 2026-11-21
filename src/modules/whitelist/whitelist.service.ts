@@ -6,6 +6,7 @@ import {
    TransactionBuilder,
    xdr,
 } from '@stellar/stellar-base';
+import { createHash } from 'crypto';
 import { prisma } from '../../utils/prisma.utils';
 import {
    cacheGetJson,
@@ -14,6 +15,8 @@ import {
 } from '../../utils/redis.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
+import { Keypair } from '@stellar/stellar-base';
+import { parseMultisigAdminWallets } from '../keys/key-deprecation.service';
 
 /**
  * Whitelist status response for a creator key.
@@ -46,6 +49,90 @@ export interface BulkWhitelistStatusResult {
  */
 export const WHITELIST_CACHE_TTL_SECONDS = 30;
 
+export class WhitelistRootSignatureError extends Error {
+   constructor(message: string) {
+      super(message);
+      this.name = 'WhitelistRootSignatureError';
+   }
+}
+
+export function buildWhitelistRootCanonicalMessage(
+   keyId: string,
+   whitelistRoot: string
+): Buffer {
+   return createHash('sha256')
+      .update(`whitelist:${keyId}:${whitelistRoot}`, 'utf8')
+      .digest();
+}
+
+export function verifyWhitelistRootSignature(params: {
+   keyId: string;
+   whitelistRoot: string;
+   adminWallet: string;
+   adminSignature: string;
+}): void {
+   const configuredAdmins = parseMultisigAdminWallets();
+   if (
+      configuredAdmins.length > 0 &&
+      !configuredAdmins.some(
+         wallet => wallet.toLowerCase() === params.adminWallet.toLowerCase()
+      )
+   ) {
+      throw new WhitelistRootSignatureError(
+         `Signer ${params.adminWallet} is not a configured admin`
+      );
+   }
+
+   try {
+      const signature = Buffer.from(params.adminSignature, 'base64');
+      const valid =
+         signature.length === 64 &&
+         Keypair.fromPublicKey(params.adminWallet).verify(
+            buildWhitelistRootCanonicalMessage(
+               params.keyId,
+               params.whitelistRoot
+            ),
+            signature
+         );
+      if (!valid) throw new Error('invalid signature');
+   } catch {
+      throw new WhitelistRootSignatureError(
+         'Invalid whitelist root admin signature'
+      );
+   }
+}
+
+export async function updateWhitelistRoot(input: {
+   keyId: string;
+   whitelistRoot: string;
+   adminWallet: string;
+   adminSignature: string;
+}) {
+   const creator = await prisma.creatorProfile.findFirst({
+      where: { OR: [{ id: input.keyId }, { handle: input.keyId }] },
+      select: { id: true },
+   });
+   if (!creator) return null;
+
+   verifyWhitelistRootSignature({
+      keyId: creator.id,
+      whitelistRoot: input.whitelistRoot,
+      adminWallet: input.adminWallet,
+      adminSignature: input.adminSignature,
+   });
+
+   const updated = await prisma.creatorProfile.update({
+      where: { id: creator.id },
+      data: {
+         whitelistRoot: input.whitelistRoot.toLowerCase(),
+         whitelistEnabled: true,
+      },
+      select: { id: true, whitelistEnabled: true, whitelistRoot: true },
+   });
+   await invalidateWhitelistCache(creator.id);
+   return updated;
+}
+
 /**
  * Builds a cache key for whitelist status lookup.
  * Format: `whitelist:{creatorId}:{walletAddress}`
@@ -60,7 +147,10 @@ export function buildWhitelistCacheKey(
 export type OnChainWhitelistFetcher = (
    contractIdOrKeyId: string,
    wallet: string
-) => Promise<{ is_whitelisted: boolean; whitelist_mode_enabled: boolean } | null>;
+) => Promise<{
+   is_whitelisted: boolean;
+   whitelist_mode_enabled: boolean;
+} | null>;
 
 let customFetcher: OnChainWhitelistFetcher | null = null;
 
@@ -196,7 +286,10 @@ export function decodeWhitelistStatusScVal(
 export async function fetchOnChainWhitelistStatus(
    contractId: string,
    wallet: string
-): Promise<{ is_whitelisted: boolean; whitelist_mode_enabled: boolean } | null> {
+): Promise<{
+   is_whitelisted: boolean;
+   whitelist_mode_enabled: boolean;
+} | null> {
    if (customFetcher) {
       const custom = await customFetcher(contractId, wallet);
       if (custom !== null) return custom;
@@ -267,13 +360,19 @@ export async function fetchOnChainWhitelistStatus(
    }
 }
 
-async function resolveContractIdForKey(creatorId: string): Promise<string | null> {
+async function resolveContractIdForKey(
+   creatorId: string
+): Promise<string | null> {
    if (creatorId.startsWith('C') && creatorId.length >= 50) {
       return creatorId;
    }
    const regKey = await prisma.registeredKey.findFirst({
       where: {
-         OR: [{ id: creatorId }, { keyAddress: creatorId }, { handle: creatorId }],
+         OR: [
+            { id: creatorId },
+            { keyAddress: creatorId },
+            { handle: creatorId },
+         ],
       },
       select: { keyAddress: true },
    });
@@ -301,17 +400,18 @@ export async function getWhitelistStatus(
          return {
             is_whitelisted: cached.is_whitelisted ?? cached.isApproved ?? false,
             whitelist_mode_enabled:
-               cached.whitelist_mode_enabled ?? cached.whitelistEnabled ?? false,
+               cached.whitelist_mode_enabled ??
+               cached.whitelistEnabled ??
+               false,
             isApproved: cached.is_whitelisted ?? cached.isApproved ?? false,
             whitelistEnabled:
-               cached.whitelist_mode_enabled ?? cached.whitelistEnabled ?? false,
+               cached.whitelist_mode_enabled ??
+               cached.whitelistEnabled ??
+               false,
          };
       }
    } catch (error) {
-      logger.warn(
-         { error, cacheKey },
-         'Error reading from whitelist cache'
-      );
+      logger.warn({ error, cacheKey }, 'Error reading from whitelist cache');
    }
 
    // Compute fresh whitelist status
@@ -321,10 +421,7 @@ export async function getWhitelistStatus(
    try {
       await cacheSetJson(cacheKey, status, WHITELIST_CACHE_TTL_SECONDS);
    } catch (error) {
-      logger.warn(
-         { error, cacheKey },
-         'Error writing to whitelist cache'
-      );
+      logger.warn({ error, cacheKey }, 'Error writing to whitelist cache');
    }
 
    return status;
@@ -446,7 +543,9 @@ export async function invalidateWhitelistCache(
 ): Promise<void> {
    try {
       if (walletAddress) {
-         await cacheInvalidate(buildWhitelistCacheKey(creatorId, walletAddress));
+         await cacheInvalidate(
+            buildWhitelistCacheKey(creatorId, walletAddress)
+         );
       } else {
          await cacheInvalidate(`whitelist:${creatorId}:*`);
       }
@@ -559,16 +658,17 @@ export async function creatorExists(creatorId: string): Promise<boolean> {
 
       const regKey = await prisma.registeredKey.findFirst({
          where: {
-            OR: [{ id: creatorId }, { keyAddress: creatorId }, { handle: creatorId }],
+            OR: [
+               { id: creatorId },
+               { keyAddress: creatorId },
+               { handle: creatorId },
+            ],
          },
          select: { id: true },
       });
       return !!regKey;
    } catch (error) {
-      logger.error(
-         { error, creatorId },
-         'Error checking creator existence'
-      );
+      logger.error({ error, creatorId }, 'Error checking creator existence');
       return false;
    }
 }

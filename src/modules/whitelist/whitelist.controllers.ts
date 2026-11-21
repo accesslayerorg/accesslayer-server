@@ -3,6 +3,7 @@ import {
    sendSuccess,
    sendValidationError,
    sendNotFound,
+   sendForbidden,
    zodIssuesToDetails,
 } from '../../utils/api-response.utils';
 import {
@@ -11,6 +12,7 @@ import {
    AddWhitelistBodySchema,
    RemoveWhitelistParamsSchema,
    CheckWhitelistBodySchema,
+   UpdateWhitelistRootBodySchema,
 } from './whitelist.schemas';
 import {
    getWhitelistStatus,
@@ -20,6 +22,8 @@ import {
    removeWalletFromWhitelist,
    listWhitelist,
    getBulkWhitelistStatus,
+   updateWhitelistRoot,
+   WhitelistRootSignatureError,
 } from './whitelist.service';
 
 /**
@@ -148,7 +152,10 @@ export const httpAddToWhitelist: AsyncController = async (req, res, next) => {
          return sendNotFound(res, 'Key');
       }
 
-      const result = await addWalletsToWhitelist(creatorId, parsed.data.wallets);
+      const result = await addWalletsToWhitelist(
+         creatorId,
+         parsed.data.wallets
+      );
       return sendSuccess(res, result, result.added.length > 0 ? 201 : 200);
    } catch (error) {
       next(error);
@@ -211,6 +218,42 @@ export const httpListWhitelist: AsyncController = async (req, res, next) => {
       const wallets = await listWhitelist(creatorId);
       return sendSuccess(res, { wallets, total: wallets.length });
    } catch (error) {
+      next(error);
+   }
+};
+
+/** PUT /keys/:keyId/whitelist — update the Merkle root used for buys. */
+export const httpUpdateWhitelistRoot: AsyncController = async (
+   req,
+   res,
+   next
+) => {
+   try {
+      const parsed = UpdateWhitelistRootBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+         return sendValidationError(
+            res,
+            'Invalid request body',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+      }
+
+      const updated = await updateWhitelistRoot({
+         keyId: (req.params.key_id ?? req.params.keyId) as string,
+         whitelistRoot: parsed.data.whitelist_root,
+         adminWallet: parsed.data.admin_wallet,
+         adminSignature: parsed.data.admin_signature,
+      });
+      if (!updated) return sendNotFound(res, 'Key');
+      return sendSuccess(res, {
+         keyId: updated.id,
+         whitelist_enabled: updated.whitelistEnabled,
+         whitelist_root: updated.whitelistRoot,
+      });
+   } catch (error) {
+      if (error instanceof WhitelistRootSignatureError) {
+         return sendForbidden(res, error.message);
+      }
       next(error);
    }
 };

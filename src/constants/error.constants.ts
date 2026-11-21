@@ -18,6 +18,7 @@ export const ErrorCode = {
    PRISMA_ERROR: 'DATABASE_ERROR',
    JWT_ERROR: 'TOKEN_ERROR',
    INSUFFICIENT_BALANCE: 'insufficient_balance',
+   WHITELIST_REQUIRED: 'whitelist_required',
    NOT_A_CREATOR: 'not_a_creator',
    TOKEN_EXPIRY_TAMPERED: 'token_expiry_tampered',
    MISSING_IAT: 'missing_iat',

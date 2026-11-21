@@ -3,6 +3,32 @@
 
 import { createHash } from 'crypto';
 
+export interface WhitelistProofSibling {
+   hash: string;
+   side: 'left' | 'right';
+}
+
+/** Hashes the canonical Stellar address bytes used as a whitelist Merkle leaf. */
+export function computeWhitelistLeafHash(walletAddress: string): string {
+   return createHash('sha256').update(walletAddress, 'utf8').digest('hex');
+}
+
+/** Verifies a buyer address against a stored whitelist Merkle root. */
+export function verifyWhitelistProof(
+   walletAddress: string,
+   siblings: WhitelistProofSibling[],
+   expectedRoot: string
+): boolean {
+   if (!/^[0-9a-f]{64}$/i.test(expectedRoot)) return false;
+   if (siblings.some(sibling => !/^[0-9a-f]{64}$/i.test(sibling.hash))) {
+      return false;
+   }
+   return verifyInclusionProof(
+      { leafHash: computeWhitelistLeafHash(walletAddress), siblings },
+      expectedRoot
+   );
+}
+
 export interface EventLeafInput {
    ledger: number | string | bigint;
    txHash: string;
@@ -50,7 +76,9 @@ export function canonicalizeJson(value: unknown): string {
  * Encodes a value into a big-endian length-prefixed buffer:
  * [4-byte big-endian unsigned length] || [payload bytes]
  */
-export function encodeLengthPrefixed(value: Buffer | string | number | bigint): Buffer {
+export function encodeLengthPrefixed(
+   value: Buffer | string | number | bigint
+): Buffer {
    let payload: Buffer;
    if (Buffer.isBuffer(value)) {
       payload = value;
@@ -105,7 +133,9 @@ export function computeEventLeafHash(event: EventLeafInput): string {
 export function hashPair(leftChildHex: string, rightChildHex: string): string {
    const left = Buffer.from(leftChildHex, 'hex');
    const right = Buffer.from(rightChildHex, 'hex');
-   return createHash('sha256').update(Buffer.concat([left, right])).digest('hex');
+   return createHash('sha256')
+      .update(Buffer.concat([left, right]))
+      .digest('hex');
 }
 
 /**
