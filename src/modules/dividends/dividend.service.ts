@@ -30,6 +30,9 @@ export interface DividendDistributionRecord {
    holderCount: number;
    perKeyAmount: number | Decimal | string;
    distributedAt: Date | string;
+   claimWindowStart: Date | null;
+   claimWindowEnd: Date | null;
+   chainSnapshotId: string | null;
 }
 
 /**
@@ -163,6 +166,9 @@ export async function getDividendDistributions(
          holderCount: dist.holderCount,
          perKeyAmount: dist.perKeyAmountXlm,
          distributedAt: dist.distributionDate,
+         claimWindowStart: dist.claimWindowStart,
+         claimWindowEnd: dist.claimWindowEnd,
+         chainSnapshotId: dist.chainSnapshotId,
       }));
 
       const responseResult: GetDividendDistributionsResult = {
@@ -183,6 +189,50 @@ export async function getDividendDistributions(
       logger.error({ error, input }, 'Failed to get dividend distributions');
       throw error;
    }
+}
+
+export interface KeyWalletDividendSnapshot {
+   snapshotId: string;
+   totalDistributed: number;
+   claimableAmount: number;
+   claimedAmount: number;
+   claimWindowStart: Date | null;
+   claimWindowEnd: Date | null;
+   distributedAt: Date;
+}
+
+/**
+ * Returns each snapshot for a key with the wallet's pending and claimed share.
+ */
+export async function getKeyWalletDividends(input: {
+   creatorId: string;
+   wallet: string;
+}): Promise<KeyWalletDividendSnapshot[]> {
+   const snapshots = await prisma.dividendDistribution.findMany({
+      where: { creatorId: input.creatorId },
+      orderBy: [{ distributionDate: 'desc' }, { id: 'desc' }],
+      include: {
+         claims: {
+            where: { recipientAddress: input.wallet },
+            select: { amountXlm: true, claimedAt: true },
+         },
+      },
+   });
+
+   return snapshots.map(snapshot => {
+      const claim = snapshot.claims[0];
+      const amount = claim ? Number(claim.amountXlm) : 0;
+      const isClaimed = Boolean(claim?.claimedAt);
+      return {
+         snapshotId: snapshot.chainSnapshotId || snapshot.id,
+         totalDistributed: Number(snapshot.totalAmountXlm),
+         claimableAmount: isClaimed ? 0 : amount,
+         claimedAmount: isClaimed ? amount : 0,
+         claimWindowStart: snapshot.claimWindowStart,
+         claimWindowEnd: snapshot.claimWindowEnd,
+         distributedAt: snapshot.distributionDate,
+      };
+   });
 }
 
 export interface GetDividendClaimsInput {
@@ -659,4 +709,3 @@ export async function buildClaimTransaction(
       pendingAmount,
    };
 }
-

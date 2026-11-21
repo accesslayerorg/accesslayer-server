@@ -3,6 +3,9 @@ import { Router } from 'express';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { INVOICE_COMPARISON_CACHE_TTL_SECONDS } from './invoice.schemas';
 import { httpGetInvoiceComparison } from './invoice.controllers';
+import { invoiceProtocolRouter } from './invoice-protocol.routes';
+import { invoiceMarketRouter } from './invoice-market.routes';
+import { invoiceEarlyIncentiveRouter } from './invoice-early-incentive.routes';
 
 const invoiceRouter = Router();
 
@@ -20,5 +23,9 @@ invoiceRouter.get(
    }),
    httpGetInvoiceComparison
 );
+
+invoiceRouter.use(invoiceProtocolRouter);
+invoiceRouter.use(invoiceMarketRouter);
+invoiceRouter.use(invoiceEarlyIncentiveRouter);
 
 export default invoiceRouter;

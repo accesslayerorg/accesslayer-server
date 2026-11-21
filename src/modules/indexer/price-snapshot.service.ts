@@ -4,6 +4,7 @@
 // Called on every BUY or SELL trade event.
 
 import { prisma } from '../../utils/prisma.utils';
+import { evaluatePriceAlertsForMovement } from '../alerts/alert.service';
 import { logger } from '../../utils/logger.utils';
 
 export type PriceSnapshotDirection = 'BUY' | 'SELL';
@@ -108,11 +109,6 @@ export async function upsertPriceSnapshot(
          return;
       }
 
-      // Skip write when price is unchanged.
-      if (existing.currentPrice.toString() === price.toString()) {
-         return;
-      }
-
       // Promote currentPrice → price24hAgo when the snapshot is older than 24 h.
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const shouldRotate24h =
@@ -139,6 +135,21 @@ export async function upsertPriceSnapshot(
             },
          }),
       ]);
+      try {
+         const { evaluatePriceAlertsForMovement } = await import('../alerts/alert.service');
+         await evaluatePriceAlertsForMovement({
+            creatorId,
+            previousPrice: existing.currentPrice.toString(),
+            currentPrice: price.toString(),
+            ledger_sequence: ledger,
+         });
+      } catch (error) {
+         // Price history is the source of truth; alert delivery is best-effort.
+         logger.warn(
+            { creator_id: creatorId, error: (error as Error).message },
+            'price-snapshot: alert evaluation failed'
+         );
+      }
       logger.debug(
          {
             creator_id: creatorId,
@@ -157,7 +168,22 @@ export async function upsertPriceSnapshot(
       } catch {
          // Non-critical cache invalidation failure
       }
-   } catch (err) {
+      // Issue #1012: evaluate price alerts after the price write commits.
+      // Failure here must not roll back a trade (docs/indexer/PRICE_ALERTS.md).
+      try {
+         await evaluatePriceAlertsForMovement({
+            creatorId,
+            previousPrice: existing.currentPrice.toString(),
+            currentPrice: price.toString(),
+            ledger_sequence: ledger,
+         });
+      } catch (alertErr) {
+         logger.error(
+            { err: alertErr, creatorId },
+            'price-snapshot: alert evaluation failed'
+         );
+      }
+      } catch (err) {
       logger.error({ err, creatorId }, 'price-snapshot: failed to upsert');
       throw err;
    }

@@ -2,6 +2,7 @@ import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { OwnershipQueryType } from './ownership.schemas';
 import { recordHoldingSnapshot } from '../portfolio/holding-snapshot.service';
+import { onHolderBalanceChanged } from '../keys/key-holder-leaderboard.service';
 
 type KeyOwnership = NonNullable<
    Awaited<ReturnType<typeof prisma.keyOwnership.findFirst>>
@@ -79,6 +80,9 @@ export async function updateOwnership(
       recordedAt: ctx.occurredAt ?? new Date(),
    });
 
+   // Recompute the holder leaderboard after the balance change (#1013).
+   await onHolderBalanceChanged(creatorId);
+
    return result;
 }
 
@@ -144,6 +148,9 @@ export async function recordKeyPurchase(
         balance: Number(updated.balance),
         recordedAt: boughtAt,
     });
+
+    // Recompute the holder leaderboard after the balance change (#1013).
+    await onHolderBalanceChanged(creatorId);
 
     return updated;
 }
@@ -234,6 +241,9 @@ export async function recordKeySale(
         balance: Number(updated.balance),
         recordedAt: soldAt,
     });
+
+    // Recompute the holder leaderboard after the balance change (#1013).
+    await onHolderBalanceChanged(creatorId);
 
     return updated;
 }

@@ -64,6 +64,7 @@ describe('key-cooldown.service', () => {
          key_id: 'key-1',
          wallet: WALLET,
          active: false,
+         is_active: false,
          cooldown_active: false,
          expires_at: null,
          unlock_estimated_at: null,
@@ -71,6 +72,7 @@ describe('key-cooldown.service', () => {
          remaining_seconds: 0,
          cooldown_ledgers: 0,
          cooldown_seconds: 0,
+         last_trade_at: null,
       });
       expect(mockPrisma.trade.findFirst).not.toHaveBeenCalled();
    });
@@ -85,6 +87,7 @@ describe('key-cooldown.service', () => {
 
       const status = await getKeyCooldown('key-1', WALLET);
       expect(status.active).toBe(true);
+      expect(status.is_active).toBe(true);
       expect(status.cooldown_active).toBe(true);
       expect(status.seconds_remaining).toBe(25);
       expect(status.remaining_seconds).toBe(25);
@@ -103,6 +106,7 @@ describe('key-cooldown.service', () => {
 
       const status = await getKeyCooldown('key-1', WALLET);
       expect(status.active).toBe(false);
+      expect(status.is_active).toBe(false);
       expect(status.seconds_remaining).toBe(0);
       expect(status.cooldown_ledgers).toBe(10);
       expect(status.cooldown_seconds).toBe(50);

@@ -1,3 +1,5 @@
+import { ErrorCode } from '../constants/error.constants';
+
 /**
  * Token expiry validator.
  *
@@ -10,11 +12,13 @@ export interface TokenExpiryValidationResult {
    code?: string;
 }
 
-export function validateTokenExpiry(
-   payload: { iat?: number; exp: number; ttlSeconds: number }
-): TokenExpiryValidationResult {
+export function validateTokenExpiry(payload: {
+   iat?: number;
+   exp: number;
+   ttlSeconds: number;
+}): TokenExpiryValidationResult {
    if (payload.iat === undefined) {
-      return { valid: false, code: 'missing_iat' };
+      return { valid: false, code: ErrorCode.MISSING_IAT };
    }
 
    const expectedExp = payload.iat + payload.ttlSeconds;
@@ -24,11 +28,11 @@ export function validateTokenExpiry(
    }
 
    if (payload.exp > expectedExp) {
-      return { valid: false, code: 'token_expiry_tampered' };
+      return { valid: false, code: ErrorCode.TOKEN_EXPIRY_TAMPERED };
    }
 
    if (payload.exp < expectedExp) {
-      return { valid: false, code: 'token_expiry_tampered' };
+      return { valid: false, code: ErrorCode.TOKEN_EXPIRY_TAMPERED };
    }
 
    return { valid: false };

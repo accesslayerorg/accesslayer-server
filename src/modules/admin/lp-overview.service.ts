@@ -48,7 +48,7 @@ export async function getProtocolLpOverview(): Promise<LpOverview> {
    ]);
 
    const overview: LpOverview = {
-      totalProtocolLpXlm: aggregate._sum.amountXlm?.toString() ?? '0',
+      totalProtocolLpXlm: aggregate._sum.amountXlm?.toFixed(7) ?? '0.0000000',
       keyCount: distinctKeys.length,
       allocationCount: aggregate._count._all,
    };

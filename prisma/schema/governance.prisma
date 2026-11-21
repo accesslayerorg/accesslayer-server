@@ -9,9 +9,17 @@ model GovernanceProposal {
   totalVotingWeight String   @default("0")
   results           Json     // { [option: string]: string } option -> weight
   snapshotLedger    Int
+  /// Total eligible voting weight captured at the snapshot block (#878).
+  /// Sum of every wallet's staked balance for the key at proposal creation.
+  snapshotTotalWeight String @default("0")
+  /// Quorum threshold in basis points of snapshotTotalWeight (#878).
+  /// 3000 = 30% of the snapshot's staked weight must participate.
+  quorumBps         Int      @default(3000)
   expiresAt         DateTime
   closedAt          DateTime?
-  status            String   @default("active") // active | closed
+  /// Execution timestamp, set when ProposalExecuted is indexed (#governance).
+  executedAt        DateTime?
+  status            String   @default("active") // active | passed | failed | quorum_not_met | executed
 
   // Escalation tracking (#935), synced from ProposalExtended contract events.
   escalationCount   Int       @default(0)
@@ -56,6 +64,27 @@ model PauseProposal {
   @@index([keyId, status])
   @@index([proposerWallet])
   @@map("pause_proposals")
+}
+
+/// Per-wallet voting weight frozen at proposal creation (#878).
+///
+/// The server cannot reconstruct historical staked balances, so the snapshot
+/// is captured at creation time against the proposal's snapshot block: each
+/// wallet's staked balance for the key is summed and stored here. Votes read
+/// their weight from this row, so holdings moved after creation cannot
+/// change a vote's weight.
+model GovernanceVotingSnapshot {
+  id         String   @id @default(cuid())
+  keyId      String
+  proposalId String
+  wallet     String
+  /// Staked balance of `wallet` for `keyId` at the snapshot block.
+  weight     Decimal  @db.Decimal(30, 7) @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([keyId, proposalId, wallet])
+  @@index([keyId, proposalId])
+  @@map("governance_voting_snapshots")
 }
 
 model GovernanceVote {

@@ -40,9 +40,15 @@ function makeDeps(
 ) {
    let currentTime = 0;
    const pollCalls: number[] = [];
+   // latestLedger: 102 satisfies the #724 ledger-depth gate (tx ledger 100
+   // + depth 2) on the first poll so gate polling adds no extra delays.
    const getTransaction =
       overrides.getTransaction ??
-      jest.fn().mockResolvedValue({ status: 'SUCCESS', ledger: 100 });
+      jest.fn().mockResolvedValue({
+         status: 'SUCCESS',
+         ledger: 100,
+         latestLedger: 102,
+      });
 
    return {
       deps: {

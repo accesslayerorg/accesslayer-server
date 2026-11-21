@@ -27,11 +27,15 @@ export type GetDividendClaimsQuery = z.infer<typeof GetDividendClaimsQuerySchema
  */
 export const DividendDistributionResponseSchema = z.object({
    id: z.string(),
+   snapshotId: z.string().optional(),
    creatorId: z.string(),
    distributionDate: z.string(), // ISO timestamp
    totalAmount: z.number(),
+   totalDistributed: z.number().optional(),
    holderCount: z.number(),
    perKeyAmount: z.number(),
+   claimWindowStart: z.string().nullable().optional(),
+   claimWindowEnd: z.string().nullable().optional(),
 });
 
 export type DividendDistributionResponse = z.infer<
@@ -72,6 +76,22 @@ export const DividendClaimsListResponseSchema = z.object({
       hasMore: z.boolean(),
       nextCursor: z.string().optional(),
    }),
+});
+
+export const KeyWalletDividendSnapshotResponseSchema = z.object({
+   snapshotId: z.string(),
+   totalDistributed: z.number(),
+   claimableAmount: z.number(),
+   claimedAmount: z.number(),
+   claimWindowStart: z.string().nullable(),
+   claimWindowEnd: z.string().nullable(),
+   distributedAt: z.string(),
+});
+
+export const KeyWalletDividendsResponseSchema = z.object({
+   keyId: z.string(),
+   wallet: z.string(),
+   snapshots: z.array(KeyWalletDividendSnapshotResponseSchema),
 });
 
 
@@ -167,4 +187,3 @@ export const ClaimDividendResponseSchema = z.object({
 export type ClaimDividendResponse = z.infer<
    typeof ClaimDividendResponseSchema
 >;
-

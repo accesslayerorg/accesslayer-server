@@ -30,3 +30,47 @@ export function logCreatorRouteColdStart(
       'Creator route cold start detected'
    );
 }
+
+/**
+ * Emits a debug-level log for a creator profile cache hit.
+ *
+ * Includes the remaining TTL so operators can measure cache effectiveness
+ * and tune the TTL. Must be called before the cached result is used.
+ */
+export function logCreatorProfileCacheHit(
+   creatorWallet: string,
+   cacheKey: string,
+   ttlRemainingMs: number
+): void {
+   logger.debug(
+      {
+         type: 'creator_profile_cache_hit',
+         creator_wallet: creatorWallet,
+         cache_key: cacheKey,
+         hit: true,
+         ttl_remaining_ms: ttlRemainingMs,
+      },
+      'Creator profile cache hit'
+   );
+}
+
+/**
+ * Emits a debug-level log for a creator profile cache miss.
+ *
+ * Must be called before the cache lookup result is used so the miss is
+ * recorded even if the subsequent Horizon call fails.
+ */
+export function logCreatorProfileCacheMiss(
+   creatorWallet: string,
+   cacheKey: string
+): void {
+   logger.debug(
+      {
+         type: 'creator_profile_cache_miss',
+         creator_wallet: creatorWallet,
+         cache_key: cacheKey,
+         hit: false,
+      },
+      'Creator profile cache miss'
+   );
+}

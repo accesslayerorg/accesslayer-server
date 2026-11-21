@@ -1,3 +1,20 @@
+jest.mock('../../utils/prisma.utils', () => ({
+   prisma: {
+      creatorProfile: {
+         findFirst: jest.fn().mockResolvedValue(null),
+      },
+      keyOwnership: {
+         count: jest.fn().mockResolvedValue(0),
+         aggregate: jest.fn().mockResolvedValue({
+            _sum: { balance: null },
+         }),
+      },
+      creatorPriceSnapshot: {
+         findUnique: jest.fn().mockResolvedValue(null),
+      },
+   },
+}));
+
 // Integration test: creator stats endpoint — no trade history
 //
 // Verifies that:
@@ -8,7 +25,7 @@
 // Uses Jest mocks with a minimal fixture set — no database required.
 // Follows the same conventions as creator-detail-empty-social-links.integration.test.ts
 
-import { httpGetCreatorStats } from './creators.controllers.js';
+import { httpGetCreatorStats } from './creators.controllers';
 
 // ── Lightweight request/response mocks ────────────────────────────────────────
 
@@ -37,7 +54,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('returns HTTP 200 for a creator with no trade history', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -45,7 +62,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('response includes holderCount field set to zero', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -55,7 +72,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('response includes totalSupply field set to zero', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -65,7 +82,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('response includes totalVolume field set to zero', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -75,7 +92,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('holderCount is not null or absent', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -85,7 +102,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('totalSupply is not null or absent', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -95,7 +112,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('response envelope is well-formed with success field', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 
@@ -105,7 +122,7 @@ describe('GET /api/v1/creators/:id/stats — no trade history', () => {
    });
 
    it('all expected numeric fields are present in response', async () => {
-      const req = makeReq({ id: 'creator-1' });
+      const req = makeReq({ id: '1' });
       const res = makeRes();
       await httpGetCreatorStats(req, res, makeNext());
 

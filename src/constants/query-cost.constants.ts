@@ -26,4 +26,8 @@ export const DEFAULT_QUERY_COST = 1;
  * management routes (resetting a wallet's budget must never itself be
  * throttled by that same budget).
  */
-export const QUERY_COST_EXEMPT_PATH_PREFIXES = ['/health', '/internal/qcost'];
+export const QUERY_COST_EXEMPT_PATH_PREFIXES = [
+   '/health',
+   '/status',
+   '/internal/qcost',
+];

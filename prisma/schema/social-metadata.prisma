@@ -1,0 +1,48 @@
+// prisma/schema/social-metadata.prisma
+//
+// Social metadata indexed from the social metadata extension contract.
+//
+// - `SocialMetadataEvent` stores every SOCIAL_METADATA_UPDATED chain event
+//   (append-only, idempotent per txHash + eventIndex).
+// - `CreatorSocialMetadata` is the per-creator read model (latest synced
+//   state) served by the creator social API responses.
+
+model CreatorSocialMetadata {
+  id               String   @id @default(cuid())
+  creatorId        String   @unique
+  displayName      String?
+  bio              String?
+  avatarCid        String?
+  avatarUrl        String?
+  socialLinks      Json?
+  sourceLedger     Int?
+  sourceTxHash     String?
+  sourceEventIndex Int?
+  socialUpdatedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+model SocialMetadataEvent {
+  id             String   @id @default(cuid())
+  creatorId      String
+  txHash         String
+  eventIndex     Int
+  ledger         Int?
+  actor          String?
+  displayName    String?
+  bio            String?
+  avatarCid      String?
+  avatarUrl      String?
+  socialLinks    Json?
+  rawPayload     Json?
+  socialUpdatedAt DateTime?
+  indexedAt      DateTime @default(now())
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@index([creatorId])
+}

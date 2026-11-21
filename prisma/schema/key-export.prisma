@@ -1,0 +1,46 @@
+// prisma/schema/key-export.prisma
+// Async analytics export jobs for creator keys (#1014).
+//
+// GET /keys/:keyId/export?format=csv|json&from=&to= enqueues a job here and
+// immediately returns a signed download URL. A worker collects the key's
+// trades, holder snapshots, revenue events and milestone events in the
+// requested window, serialises them, and stores the payload on this row for
+// the short-lived signed download endpoint to serve.
+
+model KeyExportJob {
+  id          String    @id @default(cuid())
+  /// Resolved creator profile id the export belongs to.
+  keyId       String
+  /// Wallet that requested the export (creator-only access is enforced at
+  /// the route, this records the actor for auditing).
+  requestedBy String
+  /// 'csv' | 'json'.
+  format      String
+  /// Inclusive lower bound applied to every data type; null = open-ended.
+  from        DateTime?
+  /// Inclusive upper bound applied to every data type; null = open-ended.
+  to          DateTime?
+  /// PENDING -> PROCESSING -> READY | FAILED.
+  status      String    @default("PENDING")
+  /// Suggested download filename, set once the export completes.
+  fileName    String?
+  /// MIME type of `content`, set once the export completes.
+  contentType String?
+  /// Serialised export payload (CSV text or JSON string).
+  content     String?
+  /// Number of data records exported (trades + holder snapshots + revenue
+  /// events + milestone events); the CSV summary row is not counted.
+  recordCount Int?
+  /// Failure reason when status = FAILED.
+  error       String?
+  /// When the signed download URL stops being valid.
+  expiresAt   DateTime
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([keyId, createdAt])
+  @@index([status])
+  @@map("key_export_jobs")
+}

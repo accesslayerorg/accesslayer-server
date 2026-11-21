@@ -3,6 +3,7 @@ import { formatIsoTimestamp } from './iso-timestamp.utils';
 import { logger } from './logger.utils';
 import { elapsedMs, startTimer } from './monotonic-clock.utils';
 import { RpcTimeoutError, withRpcTimeout } from './rpc-timeout.utils';
+import { horizonCircuitBreaker } from './circuit-breaker.utils';
 
 export type HorizonHttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD';
 
@@ -11,6 +12,7 @@ export interface HorizonRequestInit {
    headers?: Record<string, string>;
    body?: string;
    timeoutMs?: number;
+   bypassCircuitBreaker?: boolean;
 }
 
 /**
@@ -30,7 +32,9 @@ function buildHorizonUrl(endpoint: string): string {
    return `${base}${path}`;
 }
 
-function nonNegativeResponseTimeMs(timer: ReturnType<typeof startTimer>): number {
+function nonNegativeResponseTimeMs(
+   timer: ReturnType<typeof startTimer>
+): number {
    return Math.max(0, Math.round(elapsedMs(timer)));
 }
 
@@ -55,6 +59,11 @@ export async function horizonRequest(
          body: init.body,
       });
 
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
+      horizonCircuitBreaker.checkState();
+   }
+
    try {
       const response = await withRpcTimeout(
          `horizon:${method}:${horizonEndpoint}`,
@@ -73,8 +82,22 @@ export async function horizonRequest(
          'Horizon API call completed'
       );
 
+      if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
+         if (response.status >= 500) {
+            horizonCircuitBreaker.recordFailure(
+               new Error(`Horizon HTTP ${response.status}`)
+            );
+         } else {
+            horizonCircuitBreaker.recordSuccess();
+         }
+      }
+
       return response;
    } catch (err) {
+      if ((envConfig.MODE !== 'test' || process.env.ENABLE_HORIZON_CIRCUIT_BREAKER === '1') && !init.bypassCircuitBreaker) {
+         horizonCircuitBreaker.recordFailure(err);
+      }
+
       if (err instanceof RpcTimeoutError) {
          logger.warn(
             {

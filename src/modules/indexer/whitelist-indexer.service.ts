@@ -4,38 +4,89 @@ import {
    processIndexerChainEvents,
    IndexerChainEvent,
 } from '../../utils/indexer-event-processor.utils';
-import { invalidateWhitelistCache } from '../whitelist/whitelist.service';
+import {
+   invalidateWhitelistCache,
+   resolveCreatorId,
+} from '../whitelist/whitelist.service';
+
+/**
+ * Event types for on-chain whitelist modifications.
+ */
+export const WHITELIST_ADD_EVENT_TYPES = new Set([
+   'WalletWhitelisted',
+   'WALLET_WHITELISTED',
+   'WHITELIST_ADDED',
+]);
+
+export const WHITELIST_REMOVE_EVENT_TYPES = new Set([
+   'WalletRemovedFromWhitelist',
+   'WALLET_REMOVED_FROM_WHITELIST',
+   'WHITELIST_REMOVED',
+]);
+
+export const ALL_WHITELIST_EVENT_TYPES = new Set([
+   ...WHITELIST_ADD_EVENT_TYPES,
+   ...WHITELIST_REMOVE_EVENT_TYPES,
+]);
 
 /**
  * Chain events emitted by the key contract when a creator changes the
  * early-access whitelist.
  */
 export interface WhitelistChainEvent extends IndexerChainEvent {
-   eventType: 'WHITELIST_ADDED' | 'WHITELIST_REMOVED';
+   eventType:
+      | 'WalletWhitelisted'
+      | 'WALLET_WHITELISTED'
+      | 'WHITELIST_ADDED'
+      | 'WalletRemovedFromWhitelist'
+      | 'WALLET_REMOVED_FROM_WHITELIST'
+      | 'WHITELIST_REMOVED';
    /** Creator profile id the whitelist belongs to. */
-   creatorId: string;
+   creatorId?: string;
+   keyId?: string;
+   keyAddress?: string;
    /** Wallets added or removed by this event. */
-   wallets: string[];
+   wallets?: string[];
+   wallet?: string;
+   actor?: string;
 }
 
 /**
- * Applies WHITELIST_ADDED / WHITELIST_REMOVED events to the database so it
- * mirrors on-chain state. Both operations are idempotent, so replaying a
- * batch (or an API write that already applied the change) is harmless.
+ * Extracts normalized wallets list from chain event.
+ */
+function extractWallets(event: any): string[] {
+   if (Array.isArray(event.wallets) && event.wallets.length > 0) {
+      return event.wallets;
+   }
+   if (typeof event.wallet === 'string' && event.wallet.length > 0) {
+      return [event.wallet];
+   }
+   if (typeof event.actor === 'string' && event.actor.length > 0) {
+      return [event.actor];
+   }
+   return [];
+}
+
+/**
+ * Applies WalletWhitelisted / WalletRemovedFromWhitelist events to the database so it
+ * mirrors on-chain state, and invalidates the cache for the affected key/wallet pairs.
  */
 export async function processWhitelistEvents(
    events: IndexerChainEvent[]
 ): Promise<void> {
    await processIndexerChainEvents(events, async event => {
-      if (
-         event.eventType !== 'WHITELIST_ADDED' &&
-         event.eventType !== 'WHITELIST_REMOVED'
-      ) {
+      if (!ALL_WHITELIST_EVENT_TYPES.has(event.eventType)) {
          return;
       }
 
-      const { creatorId, wallets } = event as WhitelistChainEvent;
-      if (!creatorId || !Array.isArray(wallets) || wallets.length === 0) {
+      const rawCreatorId =
+         (event as any).creatorId ??
+         (event as any).keyId ??
+         (event as any).keyAddress;
+
+      const wallets = extractWallets(event);
+
+      if (!rawCreatorId || wallets.length === 0) {
          logger.warn(
             { eventId: `${event.txHash}:${event.eventIndex}` },
             'Skipping whitelist event with missing creatorId or wallets'
@@ -43,28 +94,41 @@ export async function processWhitelistEvents(
          return;
       }
 
-      if (event.eventType === 'WHITELIST_ADDED') {
-         const creator = await prisma.creatorProfile.findUnique({
-            where: { id: creatorId },
+      const resolvedCreatorId =
+         (await resolveCreatorId(rawCreatorId)) ?? rawCreatorId;
+
+      const isAdd = WHITELIST_ADD_EVENT_TYPES.has(event.eventType);
+
+      if (isAdd) {
+         const creator = await prisma.creatorProfile.findFirst({
+            where: {
+               OR: [
+                  { id: resolvedCreatorId },
+                  { handle: resolvedCreatorId },
+               ],
+            },
             select: { id: true },
          });
-         if (!creator) {
-            logger.warn(
-               { creatorId, txHash: event.txHash },
-               'Skipping whitelist add for unknown creator'
-            );
-            return;
-         }
+         const targetId = creator?.id ?? resolvedCreatorId;
+
          await prisma.whitelist.createMany({
-            data: wallets.map(address => ({ address, creatorId })),
+            data: wallets.map(address => ({ address, creatorId: targetId })),
             skipDuplicates: true,
          });
+
+         for (const wallet of wallets) {
+            await invalidateWhitelistCache(targetId, wallet);
+         }
+         await invalidateWhitelistCache(targetId);
       } else {
          await prisma.whitelist.deleteMany({
-            where: { creatorId, address: { in: wallets } },
+            where: { creatorId: resolvedCreatorId, address: { in: wallets } },
          });
-      }
 
-      await invalidateWhitelistCache(creatorId);
+         for (const wallet of wallets) {
+            await invalidateWhitelistCache(resolvedCreatorId, wallet);
+         }
+         await invalidateWhitelistCache(resolvedCreatorId);
+      }
    });
 }

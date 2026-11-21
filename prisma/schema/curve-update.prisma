@@ -1,0 +1,25 @@
+/// Timelocked bonding-curve parameter update proposal indexed from Soroban.
+model CurveUpdate {
+  id                 String    @id @default(cuid())
+  keyId              String
+  proposalId         String
+  status             String    @default("pending") // pending | completed | cancelled
+  proposedParams     Json
+  eta                DateTime
+  proposedAt         DateTime
+  completedAt        DateTime?
+  outcome            String?
+  proposedTxHash     String
+  proposedEventIndex Int
+  executedTxHash     String?
+  executedEventIndex Int?
+  ledger             Int
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([keyId, proposalId])
+  @@unique([proposedTxHash, proposedEventIndex])
+  @@unique([executedTxHash, executedEventIndex])
+  @@index([keyId, status, eta])
+  @@map("curve_updates")
+}

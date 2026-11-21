@@ -2,7 +2,7 @@
 import supertest from 'supertest';
 import app from '../../app';
 import { prisma } from '../../utils/prisma.utils';
-import { getRedis } from '../../utils/redis.utils';
+import { cacheSetJson, getRedis } from '../../utils/redis.utils';
 
 jest.mock('../../utils/prisma.utils', () => ({
    prisma: {
@@ -15,18 +15,31 @@ jest.mock('../../utils/prisma.utils', () => ({
       activity: {
          findMany: jest.fn(),
       },
+      keyLeaderboard: {
+         findMany: jest.fn(),
+         findUnique: jest.fn(),
+         count: jest.fn(),
+      },
       $disconnect: jest.fn(),
    },
 }));
 
 jest.mock('../../utils/redis.utils', () => ({
    getRedis: jest.fn(),
+   cacheGetJson: jest.fn().mockResolvedValue(null),
+   cacheSetJson: jest.fn().mockResolvedValue(undefined),
+   cacheInvalidate: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockPrisma = prisma as unknown as {
    creatorProfile: { findMany: jest.Mock };
    keyOwnership: { groupBy: jest.Mock };
    activity: { findMany: jest.Mock };
+   keyLeaderboard: {
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      count: jest.Mock;
+   };
 };
 
 const mockGetRedis = getRedis as jest.Mock;
@@ -89,6 +102,9 @@ describe('GET /api/v1/keys/leaderboard', () => {
             payload: { amount: '50', price_at_trade: '10' }, // volume = 500
          },
       ]);
+      mockPrisma.keyLeaderboard.findMany.mockResolvedValue([]);
+      mockPrisma.keyLeaderboard.findUnique.mockResolvedValue(null);
+      mockPrisma.keyLeaderboard.count.mockResolvedValue(0);
    });
 
    it('defaults to sort_by=holder_count and breaks ties by creation date ascending', async () => {
@@ -168,5 +184,120 @@ describe('GET /api/v1/keys/leaderboard', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.items[0].keyId).toBe('cached-key');
       expect(mockRedisClient.get).toHaveBeenCalled();
+   });
+
+   it('returns an empty list for a key with no indexed leaderboard rows', async () => {
+      const res = await supertest(app).get(
+         '/api/v1/keys/key-empty/leaderboard?metric=volume'
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items).toEqual([]);
+      expect(mockPrisma.keyLeaderboard.findMany).toHaveBeenCalledWith(
+         expect.objectContaining({
+            where: { creatorId: 'key-empty' },
+            take: 20,
+         })
+      );
+   });
+
+   it('ranks per-key leaderboard entries by the requested metric', async () => {
+      mockPrisma.keyLeaderboard.findMany.mockResolvedValue([
+         { wallet: 'GAAA', volume: 900n, pnl: 3n, holdingDays: 1n },
+         { wallet: 'GBBB', volume: 800n, pnl: 10n, holdingDays: 5n },
+      ]);
+
+      const res = await supertest(app).get(
+         '/api/v1/keys/key-1/leaderboard?metric=volume&limit=2'
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items).toEqual([
+         { rank: 1, wallet: 'GAAA', score: '900' },
+         { rank: 2, wallet: 'GBBB', score: '800' },
+      ]);
+      expect(mockPrisma.keyLeaderboard.findMany).toHaveBeenCalledWith(
+         expect.objectContaining({
+            orderBy: [{ volume: 'desc' }, { wallet: 'asc' }],
+            take: 2,
+         })
+      );
+      expect(cacheSetJson).toHaveBeenCalledWith(
+         'key:leaderboard:key-1:volume:2',
+         res.body.data.items,
+         60
+      );
+   });
+
+   it.each([
+      ['volume', 'volume'],
+      ['pnl', 'pnl'],
+      ['holding_days', 'holdingDays'],
+   ])('supports the %s ranking metric', async (metric, field) => {
+      mockPrisma.keyLeaderboard.findMany.mockResolvedValue([
+         { wallet: 'GAAA', volume: 9n, pnl: 3n, holdingDays: 1n },
+      ]);
+
+      const res = await supertest(app).get(
+         `/api/v1/keys/key-1/leaderboard?metric=${metric}`
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items).toEqual([
+         {
+            rank: 1,
+            wallet: 'GAAA',
+            score: metric === 'volume' ? '9' : metric === 'pnl' ? '3' : '1',
+         },
+      ]);
+      expect(mockPrisma.keyLeaderboard.findMany).toHaveBeenCalledWith(
+         expect.objectContaining({
+            orderBy: [{ [field]: 'desc' }, { wallet: 'asc' }],
+         })
+      );
+   });
+
+   it('returns rank and score for each metric using the same tie ordering', async () => {
+      mockPrisma.keyLeaderboard.findUnique.mockResolvedValue({
+         wallet: 'GABC',
+         volume: 100n,
+         pnl: -5n,
+         holdingDays: 20n,
+      });
+      mockPrisma.keyLeaderboard.count
+         .mockResolvedValueOnce(2)
+         .mockResolvedValueOnce(0)
+         .mockResolvedValueOnce(1);
+
+      const res = await supertest(app).get(
+         '/api/v1/keys/key-1/leaderboard/GABC'
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.metrics).toEqual({
+         volume: { rank: 3, score: '100' },
+         pnl: { rank: 1, score: '-5' },
+         holding_days: { rank: 2, score: '20' },
+      });
+      expect(mockPrisma.keyLeaderboard.count).toHaveBeenNthCalledWith(
+         1,
+         expect.objectContaining({
+            where: {
+               creatorId: 'key-1',
+               OR: [
+                  { volume: { gt: 100n } },
+                  { volume: 100n, wallet: { lt: 'GABC' } },
+               ],
+            },
+         })
+      );
+   });
+
+   it('rejects an unsupported per-key leaderboard metric', async () => {
+      const res = await supertest(app).get(
+         '/api/v1/keys/key-1/leaderboard?metric=holders'
+      );
+
+      expect(res.status).toBe(400);
    });
 });

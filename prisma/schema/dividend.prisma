@@ -7,15 +7,21 @@ model DividendDistribution {
   totalAmountXlm    Decimal  @db.Decimal(20, 7)
   holderCount       Int
   perKeyAmountXlm   Decimal  @db.Decimal(20, 7)
+  claimWindowStart  DateTime?
+  claimWindowEnd    DateTime?
+  chainSnapshotId   String?
   ledger            Int
   txHash            String
+  eventIndex        Int      @default(0)
   createdAt         DateTime @default(now())
 
   claims            DividendClaim[]
 
-  @@unique([ledger, txHash])
+  @@unique([ledger, txHash, eventIndex])
+  @@unique([creatorId, chainSnapshotId])
   @@index([creatorId])
   @@index([distributionDate(sort: Desc)])
+  @@map("dividend_snapshots")
 }
 
 model DividendClaim {
@@ -31,4 +37,5 @@ model DividendClaim {
   @@unique([distributionId, recipientAddress])
   @@index([recipientAddress])
   @@index([distributionId])
+  @@map("dividend_claims")
 }

@@ -7,6 +7,10 @@ model CreatorProfile {
   displayName       String
   bio               String?
   avatarUrl         String?
+  avatarCid         String?  @map("avatar_cid")
+  twitter           String?
+  website           String?
+  discord           String?
   perkSummary       String?
   isVerified        Boolean  @default(false)
   tradingPaused     Boolean  @default(false)
@@ -40,6 +44,10 @@ model CreatorProfile {
   sunsetFlaggedAt   DateTime?
   /// Buy cooldown between purchases by the same wallet, in ledgers (0 = no cooldown).
   cooldownLedgers   Int      @default(0)
+  /// Key category used by auto-invest rules for matching (optional).
+  category          String?
+  /// Key rating used by auto-invest rules for matching, 0.00-5.00 (optional).
+  rating            Decimal? @db.Decimal(3, 2)
   perks             Json?
   followersCount    Int      @default(0)
   /// Graduated curve milestones configuration (#869).
@@ -62,6 +70,9 @@ model CreatorProfile {
   relaunches       CreatorKeyRelaunch[]
   successor        CreatorProfile?        @relation("KeySuccessor", fields: [successorKeyId], references: [id], onDelete: SetNull)
   supersededKeys   CreatorProfile[]       @relation("KeySuccessor")
+
+  socialMetadata       CreatorSocialMetadata?
+  socialMetadataEvents SocialMetadataEvent[]
 
   @@index([userId])
   @@index([successorKeyId])

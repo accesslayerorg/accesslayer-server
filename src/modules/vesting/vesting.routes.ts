@@ -15,9 +15,12 @@ import {
 import {
   getKeyVestingHistory,
   getKeyVestingSummary,
+  getWalletVestingSchedule,
+  getWalletVestingSchedules,
   getVestingSchedule,
   invalidateKeyVestingCache,
   VestingNotFoundError,
+  WalletVestingNotFoundError,
 } from './vesting.service';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
@@ -86,6 +89,63 @@ vestingRouter.get(
     }
   }
 );
+
+/**
+ * GET /api/v1/vesting/:wallet
+ *
+ * Returns the active vesting schedules for a wallet with live claim status.
+ */
+vestingRouter.get('/:wallet', async (req, res, next) => {
+  const wallet = Array.isArray(req.params.wallet)
+    ? req.params.wallet[0]
+    : req.params.wallet;
+  try {
+    const schedules = await getWalletVestingSchedules(wallet);
+    if (schedules.length === 0) {
+      sendNotFound(res, 'Vesting schedules');
+      return;
+    }
+    sendSuccess(res, schedules);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/vesting/:wallet/:vest_id
+ *
+ * Returns one active schedule with its tranche breakdown and live claim status.
+ */
+vestingRouter.get('/:wallet/:vest_id', async (req, res, next) => {
+  const wallet = Array.isArray(req.params.wallet)
+    ? req.params.wallet[0]
+    : req.params.wallet;
+  const vestId = Array.isArray(req.params.vest_id)
+    ? req.params.vest_id[0]
+    : req.params.vest_id;
+
+  try {
+    const record = await prisma.vestingSchedule.findUnique({
+      where: { id: vestId },
+      select: { id: true },
+    });
+    if (!record) {
+      if (/^G[A-Z2-7]{55}$/.test(vestId)) {
+        next();
+        return;
+      }
+      sendNotFound(res, 'Vesting schedule');
+      return;
+    }
+    sendSuccess(res, await getWalletVestingSchedule(wallet, vestId));
+  } catch (error) {
+    if (error instanceof WalletVestingNotFoundError) {
+      sendNotFound(res, 'Vesting schedule');
+      return;
+    }
+    next(error);
+  }
+});
 
 /**
  * GET /api/v1/vesting/:keyId/:wallet
@@ -196,7 +256,7 @@ vestingRouter.post(
           ledger: currentLedger,
         },
       });
-      await invalidateKeyVestingCache(keyId);
+      await invalidateKeyVestingCache(keyId, wallet);
 
       await prisma.activity.create({
         data: {

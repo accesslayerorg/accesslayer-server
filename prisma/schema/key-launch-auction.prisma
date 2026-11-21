@@ -1,0 +1,47 @@
+/// On-chain launch auction current state.
+model KeyLaunchAuction {
+  id                String    @id @default(cuid())
+  auctionId         String    @unique
+  keyId             String    @unique
+  status            String    @default("active")
+  reserve           Decimal   @db.Decimal(36, 7)
+  highestBid        Decimal?  @db.Decimal(36, 7)
+  highestBidder     String?
+  clearingPrice     Decimal?  @db.Decimal(36, 7)
+  startsAt          DateTime
+  endsAt            DateTime
+  settledAt         DateTime?
+  createdTxHash     String
+  createdEventIndex Int
+  settledTxHash     String?
+  settledEventIndex Int?
+  ledger            Int
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  bids KeyLaunchAuctionBid[]
+
+  @@unique([createdTxHash, createdEventIndex])
+  @@unique([settledTxHash, settledEventIndex])
+  @@index([keyId, status])
+  @@map("key_auctions")
+}
+
+/// Immutable bid history for a launch auction.
+model KeyLaunchAuctionBid {
+  id         String   @id @default(cuid())
+  auctionId  String
+  bidder     String
+  amount     Decimal  @db.Decimal(36, 7)
+  placedAt   DateTime
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  createdAt  DateTime @default(now())
+
+  auction KeyLaunchAuction @relation(fields: [auctionId], references: [auctionId], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@index([auctionId, placedAt(sort: Desc)])
+  @@map("key_auction_bids")
+}
