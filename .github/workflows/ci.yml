@@ -111,6 +111,17 @@ jobs:
          JWT_ISSUER: accesslayer-server
          ENABLE_REQUEST_LOGGING: 'false'
          PUPPETEER_SKIP_DOWNLOAD: '1'
+         GMAIL_USER: test@example.com
+         GMAIL_APP_PASSWORD: test-password
+         GOOGLE_CLIENT_ID: test-google-client-id
+         GOOGLE_CLIENT_SECRET: test-google-client-secret
+         BACKEND_URL: http://localhost:3000
+         FRONTEND_URL: http://localhost:5173
+         PUBLIC_SITE_URL: http://localhost:5173
+         CLOUDINARY_CLOUD_NAME: test-cloud
+         CLOUDINARY_API_KEY: test-api-key
+         CLOUDINARY_API_SECRET: test-api-secret
+         PAYSTACK_SECRET_KEY: test-paystack-secret
       steps:
          - uses: actions/checkout@v4
 
@@ -142,7 +153,8 @@ jobs:
          - name: Build and start application server
            run: |
               pnpm build
-              node dist/server.js &
+              node dist/server.js > server.log 2>&1 &
+              SERVER_PID=$!
               for i in {1..30}; do
                  if curl -sf http://localhost:3000/api/v1/health > /dev/null; then
                     echo "Server is ready"
@@ -151,6 +163,11 @@ jobs:
                  echo "Waiting for server to start ($i)..."
                  sleep 1
               done
+              if ! kill -0 $SERVER_PID 2>/dev/null; then
+                 echo "Server process terminated unexpectedly. Server log:"
+                 cat server.log
+                 exit 1
+              fi
 
          - name: Run k6 smoke profile
            run: pnpm run loadtest:smoke

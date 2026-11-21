@@ -1,3 +1,16 @@
+// Set default test credentials for config validation if running standalone
+process.env.GMAIL_USER ??= 'test@example.com';
+process.env.GMAIL_APP_PASSWORD ??= 'test-password';
+process.env.GOOGLE_CLIENT_ID ??= 'test-google-client-id';
+process.env.GOOGLE_CLIENT_SECRET ??= 'test-google-client-secret';
+process.env.BACKEND_URL ??= 'http://localhost:3000';
+process.env.FRONTEND_URL ??= 'http://localhost:5173';
+process.env.PUBLIC_SITE_URL ??= 'http://localhost:5173';
+process.env.CLOUDINARY_CLOUD_NAME ??= 'test-cloud';
+process.env.CLOUDINARY_API_KEY ??= 'test-api-key';
+process.env.CLOUDINARY_API_SECRET ??= 'test-api-secret';
+process.env.PAYSTACK_SECRET_KEY ??= 'test-paystack-secret';
+
 import { Prisma } from '@prisma/client';
 import { prisma } from '../src/utils/prisma.utils';
 
