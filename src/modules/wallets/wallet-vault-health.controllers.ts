@@ -17,7 +17,7 @@ export async function httpGetWalletVaultHealth(
    res: Response,
    next: NextFunction
 ): Promise<void> {
-   const { address } = req.params;
+   const address = String(req.params.address);
    if (!StrKey.isValidEd25519PublicKey(address)) {
       sendValidationError(res, 'Invalid wallet address', [
          { field: 'address', message: 'Invalid Stellar wallet' },
