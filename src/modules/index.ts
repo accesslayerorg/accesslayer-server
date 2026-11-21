@@ -66,6 +66,7 @@ import commentsRouter from './comments/comments.routes';
 import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
+import { relatedKeysRouter } from '../routes/keys.routes';
 
 const router = Router();
 
@@ -110,6 +111,7 @@ router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
+router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 
 // Keys: existing keysRouter first, then freezeRouter so /:keyId/freeze and
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own

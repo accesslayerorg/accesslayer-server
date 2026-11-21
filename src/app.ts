@@ -38,6 +38,7 @@ import { sessionActivityMiddleware } from './middlewares/session-activity.middle
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
+import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
 
 const app: Express = express();
@@ -117,6 +118,7 @@ app.get('/', (_, res: Response) => {
 });
 
 // Routes
+app.use('/v1', v1RelatedKeysRouter);
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
