@@ -75,3 +75,111 @@ jobs:
            run: pnpm exec prisma db push --skip-generate
          - name: Invoice protocol database and HTTP integration
            run: pnpm test --runInBand --testPathPatterns=invoice-protocol --globals='{"ts-jest":{"isolatedModules":true}}'
+
+   loadtest:
+      runs-on: ubuntu-latest
+      services:
+         postgres:
+            image: postgres:16
+            env:
+               POSTGRES_USER: accesslayer
+               POSTGRES_PASSWORD: local-test-only
+               POSTGRES_DB: accesslayer_loadtest
+            ports:
+               - 5432:5432
+            options: >-
+               --health-cmd "pg_isready -U accesslayer -d accesslayer_loadtest"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+         redis:
+            image: redis:7-alpine
+            ports:
+               - 6379:6379
+            options: >-
+               --health-cmd "redis-cli ping"
+               --health-interval 5s
+               --health-timeout 5s
+               --health-retries 10
+      env:
+         DATABASE_URL: postgresql://accesslayer:local-test-only@localhost:5432/accesslayer_loadtest
+         REDIS_URL: redis://localhost:6379
+         PORT: 3000
+         NODE_ENV: test
+         MODE: test
+         DISABLE_RATE_LIMIT: 'true'
+         QUERY_COST_BUDGET: 10000000
+         QUERY_COST_ADMIN_WALLETS: GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR
+         ENABLE_REDIS_CACHE: 'true'
+         JWT_SECRET: accesslayer_default_development_jwt_secret_key_32_bytes
+         JWT_ISSUER: accesslayer-server
+         ENABLE_REQUEST_LOGGING: 'false'
+         PUPPETEER_SKIP_DOWNLOAD: '1'
+         GMAIL_USER: test@example.com
+         GMAIL_APP_PASSWORD: test-password
+         GOOGLE_CLIENT_ID: test-google-client-id
+         GOOGLE_CLIENT_SECRET: test-google-client-secret
+         BACKEND_URL: http://localhost:3000
+         FRONTEND_URL: http://localhost:5173
+         PUBLIC_SITE_URL: http://localhost:5173
+         CLOUDINARY_CLOUD_NAME: test-cloud
+         CLOUDINARY_API_KEY: test-api-key
+         CLOUDINARY_API_SECRET: test-api-secret
+         PAYSTACK_SECRET_KEY: test-paystack-secret
+      steps:
+         - uses: actions/checkout@v4
+
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - run: pnpm install --frozen-lockfile
+
+         - run: pnpm exec prisma generate
+
+         - name: Push database schema
+           run: pnpm exec prisma db push --skip-generate
+
+         - name: Seed database (10,000 keys, 100,000 trades)
+           run: pnpm exec ts-node --transpile-only loadtest/seed.ts
+
+         - name: Verify seed idempotency
+           run: pnpm exec ts-node --transpile-only loadtest/seed.ts
+
+         - name: Setup k6
+           uses: grafana/setup-k6-action@v1
+
+         - name: Build and start application server
+           run: |
+              pnpm build
+              node dist/server.js > server.log 2>&1 &
+              SERVER_PID=$!
+              for i in {1..30}; do
+                 if curl -sf http://localhost:3000/api/v1/health > /dev/null; then
+                    echo "Server is ready"
+                    break
+                 fi
+                 echo "Waiting for server to start ($i)..."
+                 sleep 1
+              done
+              if ! kill -0 $SERVER_PID 2>/dev/null; then
+                 echo "Server process terminated unexpectedly. Server log:"
+                 cat server.log
+                 exit 1
+              fi
+
+         - name: Run k6 smoke profile
+           run: pnpm run loadtest:smoke
+
+         - name: Upload k6 summary report
+           if: always()
+           uses: actions/upload-artifact@v4
+           with:
+              name: k6-loadtest-summary
+              path: loadtest-summary.json
+              if-no-files-found: warn
