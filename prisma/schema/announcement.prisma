@@ -1,0 +1,25 @@
+// prisma/schema/announcement.prisma
+
+enum AnnouncementStatus {
+  draft
+  scheduled
+  published
+  cancelled
+}
+
+model Announcement {
+  id          String             @id @default(cuid())
+  keyId       String
+  content     String
+  scheduledAt DateTime?
+  status      AnnouncementStatus @default(draft)
+  publishedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  creator     CreatorProfile?    @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  @@index([keyId, status])
+  @@index([status, scheduledAt])
+  @@map("announcements")
+}

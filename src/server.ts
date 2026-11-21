@@ -45,6 +45,10 @@ import {
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
 import {
+   startAnnouncementPublisherWorker,
+   stopAnnouncementPublisherWorker,
+} from './jobs/announcement-publisher.worker';
+import {
    startAutoInvestListener,
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
@@ -111,6 +115,7 @@ async function startServer() {
       startStatusProbeJob();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
+      startAnnouncementPublisherWorker();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
 
@@ -156,6 +161,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopStatusProbeJob();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
+      stopAnnouncementPublisherWorker();
       stopAutoInvestListener();
       await prisma.$disconnect();
       logger.info('Database connection closed');
