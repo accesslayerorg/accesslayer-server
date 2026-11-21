@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
    cacheWarmMetrics,
    creatorReadMetrics,
+   orderKeeperMetrics,
    queueMetrics,
 } from './metrics.controllers';
 
@@ -15,5 +16,8 @@ router.get('/creators', creatorReadMetrics);
 
 // Cache warmer duration and failure metrics
 router.get('/cache-warm', cacheWarmMetrics);
+
+// Limit order keeper fill and skip counters
+router.get('/order-keeper', orderKeeperMetrics);
 
 export default router;
