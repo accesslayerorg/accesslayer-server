@@ -17,6 +17,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import shareRouter from './modules/share/share.routes';
+import sitemapRouter from './modules/sitemap/sitemap.routes';
 import tspecOptions from './tspec.config';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
@@ -123,6 +124,7 @@ app.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
 app.use('/share', shareRouter);
+app.use(sitemapRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

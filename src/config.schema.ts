@@ -64,6 +64,11 @@ export const envSchema = z
          .string()
          .url('FRONTEND_URL must be a valid URL')
          .min(1, 'FRONTEND_URL is required'),
+      // Public origin of the website, used for absolute sitemap and robots.txt URLs
+      PUBLIC_SITE_URL: z
+         .string()
+         .url('PUBLIC_SITE_URL must be a valid URL')
+         .min(1, 'PUBLIC_SITE_URL is required'),
 
       // Cloudinary
       CLOUDINARY_CLOUD_NAME: z
