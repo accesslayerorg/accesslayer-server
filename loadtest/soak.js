@@ -46,7 +46,8 @@ export default function () {
       keyId: KEY_ID,
       quantity: 1,
       side: 'buy',
-      price: 1.5,
+      targetPrice: 0.5,
+      price: 0.5,
    });
 
    const res = http.post(`${BASE_URL}/v1/orders`, payload, {

@@ -253,4 +253,9 @@ Invoice protocol endpoints, contract configuration, and worker integration: [Inv
 
 - Queue metrics: `GET /metrics/queues`
 - Creator read metrics: `GET /metrics/creators`
+- Cache warmer metrics: `GET /metrics/cache-warm`
+
+The cache warmer reports `cache_warm_duration_seconds` (a histogram) and
+`cache_warm_failures_total` (a counter), both labelled by target. Metrics use
+the server's existing in-process JSON reporting pattern.
 ```

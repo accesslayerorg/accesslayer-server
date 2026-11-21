@@ -115,7 +115,8 @@ export function ordersScenario() {
       keyId: KEY_ID,
       quantity: 1,
       side: 'buy',
-      price: 1.5,
+      targetPrice: 0.5,
+      price: 0.5,
    });
 
    const res = http.post(`${BASE_URL}/v1/orders`, payload, {
@@ -128,7 +129,7 @@ export function ordersScenario() {
       'POST /v1/orders order placed': r => {
          try {
             const body = JSON.parse(r.body);
-            return !!(body.data?.orderId || body.data?.tradeId);
+            return !!(body.data?.orderId || body.data?.tradeId || body.data?.id);
          } catch (_e) {
             return false;
          }

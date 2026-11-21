@@ -1,7 +1,7 @@
 // src/modules/keys/key-leaderboard.service.ts
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
-import { getRedis } from '../../utils/redis.utils';
+import { cacheTtlMs, getRedis } from '../../utils/redis.utils';
 import { compute24hPriceChange } from '../../utils/price.utils';
 import { MAX_PAGE_SIZE } from '../../constants/pagination.constants';
 
@@ -25,7 +25,19 @@ export interface KeyLeaderboardEntry {
 }
 
 const REDIS_OP_TIMEOUT_MS = 1000;
-const CACHE_TTL_SECONDS = 60;
+export const KEY_LEADERBOARD_CACHE_TTL_SECONDS = 60;
+
+export function buildKeyLeaderboardCacheKey(
+   sortBy: KeyLeaderboardSortBy
+): string {
+   return `leaderboard:keys:${sortBy}:v1`;
+}
+
+export function getKeyLeaderboardCacheRemainingTtlMs(
+   sortBy: KeyLeaderboardSortBy
+): Promise<number | null> {
+   return cacheTtlMs(buildKeyLeaderboardCacheKey(sortBy));
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
    return new Promise<T>((resolve, reject) => {
@@ -200,7 +212,7 @@ export async function getKeyLeaderboard(
    limit: number
 ): Promise<KeyLeaderboardEntry[]> {
    const redis = getRedis();
-   const cacheKey = `leaderboard:keys:${sortBy}:v1`;
+   const cacheKey = buildKeyLeaderboardCacheKey(sortBy);
 
    if (redis) {
       try {
@@ -230,7 +242,7 @@ export async function getKeyLeaderboard(
                cacheKey,
                JSON.stringify(leaderboard),
                'EX',
-               CACHE_TTL_SECONDS
+               KEY_LEADERBOARD_CACHE_TTL_SECONDS
             ),
             REDIS_OP_TIMEOUT_MS
          );

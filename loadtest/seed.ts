@@ -127,6 +127,22 @@ export async function seedLoadTestData(db: any = defaultPrisma): Promise<void> {
     skipDuplicates: true,
   });
 
+  // Seed price snapshot for test key so limit order placement has current price
+  if (db.creatorPriceSnapshot?.upsert) {
+    try {
+      await db.creatorPriceSnapshot.upsert({
+        where: { creatorId: `${SEED_KEY_PREFIX}00000` },
+        update: { currentPrice: 10_000_000n },
+        create: {
+          creatorId: `${SEED_KEY_PREFIX}00000`,
+          currentPrice: 10_000_000n,
+        },
+      });
+    } catch (_e) {
+      // Ignore if mock doesn't support it
+    }
+  }
+
   // 4. Seed Trades up to 100,000
   if (existingTrades < TARGET_TRADES) {
     console.log(`Seeding trades (${existingTrades} -> ${TARGET_TRADES})...`);

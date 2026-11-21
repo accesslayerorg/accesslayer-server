@@ -25,7 +25,7 @@ export class KeyNotFoundError extends Error {
    }
 }
 
-async function loadProtocolFeeBps(): Promise<number> {
+export async function loadProtocolFeeBps(): Promise<number> {
    const config = await prisma.protocolConfig.upsert({
       where: { id: 'default' },
       create: { id: 'default', protocolFeeBps: 500 },

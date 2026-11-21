@@ -40,6 +40,15 @@ jobs:
          - name: Build
            run: pnpm build
 
+         - name: Check OpenAPI spec is up to date
+           run: |
+              pnpm docs:generate
+              if [ -n "$(git status --porcelain -- docs/openapi.json)" ]; then
+                 echo "::error file=docs/openapi.json::docs/openapi.json is out of date. Run 'pnpm docs:generate' and commit the result."
+                 git --no-pager diff -- docs/openapi.json
+                 exit 1
+              fi
+
    invoice-protocol:
       runs-on: ubuntu-latest
       services:
