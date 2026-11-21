@@ -31,6 +31,7 @@ jest.mock('../../utils/prisma.utils', () => ({
          create: jest.fn(),
       },
       creatorProfile: { findMany: jest.fn() },
+      referralTier: { findUnique: jest.fn() },
    },
 }));
 
@@ -50,6 +51,7 @@ const aggregate = prisma.referralEvent.aggregate as jest.Mock;
 const findMany = prisma.referralEvent.findMany as jest.Mock;
 const create = prisma.referralEvent.create as jest.Mock;
 const creatorFindMany = prisma.creatorProfile.findMany as jest.Mock;
+const referralTierFindUnique = prisma.referralTier.findUnique as jest.Mock;
 
 const WALLET = 'GA5XIGA5C7GTGTW7ZKJ4YV6OEILUY2Q7YIHZQNNDJUWAVES4O7D5SUK9';
 
@@ -174,6 +176,7 @@ describe('httpGetWalletReferrals controller', () => {
    beforeEach(() => {
       store.clear();
       jest.clearAllMocks();
+      referralTierFindUnique.mockResolvedValue(null);
    });
 
    it('serves the summary from Redis within TTL without re-aggregating', async () => {
@@ -194,6 +197,11 @@ describe('httpGetWalletReferrals controller', () => {
       const body = res.json.mock.calls[0][0];
       expect(body.data.totalEarned).toBe(42);
       expect(body.data.referralCount).toBe(7);
+
+      // Tier data is included in the stats response (#1034).
+      expect(body.data.tier).toBeDefined();
+      expect(body.data.tier.tier).toBe(1);
+      expect(body.data.tier.rewardRateBps).toBe(500);
 
       // Aggregate must not run while the cached summary is fresh.
       expect(aggregate).not.toHaveBeenCalled();

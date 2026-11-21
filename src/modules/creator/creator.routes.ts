@@ -15,12 +15,54 @@ import { buyGateway } from './buy.service';
 import { horizonRequest } from '../../utils/horizon-api.utils';
 import { getRedisClient } from '../../utils/redis.utils';
 import { deprecateGateway } from './creator-deprecate.service';
+import {
+   getCreatorProfileHandler,
+   upsertCreatorProfileHandler,
+} from './creator-profile.handlers';
+import { requireCreatorProfileOwnership } from '../../middlewares/wallet-ownership.middleware';
+import { validateBody } from '../../middlewares/validate-body.middleware';
+import { UpsertCreatorProfileBodySchema } from './creator-profile.schemas';
+import { validateCreatorParam } from '../../middlewares/creator-param.middleware';
+
 const creatorsRouter = Router();
 
 // Normalize trailing slashes for all creator routes so that, e.g.,
 // GET /api/v1/creators/ reaches the same handler as GET /api/v1/creators.
 // Scoped to this router to avoid side-effects on other route groups.
 creatorsRouter.use(normalizeTrailingSlash);
+
+/**
+ * GET /api/v1/creators/:wallet/profile
+ *
+ * Full creator profile including social links, display name, and resolved avatar URL.
+ */
+creatorsRouter.get(
+   '/:wallet/profile',
+   validateCreatorParam('wallet'),
+   cacheControl(
+      CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_PROFILE]
+   ),
+   getCreatorProfileHandler
+);
+
+/**
+ * PUT /api/v1/creators/:wallet/profile
+ *
+ * Update display name, avatar_cid, twitter, website, discord.
+ * Restricted to the wallet owner via signature validation.
+ */
+creatorsRouter.put(
+   '/:wallet/profile',
+   validateCreatorParam('wallet'),
+   requireCreatorProfileOwnership('wallet'),
+   validateBody(UpsertCreatorProfileBodySchema),
+   upsertCreatorProfileHandler
+);
+
+// 405 handler for /:wallet/profile
+creatorsRouter.all('/:wallet/profile', (_req, res) => {
+   res.set('Allow', 'GET, PUT').sendStatus(405);
+});
 
 /**
  * GET /api/v1/creators

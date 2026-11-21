@@ -12,6 +12,7 @@ model Trade {
   /// Payment asset used for this purchase (e.g. 'XLM', 'USDC').
   /// Defaults to 'XLM' for trades recorded before multi-currency support (#934).
   paymentAsset String   @default("XLM")
+  type         String   @default("single")
   createdAt    DateTime @default(now())
 
   @@unique([ledger, txHash])

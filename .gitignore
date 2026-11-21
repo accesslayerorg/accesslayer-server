@@ -51,3 +51,5 @@ pnpm-debug.log*
 tmp/
 temp/
 .tmp/
+
+full_structure3.txt

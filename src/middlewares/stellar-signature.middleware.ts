@@ -6,13 +6,19 @@ import type { Request, Response, NextFunction } from 'express';
 import { Keypair } from '@stellar/stellar-base';
 import { createHash } from 'crypto';
 import { StellarAddressSchema } from '../modules/wallet/wallet.schemas';
-import { sendError } from '../utils/api-response.utils';
+import { sendError, sendConflict } from '../utils/api-response.utils';
 import { ErrorCode } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
+import {
+   validateSignedActionNonce,
+   NonceAlreadyConsumedError,
+   NonceMismatchError,
+} from '../modules/nonce';
 
 export interface StellarSignedRequest extends Request {
    walletAddress?: string;
    signatureVerified?: boolean;
+   nonce?: number;
 }
 
 const SIGNATURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
@@ -143,6 +149,50 @@ export function requireStellarSignature() {
 
          req.walletAddress = address;
          req.signatureVerified = true;
+
+         // Replay protection: validate and consume single-use nonce when provided (#1039)
+         const nonceHeader =
+            readHeader(req, 'x-nonce') ?? (req.body as any)?.nonce;
+         if (
+            nonceHeader !== undefined &&
+            nonceHeader !== null &&
+            nonceHeader !== ''
+         ) {
+            const nonceNum = Number(nonceHeader);
+            if (!Number.isInteger(nonceNum) || nonceNum < 0) {
+               sendError(
+                  res,
+                  400,
+                  ErrorCode.BAD_REQUEST,
+                  'Invalid nonce format — must be a non-negative integer'
+               );
+               return;
+            }
+            try {
+               await validateSignedActionNonce(
+                  address,
+                  nonceNum,
+                  'stellar_signed_action'
+               );
+               req.nonce = nonceNum;
+            } catch (nonceError) {
+               if (nonceError instanceof NonceAlreadyConsumedError) {
+                  sendConflict(res, nonceError.message);
+                  return;
+               }
+               if (nonceError instanceof NonceMismatchError) {
+                  sendError(
+                     res,
+                     400,
+                     ErrorCode.BAD_REQUEST,
+                     nonceError.message
+                  );
+                  return;
+               }
+               throw nonceError;
+            }
+         }
+
          next();
       } catch (error) {
          logger.error(

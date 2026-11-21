@@ -11,6 +11,20 @@ import { jwtAuth } from "../../middlewares/jwt.middleware";
 const walletsRouter = Router();
 
 /**
+ * GET /api/v1/wallets/:wallet/badges
+ *
+ * Returns all earned and locked badge types for a Stellar wallet.
+ */
+walletsRouter.get("/:wallet/badges", httpGetWalletBadges);
+
+/**
+ * GET /api/v1/wallets/:wallet/badges/summary
+ *
+ * Returns earned badge counts for every badge type.
+ */
+walletsRouter.get("/:wallet/badges/summary", httpGetWalletBadgeSummary);
+
+/**
  * GET /api/v1/wallets/:address/activity
  *
  * Returns the unified chronological on-chain activity feed for a wallet

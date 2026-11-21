@@ -21,7 +21,21 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { CursorChecksumError } from '../../utils/cursor.utils';
 import { logger } from '../../utils/logger.utils';
 import { AuthenticatedRequest } from '../../middlewares/jwt-auth.middleware';
-import { ReferredWalletsQuerySchema, RegisterReferralSchema } from './referrals.schemas';
+import {
+   ReferralClaimSchema,
+   ReferralWalletQuerySchema,
+   ReferredWalletsQuerySchema,
+   RegisterReferralSchema,
+} from './referrals.schemas';
+import {
+   buildReferralClaimTransaction,
+   getPendingReferralRewards,
+   getReferralHistory,
+   NothingToClaimError,
+   ReferralContractUnavailableError,
+   ReferralKeyNotFoundError,
+} from './referrals-api.service';
+import { prisma } from '../../utils/prisma.utils';
 import {
    AlreadyReferredError,
    getReferralEarnings,

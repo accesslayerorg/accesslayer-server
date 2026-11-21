@@ -35,4 +35,6 @@ export interface MultiBuyResult {
    amount: number;
    total_cost: string;
    new_supply: number;
+   error?: 'InsufficientDepth';
+   max_available?: string;
 }

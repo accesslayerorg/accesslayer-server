@@ -1,0 +1,16 @@
+// prisma/schema/volume-discount.prisma
+// Fee discount tiers indexed from contract events (#1030).
+
+model VolumeDiscountTier {
+  id              String   @id @default(cuid())
+  tier            Int      @unique
+  name            String?
+  /// 30-day rolling volume threshold in stroops (1 XLM = 10^7 stroops).
+  volumeThreshold Decimal  @db.Decimal(30, 0)
+  /// Fee discount in basis points (e.g. 100 bps = 1% fee discount).
+  discountBps     Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("volume_discount_tiers")
+}

@@ -1,0 +1,22 @@
+// Current per-wallet key leaderboard metrics, indexed from LeaderboardUpdated
+// contract events. The ledger/event index watermark makes replays and
+// out-of-order delivery converge on the latest snapshot.
+model KeyLeaderboard {
+  id          String   @id @default(cuid())
+  /// Key ID is not a foreign key so events preceding key registration are retained.
+  creatorId   String
+  wallet      String
+  volume      BigInt
+  pnl         BigInt
+  holdingDays BigInt
+  ledger      Int
+  eventIndex  Int
+  txHash      String
+  updatedAt   DateTime @updatedAt
+
+  @@unique([creatorId, wallet])
+  @@index([creatorId, volume(sort: Desc), wallet], map: "key_leaderboards_creatorId_volume_idx")
+  @@index([creatorId, pnl(sort: Desc), wallet], map: "key_leaderboards_creatorId_pnl_idx")
+  @@index([creatorId, holdingDays(sort: Desc), wallet], map: "key_leaderboards_creatorId_holdingDays_idx")
+  @@map("key_leaderboards")
+}

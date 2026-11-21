@@ -1,0 +1,66 @@
+// prisma/schema/staking-epoch.prisma
+// Staking epoch indexer models (#1086):
+//   - Stake         — indexed from StakeCreated / RewardsClaimed contract events
+//   - EpochReward   — indexed from EpochRewardDistributed contract events
+
+/// A single staking position indexed from on-chain StakeCreated events.
+/// Unstaking is recorded by setting `removedAt` when a RewardsClaimed event
+/// signals the position is closed.
+///
+/// Idempotent via the (txHash, eventIndex) unique constraint so replays are safe.
+model Stake {
+  id         String    @id @default(cuid())
+  /// Wallet that owns the stake.
+  wallet     String
+  /// Creator key the staked tokens belong to.
+  keyId      String
+  /// Amount of tokens staked (Decimal(20,7) = stroop-level precision).
+  amount     Decimal   @db.Decimal(20, 7)
+  /// Epoch in which this stake was created.
+  startEpoch Int
+  /// Total epochs this position is locked for; null means no fixed duration.
+  epochsTotal Int?
+  /// Set when the stake is removed (RewardsClaimed with closePosition=true).
+  removedAt  DateTime?
+
+  // Chain correlation for the creating event
+  ledger     Int
+  txHash     String
+  eventIndex Int
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([txHash, eventIndex])
+  @@index([wallet, removedAt])
+  @@index([keyId])
+  @@map("stakes")
+}
+
+/// Per-epoch reward distribution record indexed from EpochRewardDistributed events.
+/// One row per on-chain distribution event; the (txHash, eventIndex) pair
+/// makes replays idempotent.
+model EpochReward {
+  id              String   @id @default(cuid())
+  /// The epoch sequence number this distribution covers.
+  epoch           Int
+  /// Creator key the rewards are distributed for.
+  keyId           String
+  /// Total tokens distributed in this epoch for this key.
+  totalDistributed Decimal @db.Decimal(20, 7)
+
+  // Chain correlation
+  ledger          Int
+  txHash          String
+  eventIndex      Int
+
+  /// On-chain event timestamp.
+  distributedAt   DateTime
+
+  createdAt       DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, epoch])
+  @@index([epoch])
+  @@map("epoch_rewards")
+}

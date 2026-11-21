@@ -1,4 +1,4 @@
-// Integration test: GET /api/v1/keys/:keyId/holding-capacity (#945)
+// Integration test: GET /api/v1/keys/:keyId/holding-capacity (#913)
 
 import supertest from 'supertest';
 import app from '../../app';
@@ -29,8 +29,13 @@ const mockPrisma = prisma as unknown as {
 };
 
 const WALLET = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
-const url = (keyId: string, wallet?: string) =>
-   `/api/v1/keys/${keyId}/holding-capacity${wallet ? `?wallet=${wallet}` : ''}`;
+const url = (keyId: string, wallet?: string, quantity?: number) => {
+   const params = new URLSearchParams();
+   if (wallet) params.set('wallet', wallet);
+   if (quantity !== undefined) params.set('quantity', String(quantity));
+   const qs = params.toString();
+   return `/api/v1/keys/${keyId}/holding-capacity${qs ? `?${qs}` : ''}`;
+};
 
 describe('GET /api/v1/keys/:keyId/holding-capacity', () => {
    beforeEach(() => {
@@ -59,8 +64,9 @@ describe('GET /api/v1/keys/:keyId/holding-capacity', () => {
          wallet: WALLET,
          current_holding: 100,
          cap: 250,
-         remaining: 150,
+         remaining_capacity: 150,
          cap_percentage: 40,
+         allowed: true,
       });
    });
 
@@ -96,5 +102,84 @@ describe('GET /api/v1/keys/:keyId/holding-capacity', () => {
 
       const res = await supertest(app).get(url('missing', WALLET));
       expect(res.status).toBe(404);
+   });
+
+   // ── quantity / allowed (#913) ──────────────────────────────
+
+   describe('quantity validation', () => {
+      it('allowed=true when quantity fits within remaining capacity', async () => {
+         mockKeyWithHolding(); // cap=250, holding=100, remaining=150
+
+         const res = await supertest(app).get(url('key-1', WALLET, 100));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.allowed).toBe(true);
+         expect(res.body.data.remaining_capacity).toBe(150);
+         expect(res.body.data.current_holding).toBe(100);
+      });
+
+      it('allowed=true when quantity exactly equals remaining capacity', async () => {
+         mockKeyWithHolding(); // cap=250, holding=100, remaining=150
+
+         const res = await supertest(app).get(url('key-1', WALLET, 150));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.allowed).toBe(true);
+      });
+
+      it('allowed=false when quantity exceeds remaining capacity', async () => {
+         mockKeyWithHolding(); // cap=250, holding=100, remaining=150
+
+         const res = await supertest(app).get(url('key-1', WALLET, 151));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.allowed).toBe(false);
+         expect(res.body.data.remaining_capacity).toBe(150);
+      });
+
+      it('allowed=true when quantity defaults to 0', async () => {
+         mockKeyWithHolding();
+
+         const res = await supertest(app).get(url('key-1', WALLET));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.allowed).toBe(true);
+      });
+
+      it('allowed=false when holding already at cap and quantity > 0', async () => {
+         mockPrisma.creatorProfile.findFirst.mockResolvedValue({
+            id: 'key-1',
+            holderCapBps: 2500,
+            supplyCap: 1000,
+            circulatingSupply: '400',
+         });
+         mockPrisma.keyOwnership.findUnique.mockResolvedValue({
+            balance: '250',
+         });
+
+         const res = await supertest(app).get(url('key-1', WALLET, 1));
+
+         expect(res.status).toBe(200);
+         expect(res.body.data.allowed).toBe(false);
+         expect(res.body.data.remaining_capacity).toBe(0);
+      });
+
+      it('returns 400 for negative quantity', async () => {
+         const res = await supertest(app).get(url('key-1', WALLET, -1));
+
+         expect(res.status).toBe(400);
+      });
+
+      it('returns 400 for non-integer quantity', async () => {
+         const res = await supertest(app).get(url('key-1', WALLET, 1.5));
+
+         expect(res.status).toBe(400);
+      });
+
+      it('returns 400 for quantity exceeding 1,000,000', async () => {
+         const res = await supertest(app).get(url('key-1', WALLET, 1_000_001));
+
+         expect(res.status).toBe(400);
+      });
    });
 });

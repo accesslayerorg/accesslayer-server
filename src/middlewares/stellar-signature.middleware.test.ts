@@ -1,14 +1,32 @@
 // src/middlewares/stellar-signature.middleware.test.ts
-// Integration test for Stellar signature verification middleware.
+// Unit / Integration tests for Stellar signature verification middleware.
 
+const mockCacheStore = new Map<string, any>();
+
+jest.mock('../utils/redis.utils', () => ({
+   cacheGetJson: jest.fn(async (key: string) =>
+      mockCacheStore.has(key) ? mockCacheStore.get(key) : null
+   ),
+   cacheSetJson: jest.fn(async (key: string, val: any) => {
+      mockCacheStore.set(key, val);
+   }),
+   cacheInvalidate: jest.fn(async (key: string) => {
+      mockCacheStore.delete(key);
+   }),
+}));
+
+import express from 'express';
 import supertest from 'supertest';
 import { Keypair } from '@stellar/stellar-base';
 import { createHash } from 'crypto';
-import app from '../app';
-import { prisma } from '../utils/prisma.utils';
+import { requireStellarSignature } from './stellar-signature.middleware';
+import { resetNonceStateForTests } from '../modules/nonce';
 
-const USER_ID = 'sig-test-user-1';
-const HANDLE = 'sig-test-creator-1';
+const testApp = express();
+testApp.use(express.json());
+testApp.put('/test-sig', requireStellarSignature(), (_req, res) => {
+   res.status(202).json({ success: true });
+});
 
 function buildCanonicalMessage(body: unknown, timestamp: string): Buffer {
    const bodyJson = JSON.stringify(body);
@@ -17,58 +35,17 @@ function buildCanonicalMessage(body: unknown, timestamp: string): Buffer {
 }
 
 describe('#418 Stellar signature verification middleware', () => {
-   let creatorId: string;
    let keypair: Keypair;
 
-   beforeAll(async () => {
+   beforeEach(() => {
+      mockCacheStore.clear();
       keypair = Keypair.random();
-
-      const user = await prisma.user.upsert({
-         where: { id: USER_ID },
-         create: {
-            id: USER_ID,
-            email: 'sig-test@example.test',
-            passwordHash: 'dummy-hash',
-            firstName: 'Sig',
-            lastName: 'Test',
-         },
-         update: {},
-      });
-
-      await prisma.stellarWallet.upsert({
-         where: { userId: user.id },
-         create: {
-            userId: user.id,
-            address: keypair.publicKey(),
-         },
-         update: {
-            address: keypair.publicKey(),
-         },
-      });
-
-      const creator = await prisma.creatorProfile.upsert({
-         where: { handle: HANDLE },
-         create: {
-            userId: user.id,
-            handle: HANDLE,
-            displayName: 'Sig Test Creator',
-         },
-         update: {},
-      });
-
-      creatorId = creator.id;
-   });
-
-   afterAll(async () => {
-      await prisma.creatorProfile.deleteMany({ where: { handle: HANDLE } });
-      await prisma.stellarWallet.deleteMany({ where: { userId: USER_ID } });
-      await prisma.user.deleteMany({ where: { id: USER_ID } });
-      await prisma.$disconnect();
+      resetNonceStateForTests();
    });
 
    it('rejects request with missing signature headers', async () => {
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .send({ displayName: 'Test' });
 
       expect(res.status).toBe(401);
@@ -82,8 +59,8 @@ describe('#418 Stellar signature verification middleware', () => {
       const message = buildCanonicalMessage(body, timestamp);
       const signature = keypair.sign(message).toString('base64');
 
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .set('x-wallet-address', keypair.publicKey())
          .set('x-wallet-signature', signature)
          .set('x-timestamp', timestamp)
@@ -102,8 +79,8 @@ describe('#418 Stellar signature verification middleware', () => {
       // Send different body than what was signed
       const tamperedBody = { displayName: 'Tampered' };
 
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .set('x-wallet-address', keypair.publicKey())
          .set('x-wallet-signature', signature)
          .set('x-timestamp', timestamp)
@@ -121,8 +98,8 @@ describe('#418 Stellar signature verification middleware', () => {
       const message = buildCanonicalMessage(body, timestamp);
       const signature = wrongKeypair.sign(message).toString('base64');
 
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .set('x-wallet-address', keypair.publicKey()) // Correct address
          .set('x-wallet-signature', signature) // But wrong signature
          .set('x-timestamp', timestamp)
@@ -138,8 +115,8 @@ describe('#418 Stellar signature verification middleware', () => {
       const message = buildCanonicalMessage(body, timestamp);
       const signature = keypair.sign(message).toString('base64');
 
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .set('x-wallet-address', keypair.publicKey())
          .set('x-wallet-signature', signature)
          .set('x-timestamp', timestamp)
@@ -155,8 +132,8 @@ describe('#418 Stellar signature verification middleware', () => {
       const message = buildCanonicalMessage(body, timestamp);
       const signature = keypair.sign(message).toString('base64');
 
-      const res = await supertest(app)
-         .put(`/api/v1/creators/${creatorId}/profile`)
+      const res = await supertest(testApp)
+         .put('/test-sig')
          .set('x-wallet-address', 'INVALID_ADDRESS')
          .set('x-wallet-signature', signature)
          .set('x-timestamp', timestamp)
@@ -164,5 +141,35 @@ describe('#418 Stellar signature verification middleware', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('BAD_REQUEST');
+   });
+
+   it('accepts valid x-nonce and rejects replay with 409 Conflict (#1039)', async () => {
+      const body = { displayName: 'Nonce Protected Update' };
+      const timestamp = Date.now().toString();
+      const message = buildCanonicalMessage(body, timestamp);
+      const signature = keypair.sign(message).toString('base64');
+
+      const res = await supertest(testApp)
+         .put('/test-sig')
+         .set('x-wallet-address', keypair.publicKey())
+         .set('x-wallet-signature', signature)
+         .set('x-timestamp', timestamp)
+         .set('x-nonce', '0')
+         .send(body);
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+
+      // Replaying the exact same nonce should immediately return 409 Conflict
+      const replay = await supertest(testApp)
+         .put('/test-sig')
+         .set('x-wallet-address', keypair.publicKey())
+         .set('x-wallet-signature', signature)
+         .set('x-timestamp', timestamp)
+         .set('x-nonce', '0')
+         .send(body);
+
+      expect(replay.status).toBe(409);
+      expect(replay.body.error.message).toContain('already been consumed');
    });
 });

@@ -1,5 +1,6 @@
 import { logger } from './logger.utils';
 import { envConfig } from '../config';
+import { sorobanRpcCircuitBreaker } from './circuit-breaker.utils';
 
 /**
  * Soroban RPC client for querying contract state and ledger entries.
@@ -36,6 +37,11 @@ export async function getLedgerEntries(
       return null;
    }
 
+   // Skip circuit breaker in test mode unless explicitly enabled
+   if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+      sorobanRpcCircuitBreaker.checkState();
+   }
+
    try {
       const response = await fetch(envConfig.STELLAR_SOROBAN_RPC_URL, {
          method: 'POST',
@@ -53,6 +59,11 @@ export async function getLedgerEntries(
       });
 
       if (!response.ok) {
+         if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+            sorobanRpcCircuitBreaker.recordFailure(
+               new Error(`Soroban HTTP ${response.status}`)
+            );
+         }
          logger.warn(
             {
                status: response.status,
@@ -78,12 +89,15 @@ export async function getLedgerEntries(
          return null;
       }
 
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+         sorobanRpcCircuitBreaker.recordSuccess();
+      }
       return json.result as GetLedgerEntriesResponse;
    } catch (error) {
-      logger.warn(
-         { error },
-         'Failed to query Soroban RPC'
-      );
+      if (envConfig.MODE !== 'test' || process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER === '1') {
+         sorobanRpcCircuitBreaker.recordFailure(error);
+      }
+      logger.warn({ error }, 'Failed to query Soroban RPC');
       return null;
    }
 }

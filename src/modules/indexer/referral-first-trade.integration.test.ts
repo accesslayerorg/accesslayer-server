@@ -23,7 +23,11 @@ jest.mock('../../utils/prisma.utils', () => {
             upsert: jest.fn(),
             aggregate: jest.fn(),
          },
-         creatorPriceSnapshot: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+         creatorPriceSnapshot: {
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+         },
          creatorPriceHistory: { create: jest.fn() },
          creatorProfile: { findUnique: creatorProfileFindUnique },
          indexedLedger: { upsert: jest.fn() },
@@ -67,7 +71,9 @@ const mockLogger = logger as unknown as { warn: jest.Mock };
 
 const BUYER = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
-function buyEvent(overrides: Partial<IndexerChainEvent> = {}): IndexerChainEvent {
+function buyEvent(
+   overrides: Partial<IndexerChainEvent> = {}
+): IndexerChainEvent {
    return {
       txHash: '0xhash-buy',
       eventIndex: 0,
