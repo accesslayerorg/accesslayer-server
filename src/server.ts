@@ -29,6 +29,14 @@ import {
    stopTwapComputationJob,
 } from './jobs/twap-computation.job';
 import {
+   startHealthMonitorWorker,
+   stopHealthMonitorWorker,
+} from './jobs/health-monitor.worker';
+import {
+   startLiquidationKeeper,
+   stopLiquidationKeeper,
+} from './jobs/liquidation-keeper.job';
+import {
    startFlashLoanViolationCleanupJob,
    stopFlashLoanViolationCleanupJob,
 } from './jobs/flash-loan-violation-cleanup.job';
@@ -107,6 +115,8 @@ async function startServer() {
       startGovernanceSyncJob();
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
+      startHealthMonitorWorker();
+      startLiquidationKeeper();
       startFlashLoanViolationCleanupJob();
       startStatusProbeJob();
       startSessionActivityCleanupJob();
@@ -152,6 +162,8 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopGovernanceSyncJob();
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
+      stopHealthMonitorWorker();
+      stopLiquidationKeeper();
       stopFlashLoanViolationCleanupJob();
       stopStatusProbeJob();
       stopSessionActivityCleanupJob();
