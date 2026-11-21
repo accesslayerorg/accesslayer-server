@@ -6,31 +6,13 @@ import {
    httpGetWalletGainsCsv,
 } from "./wallet-gains.controllers";
 import { httpGetWalletFollowing } from "./wallet-following.controllers";
-import { httpGetWalletFeed } from "./wallet-feed.controllers";
-import {
-   httpGetWalletBadges,
-   httpGetWalletBadgeSummary,
-} from "./wallet-badges.controllers";
+import { httpGetWalletReferrals } from "../referrals/referrals.controller";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
 import { jwtAuth } from "../../middlewares/jwt.middleware";
 
 const walletsRouter = Router();
-
-/**
- * GET /api/v1/wallets/:wallet/badges
- *
- * Returns all earned and locked badge types for a Stellar wallet.
- */
-walletsRouter.get("/:wallet/badges", httpGetWalletBadges);
-
-/**
- * GET /api/v1/wallets/:wallet/badges/summary
- *
- * Returns earned badge counts for every badge type.
- */
-walletsRouter.get("/:wallet/badges/summary", httpGetWalletBadgeSummary);
 
 /**
  * GET /api/v1/wallets/:address/activity
@@ -79,15 +61,11 @@ walletsRouter.get("/:address/gains.csv", httpGetWalletGainsCsv);
 walletsRouter.get('/:address/following', jwtAuth, httpGetWalletFollowing);
 
 /**
- * GET /api/v1/wallets/:address/feed
+ * GET /api/v1/wallets/:address/referrals
  *
- * Returns posts from creators followed by the authenticated wallet,
- * newest first.
+ * Returns referral statistics for a wallet: referral count, tier, total earned,
+ * and pending claim. Public endpoint, no authentication required.
  */
-walletsRouter.get(
-   '/:address/feed',
-   requireWalletParamMatch('address'),
-   httpGetWalletFeed
-);
+walletsRouter.get('/:address/referrals', httpGetWalletReferrals);
 
 export default walletsRouter;
