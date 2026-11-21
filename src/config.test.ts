@@ -28,6 +28,7 @@ const BASE_ENV = {
    GOOGLE_CLIENT_SECRET: 'google-secret',
    BACKEND_URL: 'http://localhost:3000',
    FRONTEND_URL: 'http://localhost:5173',
+   PUBLIC_SITE_URL: 'https://accesslayer.example',
    CLOUDINARY_CLOUD_NAME: 'cloud',
    CLOUDINARY_API_KEY: 'api-key',
    CLOUDINARY_API_SECRET: 'api-secret',

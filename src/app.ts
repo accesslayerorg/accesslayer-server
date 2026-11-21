@@ -13,9 +13,12 @@ import swapsRouter from './modules/swaps/swaps.routes';
 import milestonesRouter from './modules/keys/milestones.routes';
 import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
+import ratesRouter from './routes/rates.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import shareRouter from './modules/share/share.routes';
+import sitemapRouter from './modules/sitemap/sitemap.routes';
 import tspecOptions from './tspec.config';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
@@ -26,7 +29,10 @@ import { schemaVersionMiddleware } from './middlewares/schema-version.middleware
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
 import { requestContextMiddleware } from './middlewares/request-context.middleware';
 import { requestEntryLoggerMiddleware } from './middlewares/request-entry-logger.middleware';
-import { requestCompletionLoggerMiddleware, slowRequestLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
+import {
+   requestCompletionLoggerMiddleware,
+   slowRequestLoggerMiddleware,
+} from './middlewares/request-completion-logger.middleware';
 import { sessionActivityMiddleware } from './middlewares/session-activity.middleware';
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
@@ -113,6 +119,11 @@ app.get('/', (_, res: Response) => {
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
+
+// XLM fiat rate proxy (#1219). Mounted at both the documented path
+// (/v1/rates) and the versioned API prefix used by every other route.
+app.use('/v1/rates', ratesRouter);
+app.use('/api/v1/rates', ratesRouter);
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
@@ -121,6 +132,8 @@ app.use('/keys', routeBodySizeLimit('default'), keysRouter);
 app.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
+app.use('/share', shareRouter);
+app.use(sitemapRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

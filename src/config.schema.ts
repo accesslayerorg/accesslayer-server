@@ -64,6 +64,11 @@ export const envSchema = z
          .string()
          .url('FRONTEND_URL must be a valid URL')
          .min(1, 'FRONTEND_URL is required'),
+      // Public origin of the website, used for absolute sitemap and robots.txt URLs
+      PUBLIC_SITE_URL: z
+         .string()
+         .url('PUBLIC_SITE_URL must be a valid URL')
+         .min(1, 'PUBLIC_SITE_URL is required'),
 
       // Cloudinary
       CLOUDINARY_CLOUD_NAME: z
@@ -426,6 +431,9 @@ export const envSchema = z
       QUERY_COST_MAP_JSON: optionalNonEmptyString,
       // Comma-separated wallet addresses that bypass the governor entirely.
       QUERY_COST_ADMIN_WALLETS: optionalNonEmptyString,
+      // Comma-separated wallet addresses allowed to triage key reports via
+      // the /admin/reports moderator queue (#1226).
+      MODERATOR_WALLETS: optionalNonEmptyString,
       HORIZON_WEBHOOK_SECRET: optionalNonEmptyString,
       WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
          .number()
