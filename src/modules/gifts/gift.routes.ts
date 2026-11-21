@@ -6,6 +6,7 @@ import {
    walletAddressParamSchema,
 } from './gift.schemas';
 import { giftService, GiftError } from './gift.service';
+import { GiftVerificationError } from './gift-verification.service';
 
 export const giftRouter = Router();
 
@@ -19,7 +20,7 @@ function getRequesterAddress(req: Request): string | undefined {
 }
 
 function handleError(err: unknown, res: Response, next: NextFunction) {
-   if (err instanceof GiftError) {
+   if (err instanceof GiftError || err instanceof GiftVerificationError) {
       return res.status(err.status).json({ error: err.message });
    }
    return next(err);

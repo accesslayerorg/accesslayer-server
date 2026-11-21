@@ -62,7 +62,6 @@ export async function verifyMigrationChecksums(): Promise<void> {
    for (const row of dbMigrations) {
       dbChecksumMap.set(row.migration_name, row.checksum);
    }
-   // Note: issue scope (gift API) does not touch this file; no changes required.
 
    // 4. Compare
    for (const migrationName of migrationDirs) {

@@ -1,4 +1,6 @@
-import { sorobanClient } from '../../utils/soroban.utils';
+export interface SorobanClientLike {
+   getTransferEventsByTxHash(txHash: string): Promise<SorobanTransferEvent[]>;
+}
 
 export interface TransferMatchInput {
    txHash: string;
@@ -35,6 +37,8 @@ export class GiftVerificationError extends Error {
  * and quantity. Only transfers that match are eligible to produce a Gift record.
  */
 export class GiftVerificationService {
+   constructor(private readonly client: SorobanClientLike) {}
+
    /**
     * Fetches the transaction from the Soroban client, extracts the transfer
     * event and compares sender, recipient and quantity.
@@ -50,7 +54,7 @@ export class GiftVerificationService {
       keyId?: string
    ): Promise<VerifiedTransfer> {
       const transfers: SorobanTransferEvent[] =
-         await sorobanClient.getTransferEventsByTxHash(txHash);
+         await this.client.getTransferEventsByTxHash(txHash);
 
       if (!transfers || transfers.length === 0) {
          throw new GiftVerificationError(
@@ -78,4 +82,8 @@ export class GiftVerificationService {
    }
 }
 
-export const giftVerificationService = new GiftVerificationService();
+export const giftVerificationService = new GiftVerificationService({
+   getTransferEventsByTxHash: async (): Promise<SorobanTransferEvent[]> => {
+      throw new Error('Soroban client not configured for gift verification');
+   },
+});

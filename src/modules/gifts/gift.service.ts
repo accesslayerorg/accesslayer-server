@@ -18,6 +18,10 @@ export class GiftService {
     * Duplicate txHash values are rejected with 409.
     */
    async createGift(input: CreateGiftInput) {
+      if (input.message !== undefined && input.message.length > 140) {
+         throw new GiftError('Message must be 140 characters or fewer', 400);
+      }
+
       const existing = await prisma.gift.findUnique({
          where: { txHash: input.txHash },
       });

@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const MAX_MESSAGE_LENGTH = 140;
 
+export const MESSAGE_TOO_LONG_ERROR = `Message must be at most ${MAX_MESSAGE_LENGTH} characters`;
+
 export const createGiftSchema = z.object({
    txHash: z.string().min(1),
    keyId: z.string().min(1),
@@ -10,10 +12,7 @@ export const createGiftSchema = z.object({
    recipient: z.string().min(1),
    message: z
       .string()
-      .max(
-         MAX_MESSAGE_LENGTH,
-         `Message must be at most ${MAX_MESSAGE_LENGTH} characters`
-      )
+      .max(MAX_MESSAGE_LENGTH, MESSAGE_TOO_LONG_ERROR)
       .default(''),
 });
 
