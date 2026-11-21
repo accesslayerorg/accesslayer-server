@@ -1,4 +1,11 @@
 module.exports = {
+   ignorePatterns: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      'loadtest/*.js',
+      'loadtest/lib/*.js',
+   ],
    parser: '@typescript-eslint/parser',
    plugins: ['@typescript-eslint'],
    extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],

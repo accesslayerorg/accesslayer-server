@@ -28,7 +28,10 @@
       "migrate": "pnpm exec prisma migrate dev",
       "studio": "pnpm exec prisma studio",
       "validate-api": "tspec validate",
-      "bundle": "bash src/scripts/bundle-code.sh"
+      "bundle": "bash src/scripts/bundle-code.sh",
+      "loadtest:seed": "ts-node loadtest/seed.ts",
+      "loadtest:smoke": "k6 run --summary-export=loadtest-summary.json loadtest/smoke.js",
+      "loadtest:soak": "k6 run --summary-export=loadtest-summary.json loadtest/soak.js"
    },
    "lint-staged": {
       "*.{js,jsx,ts,tsx}": [

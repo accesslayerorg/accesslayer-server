@@ -1,22 +1,23 @@
-const { createDefaultPreset } = require('ts-jest');
-
-const tsJestTransformCfg = createDefaultPreset({
-   diagnostics: { warnOnly: true },
-   tsconfig: '<rootDir>/tsconfig.jest.json',
-}).transform;
-
 /** @type {import("jest").Config} **/
 module.exports = {
    testEnvironment: 'node',
    transform: {
-      ...tsJestTransformCfg,
+      '^.+\\.[tj]sx?$': [
+         'ts-jest',
+         {
+            diagnostics: { warnOnly: true },
+            tsconfig: '<rootDir>/tsconfig.jest.json',
+         },
+      ],
    },
    maxWorkers: 2,
    workerIdleMemoryLimit: '512MB',
    moduleNameMapper: {
       '^chalk$': '<rootDir>/src/__mocks__/chalk.ts',
+      '^k6/crypto$': '<rootDir>/loadtest/__mocks__/k6-crypto.ts',
+      '^k6/encoding$': '<rootDir>/loadtest/__mocks__/k6-encoding.ts',
    },
-   roots: ['<rootDir>/src'],
+   roots: ['<rootDir>/src', '<rootDir>/loadtest'],
    setupFiles: ['./jest.setup.ts'],
    setupFilesAfterEnv: ['<rootDir>/jest.integration.setup.ts'],
    testEnvironmentOptions: {

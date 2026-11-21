@@ -61,6 +61,7 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import ordersRouter from './orders/orders.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -153,5 +154,6 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 
 export default router;

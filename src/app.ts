@@ -115,6 +115,7 @@ app.get('/', (_, res: Response) => {
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
+app.use('/v1', router);
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
