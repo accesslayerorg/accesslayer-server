@@ -27,6 +27,21 @@ model WalletReputation {
   @@index([flags])
 }
 
+model Gift {
+  id        String    @id @default(cuid())
+  txHash    String    @unique
+  keyId     String
+  quantity  Int
+  sender    String
+  recipient String
+  message   String    @default("") @db.VarChar(140)
+  seenAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([recipient, seenAt])
+  @@index([sender])
+}
+
 generator client {
   provider        = "prisma-client-js"
   output          = "../../node_modules/.prisma/client"
