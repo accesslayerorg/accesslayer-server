@@ -63,6 +63,7 @@ import reservesRouter from '../reserves/reserves.routes';
 import contentAccessRouter from '../content-access/content-access.routes';
 import tipsRouter from '../tips/tips.routes';
 import keyPollsRouter from './key-polls.routes';
+import { keyReportsRouter } from '../reports/key-reports.routes';
 import {
    requireJwtAuth,
    requireKeyCreator,
@@ -2204,6 +2205,8 @@ router.use('/', contentAccessRouter);
 // Mount tip history routes (#1132)
 router.use('/', tipsRouter);
 router.use('/', keyPollsRouter);
+// Key report submission (#1226): POST /:keyId/reports
+router.use('/', keyReportsRouter);
 
 // ── POST /:keyId/burn ─────────────────────────────────────────
 

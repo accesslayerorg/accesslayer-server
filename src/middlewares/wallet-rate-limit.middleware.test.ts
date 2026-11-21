@@ -207,3 +207,61 @@ describe('walletRateLimit', () => {
       expect(res.status).not.toHaveBeenCalled();
    });
 });
+
+describe('walletRateLimit with JWT-authenticated requests (#1226)', () => {
+   beforeEach(() => {
+      mockEnvConfig.INTERNAL_SERVICE_KEY = undefined;
+      jest.clearAllMocks();
+   });
+
+   function makeJwtReq(wallet: string) {
+      return {
+         user: { wallet },
+         headers: {},
+         path: '/api/v1/keys/key-1/reports',
+      } as unknown as StellarSignedRequest;
+   }
+
+   it('keys the limit on req.user.wallet when walletAddress is absent', async () => {
+      const fakeRedis = buildFakeRedis(6);
+      mockGetRedis.mockReturnValue(fakeRedis);
+      const middleware = walletRateLimit({
+         windowMs: 3_600_000,
+         max: 5,
+         keyPrefix: 'rl:key-report:',
+      });
+
+      const res = makeRes();
+      const next = jest.fn();
+      await middleware(makeJwtReq('GREPORTER'), res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(429);
+      expect(res.set).toHaveBeenCalledWith('Retry-After', '3600');
+      const pipeline = fakeRedis.pipeline.mock.results[0].value;
+      expect(pipeline.exec).toHaveBeenCalled();
+   });
+
+   it('uses the rl:key-report:<wallet> Redis key', async () => {
+      const fakeRedis = buildFakeRedis(0);
+      const zcardSpy = jest.fn();
+      mockGetRedis.mockReturnValue(fakeRedis);
+      const middleware = walletRateLimit({
+         windowMs: 3_600_000,
+         max: 5,
+         keyPrefix: 'rl:key-report:',
+      });
+
+      const next = jest.fn();
+      const pipeline = fakeRedis.pipeline();
+      const originalZcard = pipeline.zcard;
+      pipeline.zcard = (...args: unknown[]) => {
+         zcardSpy(...args);
+         return originalZcard(...args);
+      };
+      await middleware(makeJwtReq('GREPORTER'), makeRes(), next);
+
+      expect(next).toHaveBeenCalled();
+      expect(zcardSpy).toHaveBeenCalledWith('rl:key-report:GREPORTER');
+   });
+});
