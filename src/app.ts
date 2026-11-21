@@ -1,3 +1,6 @@
+import { queryCostGovernor } from './middlewares/query-cost-governor.middleware';
+import campaignsRouter from './modules/campaigns/campaigns.routes';
+import { protocolPolRouter, keyBackstopsRouter } from './modules/pol/pol.routes';
 // src/app.ts
 import express, { Express, Response, RequestHandler } from 'express';
 import { TspecDocsMiddleware } from 'tspec';
@@ -116,6 +119,10 @@ app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
 app.use('/api/v1', router);
+app.use('/v1', queryCostGovernor());
+app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
+app.use('/campaigns', queryCostGovernor(), routeBodySizeLimit('default'), campaignsRouter);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 app.use('/traders', routeBodySizeLimit('default'), tradersRouter);

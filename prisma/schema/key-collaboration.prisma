@@ -53,6 +53,8 @@ model KeyTip {
   keyId   String
   /// Stellar address of the tipper.
   tipper  String
+  /// Anonymous tips hide their sender in all public tip responses.
+  anonymous Boolean @default(false)
   /// Tip amount in XLM (converted from stroops).
   amount  Decimal @db.Decimal(20, 7)
   /// IPFS CID of the tip message, when one was attached.

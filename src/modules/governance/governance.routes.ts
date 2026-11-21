@@ -44,7 +44,10 @@ import {
    NonceMismatchError,
 } from '../nonce';
 
+import votingWeightRouter from './governance-voting-weight.routes';
+
 const router = Router();
+router.use(votingWeightRouter);
 router.use('/timelock', timelockRouter);
 
 /**
