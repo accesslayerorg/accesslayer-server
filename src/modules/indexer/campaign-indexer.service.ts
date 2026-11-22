@@ -203,7 +203,14 @@ export async function processCampaignEvent(event: IndexerChainEvent): Promise<bo
    }
    let applied = false;
    try {
-      applied = await prisma.$transaction((tx: Prisma.TransactionClient) => applyCampaignEvent(tx, parsed.value));
+      applied = await prisma.$transaction(tx =>
+         applyCampaignEvent(
+            // The $extends-ed client's tx is a structural superset of
+            // Prisma.TransactionClient.
+            tx as unknown as Prisma.TransactionClient,
+            parsed.value
+         )
+      );
    } catch (error) {
       const replay = (error as { code?: string })?.code === 'P2002'
          && await prisma.campaignEvent.findUnique({ where: {
