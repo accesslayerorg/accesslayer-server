@@ -40,6 +40,7 @@ import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
 import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
+import { sanctionedAddressMiddleware } from './middlewares/sanctioned-address.middleware';
 
 const app: Express = express();
 
@@ -77,6 +78,7 @@ if (!envConfig.ENABLE_REQUEST_LOGGING) {
 app.use(requestLoggerMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
+app.use(sanctionedAddressMiddleware);
 
 // Health check endpoints are now in /api/v1/health
 
