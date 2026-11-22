@@ -11,13 +11,13 @@ available through the existing proposal weight endpoint.
 
 ```json
 {
-   "success": true,
-   "data": {
-      "own_weight": "3.25",
-      "delegated_weight": "4.5",
-      "total": "7.75",
-      "delegators": [{ "wallet": "G...", "amount": "4.5" }]
-   }
+  "success": true,
+  "data": {
+    "own_weight": "3.25",
+    "delegated_weight": "4.5",
+    "total": "7.75",
+    "delegators": [{ "wallet": "G...", "amount": "4.5" }]
+  }
 }
 ```
 

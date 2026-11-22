@@ -2,11 +2,11 @@
 
 Search engines discover creator pages through server-generated sitemaps (#1242).
 
-| Route                              | Description                                                  |
-| ---------------------------------- | ------------------------------------------------------------ |
-| `GET /sitemap.xml`                 | Sitemap index, one `<sitemap>` entry per page                |
-| `GET /sitemaps/creators-:page.xml` | Creator URLs, at most 10,000 per file, `page` starts at 1    |
-| `GET /robots.txt`                  | Disallows `/api/` and `/internal/`, points at `/sitemap.xml` |
+| Route | Description |
+| --- | --- |
+| `GET /sitemap.xml` | Sitemap index, one `<sitemap>` entry per page |
+| `GET /sitemaps/creators-:page.xml` | Creator URLs, at most 10,000 per file, `page` starts at 1 |
+| `GET /robots.txt` | Disallows `/api/` and `/internal/`, points at `/sitemap.xml` |
 
 ## Behaviour
 

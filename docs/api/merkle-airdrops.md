@@ -6,10 +6,10 @@
 
 ```json
 {
-   "keyId": "creator-key-id-or-handle",
-   "allocations": [
-      { "address": "a-valid-Stellar-account-address", "amount": "10000000" }
-   ]
+  "keyId": "creator-key-id-or-handle",
+  "allocations": [
+    { "address": "a-valid-Stellar-account-address", "amount": "10000000" }
+  ]
 }
 ```
 
@@ -18,7 +18,8 @@ Use the existing Stellar signature headers: `x-wallet-address`,
 SHA256(JSON.stringify(body) + timestamp). The signing wallet must be registered
 to the user who owns the creator key. Amounts are positive integer strings in
 the contract's smallest units, bounded by signed i128. Empty lists, duplicates,
-invalid account checksums, zero amounts, and lists over 10,000 allocations return 400. A key that does not exist returns 404; a different creator returns 403.
+invalid account checksums, zero amounts, and lists over 10,000 allocations return
+400. A key that does not exist returns 404; a different creator returns 403.
 
 The response returns `id`, canonical `keyId`, `root`, and
 `allocationCount`. Submitting the same key/root again returns the existing tree.
