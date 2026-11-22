@@ -557,6 +557,16 @@ export async function processIndexerEvents(
       await processKeyLaunchAuctionEvents(launchAuctionEvents);
    }
 
+   const { DUTCH_AUCTION_EVENT_TYPES, processDutchAuctionEvents } = await import(
+      './dutch-auction-indexer.service'
+   );
+   const dutchAuctionEvents = events.filter(event =>
+      DUTCH_AUCTION_EVENT_TYPES.has(event.eventType)
+   );
+   if (dutchAuctionEvents.length > 0) {
+      await processDutchAuctionEvents(dutchAuctionEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
