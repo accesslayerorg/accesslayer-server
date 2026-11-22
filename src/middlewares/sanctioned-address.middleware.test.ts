@@ -1,18 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetSanctionedAddressCache, sanctionedAddressMiddleware } from './sanctioned-address.middleware';
 
 describe('sanctioned address middleware', () => {
 	afterEach(() => {
 		delete process.env.SANCTIONED_ADDRESSES;
 		resetSanctionedAddressCache();
-		vi.restoreAllMocks();
+		jest.restoreAllMocks();
 	});
 
 	it('rejects configured addresses and allows unlisted wallets', async () => {
 		process.env.SANCTIONED_ADDRESSES = 'Gblocked';
-		const next = vi.fn();
-		const status = vi.fn().mockReturnThis();
-		const json = vi.fn().mockReturnThis();
+		const next = jest.fn();
+		const status = jest.fn().mockReturnThis();
+		const json = jest.fn().mockReturnThis();
 		await sanctionedAddressMiddleware({ headers: { 'x-wallet-address': 'gblocked' } } as never, { status, json } as never, next);
 		expect(status).toHaveBeenCalledWith(403);
 		expect(next).not.toHaveBeenCalled();

@@ -3,6 +3,7 @@ const base = require('./jest.config');
 module.exports = {
    ...base,
    testMatch: [
+      "<rootDir>/src/middlewares/sanctioned-address.middleware.test.ts",
       "<rootDir>/src/workers/order-keeper.worker.test.ts",
       "<rootDir>/src/modules/keys/key-holder-balance-invalidation.test.ts",
       "<rootDir>/src/modules/airdrops/airdrop.integration.test.ts",
