@@ -57,6 +57,10 @@ import {
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
 import {
+   startLpRewardAccrualJob,
+   stopLpRewardAccrualJob,
+} from './jobs/lp-reward-accrual.job';
+import {
    startAutoInvestListener,
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
@@ -131,6 +135,7 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
+      startLpRewardAccrualJob();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
 
@@ -180,6 +185,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
+      stopLpRewardAccrualJob();
       stopAutoInvestListener();
       await prisma.$disconnect();
       logger.info('Database connection closed');
