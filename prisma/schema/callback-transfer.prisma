@@ -1,0 +1,19 @@
+// CallbackTransfer (#1274): a transfer whose execution invoked a
+// callback on a contract — indexed from the chain by the indexer.
+//
+// Dedup: `@@unique([txHash, eventIndex])` so a replayed indexer batch
+// stores the record once (upsert with skipDuplicates at write time).
+model CallbackTransfer {
+  id         String   @id @default(cuid())
+  from       String
+  toContract String
+  keyId      String
+  amount     String
+  dataHash   String
+  ledger     Int
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+}
