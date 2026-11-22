@@ -52,6 +52,7 @@ import {
    httpGetHolderLeaderboard,
    httpGetHolderRank,
 } from './key-holder-leaderboard.controller';
+import { httpGetKeyContractHolders } from './key-contract-holders.controller';
 
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
@@ -1002,6 +1003,7 @@ router.get('/:keyId/price/twap', async (req, res, next) => {
  * GET /api/v1/keys/:keyId
  * Public key detail response includes supply milestone metadata.
  */
+router.get('/:keyId/contract-holders', httpGetKeyContractHolders);
 router.get('/:keyId', async (req, res, next) => {
    try {
       const keyId = String(req.params.keyId);
