@@ -337,6 +337,47 @@ async function buildPriceAlertTriggered(
    });
 }
 
+/**
+ * Warnings for lending-vault positions whose health dropped below the warning
+ * threshold. The health monitor stamps `warningAt` on the first pass below the
+ * threshold and clears it on recovery, so each drop yields exactly one item.
+ */
+async function buildVaultHealthWarning(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const warnings = await prisma.vaultHealth.findMany({
+      where: { wallet: walletAddress, warningAt: { not: null } },
+      orderBy: { warningAt: 'desc' },
+      take: 50,
+   });
+
+   return warnings.map(
+      (row: {
+         positionId: string;
+         healthFactor: { toString(): string };
+         liquidationPriceXlm: { toString(): string } | null;
+         warningAt: Date | null;
+      }) => {
+         const createdAt = row.warningAt!;
+         return {
+            id: `vault_health_warning:${row.positionId}`,
+            type: NOTIFICATION_TYPES.VAULT_HEALTH_WARNING,
+            createdAt: createdAt.toISOString(),
+            read: isRead(createdAt, lastReadAt),
+            payload: {
+               positionId: row.positionId,
+               healthFactor: row.healthFactor.toString(),
+               liquidationPriceXlm:
+                  row.liquidationPriceXlm !== null
+                     ? row.liquidationPriceXlm.toString()
+                     : null,
+            },
+         };
+      }
+   );
+}
+
 export async function listNotifications(
    walletAddress: string,
    now: Date = new Date()
@@ -350,6 +391,7 @@ export async function listNotifications(
       priceAlertTriggered,
       keyDeprecated,
       circuitBreakerTrips,
+      vaultHealthWarnings,
    ] = await Promise.all([
       buildTradeCompleted(walletAddress, lastReadAt),
       buildLockupExpiring(walletAddress, lastReadAt, now),
@@ -357,6 +399,7 @@ export async function listNotifications(
       buildPriceAlertTriggered(walletAddress, lastReadAt),
       buildKeyDeprecated(walletAddress, lastReadAt),
       buildCircuitBreakerTripped(walletAddress, lastReadAt),
+      buildVaultHealthWarning(walletAddress, lastReadAt),
    ]);
 
    return [
@@ -366,6 +409,7 @@ export async function listNotifications(
       ...priceAlertTriggered,
       ...keyDeprecated,
       ...circuitBreakerTrips,
+      ...vaultHealthWarnings,
    ].sort(
       (a, b) =>
          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

@@ -19,15 +19,15 @@ Complete reference for all server configuration environment variables.
 
 ## Application Core
 
-| Variable       | Type         | Required | Default         | Description                                              |
-| -------------- | ------------ | -------- | --------------- | -------------------------------------------------------- |
-| `PORT`         | number       | No       | `3000`          | HTTP server port                                         |
-| `MODE`         | enum         | No       | `development`   | Environment mode: `development`, `production`, or `test` |
-| `BACKEND_URL`  | string (URL) | Yes      | -               | Full URL where the backend is accessible                 |
-| `FRONTEND_URL` | string (URL) | Yes      | -               | Full URL of the frontend application for CORS            |
-| `PUBLIC_SITE_URL` | string (URL) | Yes   | -               | Public origin of the website; used for absolute URLs in `sitemap.xml` and `robots.txt` (startup fails when missing) |
-| `API_VERSION`  | string       | No       | `1.0.0`         | API version string returned in response headers          |
-| `APP_SECRET`   | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)         |
+| Variable          | Type         | Required | Default         | Description                                                                                                         |
+| ----------------- | ------------ | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PORT`            | number       | No       | `3000`          | HTTP server port                                                                                                    |
+| `MODE`            | enum         | No       | `development`   | Environment mode: `development`, `production`, or `test`                                                            |
+| `BACKEND_URL`     | string (URL) | Yes      | -               | Full URL where the backend is accessible                                                                            |
+| `FRONTEND_URL`    | string (URL) | Yes      | -               | Full URL of the frontend application for CORS                                                                       |
+| `PUBLIC_SITE_URL` | string (URL) | Yes      | -               | Public origin of the website; used for absolute URLs in `sitemap.xml` and `robots.txt` (startup fails when missing) |
+| `API_VERSION`     | string       | No       | `1.0.0`         | API version string returned in response headers                                                                     |
+| `APP_SECRET`      | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)                                                                    |
 
 ---
 

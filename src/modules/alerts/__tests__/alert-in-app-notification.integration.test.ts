@@ -1,6 +1,6 @@
 
 // Issue #1012: alert triggers, is disabled, and shows in the in-app feed.
-// Unit test — mocks prisma and logger, no DB required.
+// Unit test ï¿½ mocks prisma and logger, no DB required.
 import { evaluatePriceAlertsForMovement } from '../alert.service';
 import { listNotifications } from '../../notifications/notification.service';
 import { prisma } from '../../../utils/prisma.utils';
@@ -14,6 +14,8 @@ jest.mock('../../../utils/prisma.utils', () => ({
       trade: { findMany: jest.fn().mockResolvedValue([]) },
       keyOwnership: { findMany: jest.fn().mockResolvedValue([]) },
       creatorProfile: { findMany: jest.fn().mockResolvedValue([]) },
+      circuitBreakerTrip: { findMany: jest.fn().mockResolvedValue([]) },
+      vaultHealth: { findMany: jest.fn().mockResolvedValue([]) },
    },
 }));
 jest.mock('../../../utils/logger.utils', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));

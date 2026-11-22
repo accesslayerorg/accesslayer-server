@@ -43,6 +43,7 @@ import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
 import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
+import { sanctionedAddressMiddleware } from './middlewares/sanctioned-address.middleware';
 
 const app: Express = express();
 
@@ -80,6 +81,7 @@ if (!envConfig.ENABLE_REQUEST_LOGGING) {
 app.use(requestLoggerMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
+app.use(sanctionedAddressMiddleware);
 
 // Health check endpoints are now in /api/v1/health
 
@@ -132,6 +134,7 @@ app.use('/api/v1', createDocsRouter());
 // (/v1/rates) and the versioned API prefix used by every other route.
 app.use('/v1/rates', ratesRouter);
 app.use('/api/v1/rates', ratesRouter);
+app.use('/v1', router);
 app.use('/api/v1', router);
 app.use('/v1', queryCostGovernor());
 app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
