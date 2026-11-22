@@ -1,0 +1,15 @@
+// prisma/schema/price-ceiling.prisma
+// Price ceiling and buy cool-off read model (#1266).
+
+model PriceCeiling {
+  id             String    @id @default(cuid())
+  keyId          String    @unique
+  ceiling        Decimal   @db.Decimal(36, 7)
+  cooloffLedgers Int       @default(0)
+  cooloffEndsAt  Int?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  @@index([keyId])
+  @@map("price_ceilings")
+}
