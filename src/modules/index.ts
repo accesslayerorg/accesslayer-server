@@ -1,5 +1,10 @@
 import campaignsRouter from './campaigns/campaigns.routes';
 import { protocolPolRouter, keyBackstopsRouter } from './pol/pol.routes';
+import scheduledTransferRouter from './scheduled-transfers/scheduled-transfer.routes';
+import marketplaceRouter from './marketplaces/marketplace.routes';
+import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes';
+import concentrationRouter from './concentration/concentration.routes';
+import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
@@ -179,5 +184,11 @@ router.use('/flags', routeBodySizeLimit('default'), flagRouter);
 router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);
 router.use('/protocol', routeBodySizeLimit('default'), protocolPolRouter);
 router.use('/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
+router.use('/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
+router.use('/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
+router.use('/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
+router.use('/keys', routeBodySizeLimit('default'), concentrationRouter);
+router.use('/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
+router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
 
 export default router;

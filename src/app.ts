@@ -1,6 +1,11 @@
 import { queryCostGovernor } from './middlewares/query-cost-governor.middleware';
 import campaignsRouter from './modules/campaigns/campaigns.routes';
 import { protocolPolRouter, keyBackstopsRouter } from './modules/pol/pol.routes';
+import scheduledTransferRouter from './modules/scheduled-transfers/scheduled-transfer.routes';
+import marketplaceRouter from './modules/marketplaces/marketplace.routes';
+import royaltyEnforcementRouter from './modules/marketplaces/royalty-enforcement.routes';
+import concentrationRouter from './modules/concentration/concentration.routes';
+import { airdropAdminRouter, airdropRouter } from './modules/airdrops/airdrop.routes';
 // src/app.ts
 import express, { Express, Response, RequestHandler } from 'express';
 import { TspecDocsMiddleware } from 'tspec';
@@ -140,6 +145,12 @@ app.use('/v1', queryCostGovernor());
 app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
 app.use('/v1/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
 app.use('/campaigns', queryCostGovernor(), routeBodySizeLimit('default'), campaignsRouter);
+app.use('/v1/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
+app.use('/v1/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), concentrationRouter);
+app.use('/v1/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
+app.use('/v1/airdrops', routeBodySizeLimit('default'), airdropRouter);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
