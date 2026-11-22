@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { httpGetWalletActivity } from "./wallet-activity.controllers";
 import { httpGetWalletHoldings } from "./wallet-holdings.controllers";
+import { httpGetWalletFollowing } from "./wallet-following.controllers";
+import { httpGetWalletVaultHealth } from "./wallet-vault-health.controllers";
 import {
    httpGetWalletGains,
    httpGetWalletGainsCsv,
 } from "./wallet-gains.controllers";
-import { httpGetWalletFollowing } from "./wallet-following.controllers";
 import { httpGetWalletReferrals } from "../referrals/referrals.controller";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
@@ -34,6 +35,14 @@ walletsRouter.get(
  * Returns all creator key holdings for a given Stellar wallet address.
  */
 walletsRouter.get("/:address/holdings", httpGetWalletHoldings);
+
+/**
+ * GET /api/v1/wallets/:address/vault/health
+ *
+ * Returns the health factor and liquidation price for the wallet's open
+ * lending-vault position. 404 when the wallet has no open position.
+ */
+walletsRouter.get("/:address/vault/health", httpGetWalletVaultHealth);
 
 /**
  * GET /api/v1/wallets/:address/gains?year=YYYY

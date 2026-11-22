@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPES = {
    KEY_SUNSET_FLAGGED: 'key_sunset_flagged',
    MILESTONE_CROSSED: 'milestone_crossed',
    CIRCUIT_BREAKER_TRIPPED: 'circuit_breaker_tripped',
+   VAULT_HEALTH_WARNING: 'vault_health_warning',
 } as const;
 
 export type NotificationType =
