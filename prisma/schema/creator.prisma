@@ -75,6 +75,8 @@ model CreatorProfile {
   socialMetadata       CreatorSocialMetadata?
   socialMetadataEvents SocialMetadataEvent[]
 
+  keyReports           KeyReport[]
+
   @@index([userId])
   @@index([successorKeyId])
 }

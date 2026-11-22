@@ -1,3 +1,11 @@
+import { queryCostGovernor } from './middlewares/query-cost-governor.middleware';
+import campaignsRouter from './modules/campaigns/campaigns.routes';
+import { protocolPolRouter, keyBackstopsRouter } from './modules/pol/pol.routes';
+import scheduledTransferRouter from './modules/scheduled-transfers/scheduled-transfer.routes';
+import marketplaceRouter from './modules/marketplaces/marketplace.routes';
+import royaltyEnforcementRouter from './modules/marketplaces/royalty-enforcement.routes';
+import concentrationRouter from './modules/concentration/concentration.routes';
+import { airdropAdminRouter, airdropRouter } from './modules/airdrops/airdrop.routes';
 // src/app.ts
 import express, { Express, Response, RequestHandler } from 'express';
 import { TspecDocsMiddleware } from 'tspec';
@@ -14,10 +22,14 @@ import milestonesRouter from './modules/keys/milestones.routes';
 import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
 import announcementsRouter from './modules/announcements/announcements.routes';
+import ratesRouter from './routes/rates.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import shareRouter from './modules/share/share.routes';
+import sitemapRouter from './modules/sitemap/sitemap.routes';
 import tspecOptions from './tspec.config';
+import { createDocsRouter } from './docs/docs.routes';
 import { SendMail } from './utils/mail.utils';
 import { appRateLimit } from './middlewares/rate.middleware';
 import { requestIdMiddleware } from './middlewares/request-id.middleware';
@@ -27,12 +39,17 @@ import { schemaVersionMiddleware } from './middlewares/schema-version.middleware
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
 import { requestContextMiddleware } from './middlewares/request-context.middleware';
 import { requestEntryLoggerMiddleware } from './middlewares/request-entry-logger.middleware';
-import { requestCompletionLoggerMiddleware, slowRequestLoggerMiddleware } from './middlewares/request-completion-logger.middleware';
+import {
+   requestCompletionLoggerMiddleware,
+   slowRequestLoggerMiddleware,
+} from './middlewares/request-completion-logger.middleware';
 import { sessionActivityMiddleware } from './middlewares/session-activity.middleware';
 import { bodyParseErrorMiddleware } from './middlewares/body-parse-error.middleware';
 import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
+import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
+import { sanctionedAddressMiddleware } from './middlewares/sanctioned-address.middleware';
 
 const app: Express = express();
 
@@ -70,6 +87,7 @@ if (!envConfig.ENABLE_REQUEST_LOGGING) {
 app.use(requestLoggerMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
+app.use(sanctionedAddressMiddleware);
 
 // Health check endpoints are now in /api/v1/health
 
@@ -111,12 +129,30 @@ app.get('/', (_, res: Response) => {
 });
 
 // Routes
+app.use('/v1', v1RelatedKeysRouter);
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
-app.use('/api/v1', router);
+// OpenAPI spec + Swagger UI (#1224). Registered before the main router.
+app.use('/api/v1', createDocsRouter());
+
+// XLM fiat rate proxy (#1219). Mounted at both the documented path
+// (/v1/rates) and the versioned API prefix used by every other route.
+app.use('/v1/rates', ratesRouter);
+app.use('/api/v1/rates', ratesRouter);
 app.use('/v1', router);
+app.use('/api/v1', router);
 app.use('/announcements', routeBodySizeLimit('default'), announcementsRouter);
+app.use('/v1', queryCostGovernor());
+app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
+app.use('/campaigns', queryCostGovernor(), routeBodySizeLimit('default'), campaignsRouter);
+app.use('/v1/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
+app.use('/v1/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
+app.use('/v1/keys', routeBodySizeLimit('default'), concentrationRouter);
+app.use('/v1/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
+app.use('/v1/airdrops', routeBodySizeLimit('default'), airdropRouter);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
 app.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 app.use('/traders', routeBodySizeLimit('default'), tradersRouter);
@@ -124,6 +160,8 @@ app.use('/keys', routeBodySizeLimit('default'), keysRouter);
 app.use('/milestones', routeBodySizeLimit('default'), milestonesRouter);
 app.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
 app.use('/events', routeBodySizeLimit('default'), eventsRouter);
+app.use('/share', shareRouter);
+app.use(sitemapRouter);
 
 // Catches body-parse errors (including entity.too.large from the per-group
 // JSON parsers mounted inside router) — must come after the router since

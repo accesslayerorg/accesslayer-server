@@ -43,9 +43,32 @@ import {
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from '../nonce';
+import { getCurrentAdmin, listGovernanceEvents } from './governance-events.service';
+
+import votingWeightRouter from './governance-voting-weight.routes';
 
 const router = Router();
+router.use(votingWeightRouter);
 router.use('/timelock', timelockRouter);
+
+router.get('/events', async (req, res, next) => {
+   try {
+      sendSuccess(res, await listGovernanceEvents(
+         typeof req.query.type === 'string' ? req.query.type : undefined,
+         typeof req.query.cursor === 'string' ? req.query.cursor : undefined
+      ));
+   } catch (error) {
+      next(error);
+   }
+});
+
+router.get('/admin', async (_req, res, next) => {
+   try {
+      sendSuccess(res, await getCurrentAdmin());
+   } catch (error) {
+      next(error);
+   }
+});
 
 /**
  * GET /governance/proposals/escalating

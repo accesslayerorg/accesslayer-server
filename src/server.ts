@@ -29,6 +29,14 @@ import {
    stopTwapComputationJob,
 } from './jobs/twap-computation.job';
 import {
+   startHealthMonitorWorker,
+   stopHealthMonitorWorker,
+} from './jobs/health-monitor.worker';
+import {
+   startLiquidationKeeper,
+   stopLiquidationKeeper,
+} from './jobs/liquidation-keeper.job';
+import {
    startFlashLoanViolationCleanupJob,
    stopFlashLoanViolationCleanupJob,
 } from './jobs/flash-loan-violation-cleanup.job';
@@ -36,6 +44,10 @@ import {
    startStatusProbeJob,
    stopStatusProbeJob,
 } from './jobs/status-probe.job';
+import {
+   startCacheWarmerWorker,
+   stopCacheWarmerWorker,
+} from './workers/cache-warmer.worker';
 import {
    startSessionActivityCleanupJob,
    stopSessionActivityCleanupJob,
@@ -56,6 +68,10 @@ import { connectRedis, disconnectRedis } from './utils/redis.utils';
 import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
+import {
+   startOrderMatcherWorker,
+   stopOrderMatcherWorker,
+} from './workers/order-matcher.worker';
 import {
    attachPriceWebSocketGateway,
    closePriceWebSocketGateway,
@@ -111,8 +127,12 @@ async function startServer() {
       startGovernanceSyncJob();
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
+      startHealthMonitorWorker();
+      startLiquidationKeeper();
       startFlashLoanViolationCleanupJob();
+      startOrderMatcherWorker();
       startStatusProbeJob();
+      startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startCampaignCronJobs();
       startAnnouncementPublisherWorker();
@@ -157,8 +177,12 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopGovernanceSyncJob();
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
+      stopHealthMonitorWorker();
+      stopLiquidationKeeper();
       stopFlashLoanViolationCleanupJob();
+      stopOrderMatcherWorker();
       stopStatusProbeJob();
+      stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopCampaignCronJobs();
       stopAnnouncementPublisherWorker();

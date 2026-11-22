@@ -28,7 +28,11 @@
       "migrate": "pnpm exec prisma migrate dev",
       "studio": "pnpm exec prisma studio",
       "validate-api": "tspec validate",
-      "bundle": "bash src/scripts/bundle-code.sh"
+      "docs:generate": "ts-node --transpile-only src/docs/generate.ts",
+      "bundle": "bash src/scripts/bundle-code.sh",
+      "loadtest:seed": "ts-node --transpile-only loadtest/seed.ts",
+      "loadtest:smoke": "k6 run --summary-export=loadtest-summary.json loadtest/smoke.js",
+      "loadtest:soak": "k6 run --summary-export=loadtest-summary.json loadtest/soak.js"
    },
    "lint-staged": {
       "*.{js,jsx,ts,tsx}": [
@@ -42,6 +46,7 @@
       "schema": "./prisma/schema"
    },
    "dependencies": {
+      "@asteasolutions/zod-to-openapi": "^7",
       "@json2csv/node": "^7.0.6",
       "@prisma/client": "^6.19.1",
       "@stellar/stellar-base": "^15.0.0",
@@ -79,6 +84,7 @@
       "zod-validation-error": "^3.5.2"
    },
    "devDependencies": {
+      "@seriousme/openapi-schema-validator": "^1.7.1",
       "@types/bcrypt": "^6.0.0",
       "@types/cors": "^2.8.17",
       "@types/dotenv": "^8.2.3",

@@ -31,6 +31,8 @@ import {
 } from './tips.service';
 import { httpGetTipContent as httpGetTipContentById } from './tips.controllers';
 
+import { getTipLeaderboard } from './tip-leaderboard.service';
+
 const tipsRouter = Router();
 
 const normalizeKeyId = (req: Request, _res: Response, next: NextFunction) => {
@@ -43,6 +45,27 @@ const normalizeKeyId = (req: Request, _res: Response, next: NextFunction) => {
 const ListTipsQuerySchema = z.object({
    limit: z.coerce.number().int().min(1).max(100).default(20),
    cursor: z.string().min(1).optional(),
+});
+
+const LeaderboardQuerySchema = z.object({
+   limit: z.string().regex(/^[1-9][0-9]*$/).transform(Number).pipe(z.number().int().max(100)).optional().default('20'),
+}).strict();
+const LeaderboardParamsSchema = z.object({ key_id: z.string().trim().min(1).max(128) });
+
+tipsRouter.get('/:key_id/tips/leaderboard', async (req, res, next) => {
+   const params = LeaderboardParamsSchema.safeParse(req.params);
+   const query = LeaderboardQuerySchema.safeParse(req.query);
+   if (!params.success || !query.success) {
+      const issues = !params.success ? params.error.issues : !query.success ? query.error.issues : [];
+      sendValidationError(res, 'Invalid leaderboard request', zodIssuesToDetails(issues));
+      return;
+   }
+   try {
+      res.set('Cache-Control', 'no-store');
+      sendSuccess(res, await getTipLeaderboard(params.data.key_id, query.data.limit));
+   } catch (error) {
+      next(error);
+   }
 });
 
 const tipsCache = () =>
