@@ -132,6 +132,7 @@ app.use('/api/v1', createDocsRouter());
 // (/v1/rates) and the versioned API prefix used by every other route.
 app.use('/v1/rates', ratesRouter);
 app.use('/api/v1/rates', ratesRouter);
+app.use('/v1', router);
 app.use('/api/v1', router);
 app.use('/v1', queryCostGovernor());
 app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);

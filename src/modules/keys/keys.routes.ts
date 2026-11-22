@@ -86,6 +86,7 @@ import {
    creatorProfileExists,
    getCreatorProfile,
 } from '../creator/creator-profile.service';
+import { httpListCreators } from '../creators/creators.controllers';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import {
@@ -401,6 +402,13 @@ router.post('/batch', async (req, res, next) => {
  * GET /api/v1/keys/leaderboard
  * Ranks creator keys by holder count, trading volume, or price performance.
  */
+/**
+ * GET /api/v1/keys
+ * GET /v1/keys
+ * Returns paginated list of creator keys.
+ */
+router.get('/', httpListCreators);
+
 router.get('/leaderboard', httpGetKeyLeaderboard);
 
 /**
