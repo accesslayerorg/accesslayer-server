@@ -33,6 +33,9 @@ model VoteDelegation {
 
   /// Ledger of the most recent state-changing event (set or revoke).
   ledger           Int
+  /// Transaction and event positions within the ledger.
+  transactionIndex Int?
+  eventIndex       Int @default(-1)
 
   /// Transaction hash of the most recent state-changing event.
   /// Used as an optimistic concurrency guard so out-of-order replays
@@ -69,6 +72,7 @@ model VoteDelegationHistory {
   ledger           Int
   txHash           String
   eventIndex       Int
+  transactionIndex Int?
   occurredAt       DateTime
   createdAt        DateTime @default(now())
 

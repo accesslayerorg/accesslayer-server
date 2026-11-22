@@ -247,6 +247,18 @@ export async function onHolderBalanceChanged(
             // best-effort only
          }
       }
+      try {
+         const { invalidateKeyVotingWeightCache } = await import('../governance/governance-voting-weight.service');
+         await invalidateKeyVotingWeightCache(creatorId);
+      } catch (error) {
+         logger.warn({ error, creatorId }, 'Voting weight cache invalidation failed');
+      }
+      try {
+         const { onConcentrationBalanceChanged } = await import('../concentration/concentration.service');
+         await onConcentrationBalanceChanged(creatorId);
+      } catch (error) {
+         logger.warn({ error, creatorId }, 'Balance statistic cache invalidation failed');
+      }
    }
 }
 

@@ -4,7 +4,15 @@ import {
    MAX_RELATED_KEYS_LIMIT,
    RelatedKeysService,
 } from '../services/related-keys.service';
-import { sendSuccess, sendValidationError } from '../utils/api-response.utils';
+import {
+   getPriceCeilingStatus,
+   KeyNotFoundError,
+} from '../modules/keys/price-ceiling.service';
+import {
+   sendNotFound,
+   sendSuccess,
+   sendValidationError,
+} from '../utils/api-response.utils';
 
 export function parseRelatedKeysLimit(raw: unknown): number | null {
    if (raw === undefined || raw === null || raw === '') {
@@ -65,11 +73,38 @@ export const relatedKeysHandler = async (
    }
 };
 
+export const priceCeilingHandler = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void> => {
+   try {
+      const keyId = readKeyId(req.params.keyId);
+      if (!keyId) {
+         sendValidationError(res, 'Invalid key parameter', [
+            { field: 'keyId', message: 'keyId is required' },
+         ]);
+         return;
+      }
+
+      const status = await getPriceCeilingStatus(keyId);
+      sendSuccess(res, status, 200, 'Price ceiling retrieved successfully');
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         sendNotFound(res, 'Key');
+         return;
+      }
+      next(error);
+   }
+};
+
 export const relatedKeysRouter = Router();
 relatedKeysRouter.get('/:keyId/related', relatedKeysHandler);
+relatedKeysRouter.get('/:keyId/ceiling', priceCeilingHandler);
 
 export const v1RelatedKeysRouter = Router();
 v1RelatedKeysRouter.get('/keys/:keyId/related', relatedKeysHandler);
+v1RelatedKeysRouter.get('/keys/:keyId/ceiling', priceCeilingHandler);
 
 const router = Router();
 router.use(relatedKeysRouter);

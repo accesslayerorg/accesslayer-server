@@ -1,3 +1,4 @@
+import { getRoyaltyEnforcement } from '../marketplaces/marketplace.service';
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ import {
    PRICE_HISTORY_INTERVALS,
 } from './key-price-history.service';
 import { getKeyFees, KeyNotFoundError } from './key-fees.service';
+import { getPriceCeilingStatus } from './price-ceiling.service';
 import { getKeyLpStats, getKeyLpHistory } from './key-lp.service';
 import { getKeyRelaunchHistory } from './key-relaunch.service';
 import {
@@ -52,6 +54,7 @@ import {
    httpGetHolderLeaderboard,
    httpGetHolderRank,
 } from './key-holder-leaderboard.controller';
+import { httpGetKeyContractHolders } from './key-contract-holders.controller';
 
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
@@ -86,6 +89,7 @@ import {
    creatorProfileExists,
    getCreatorProfile,
 } from '../creator/creator-profile.service';
+import { httpListCreators } from '../creators/creators.controllers';
 
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import {
@@ -145,10 +149,19 @@ import {
    calculateEffectiveWeight,
 } from '../staking/staking.service';
 import { getKeyCurveMilestones } from './key-milestones.service';
-import { getPendingCurveUpdates, getCurveUpdateHistory } from './curve-updates.service';
+import {
+   getPendingCurveUpdates,
+   getCurveUpdateHistory,
+} from './curve-updates.service';
 import { getKeyHolderMilestones } from './holder-milestones.service';
-import { getKeyRetirement, getKeyRetirementHistory } from './key-retirement.service';
-import { getKeyLaunchAuction, getKeyLaunchAuctionBids } from './key-launch-auction.service';
+import {
+   getKeyRetirement,
+   getKeyRetirementHistory,
+} from './key-retirement.service';
+import {
+   getKeyLaunchAuction,
+   getKeyLaunchAuctionBids,
+} from './key-launch-auction.service';
 import { getSunsetWatchList } from './key-sunset-watch.service';
 import {
    getKeyAnalytics,
@@ -193,7 +206,10 @@ import {
    getKeyDepth,
    getKeySpread,
 } from './key-depth.service';
-import { getGateConfig, KeyNotFoundError as GateKeyNotFoundError } from './key-gate-config.service';
+import {
+   getGateConfig,
+   KeyNotFoundError as GateKeyNotFoundError,
+} from './key-gate-config.service';
 
 const priceHistoryQuerySchema = z.object({
    from: z.string().datetime(),
@@ -401,6 +417,13 @@ router.post('/batch', async (req, res, next) => {
  * GET /api/v1/keys/leaderboard
  * Ranks creator keys by holder count, trading volume, or price performance.
  */
+/**
+ * GET /api/v1/keys
+ * GET /v1/keys
+ * Returns paginated list of creator keys.
+ */
+router.get('/', httpListCreators);
+
 router.get('/leaderboard', httpGetKeyLeaderboard);
 
 /**
@@ -994,6 +1017,7 @@ router.get('/:keyId/price/twap', async (req, res, next) => {
  * GET /api/v1/keys/:keyId
  * Public key detail response includes supply milestone metadata.
  */
+router.get('/:keyId/contract-holders', httpGetKeyContractHolders);
 router.get('/:keyId', async (req, res, next) => {
    try {
       const keyId = String(req.params.keyId);
@@ -1001,8 +1025,28 @@ router.get('/:keyId', async (req, res, next) => {
          return sendNotFound(res, 'Key');
       }
       const profile = await getCreatorProfile(keyId);
-      sendSuccess(res, profile, 200, 'Key retrieved successfully');
+      const enforcement = await getRoyaltyEnforcement(keyId);
+      sendSuccess(res, { ...profile, royaltyEnforced: enforcement.royaltyEnforced }, 200, 'Key retrieved successfully');
    } catch (error) {
+      next(error);
+   }
+});
+
+// ── GET /:keyId/ceiling ───────────────────────────────────────
+
+/**
+ * GET /api/v1/keys/:keyId/ceiling
+ * Price ceiling, headroom percentage and buy cool-off state (#1266).
+ */
+router.get('/:keyId/ceiling', async (req, res, next) => {
+   try {
+      const keyId = String(req.params.keyId);
+      const status = await getPriceCeilingStatus(keyId);
+      sendSuccess(res, status, 200, 'Price ceiling retrieved successfully');
+   } catch (error) {
+      if (error instanceof KeyNotFoundError) {
+         return sendNotFound(res, 'Key');
+      }
       next(error);
    }
 });
@@ -1689,41 +1733,38 @@ const pollWeightParamsSchema = z.object({
    wallet: StellarAddressSchema,
 });
 
-router.get(
-   '/:keyId/polls/:pollId/weight/:wallet',
-   async (req, res, next) => {
-      const keyId = String(req.params.keyId);
-      const pollId = String(req.params.pollId);
-      const parsed = pollWeightParamsSchema.safeParse(req.params);
-      if (!parsed.success) {
-         sendValidationError(
-            res,
-            'Invalid wallet address',
-            zodIssuesToDetails(parsed.error.issues)
-         );
+router.get('/:keyId/polls/:pollId/weight/:wallet', async (req, res, next) => {
+   const keyId = String(req.params.keyId);
+   const pollId = String(req.params.pollId);
+   const parsed = pollWeightParamsSchema.safeParse(req.params);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid wallet address',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   const wallet = parsed.data.wallet;
+
+   try {
+      const cacheKey = pollWeightCacheKey(keyId, pollId, wallet);
+      const cached = await cacheGetJson<PollVoteWeight>(cacheKey);
+      if (cached !== null) {
+         return sendSuccess(res, cached);
+      }
+
+      const weight = await getPollVoteWeight(keyId, pollId, wallet);
+      await cacheSetJson(cacheKey, weight, POLL_WEIGHT_CACHE_SECONDS);
+      sendSuccess(res, weight);
+   } catch (error) {
+      if (error instanceof PollNotFoundError) {
+         sendNotFound(res, 'Poll');
          return;
       }
-      const wallet = parsed.data.wallet;
-
-      try {
-         const cacheKey = pollWeightCacheKey(keyId, pollId, wallet);
-         const cached = await cacheGetJson<PollVoteWeight>(cacheKey);
-         if (cached !== null) {
-            return sendSuccess(res, cached);
-         }
-
-         const weight = await getPollVoteWeight(keyId, pollId, wallet);
-         await cacheSetJson(cacheKey, weight, POLL_WEIGHT_CACHE_SECONDS);
-         sendSuccess(res, weight);
-      } catch (error) {
-         if (error instanceof PollNotFoundError) {
-            sendNotFound(res, 'Poll');
-            return;
-         }
-         next(error);
-      }
+      next(error);
    }
-);
+});
 
 /**
  * GET /api/v1/keys/:keyId/supply
@@ -2864,7 +2905,10 @@ router.post(
 
 router.get('/:keyId/subscription/:wallet', async (req, res, next) => {
    try {
-      const result = await getSubscriptionStatus(req.params.keyId, req.params.wallet);
+      const result = await getSubscriptionStatus(
+         req.params.keyId,
+         req.params.wallet
+      );
       sendSuccess(res, result);
    } catch (error) {
       next(error);

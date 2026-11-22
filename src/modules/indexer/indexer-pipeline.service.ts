@@ -557,6 +557,16 @@ export async function processIndexerEvents(
       await processKeyLaunchAuctionEvents(launchAuctionEvents);
    }
 
+   const { DUTCH_AUCTION_EVENT_TYPES, processDutchAuctionEvents } = await import(
+      './dutch-auction-indexer.service'
+   );
+   const dutchAuctionEvents = events.filter(event =>
+      DUTCH_AUCTION_EVENT_TYPES.has(event.eventType)
+   );
+   if (dutchAuctionEvents.length > 0) {
+      await processDutchAuctionEvents(dutchAuctionEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
@@ -686,6 +696,59 @@ export async function processIndexerEvents(
    );
    if (stakingEpochEvents.length > 0) {
       await processStakingEpochEvents(stakingEpochEvents);
+   }
+
+   const campaignEvents = events.filter(event =>
+      ['CampaignCreated', 'CAMPAIGN_CREATED', 'campaign_created', 'WalletQualified',
+         'WALLET_QUALIFIED', 'wallet_qualified', 'RewardClaimed', 'REWARD_CLAIMED',
+         'reward_claimed', 'camp_new', 'qual', 'claim'].includes(event.eventType) &&
+         (event.campaignId !== undefined || event.campaign_id !== undefined));
+   if (campaignEvents.length) {
+      const { processCampaignEvents } = await import('./campaign-indexer.service');
+      await processCampaignEvents(campaignEvents);
+   }
+   const delegationEvents = events.filter(event =>
+      ['DELEGATION_SET', 'VotingDelegated', 'VOTING_DELEGATED', 'voting_delegated',
+         'DELEGATION_REVOKED', 'DelegationRevoked', 'delegation_revoked'].includes(event.eventType));
+   if (delegationEvents.length) {
+      const { processVotingDelegationEvents } =
+         await import('../governance/governance-delegation-indexer.service');
+      await processVotingDelegationEvents(delegationEvents);
+   }
+   const polEvents = events.filter(event =>
+      ['pol_funded', 'POL_FUNDED', 'PolFunded', 'backstop_applied', 'BACKSTOP_APPLIED',
+         'BackstopApplied', 'backstop_repaid', 'BACKSTOP_REPAID', 'BackstopRepaid'].includes(event.eventType));
+   if (polEvents.length) {
+      const { processPolEvents } = await import('../pol/pol-indexer.service');
+      await processPolEvents(polEvents);
+   }
+   const scheduledEvents = events.filter(event =>
+      /^(transfer_scheduled|TransferScheduled|TRANSFER_SCHEDULED|transfer_claimed|TransferClaimed|TRANSFER_CLAIMED|transfer_cancelled|TransferCancelled|TRANSFER_CANCELLED)$/.test(event.eventType));
+   if (scheduledEvents.length) {
+      const { processScheduledTransferEvents } = await import('./scheduled-transfer-indexer.service');
+      await processScheduledTransferEvents(scheduledEvents);
+   }
+   const marketplaceEvents = events.filter(event =>
+      ['marketplaceapproved', 'marketplacerevoked', 'royaltyenforcementset'].includes(
+         event.eventType.replace(/[^a-z]/gi, '').toLowerCase()));
+   if (marketplaceEvents.length) {
+      const { processMarketplaceEvents } = await import('./marketplace-indexer.service');
+      await processMarketplaceEvents(marketplaceEvents);
+   }
+   const airdropEvents = events.filter(event =>
+      ['airdrop_claimed', 'AirdropClaimed', 'AIRDROP_CLAIMED'].includes(event.eventType));
+   if (airdropEvents.length) {
+      const { processAirdropClaimEvents } = await import('./airdrop-indexer.service');
+      await processAirdropClaimEvents(airdropEvents);
+   }
+
+   const { PRICE_CEILING_EVENT_TYPES, processPriceCeilingEvents } =
+      await import('./price-ceiling-indexer.service');
+   const priceCeilingEvents = events.filter(event =>
+      PRICE_CEILING_EVENT_TYPES.has(event.eventType)
+   );
+   if (priceCeilingEvents.length > 0) {
+      await processPriceCeilingEvents(priceCeilingEvents);
    }
 
    if (options.advanceCursor !== false)

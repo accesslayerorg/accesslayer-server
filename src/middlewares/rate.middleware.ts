@@ -11,6 +11,10 @@ export const appRateLimit: RateLimitRequestHandler = rateLimit({
    max: envConfig.MODE === 'production' ? 1000 : 10000,
    standardHeaders: true,
    legacyHeaders: false,
+   skip: () =>
+      process.env.NODE_ENV === 'test' ||
+      process.env.DISABLE_RATE_LIMIT === 'true' ||
+      envConfig.MODE === 'test',
    handler: (req: Request, res: Response) => {
       logger.warn(
          { requestId: req.requestId, method: req.method, path: req.path },

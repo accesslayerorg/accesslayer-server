@@ -1,0 +1,9 @@
+model FeatureFlag {
+  name      String   @id
+  enabled   Boolean  @default(false)
+  rules     Json     @default("{}")
+  updatedBy String
+  updatedAt DateTime @updatedAt
+
+  @@map("feature_flags")
+}
