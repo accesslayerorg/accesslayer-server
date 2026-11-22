@@ -1,0 +1,11 @@
+model AdminTotp {
+  userId         String   @id
+  secretEnc      String
+  enabledAt      DateTime?
+  recoveryHashes String[] @default([])
+  lastUsedStep   Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("admin_totp")
+}

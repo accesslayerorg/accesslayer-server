@@ -1,5 +1,17 @@
 // types/auth.types.ts - Add this to your backend types
 import { Request, Response, NextFunction } from 'express';
+import type { JwtPayload } from 'jsonwebtoken';
+
+export type AdminTwoFactorStatus = 'pending_2fa' | 'verified';
+
+export interface AdminJwtPayload extends JwtPayload {
+   sub?: string;
+   adminId?: string;
+   role?: string;
+   wallet?: string;
+   twoFactorStatus?: string;
+}
+
 export interface GoogleCredentials {
    googleId: string;
    email: string;

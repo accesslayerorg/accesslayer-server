@@ -8,6 +8,10 @@
 
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import { envConfig } from '../config';
+import type {
+   AdminJwtPayload,
+   AdminTwoFactorStatus,
+} from '../types/auth.types';
 
 export interface WalletAccessTokenPayload extends JwtPayload {
    sub: string;
@@ -105,3 +109,43 @@ export function signJwt(
 }
 
 export const JwtError = JwtVerifyError;
+
+export function signAdminSessionToken(
+   payload: AdminJwtPayload,
+   twoFactorStatus: AdminTwoFactorStatus = 'pending_2fa',
+   expiresInSeconds: number = envConfig.JWT_ACCESS_TOKEN_TTL_SECONDS
+): string {
+   const adminId = payload.adminId ?? payload.sub;
+   if (!adminId) {
+      throw new Error('Admin session token requires an admin id');
+   }
+
+   const {
+      adminId: _adminId,
+      sub: _sub,
+      role: _role,
+      twoFactorStatus: _twoFactorStatus,
+      iat: _iat,
+      exp: _exp,
+      nbf: _nbf,
+      jti: _jti,
+      iss: _iss,
+      aud: _aud,
+      ...claims
+   } = payload;
+
+   return jwt.sign(
+      {
+         ...claims,
+         adminId,
+         role: 'admin',
+         twoFactorStatus,
+      },
+      envConfig.JWT_SECRET,
+      {
+         expiresIn: expiresInSeconds,
+         issuer: envConfig.JWT_ISSUER,
+         subject: adminId,
+      }
+   );
+}
