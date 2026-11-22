@@ -167,13 +167,20 @@ export async function getCreatorProfile(
    let computedChange = null;
    try {
       if (typeof computePriceChange === 'function') {
-         computedChange = await computePriceChange(profile.id, ONE_DAY_MS, prisma);
+         computedChange = await computePriceChange(
+            profile.id,
+            ONE_DAY_MS,
+            prisma
+         );
       }
    } catch {
       computedChange = null;
    }
 
-   const social = typeof buildCreatorSocialData === 'function' ? buildCreatorSocialData(socialSnapshot) : null;
+   const social =
+      typeof buildCreatorSocialData === 'function'
+         ? buildCreatorSocialData(socialSnapshot)
+         : null;
 
    if (computedChange !== null) {
       priceChange24h = computedChange;
@@ -202,7 +209,8 @@ export async function getCreatorProfile(
    let resolvedAvatarUrl = profile.avatarUrl || null;
    try {
       if (typeof resolvePinataGatewayUrl === 'function') {
-         resolvedAvatarUrl = resolvePinataGatewayUrl(avatarCid) || profile.avatarUrl || null;
+         resolvedAvatarUrl =
+            resolvePinataGatewayUrl(avatarCid) || profile.avatarUrl || null;
       }
    } catch {
       resolvedAvatarUrl = profile.avatarUrl || null;
@@ -210,8 +218,7 @@ export async function getCreatorProfile(
    const twitter = (profile as any).twitter ?? null;
    const website = (profile as any).website ?? null;
    const discord = (profile as any).discord ?? null;
-   const walletAddress =
-      (profile as any).user?.stellarWallet?.address ?? null;
+   const walletAddress = (profile as any).user?.stellarWallet?.address ?? null;
 
    const links: Array<{ label: string; url: string }> = [];
    if (twitter) links.push({ label: 'Twitter', url: twitter });
@@ -219,6 +226,35 @@ export async function getCreatorProfile(
    if (discord) links.push({ label: 'Discord', url: discord });
 
    const socialLinks = social?.links ?? [];
+
+   let ceiling: number | null = null;
+   let cooloffActive: boolean | null = null;
+   try {
+      const priceCeiling = await prisma.priceCeiling.findUnique({
+         where: { keyId: profile.id },
+      });
+      if (priceCeiling) {
+         ceiling = Number(priceCeiling.ceiling);
+         let currentLedger: number | undefined;
+         try {
+            const indexed = await prisma.indexedLedger.findFirst({
+               orderBy: { ledger: 'desc' },
+               select: { ledger: true },
+            });
+            if (indexed) currentLedger = indexed.ledger;
+         } catch {
+            // non-blocking
+         }
+         cooloffActive =
+            priceCeiling.cooloffEndsAt !== null
+               ? currentLedger !== undefined
+                  ? currentLedger <= priceCeiling.cooloffEndsAt
+                  : true
+               : false;
+      }
+   } catch {
+      // non-blocking
+   }
 
    const response: CreatorProfileReadResponse = {
       creatorId: profile.id,
@@ -245,6 +281,8 @@ export async function getCreatorProfile(
       price24hAgo: snapshot ? snapshot.price24hAgo.toString() : null,
       priceChange24h,
       is_factory_key,
+      ceiling,
+      cooloffActive,
       metadata: {
          source: 'database',
          isProfileComplete: !!profile.displayName && !!profile.bio,
@@ -294,12 +332,13 @@ export async function upsertCreatorProfile(
    const targetId = existing?.id ?? creatorIdOrWallet;
 
    const rawDisplayName = payload.displayName ?? payload.display_name;
-   const sanitizedName = rawDisplayName !== undefined
-      ? truncateString(
-           sanitizeDisplayName(rawDisplayName),
-           CREATOR_PROFILE_LIMITS.displayName
-        )
-      : undefined;
+   const sanitizedName =
+      rawDisplayName !== undefined
+         ? truncateString(
+              sanitizeDisplayName(rawDisplayName),
+              CREATOR_PROFILE_LIMITS.displayName
+           )
+         : undefined;
 
    const avatarCid = payload.avatar_cid ?? payload.avatarCid;
    let avatarUrl = payload.avatarUrl;
@@ -318,18 +357,26 @@ export async function upsertCreatorProfile(
       if (payload.display_name !== undefined) {
          normalizedPayload.display_name = sanitizedName;
       }
-      if (payload.displayName === undefined && payload.display_name === undefined) {
+      if (
+         payload.displayName === undefined &&
+         payload.display_name === undefined
+      ) {
          normalizedPayload.displayName = sanitizedName;
       }
    }
 
    if (payload.bio !== undefined) {
-      normalizedPayload.bio = truncateString(payload.bio, CREATOR_PROFILE_LIMITS.bio);
+      normalizedPayload.bio = truncateString(
+         payload.bio,
+         CREATOR_PROFILE_LIMITS.bio
+      );
    }
 
    if (avatarCid !== undefined) {
-      if (payload.avatar_cid !== undefined) normalizedPayload.avatar_cid = avatarCid;
-      if (payload.avatarCid !== undefined) normalizedPayload.avatarCid = avatarCid;
+      if (payload.avatar_cid !== undefined)
+         normalizedPayload.avatar_cid = avatarCid;
+      if (payload.avatarCid !== undefined)
+         normalizedPayload.avatarCid = avatarCid;
    }
 
    if (avatarUrl !== undefined) {
@@ -350,7 +397,9 @@ export async function upsertCreatorProfile(
       },
       data: {
          ...(sanitizedName !== undefined ? { displayName: sanitizedName } : {}),
-         ...(normalizedPayload.bio !== undefined ? { bio: normalizedPayload.bio } : {}),
+         ...(normalizedPayload.bio !== undefined
+            ? { bio: normalizedPayload.bio }
+            : {}),
          ...(avatarCid !== undefined ? { avatarCid } : {}),
          ...(avatarUrl !== undefined ? { avatarUrl } : {}),
          ...(payload.twitter !== undefined ? { twitter: payload.twitter } : {}),

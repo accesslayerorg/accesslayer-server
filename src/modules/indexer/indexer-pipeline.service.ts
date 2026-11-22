@@ -713,6 +713,15 @@ export async function processIndexerEvents(
       await processPolEvents(polEvents);
    }
 
+   const { PRICE_CEILING_EVENT_TYPES, processPriceCeilingEvents } =
+      await import('./price-ceiling-indexer.service');
+   const priceCeilingEvents = events.filter(event =>
+      PRICE_CEILING_EVENT_TYPES.has(event.eventType)
+   );
+   if (priceCeilingEvents.length > 0) {
+      await processPriceCeilingEvents(priceCeilingEvents);
+   }
+
    if (options.advanceCursor !== false)
       await advanceIndexerCursorForBatch(events);
 }

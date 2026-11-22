@@ -203,7 +203,7 @@ export async function processCampaignEvent(event: IndexerChainEvent): Promise<bo
    }
    let applied = false;
    try {
-      applied = await prisma.$transaction((tx: Prisma.TransactionClient) => applyCampaignEvent(tx, parsed.value));
+      applied = await prisma.$transaction((tx: any) => applyCampaignEvent(tx, parsed.value));
    } catch (error) {
       const replay = (error as { code?: string })?.code === 'P2002'
          && await prisma.campaignEvent.findUnique({ where: {
