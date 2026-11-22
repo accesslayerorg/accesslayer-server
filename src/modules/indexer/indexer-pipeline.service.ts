@@ -557,6 +557,16 @@ export async function processIndexerEvents(
       await processKeyLaunchAuctionEvents(launchAuctionEvents);
    }
 
+   const { DUTCH_AUCTION_EVENT_TYPES, processDutchAuctionEvents } = await import(
+      './dutch-auction-indexer.service'
+   );
+   const dutchAuctionEvents = events.filter(event =>
+      DUTCH_AUCTION_EVENT_TYPES.has(event.eventType)
+   );
+   if (dutchAuctionEvents.length > 0) {
+      await processDutchAuctionEvents(dutchAuctionEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
@@ -730,6 +740,15 @@ export async function processIndexerEvents(
    if (airdropEvents.length) {
       const { processAirdropClaimEvents } = await import('./airdrop-indexer.service');
       await processAirdropClaimEvents(airdropEvents);
+   }
+
+   const { PRICE_CEILING_EVENT_TYPES, processPriceCeilingEvents } =
+      await import('./price-ceiling-indexer.service');
+   const priceCeilingEvents = events.filter(event =>
+      PRICE_CEILING_EVENT_TYPES.has(event.eventType)
+   );
+   if (priceCeilingEvents.length > 0) {
+      await processPriceCeilingEvents(priceCeilingEvents);
    }
 
    if (options.advanceCursor !== false)
