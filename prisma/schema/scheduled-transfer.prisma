@@ -1,0 +1,36 @@
+// Scheduled key transfer read model and replay-safe event journal (#1268).
+model ScheduledTransfer {
+  id              String   @id
+  sender          String
+  recipient       String
+  keyId           String   @map("key_id")
+  amount          String
+  releaseLedger   Int      @map("release_ledger")
+  status          String   @default("pending")
+  scheduledLedger Int      @map("scheduled_ledger")
+  scheduledAt     DateTime @map("scheduled_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([sender, scheduledLedger, id])
+  @@index([recipient, scheduledLedger, id])
+  @@index([keyId])
+  @@index([status, releaseLedger])
+  @@map("scheduled_transfers")
+}
+
+// No FK to the read model: terminal events can arrive ahead of their schedule.
+model ScheduledTransferEvent {
+  id         String   @id @default(cuid())
+  transferId String   @map("transfer_id")
+  status     String
+  txHash     String   @map("tx_hash")
+  eventIndex Int      @map("event_index")
+  ledger     Int
+  occurredAt DateTime @map("occurred_at")
+
+  @@unique([txHash, eventIndex])
+  @@index([transferId, ledger, eventIndex])
+  @@map("scheduled_transfer_events")
+}

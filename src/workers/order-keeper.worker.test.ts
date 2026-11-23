@@ -42,7 +42,7 @@ function makeOrder(overrides: Partial<KeeperOrder> = {}): KeeperOrder {
 }
 
 function makeClient(
-   overrides: Partial<OrderKeeperClient> = {}
+   overrides: Partial<jest.Mocked<OrderKeeperClient>> = {}
 ): jest.Mocked<OrderKeeperClient> {
    return {
       getOrderStatus: jest.fn().mockResolvedValue('OPEN'),

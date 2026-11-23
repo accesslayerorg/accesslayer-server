@@ -115,3 +115,20 @@ model TimelockProposal {
   @@map("timelock_proposals")
 }
 
+/// Append-only feed of privileged protocol configuration changes.
+model GovernanceEvent {
+  id         String   @id @default(cuid())
+  type       String
+  actor      String
+  target     String?
+  payload    Json
+  ledger     Int?
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([type, ledger])
+  @@index([createdAt])
+}
+

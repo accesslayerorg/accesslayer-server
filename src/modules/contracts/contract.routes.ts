@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { httpSubmitContractCall } from './contract.controllers';
+import { httpGetContractReceived } from './callback-transfer.controller';
 
 const contractsRouter = Router();
 
@@ -8,5 +9,8 @@ const contractsRouter = Router();
 // endpoint so retry, classification, tracking, and resolution events are
 // applied uniformly.
 contractsRouter.post('/call', httpSubmitContractCall);
+// GET /api/v1/contracts/:address/received — callback transfers received
+// by a contract (#1274).
+contractsRouter.get('/:address/received', httpGetContractReceived);
 
 export default contractsRouter;

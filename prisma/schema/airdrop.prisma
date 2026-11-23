@@ -1,0 +1,34 @@
+/// Creator-signed allocation tree for a Merkle airdrop (#1278).
+model Airdrop {
+  id        String   @id @default(cuid())
+  keyId     String
+  creator   String
+  root      String
+  createdAt DateTime @default(now())
+  leaves    AirdropLeaf[]
+
+  @@unique([keyId, root])
+  @@index([keyId, createdAt])
+  @@map("airdrops")
+}
+
+model AirdropLeaf {
+  id                String   @id @default(cuid())
+  airdropId         String
+  address           String
+  /// Positive i128 amount in the contract's smallest units.
+  amount            Decimal  @db.Decimal(39, 0)
+  index             Int
+  proof             Json
+  claimedAt         DateTime?
+  claimedLedger     Int?
+  claimedTxHash     String?
+  claimedEventIndex Int?
+  airdrop           Airdrop  @relation(fields: [airdropId], references: [id], onDelete: Cascade)
+
+  @@unique([airdropId, address])
+  @@unique([airdropId, index])
+  @@unique([claimedTxHash, claimedEventIndex])
+  @@index([airdropId, claimedAt])
+  @@map("airdrop_leaves")
+}
