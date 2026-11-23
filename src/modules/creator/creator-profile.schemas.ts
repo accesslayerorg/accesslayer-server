@@ -105,6 +105,10 @@ export const CreatorProfileReadResponseSchema = z.object({
    priceChange24h: z.number().nullable(),
    /** Whether this key was deployed through the on-chain key factory (#983). */
    is_factory_key: z.boolean(),
+   /** Configured price ceiling for this key, or null if unset (#1266). */
+   ceiling: z.union([z.string(), z.number()]).nullable().optional(),
+   /** Whether buy cool-off is currently active for this key (#1266). */
+   cooloffActive: z.boolean().nullable().optional(),
    metadata: z.object({
       source: z.enum(['placeholder', 'database']),
       isProfileComplete: z.boolean(),
@@ -178,18 +182,8 @@ export const UpsertCreatorProfileBodySchema = z.object({
       .array(CreatorPerkSchema)
       .max(10, 'At most 10 perks are allowed')
       .optional(),
-   creatorRoyaltyBuyBps: z
-      .number()
-      .int()
-      .min(0)
-      .max(10000)
-      .optional(),
-   creatorRoyaltySellBps: z
-      .number()
-      .int()
-      .min(0)
-      .max(10000)
-      .optional(),
+   creatorRoyaltyBuyBps: z.number().int().min(0).max(10000).optional(),
+   creatorRoyaltySellBps: z.number().int().min(0).max(10000).optional(),
 });
 
 export type CreatorProfileParams = z.infer<typeof CreatorProfileParamsSchema>;

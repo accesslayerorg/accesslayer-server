@@ -11,6 +11,8 @@ const QUALIFIED = new Set(['WalletQualified', 'WALLET_QUALIFIED', 'wallet_qualif
 const CLAIMED = new Set(['RewardClaimed', 'REWARD_CLAIMED', 'reward_claimed', 'claim']);
 export const CAMPAIGN_EVENT_TYPES: ReadonlySet<string> = new Set([...CREATED, ...QUALIFIED, ...CLAIMED]);
 
+type CampaignTransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
 type Position = { ledger: number; eventIndex: number; txHash: string };
 type BaseEvent = Position & { campaignId: string; occurredAt: Date };
 type Created = BaseEvent & {
@@ -139,7 +141,7 @@ function newer(value: Position, row: { ledger: number | null; eventIndex: number
    return value.txHash > (row.txHash ?? '');
 }
 
-async function applyCampaignEvent(tx: Prisma.TransactionClient, value: CampaignChainEvent): Promise<boolean> {
+async function applyCampaignEvent(tx: CampaignTransactionClient, value: CampaignChainEvent): Promise<boolean> {
    // All events for one campaign serialize, including claims delivered before creation.
    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'campaign:' + value.campaignId}, 0))`;
    const eventKey = { txHash_eventIndex: { txHash: value.txHash, eventIndex: value.eventIndex } };
@@ -203,14 +205,7 @@ export async function processCampaignEvent(event: IndexerChainEvent): Promise<bo
    }
    let applied = false;
    try {
-      applied = await prisma.$transaction(tx =>
-         applyCampaignEvent(
-            // The $extends-ed client's tx is a structural superset of
-            // Prisma.TransactionClient.
-            tx as unknown as Prisma.TransactionClient,
-            parsed.value
-         )
-      );
+      applied = await prisma.$transaction(tx => applyCampaignEvent(tx, parsed.value));
    } catch (error) {
       const replay = (error as { code?: string })?.code === 'P2002'
          && await prisma.campaignEvent.findUnique({ where: {
