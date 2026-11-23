@@ -9,6 +9,7 @@ import keysRouter from './modules/keys/keys.routes';
 import tradesRouter from './modules/trades/trades.routes';
 import tradersRouter from './modules/traders/traders.routes';
 import nonceRouter from './modules/nonce/nonce.routes';
+import relayRouter from './modules/relay/relay.routes';
 import swapsRouter from './modules/swaps/swaps.routes';
 import milestonesRouter from './modules/keys/milestones.routes';
 import internalRouter from './modules/admin/sequencer.routes';
@@ -112,6 +113,8 @@ app.get('/', (_, res: Response) => {
 // Routes
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
+// Gasless meta-transaction relay flow (#1088): POST /relay/submit, GET /relay/nonce/:wallet
+app.use('/relay', routeBodySizeLimit('default'), relayRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
 app.use('/api/v1', router);
 app.use('/staking', routeBodySizeLimit('default'), stakingRouter);
