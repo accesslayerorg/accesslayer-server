@@ -324,8 +324,7 @@ async function consumeRecoveryCode(
    const consumed = await prisma.adminTotp.updateMany({
       where: {
          userId: record.userId,
-         recoveryHashes: { has: hash },
-         updatedAt: record.updatedAt,
+         recoveryHashes: { equals: record.recoveryHashes },
       },
       data: { recoveryHashes: { set: remainingHashes } },
    });
