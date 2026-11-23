@@ -1,0 +1,18 @@
+/// A sell blocked by the contract because the key was bought in the same ledger.
+model SellBlock {
+  id         String   @id @default(cuid())
+  wallet     String
+  keyId      String
+  amount     String
+  ledger     Int
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  /// Replay-safe identity for one contract event.
+  @@unique([txHash, eventIndex])
+  /// Supports wallet-focused summary queries over ledger ranges.
+  @@index([wallet, ledger])
+  @@index([createdAt])
+  @@map("sell_blocks")
+}

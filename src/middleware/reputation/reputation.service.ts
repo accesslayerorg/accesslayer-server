@@ -1,17 +1,23 @@
 import { prisma } from '../../utils/prisma.utils';
-import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
+import {
+   cacheGetJson,
+   cacheInvalidate,
+   cacheSetJson,
+} from '../../utils/redis.utils';
 
-const REPUTATION_CACHE_PREFIX = 'reputation:v1:';
+const REPUTATION_CACHE_PREFIX = 'reputation:v2:';
 const REPUTATION_CACHE_TTL_SECONDS = 300; // 5 minutes
 
 interface ScoreFactors {
    walletAgeDays: number;
    tradeCount: number;
    rejectedReports: number;
+   sellBlockCount: number;
 }
 
 function calculateScore(factors: ScoreFactors): number {
-   const { walletAgeDays, tradeCount, rejectedReports } = factors;
+   const { walletAgeDays, tradeCount, rejectedReports, sellBlockCount } =
+      factors;
 
    // Base score: start at 0
    let score = 0;
@@ -30,6 +36,10 @@ function calculateScore(factors: ScoreFactors): number {
    // Each report deducts 5 points, min score is 0
    const reportDeduction = Math.min(rejectedReports * 5, score);
    score -= reportDeduction;
+
+   // A contract-blocked same-ledger sell is an abuse signal.
+   const sellBlockDeduction = Math.min(sellBlockCount * 5, score);
+   score -= sellBlockDeduction;
 
    return Math.max(0, Math.min(100, score));
 }
@@ -89,10 +99,15 @@ export async function score(address: string): Promise<{ score: number; tier: Rep
       },
    });
 
+   const sellBlockCount = await prisma.sellBlock.count({
+      where: { wallet: address },
+   });
+
    const factors: ScoreFactors = {
       walletAgeDays,
       tradeCount,
       rejectedReports,
+      sellBlockCount,
    };
 
    const rawScore = calculateScore(factors);
@@ -108,6 +123,10 @@ export async function score(address: string): Promise<{ score: number; tier: Rep
    await cacheSetJson(cacheKey, result, REPUTATION_CACHE_TTL_SECONDS);
 
    return result;
+}
+
+export async function invalidateReputationCache(address: string): Promise<void> {
+   await cacheInvalidate(`${REPUTATION_CACHE_PREFIX}${address}`);
 }
 
 export function getBudgetForTier(tier: string): number {

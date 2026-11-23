@@ -139,11 +139,13 @@ Operational metrics for background work.
 
 Restricted administrative endpoints.
 
-| Method  | Path                           | Description                                         |
-| :------ | :----------------------------- | :-------------------------------------------------- |
-| `PATCH` | `/admin/creators/:id/metadata` | Update creator metadata such as verification state. |
-| `POST`  | `/admin/indexer/replay`        | Trigger an indexer replay job.                      |
-| `GET`   | `/admin/flash-loan-violations` | Flash loan violations by wallet frequency (#938).   |
+| Method  | Path                           | Description                                          |
+| :------ | :----------------------------- | :--------------------------------------------------- |
+| `PATCH` | `/admin/creators/:id/metadata` | Update creator metadata such as verification state.  |
+| `POST`  | `/admin/indexer/replay`        | Trigger an indexer replay job.                       |
+| `GET`   | `/admin/flash-loan-violations` | Flash loan violations by wallet frequency (#938).    |
+| `GET`   | `/admin/sell-blocks`           | Cursor-paginated same-ledger sell blocks (#1273).    |
+| `GET`   | `/admin/sell-blocks/summary`   | Sell-block counts grouped by wallet and key (#1273). |
 
 ## Staking Module
 

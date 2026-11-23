@@ -567,6 +567,16 @@ export async function processIndexerEvents(
       await processDutchAuctionEvents(dutchAuctionEvents);
    }
 
+   const { SELL_BLOCK_EVENT_TYPES, processSellBlockEvents } = await import(
+      './sell-block-indexer.service'
+   );
+   const sellBlockEvents = events.filter(event =>
+      SELL_BLOCK_EVENT_TYPES.has(event.eventType)
+   );
+   if (sellBlockEvents.length > 0) {
+      await processSellBlockEvents(sellBlockEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
