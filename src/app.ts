@@ -142,6 +142,8 @@ app.use('/v1/rates', ratesRouter);
 app.use('/api/v1/rates', ratesRouter);
 app.use('/v1', router);
 app.use('/api/v1', router);
+// Read-only GraphQL endpoint (issue #1248): POST /api/v1/graphql
+app.use('/api/v1/graphql', graphqlRouter);
 app.use('/v1', queryCostGovernor());
 app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
 app.use('/v1/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
