@@ -184,6 +184,19 @@ no need to thread it through function arguments.
 
 ## Background Jobs
 
+### Data Retention Worker
+
+| Variable                   | Type    | Required | Default | Description                                                   |
+| -------------------------- | ------- | -------- | ------- | ------------------------------------------------------------- |
+| `RETENTION_WORKER_ENABLED` | boolean | No       | `true`  | Schedule retention sweeps daily at 03:00 UTC                  |
+| `RETENTION_DRY_RUN`        | boolean | No       | `true`  | Count eligible rows without deleting; set to `false` to prune |
+
+Retention rules and per-table age limits are defined in `src/config/retention.ts`.
+The worker processes at most 1,000 rows per delete and pauses 50 ms between batches.
+In-memory nonce guards are pruned after their 24-hour TTL; Redis cache and nonce
+entries already expire via their configured TTLs. Deletion totals are exposed at
+`GET /api/v1/metrics/retention` in Prometheus text format.
+
 ### Ownership Snapshot Cleanup
 
 | Variable                                      | Type    | Required | Default                       | Description                                         |

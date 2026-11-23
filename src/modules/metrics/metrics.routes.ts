@@ -4,6 +4,7 @@ import {
    creatorReadMetrics,
    orderKeeperMetrics,
    queueMetrics,
+   retentionMetrics,
 } from './metrics.controllers';
 
 const router = Router();
@@ -19,5 +20,8 @@ router.get('/cache-warm', cacheWarmMetrics);
 
 // Limit order keeper fill and skip counters
 router.get('/order-keeper', orderKeeperMetrics);
+
+// Rows deleted by the retention worker, in Prometheus exposition format.
+router.get('/retention', retentionMetrics);
 
 export default router;
