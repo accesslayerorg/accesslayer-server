@@ -1,0 +1,1 @@
+ALTER TABLE "key_tips" ADD COLUMN "anonymous" BOOLEAN NOT NULL DEFAULT false;

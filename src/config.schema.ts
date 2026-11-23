@@ -64,6 +64,11 @@ export const envSchema = z
          .string()
          .url('FRONTEND_URL must be a valid URL')
          .min(1, 'FRONTEND_URL is required'),
+      // Public origin of the website, used for absolute sitemap and robots.txt URLs
+      PUBLIC_SITE_URL: z
+         .string()
+         .url('PUBLIC_SITE_URL must be a valid URL')
+         .min(1, 'PUBLIC_SITE_URL is required'),
 
       // Cloudinary
       CLOUDINARY_CLOUD_NAME: z
@@ -208,6 +213,14 @@ export const envSchema = z
          )
          .default('https://soroban-testnet.stellar.org'),
 
+      // Limit-order keeper: required profit over simulated network fee.
+      ORDER_KEEPER_PROFIT_MARGIN_BPS: z.coerce
+         .number()
+         .int()
+         .nonnegative()
+         .safe()
+         .default(1000),
+
       // Soroban contract interaction service (#899): submission retries with
       // exponential backoff, confirmation polling, and resolution events.
       SOROBAN_SUBMIT_MAX_ATTEMPTS: z.coerce
@@ -245,6 +258,20 @@ export const envSchema = z
          .int()
          .positive()
          .default(300),
+
+      // Key price velocity circuit breaker (#1195): after each indexed trade
+      // the key is paused when its price moved more than this percentage, in
+      // either direction, against the price WINDOW_SIZE trades earlier.
+      KEY_PRICE_VELOCITY_THRESHOLD_PCT: z.coerce
+         .number()
+         .positive()
+         .default(50),
+      KEY_PRICE_VELOCITY_WINDOW_SIZE: z.coerce
+         .number()
+         .int()
+         .min(1)
+         .max(500)
+         .default(10),
 
       // Key content gate config cache (#1150)
       GATE_CONFIG_CACHE_TTL_SECONDS: z.coerce
@@ -426,6 +453,9 @@ export const envSchema = z
       QUERY_COST_MAP_JSON: optionalNonEmptyString,
       // Comma-separated wallet addresses that bypass the governor entirely.
       QUERY_COST_ADMIN_WALLETS: optionalNonEmptyString,
+      // Comma-separated wallet addresses allowed to triage key reports via
+      // the /admin/reports moderator queue (#1226).
+      MODERATOR_WALLETS: optionalNonEmptyString,
       HORIZON_WEBHOOK_SECRET: optionalNonEmptyString,
       WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce
          .number()
@@ -664,6 +694,13 @@ export const envSchema = z
       BADGE_TOP_TRADER_MAX_RANK: z.coerce.number().int().positive().default(10),
       // Max mint attempts before a transient failure is treated as terminal.
       BADGE_MINT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+
+      // Lending vault health monitor and liquidation keeper. Liquidations stay
+      // disabled until the contract id and keeper secret are both set.
+      VAULT_HEALTH_MONITOR_ENABLED: booleanCoerce.default(true),
+      VAULT_LIQUIDATION_KEEPER_ENABLED: booleanCoerce.default(true),
+      VAULT_LENDING_CONTRACT_ID: optionalNonEmptyString,
+      LIQUIDATION_KEEPER_SECRET: optionalNonEmptyString,
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
       SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
    })

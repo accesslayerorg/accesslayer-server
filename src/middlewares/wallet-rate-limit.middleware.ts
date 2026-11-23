@@ -11,6 +11,7 @@
 import type { Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import type { StellarSignedRequest } from './stellar-signature.middleware';
+import type { AuthenticatedRequest } from './jwt-auth.middleware';
 import { getRedis } from '../utils/redis.utils';
 import { envConfig } from '../config';
 import { logger } from '../utils/logger.utils';
@@ -36,13 +37,18 @@ function isInternalServiceCall(req: StellarSignedRequest): boolean {
    return value === envConfig.INTERNAL_SERVICE_KEY;
 }
 
+type WalletScopedRequest = StellarSignedRequest &
+   Pick<AuthenticatedRequest, 'user'>;
+
 /**
  * Builds a sliding-window rate limit middleware scoped to the authenticated
- * wallet address (`req.walletAddress`, set by `requireStellarSignature()`).
+ * wallet address: `req.walletAddress` (set by `requireStellarSignature()`)
+ * or, on JWT-authenticated routes, `req.user.wallet` (set by
+ * `requireJwtAuth`).
  *
- * Must be mounted after `requireStellarSignature()` so `walletAddress` is
- * available. Requests without a resolved wallet address are passed through
- * unlimited — signature verification is responsible for rejecting those.
+ * Must be mounted after the auth middleware so the wallet is available.
+ * Requests without a resolved wallet address are passed through
+ * unlimited — the auth middleware is responsible for rejecting those.
  *
  * Fails open on Redis errors: a Redis outage logs a warning and allows the
  * request through rather than blocking the purchase flow.
@@ -51,7 +57,7 @@ export function walletRateLimit(options: WalletRateLimitOptions) {
    const { windowMs, max, keyPrefix } = options;
 
    return async (
-      req: StellarSignedRequest,
+      req: WalletScopedRequest,
       res: Response,
       next: NextFunction
    ): Promise<void> => {
@@ -60,7 +66,7 @@ export function walletRateLimit(options: WalletRateLimitOptions) {
          return;
       }
 
-      const walletAddress = req.walletAddress;
+      const walletAddress = req.walletAddress ?? req.user?.wallet;
       if (!walletAddress) {
          next();
          return;
@@ -124,4 +130,14 @@ export const buyKeyRateLimit = walletRateLimit({
    windowMs: 10_000,
    max: 5,
    keyPrefix: 'rl:buy:',
+});
+
+/**
+ * Rate limit applied to key report submission (#1226): 5 reports per wallet
+ * per rolling hour.
+ */
+export const keyReportRateLimit = walletRateLimit({
+   windowMs: 60 * 60 * 1000,
+   max: 5,
+   keyPrefix: 'rl:key-report:',
 });

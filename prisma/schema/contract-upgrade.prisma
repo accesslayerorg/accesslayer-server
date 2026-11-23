@@ -1,0 +1,27 @@
+enum ContractUpgradeStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+}
+
+model ContractUpgrade {
+  id                    String               @id
+  fromVersion           String
+  toVersion             String
+  scheduledAt            DateTime
+  executableAt           DateTime
+  executedAt             DateTime?
+  status                 ContractUpgradeStatus @default(PENDING)
+  scheduleTxHash         String
+  scheduleEventIndex     Int
+  executedTxHash         String?
+  executedEventIndex     Int?
+  cancelledTxHash        String?
+  cancelledEventIndex    Int?
+
+  @@unique([scheduleTxHash, scheduleEventIndex])
+  @@unique([executedTxHash, executedEventIndex])
+  @@unique([cancelledTxHash, cancelledEventIndex])
+  @@index([status, scheduledAt])
+  @@map("contract_upgrades")
+}

@@ -1,0 +1,1254 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Access Layer Server API",
+    "version": "1.0.0",
+    "description": "REST API for Access Layer, the off-chain backend for a Stellar-native creator keys marketplace."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication and registration"
+    },
+    {
+      "name": "Nonce",
+      "description": "Wallet nonce / replay protection"
+    },
+    {
+      "name": "Search",
+      "description": "Global search"
+    },
+    {
+      "name": "Creators",
+      "description": "Creator discovery"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "walletAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Wallet-scoped JWT. Obtain a token via the Stellar challenge flow and send it as `Authorization: Bearer <token>`. The token carries the caller's Stellar wallet address."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "NonceInfo": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "minLength": 56,
+            "maxLength": 56,
+            "pattern": "^G[A-Z2-7]{55}$"
+          },
+          "nonce": {
+            "type": "integer"
+          },
+          "cached": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "wallet",
+          "nonce",
+          "cached"
+        ]
+      },
+      "ConsumeNonceResult": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "minLength": 56,
+            "maxLength": 56,
+            "pattern": "^G[A-Z2-7]{55}$"
+          },
+          "consumedNonce": {
+            "type": "integer"
+          },
+          "nextNonce": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wallet",
+          "consumedNonce",
+          "nextNonce"
+        ]
+      },
+      "StellarChallengeRequest": {
+        "type": "object",
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "minLength": 56,
+            "maxLength": 56,
+            "pattern": "^G[A-Z2-7]{55}$"
+          }
+        },
+        "required": [
+          "wallet_address"
+        ]
+      },
+      "StellarChallengeResult": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "type": "string",
+            "description": "Base64 XDR of the server-signed challenge transaction"
+          },
+          "server_public_key": {
+            "type": "string"
+          },
+          "network_passphrase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "transaction",
+          "server_public_key",
+          "network_passphrase"
+        ]
+      },
+      "RegisterResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "accessToken": {
+                    "type": "string"
+                  },
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "accessToken",
+                  "refreshToken"
+                ]
+              }
+            },
+            "required": [
+              "user",
+              "tokens"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ]
+      },
+      "SearchKeyResult": {
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string"
+          },
+          "keyAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creatorName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creatorHandle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creatorAvatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentPrice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holderCount": {
+            "type": "integer"
+          },
+          "deprecated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "keyId",
+          "keyAddress",
+          "name",
+          "symbol",
+          "description",
+          "imageUrl",
+          "creatorName",
+          "creatorHandle",
+          "creatorAvatarUrl",
+          "currentPrice",
+          "holderCount",
+          "deprecated"
+        ]
+      },
+      "SearchCreatorResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isVerified": {
+            "type": "boolean"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "followersCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "handle",
+          "displayName",
+          "bio",
+          "avatarUrl",
+          "isVerified",
+          "walletAddress",
+          "followersCount"
+        ]
+      },
+      "SearchTransactionResult": {
+        "type": "object",
+        "properties": {
+          "txHash": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "contract",
+              "trade"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creatorId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wallet": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ledger": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "timestamp": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "txHash",
+          "source",
+          "operation",
+          "status",
+          "creatorId",
+          "wallet",
+          "ledger",
+          "timestamp"
+        ]
+      },
+      "GroupedSearchResponse": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchKeyResult"
+            }
+          },
+          "creators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchCreatorResult"
+            }
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchTransactionResult"
+            }
+          }
+        },
+        "required": [
+          "query",
+          "keys",
+          "creators",
+          "transactions"
+        ]
+      },
+      "KeySearchPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchKeyResult"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "limit"
+        ]
+      },
+      "CreatorSearchPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchCreatorResult"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "limit"
+        ]
+      },
+      "CreatorListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "followers": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentPrice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current key price in stroops; null before the first trade"
+          },
+          "price24hAgo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priceChange24h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "deprecated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "avatar",
+          "followers",
+          "createdAt",
+          "updatedAt",
+          "currentPrice",
+          "price24hAgo",
+          "priceChange24h",
+          "deprecated"
+        ]
+      },
+      "CreatorListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatorListItem"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "hasMore": {
+                "type": "boolean"
+              },
+              "searchTerm": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "limit",
+              "offset",
+              "total",
+              "hasMore"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "meta"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/auth/challenge": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request a Stellar wallet-auth challenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StellarChallengeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-signed challenge transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StellarChallengeResult"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid Stellar wallet_address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a user with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "pattern": "[a-z]"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "firstName",
+                  "lastName",
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created, or a neutral \"check your email\" reply",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nonce": {
+      "get": {
+        "tags": [
+          "Nonce"
+        ],
+        "summary": "Get the current nonce for a wallet",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 56,
+              "maxLength": 56,
+              "pattern": "^G[A-Z2-7]{55}$"
+            },
+            "required": true,
+            "name": "wallet",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current wallet nonce",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NonceInfo"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nonce/consume": {
+      "post": {
+        "tags": [
+          "Nonce"
+        ],
+        "summary": "Record consumption of a wallet nonce",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wallet": {
+                    "type": "string",
+                    "minLength": 56,
+                    "maxLength": 56,
+                    "pattern": "^G[A-Z2-7]{55}$"
+                  },
+                  "nonce": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "action": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "wallet",
+                  "nonce"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nonce consumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ConsumeNonceResult"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body or nonce mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nonce already consumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Grouped search overlay results",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Top keys, creators and the best transaction match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GroupedSearchResponse"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid search query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/keys": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search keys (cursor paginated)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of key results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/KeySearchPage"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid search query or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/creators": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search creators (cursor paginated)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of creator results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CreatorSearchPage"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid search query or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creators": {
+      "get": {
+        "tags": [
+          "Creators"
+        ],
+        "summary": "List creators",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "displayName",
+                "handle",
+                "price"
+              ],
+              "default": "createdAt"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "required": false,
+            "name": "order",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "enum": [
+                  "stats"
+                ]
+              }
+            },
+            "required": false,
+            "name": "include",
+            "in": "query"
+          },
+          {
+            "schema": {},
+            "required": false,
+            "name": "verified",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            },
+            "required": false,
+            "name": "minPrice",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            },
+            "required": false,
+            "name": "maxPrice",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of creators with offset pagination metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CreatorListResponse"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

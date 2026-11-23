@@ -23,3 +23,32 @@ export const DEFAULT_REFERRED_PAGE_SIZE = 20;
 
 /** Decimal places kept for XLM amounts (matches the Stellar precision). */
 export const XLM_DECIMALS = 7;
+
+/** Referral tier thresholds and multipliers. */
+export const REFERRAL_TIERS = [
+  { minReferrals: 0, maxReferrals: 9, multiplier: 1.0, name: 'BRONZE' },
+  { minReferrals: 10, maxReferrals: 49, multiplier: 1.5, name: 'SILVER' },
+  { minReferrals: 50, maxReferrals: Number.MAX_SAFE_INTEGER, multiplier: 2.0, name: 'GOLD' },
+] as const;
+
+export type ReferralTierName = (typeof REFERRAL_TIERS)[number]['name'];
+
+/**
+ * Returns the tier multiplier for a given referral count.
+ */
+export function getTierMultiplier(referralCount: number): number {
+  const tier = REFERRAL_TIERS.find(
+    (t) => referralCount >= t.minReferrals && referralCount <= t.maxReferrals
+  );
+  return tier?.multiplier ?? 1.0;
+}
+
+/**
+ * Returns the tier name for a given referral count.
+ */
+export function getTierName(referralCount: number): ReferralTierName {
+  const tier = REFERRAL_TIERS.find(
+    (t) => referralCount >= t.minReferrals && referralCount <= t.maxReferrals
+  );
+  return tier?.name ?? 'BRONZE';
+}

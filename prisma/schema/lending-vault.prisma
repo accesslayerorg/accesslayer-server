@@ -1,0 +1,52 @@
+// prisma/schema/lending-vault.prisma
+// Open positions in the lending vault and the latest health snapshot computed
+// for each. A position becomes liquidatable once its health factor
+// (collateral value x liquidation threshold / debt) drops below 1.
+
+/// One open borrow against deposited collateral keys. Interest accrues from
+/// `openedAt` at `interestRateBps` (annualised), so debt is derived on read
+/// rather than persisted.
+model LendingPosition {
+  id                 String   @id @default(cuid())
+  wallet             String
+  /// CreatorProfile id of the deposited collateral key.
+  collateralKeyId    String
+  collateralQuantity Decimal  @db.Decimal(20, 7)
+  /// Borrowed principal in XLM, before interest.
+  principalXlm       Decimal  @db.Decimal(20, 7)
+  /// Annualised borrow rate in basis points.
+  interestRateBps    Int      @default(0)
+  openedAt           DateTime @default(now())
+  /// Set once the keeper liquidates the position; null while open.
+  liquidatedAt       DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  health VaultHealth?
+
+  @@index([wallet])
+  @@index([liquidatedAt])
+  @@map("lending_positions")
+}
+
+/// Latest health computed for a lending position by the monitor; one row per
+/// position. `warningAt` is stamped the first pass health drops below the
+/// warning threshold and cleared on recovery, so a borrower is warned exactly
+/// once per drop.
+model VaultHealth {
+  id                  String   @id @default(cuid())
+  positionId          String   @unique
+  wallet              String
+  healthFactor        Decimal  @db.Decimal(18, 8)
+  collateralValueXlm  Decimal  @db.Decimal(20, 7)
+  debtXlm             Decimal  @db.Decimal(20, 7)
+  liquidationPriceXlm Decimal? @db.Decimal(20, 7)
+  warningAt           DateTime?
+  computedAt          DateTime @default(now())
+
+  position LendingPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([wallet])
+  @@index([healthFactor])
+  @@map("vault_health")
+}

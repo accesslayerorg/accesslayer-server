@@ -39,7 +39,24 @@ jest.mock('../../utils/creator-read-metrics.utils', () => ({
    })),
 }));
 
-import { creatorReadMetrics, queueMetrics } from './metrics.controllers';
+jest.mock('../../utils/order-keeper-metrics.utils', () => ({
+   getOrderKeeperMetrics: jest.fn(() => ({
+      keeper_fills_total: {
+         type: 'counter',
+         samples: [{ labels: {}, value: 3 }],
+      },
+      keeper_skipped_total: {
+         type: 'counter',
+         samples: [{ labels: {}, value: 2 }],
+      },
+   })),
+}));
+
+import {
+   creatorReadMetrics,
+   orderKeeperMetrics,
+   queueMetrics,
+} from './metrics.controllers';
 
 describe('metrics.controllers', () => {
    it('returns queue depth metrics', () => {
@@ -78,6 +95,27 @@ describe('metrics.controllers', () => {
                }),
             }),
          })
+      );
+   });
+
+   it('returns order keeper counters', () => {
+      const res = {
+         status: jest.fn().mockReturnThis(),
+         type: jest.fn().mockReturnThis(),
+         send: jest.fn(),
+      } as any;
+
+      orderKeeperMetrics({} as any, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.type).toHaveBeenCalledWith(
+         'text/plain; version=0.0.4; charset=utf-8'
+      );
+      expect(res.send).toHaveBeenCalledWith(
+         expect.stringContaining('keeper_fills_total 3')
+      );
+      expect(res.send).toHaveBeenCalledWith(
+         expect.stringContaining('keeper_skipped_total 2')
       );
    });
 });

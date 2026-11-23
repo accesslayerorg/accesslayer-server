@@ -1,0 +1,37 @@
+model ApprovedMarketplace {
+  address          String   @id
+  approved         Boolean  @default(false)
+  approvedAt       DateTime?
+  ledger           Int      @default(-1)
+  transactionIndex Int?
+  eventIndex       Int      @default(-1)
+  txHash           String   @default("")
+
+  @@index([approved, approvedAt])
+  @@map("approved_marketplaces")
+}
+
+model KeyRoyaltyEnforcement {
+  keyId            String  @id
+  royaltyEnforced  Boolean @default(false)
+  locked           Boolean @default(false)
+  ledger           Int     @default(-1)
+  transactionIndex Int?
+  eventIndex       Int     @default(-1)
+  txHash           String  @default("")
+
+  @@map("key_royalty_enforcement")
+}
+
+/// Event receipts make chain replays no-ops across indexer restarts.
+model MarketplaceRegistryEvent {
+  id               String @id @default(cuid())
+  eventType        String
+  ledger           Int
+  transactionIndex Int?
+  txHash           String
+  eventIndex       Int
+
+  @@unique([txHash, eventIndex])
+  @@map("marketplace_registry_events")
+}

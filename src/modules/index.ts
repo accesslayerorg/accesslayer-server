@@ -1,3 +1,10 @@
+import campaignsRouter from './campaigns/campaigns.routes';
+import { protocolPolRouter, keyBackstopsRouter } from './pol/pol.routes';
+import scheduledTransferRouter from './scheduled-transfers/scheduled-transfer.routes';
+import marketplaceRouter from './marketplaces/marketplace.routes';
+import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes';
+import concentrationRouter from './concentration/concentration.routes';
+import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
@@ -52,6 +59,8 @@ import governanceRouter from './governance/governance.routes';
 import factoryRouter from './factory/factory.routes';
 import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
+import dutchAuctionRouter from './dutch-auctions/dutch-auction.routes';
+import ordersRouter from './orders/order.routes';
 import holdersRouter from './dividends/holders.routes';
 import multisigRouter from './multisig/multisig.routes';
 import discoveryRouter from './keys/discovery.routes';
@@ -61,7 +70,12 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
 import tipsRouter from './tips/tips.routes';
+import { flagRouter } from './flags/feature-flags.routes';
+import commentsRouter from './comments/comments.routes';
+import { commentsModerationRouter } from './comments/comments.routes';
+import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
+import { relatedKeysRouter } from '../routes/keys.routes';
 
 const router = Router();
 
@@ -86,6 +100,13 @@ router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorRouter);
 router.use('/metrics', routeBodySizeLimit('default'), metricsRouter);
 router.use('/ledger', routeBodySizeLimit('default'), ledgerRouter);
+// Moderator key report queue (#1226). Mounted ahead of adminRouter: these
+// routes use wallet-based moderator auth rather than the admin JWT guard.
+router.use(
+   '/admin/reports',
+   routeBodySizeLimit('admin'),
+   adminReportsRouter
+);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
@@ -99,12 +120,14 @@ router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
+router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 
 // Keys: existing keysRouter first, then freezeRouter so /:keyId/freeze and
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
+router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
 
 router.use(
@@ -144,14 +167,28 @@ router.use('/governance', routeBodySizeLimit('default'), governanceRouter);
 router.use('/factory', routeBodySizeLimit('default'), factoryRouter);
 router.use('/lp', routeBodySizeLimit('default'), lpRouter);
 router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
+router.use('/auctions', dutchAuctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
+router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
+router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
 router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/flags', routeBodySizeLimit('default'), flagRouter);
+
+router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);
+router.use('/protocol', routeBodySizeLimit('default'), protocolPolRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyBackstopsRouter);
+router.use('/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
+router.use('/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
+router.use('/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
+router.use('/keys', routeBodySizeLimit('default'), concentrationRouter);
+router.use('/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
+router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
 
 export default router;

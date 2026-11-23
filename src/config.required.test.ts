@@ -20,6 +20,7 @@ describe('Required environment startup validation', () => {
          'GOOGLE_CLIENT_SECRET',
          'BACKEND_URL',
          'FRONTEND_URL',
+         'PUBLIC_SITE_URL',
          'CLOUDINARY_CLOUD_NAME',
          'CLOUDINARY_API_KEY',
          'CLOUDINARY_API_SECRET',
