@@ -130,7 +130,7 @@ app.get('/', (_, res: Response) => {
 
 // Routes
 app.use('/v1', v1RelatedKeysRouter);
-app.use('/v1/admin', routeBodySizeLimit('admin'), admin2faRouter);
+app.use('/v1/admin/2fa', routeBodySizeLimit('admin'), admin2faRouter);
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);

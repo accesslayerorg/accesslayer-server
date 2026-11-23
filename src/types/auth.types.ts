@@ -9,7 +9,7 @@ export interface AdminJwtPayload extends JwtPayload {
    adminId?: string;
    role?: string;
    wallet?: string;
-   twoFactorStatus?: string;
+   twoFactorStatus?: AdminTwoFactorStatus;
 }
 
 export interface GoogleCredentials {

@@ -213,7 +213,7 @@ export function normalizeRecoveryCode(code: string): string {
 }
 
 function hashRecoveryCode(code: string): string {
-   return createHash('sha256')
+   return createHmac('sha256', encryptionKey())
       .update(normalizeRecoveryCode(code))
       .digest('hex');
 }
