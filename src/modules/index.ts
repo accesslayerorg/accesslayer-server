@@ -111,6 +111,7 @@ import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
 import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
 import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
+import { dcaRouter } from './dca/dca.routes';
 
 const router = Router();
 
@@ -281,5 +282,8 @@ router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
 
 // Bounty board (#1307).
 router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
+
+// Recurring purchase (DCA) plans (#1322).
+router.use('/dca', routeBodySizeLimit('default'), dcaRouter);
 
 export default router;
