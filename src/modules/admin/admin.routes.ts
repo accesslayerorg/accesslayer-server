@@ -56,6 +56,16 @@ import { logger } from '../../utils/logger.utils';
 import { invalidateKeyVestingCache } from '../vesting/vesting.service';
 import { treasuryRouter } from '../treasury/treasury.routes';
 import { adminFlagRouter } from '../flags/feature-flags.routes';
+import {
+   httpDeleteDlqEntry,
+   httpListDlq,
+   httpReplayDlqBatch,
+   httpReplayDlqEntry,
+} from './dlq.controllers';
+import {
+   httpEndImpersonation,
+   httpStartImpersonation,
+} from './impersonation.controllers';
 
 function isValidStellarAddress(address: string): boolean {
    return typeof address === 'string' && /^G[A-Z2-7]{55}$/.test(address);
@@ -137,6 +147,20 @@ adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
 adminRouter.patch('/protocol-fee', adminGuard, httpUpdateProtocolFee);
 adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
+
+// ── Indexer dead-letter queue (#1341) ─────────────────────────
+// GET lists live failed jobs. POST .../replay re-runs a job once through its
+// registered handler. DELETE removes an entry and requires a reason.
+adminRouter.get('/dlq', adminGuard, httpListDlq);
+adminRouter.post('/dlq/replay', adminGuard, httpReplayDlqBatch);
+adminRouter.post('/dlq/:id/replay', adminGuard, httpReplayDlqEntry);
+adminRouter.delete('/dlq/:id', adminGuard, httpDeleteDlqEntry);
+
+// ── Read-only impersonation (#1342) ───────────────────────────
+// POST starts a 15-minute read-only session for a wallet's user and needs a
+// fresh second factor (mfa_at claim). DELETE ends a session immediately.
+adminRouter.post('/impersonate', adminGuard, httpStartImpersonation);
+adminRouter.delete('/impersonate', adminGuard, httpEndImpersonation);
 
 // ── Referral abuse review (#1241) ─────────────────────────────
 // GET /admin/referral-holds?status=&limit=&cursor= lists withheld referral

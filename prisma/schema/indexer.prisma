@@ -82,7 +82,16 @@ model IndexerDLQ {
   
   // Optional stack trace or detailed error log
   errorDetails  String?
-  
+
+  // Replay tracking (#1341). Every replay attempt bumps replayCount and
+  // records lastReplayAt / lastReplayOutcome. replayedAt is set only when a
+  // replay succeeds; a row with replayedAt set is never replayed again and
+  // is excluded from the live DLQ depth.
+  replayCount       Int       @default(0)
+  lastReplayAt      DateTime?
+  lastReplayOutcome String?
+  replayedAt        DateTime?
+
   // When the job was moved to DLQ
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
