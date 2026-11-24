@@ -61,6 +61,10 @@ import {
    stopAccountLifecycleWorker,
 } from './workers/account-lifecycle.worker';
 import {
+   startPartitionManagerWorker,
+   stopPartitionManagerWorker,
+} from './workers/partition-manager.worker';
+import {
    startCampaignCronJobs,
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
@@ -81,6 +85,7 @@ import {
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
+import { stopSorobanRpcPool } from './clients/soroban.client';
 import {
    broadcastServerClosing,
    closeAllConnections,
@@ -154,7 +159,11 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startRetentionWorker();
+<<<<<<< HEAD
       startAccountLifecycleWorker();
+=======
+      startPartitionManagerWorker();
+>>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
@@ -208,7 +217,11 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopRetentionWorker();
+<<<<<<< HEAD
       stopAccountLifecycleWorker();
+=======
+      stopPartitionManagerWorker();
+>>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();
@@ -217,6 +230,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       await prisma.$disconnect();
       logger.info('Database connection closed');
 
+      stopSorobanRpcPool();
       await disconnectRedis().catch(() => {});
       logger.info('Redis connection closed');
 

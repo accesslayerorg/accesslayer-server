@@ -1,0 +1,29 @@
+name: SDK Publish
+
+on:
+   push:
+      tags:
+         - 'sdk-v*'
+
+jobs:
+   publish:
+      runs-on: ubuntu-latest
+      permissions:
+         contents: read
+         packages: write
+      steps:
+         - uses: actions/checkout@v4
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              registry-url: https://registry.npmjs.org
+              cache: pnpm
+         - run: pnpm install --frozen-lockfile
+         - run: pnpm --filter @accesslayer/sdk run generate
+         - run: pnpm --filter @accesslayer/sdk run build
+         - run: pnpm --filter @accesslayer/sdk publish --no-git-checks --access public
+           env:
+              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

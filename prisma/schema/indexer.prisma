@@ -48,10 +48,13 @@ model IngestedEvent {
 
   createdAt      DateTime             @default(now())
 
-  @@unique([txHash, eventIndex])
+  // Partitioned by createdAt month (#1333); unique/indexes include partition key.
+  @@unique([txHash, eventIndex, createdAt], name: "txHash_eventIndex")
   @@index([ledgerSequence])
   @@index([status])
   @@index([creatorId])
+  @@index([creatorId, createdAt])
+  @@index([createdAt])
   @@map("ingested_events")
 }
 

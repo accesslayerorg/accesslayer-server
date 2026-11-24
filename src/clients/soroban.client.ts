@@ -1,19 +1,8 @@
-// src/clients/soroban.client.ts
-// Soroban JSON-RPC client for transaction submission and status polling (#899).
-//
-// All Soroban RPC traffic for the contract interaction service goes through
-// this module so request logging, timeouts, and error normalization are
-// applied consistently (mirrors clients/horizon.client.ts).
-//
-// The client is transport-agnostic: endpoints accept an injectable `postJson`
-// implementation so unit tests can stub the network without extra mocking
-// libraries.
-
 import { logger } from '../utils/logger.utils';
 import { envConfig } from '../config';
 import { sorobanRpcCircuitBreaker } from '../utils/circuit-breaker.utils';
+import { RpcPool, parseRpcUrls } from './rpc-pool';
 
-/** Default JSON-RPC POST transport used in production. */
 async function defaultPostJson(url: string, body: unknown): Promise<unknown> {
    const controller = new AbortController();
    const timeout = setTimeout(
@@ -43,11 +32,8 @@ async function defaultPostJson(url: string, body: unknown): Promise<unknown> {
 }
 
 export type SorobanPostJson = (url: string, body: unknown) => Promise<unknown>;
-
-/** Expose the default transport for callers that want to bind clients to it. */
 export const defaultSorobanTransport: SorobanPostJson = defaultPostJson;
 
-/** HTTP-level failure from the Soroban RPC endpoint (non-2xx response). */
 export class SorobanRpcHttpError extends Error {
    constructor(
       public readonly status: number,
@@ -58,7 +44,6 @@ export class SorobanRpcHttpError extends Error {
    }
 }
 
-/** JSON-RPC application error envelope returned by the Soroban node. */
 export class SorobanRpcMethodError extends Error {
    constructor(
       public readonly code: number,
@@ -69,30 +54,54 @@ export class SorobanRpcMethodError extends Error {
    }
 }
 
-/** Result of the `sendTransaction` JSON-RPC method. */
 export interface SendTransactionResult {
-   /** Present when the node accepted the transaction into its queue. */
    hash?: string;
    status: string;
-   /** Base64 XDR error result — set when status is "ERROR". */
    errorResultXdr?: string;
    latestLedger?: number;
 }
 
-/** Result of the `getTransaction` JSON-RPC method. */
 export interface GetTransactionResult {
    status: 'SUCCESS' | 'NOT_FOUND' | 'FAILED';
    latestLedger?: number;
-   /** Ledger sequence that included the transaction (when not NOT_FOUND). */
    ledger?: number;
-   /** Base64 XDR result meta/metaV3 of the processed transaction. */
    resultXdr?: string;
 }
 
-/** Standard JSON-RPC 2.0 envelope used by Soroban nodes. */
 interface JsonRpcEnvelope {
    result?: unknown;
    error?: { code: number; message: string };
+}
+
+let rpcPool: RpcPool | null = null;
+
+function getRpcPool(): RpcPool | null {
+   const urls = parseRpcUrls(
+      envConfig.SOROBAN_RPC_URLS || envConfig.STELLAR_SOROBAN_RPC_URL
+   );
+   if (urls.length <= 1) return null;
+   if (!rpcPool) {
+      rpcPool = new RpcPool({
+         endpoints: urls,
+         probeIntervalMs: envConfig.RPC_POOL_PROBE_INTERVAL_MS,
+         cooldownMs: envConfig.RPC_POOL_COOLDOWN_MS,
+         maxLedgerLag: envConfig.RPC_POOL_MAX_LEDGER_LAG,
+         errorRateThreshold: envConfig.RPC_POOL_ERROR_RATE_THRESHOLD,
+         minSamplesForErrorRate: envConfig.RPC_POOL_MIN_SAMPLES_FOR_ERROR_RATE,
+         hedgeDelayMs: envConfig.RPC_POOL_HEDGE_DELAY_MS,
+      });
+      rpcPool.start();
+   }
+   return rpcPool;
+}
+
+export function getSorobanRpcPool(): RpcPool | null {
+   return getRpcPool();
+}
+
+export function stopSorobanRpcPool(): void {
+   rpcPool?.stop();
+   rpcPool = null;
 }
 
 async function callRpc<T>(
@@ -100,7 +109,11 @@ async function callRpc<T>(
    params: unknown,
    postJson: SorobanPostJson
 ): Promise<T> {
-   // Skip circuit breaker in test mode unless explicitly enabled
+   const pool = postJson === defaultPostJson ? getRpcPool() : null;
+   if (pool) {
+      return pool.callRpc<T>(method, params);
+   }
+
    if (envConfig.MODE === 'test' && process.env.ENABLE_SOROBAN_CIRCUIT_BREAKER !== '1') {
       const url = envConfig.STELLAR_SOROBAN_RPC_URL;
       const body = { jsonrpc: '2.0', id: '1', method, params };
@@ -148,20 +161,17 @@ async function callRpc<T>(
    });
 }
 
-/**
- * Submit a signed transaction envelope to the Soroban network.
- *
- * Throws {@link SorobanRpcHttpError} / {@link SorobanRpcMethodError} on
- * transport or application errors so the caller can classify them as
- * transient and retry (see contract-error.utils.ts).
- *
- * @param transactionXdr - Base64 XDR of the signed transaction envelope.
- * @param postJson - Injectable transport (tests pass a stub).
- */
 export async function sendTransaction(
    transactionXdr: string,
    postJson: SorobanPostJson = defaultPostJson
 ): Promise<SendTransactionResult> {
+   const pool = postJson === defaultPostJson ? getRpcPool() : null;
+   if (pool) {
+      const result = await pool.sendTransaction(transactionXdr);
+      logger.debug({ tx_hash: result.hash, status: result.status }, 'Soroban sendTransaction response');
+      return result;
+   }
+
    const result = await callRpc<SendTransactionResult>(
       'sendTransaction',
       { transaction: transactionXdr },
@@ -179,19 +189,21 @@ export async function sendTransaction(
    return result;
 }
 
-/**
- * Poll the status of a previously submitted transaction by hash.
- *
- * Returns the raw node status; "NOT_FOUND" simply means the transaction has
- * not been included in a ledger yet — the poller keeps polling until its
- * deadline (see confirmation-poller.utils.ts).
- *
- * @param hash - Transaction hash (hex) returned by sendTransaction.
- * @param postJson - Injectable transport (tests pass a stub).
- */
 export async function getTransaction(
    hash: string,
    postJson: SorobanPostJson = defaultPostJson
 ): Promise<GetTransactionResult> {
    return callRpc<GetTransactionResult>('getTransaction', { hash }, postJson);
+}
+
+export async function getHealth(
+   postJson: SorobanPostJson = defaultPostJson
+): Promise<{ status?: string }> {
+   return callRpc<{ status?: string }>('getHealth', {}, postJson);
+}
+
+export async function getLatestLedger(
+   postJson: SorobanPostJson = defaultPostJson
+): Promise<{ sequence?: number }> {
+   return callRpc<{ sequence?: number }>('getLatestLedger', {}, postJson);
 }
