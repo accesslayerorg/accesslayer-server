@@ -375,6 +375,20 @@ export async function processIndexerEvents(
    events: IndexerChainEvent[],
    options: { advanceCursor?: boolean } = {}
 ): Promise<void> {
+   const feeEvents = events.filter(event => ['fee_schedule_set', 'FEE_SCHEDULE_SET'].includes(event.eventType));
+   if (feeEvents.length > 0) {
+      const { upsertFeeSchedule } = await import('../keys/fee-schedule.service');
+      for (const event of feeEvents) {
+         const data = event as any;
+         if (typeof data.keyId !== 'string' || !Number.isInteger(Number(data.startBps)) || !Number.isInteger(Number(data.floorBps)) || !Number.isInteger(Number(data.decayLedgers)) || !Number.isInteger(Number(data.ledger))) continue;
+         await upsertFeeSchedule({ keyId: data.keyId, startBps: Number(data.startBps), floorBps: Number(data.floorBps), decayLedgers: Number(data.decayLedgers), startLedger: Number(data.ledger) });
+      }
+   }
+   const tradedKeys = new Set(events.filter(isTradeEvent).map(event => event.creatorId).filter((id): id is string => typeof id === 'string'));
+   if (tradedKeys.size > 0) {
+      const { lockFeeSchedule } = await import('../keys/fee-schedule.service');
+      for (const keyId of tradedKeys) await lockFeeSchedule(keyId);
+   }
    const upgradeEvents = events.filter(event =>
       ['upgrade_scheduled', 'upgrade_executed', 'upgrade_cancelled'].includes(event.eventType)
    );
