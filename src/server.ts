@@ -57,6 +57,10 @@ import {
    stopRetentionWorker,
 } from './workers/retention.worker';
 import {
+   startAccountLifecycleWorker,
+   stopAccountLifecycleWorker,
+} from './workers/account-lifecycle.worker';
+import {
    startCampaignCronJobs,
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
@@ -142,6 +146,7 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startRetentionWorker();
+      startAccountLifecycleWorker();
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       initKeyCreationMetadataSync();
@@ -193,6 +198,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopRetentionWorker();
+      stopAccountLifecycleWorker();
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopAutoInvestListener();

@@ -6,6 +6,7 @@ import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes'
 import concentrationRouter from './concentration/concentration.routes';
 import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
 import errorCatalogRouter from './error-catalog/error-catalog.routes';
+import accountRouter from './account/account.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -196,5 +197,8 @@ router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
 
 // Contract error catalog and decoding helper (#1326).
 router.use('/errors', routeBodySizeLimit('default'), errorCatalogRouter);
+
+// Personal data export and account deletion for the signed-in user (#1325).
+router.use('/me', routeBodySizeLimit('default'), accountRouter);
 
 export default router;
