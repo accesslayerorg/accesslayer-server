@@ -723,6 +723,13 @@ export async function processIndexerEvents(
       await processCurveUpdateEvents(curveUpdateEvents);
    }
 
+   const { isPaymentAssetEvent, processPaymentAssetEvents } =
+      await import('./payment-asset-indexer.service');
+   const paymentAssetEvents = events.filter(isPaymentAssetEvent);
+   if (paymentAssetEvents.length > 0) {
+      await processPaymentAssetEvents(paymentAssetEvents);
+   }
+
    const {
       MILESTONE_REWARD_CLAIMED_EVENT_TYPES,
       processMilestoneRewardClaimedEvents,

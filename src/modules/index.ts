@@ -109,6 +109,7 @@ import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
+import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
 
 const router = Router();
 
@@ -271,5 +272,9 @@ router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 
 // Web push subscriptions & VAPID key (#1314).
 router.use('/push', routeBodySizeLimit('default'), pushRouter);
+
+// Multi-asset payment registry & conversion quotes (#1309).
+router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
+router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
 
 export default router;
