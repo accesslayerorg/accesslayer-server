@@ -45,6 +45,7 @@ import { investorHealthRouter } from './portfolio/portfolio-health-score.routes'
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
 import keysRouter from './keys/keys.routes';
+import activityHeatmapRouter from './keys/activity-heatmap.routes';
 import launchesRouter from './keys/launches.routes';
 import cooldownRouter from './keys/cooldown.routes';
 import notificationsRouter from './notifications/notification.routes';
@@ -151,6 +152,7 @@ router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
+router.use('/keys', routeBodySizeLimit('default'), activityHeatmapRouter);
 router.use('/launches', routeBodySizeLimit('default'), launchesRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
 router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
