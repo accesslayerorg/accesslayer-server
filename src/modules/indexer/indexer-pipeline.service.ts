@@ -603,6 +603,13 @@ export async function processIndexerEvents(
       const { processContractUpgradeEvents } = await import('../protocol/upgrade.service');
       await processContractUpgradeEvents(upgradeEvents);
    }
+   const protocolFeeChangeEvents = events.filter(event =>
+      ['fee_change_queued', 'fee_change_executed', 'fee_change_cancelled'].includes(event.eventType)
+   );
+   if (protocolFeeChangeEvents.length > 0) {
+      const { processProtocolFeeChangeEvents } = await import('../protocol/fee-change.service');
+      await processProtocolFeeChangeEvents(protocolFeeChangeEvents);
+   }
    const invoiceEvents = events.filter(event =>
       INVOICE_PROTOCOL_EVENT_TYPES.has(
          canonicalInvoiceEventType(event.eventType)

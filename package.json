@@ -49,6 +49,7 @@
       "@asteasolutions/zod-to-openapi": "^7",
       "@json2csv/node": "^7.0.6",
       "@prisma/client": "^6.19.1",
+      "@simplewebauthn/server": "^13.1.2",
       "@stellar/stellar-base": "^15.0.0",
       "@types/js-yaml": "^4.0.9",
       "@types/pdfkit": "^0.17.3",

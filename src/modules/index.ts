@@ -20,6 +20,12 @@ import {
 } from './creator-verification/creator-verification.routes';
 import { screenerRouter, screensRouter } from './screener/screener.routes';
 import pushRouter from './push/push.routes';
+import embeddedWalletRouter from './auth/embedded-wallet.routes';
+import {
+   keyRoadmapRouter,
+   milestoneReactionsRouter,
+} from './roadmap/roadmap.routes';
+import { keyQaRouter, qaRouter } from './qa/qa.routes';
 import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
 import {
    broadcastCreatorRouter,
@@ -282,6 +288,16 @@ router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 // Web push subscriptions & VAPID key (#1314).
 router.use('/push', routeBodySizeLimit('default'), pushRouter);
 
+// Embedded wallet signing & export (#1313).
+router.use('/embedded-wallet', routeBodySizeLimit('auth'), embeddedWalletRouter);
+
+// Creator roadmap & holder reactions (#1310).
+router.use('/keys', routeBodySizeLimit('default'), keyRoadmapRouter);
+router.use('/milestones', routeBodySizeLimit('default'), milestoneReactionsRouter);
+
+// Holder Q&A sessions (#1311).
+router.use('/keys', routeBodySizeLimit('default'), keyQaRouter);
+router.use('/qa', routeBodySizeLimit('default'), qaRouter);
 // Multi-asset payment registry & conversion quotes (#1309).
 router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
 router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
