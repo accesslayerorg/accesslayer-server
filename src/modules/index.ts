@@ -132,6 +132,7 @@ import { relatedKeysRouter } from '../routes/keys.routes';
 import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
 import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
 import { dcaRouter } from './dca/dca.routes';
+import { regionRulesAdminRouter, regionsRouter } from './regions/regions.routes';
 
 const router = Router();
 
@@ -171,6 +172,10 @@ router.use(
 router.use('/admin/support', routeBodySizeLimit('admin'), supportAgentRouter);
 // Creator verification review queue (#1324), guarded by the admin JWT per route.
 router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificationAdminRouter);
+// Jurisdiction restrictions (#1354). Admin rules are guarded per route and
+// mounted ahead of adminRouter like the other admin sub-routers.
+router.use('/admin/regions/rules', routeBodySizeLimit('admin'), regionRulesAdminRouter);
+router.use('/regions', routeBodySizeLimit('default'), regionsRouter);
 // Attachment uploads take raw bytes, so this router is mounted without the
 // JSON parser that the rest of /support uses (#1327).
 router.use('/support', supportAttachmentUploadRouter);
