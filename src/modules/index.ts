@@ -7,6 +7,11 @@ import concentrationRouter from './concentration/concentration.routes';
 import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
 import errorCatalogRouter from './error-catalog/error-catalog.routes';
 import accountRouter from './account/account.routes';
+import tradeNotesRouter from './trade-notes/trade-notes.routes';
+import {
+   disclosuresAdminRouter,
+   disclosuresRouter,
+} from './disclosures/disclosures.routes';
 import { supportAttachmentUploadRouter, supportRouter } from './support/support.routes';
 import { supportAgentRouter } from './support/support-agent.routes';
 import {
@@ -46,6 +51,7 @@ import { investorHealthRouter } from './portfolio/portfolio-health-score.routes'
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
 import keysRouter from './keys/keys.routes';
+import activityHeatmapRouter from './keys/activity-heatmap.routes';
 import commitRevealLaunchRouter from './keys/commit-reveal-launch.routes';
 import launchesRouter from './keys/launches.routes';
 import cooldownRouter from './keys/cooldown.routes';
@@ -64,6 +70,10 @@ import portfolioRouter from './portfolio/portfolio.routes';
 import referralTierRouter from './referrals/referral-tier.routes';
 import referralRouter from './referrals/referrals.routes';
 import referralEarningsRouter from './referrals/referral-earnings.routes';
+import {
+   ambassadorRouter,
+   referralClickRouter,
+} from './ambassador/ambassador.routes';
 import contractsRouter from './contracts/contract.routes';
 import stakingRouter from './staking/staking.routes';
 import { stakingEpochRouter, keyEpochRouter } from './staking/staking-epoch.routes';
@@ -153,6 +163,7 @@ router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
+router.use('/keys', routeBodySizeLimit('default'), activityHeatmapRouter);
 router.use('/keys', routeBodySizeLimit('default'), commitRevealLaunchRouter);
 router.use('/keys', routeBodySizeLimit('default'), keyPassEventsRouter);
 router.use('/launches', routeBodySizeLimit('default'), launchesRouter);
@@ -182,6 +193,8 @@ router.use('/portfolio', routeBodySizeLimit('default'), portfolioRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralTierRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralEarningsRouter);
+router.use('/referrals', routeBodySizeLimit('default'), referralClickRouter);
+router.use('/ambassador', routeBodySizeLimit('default'), ambassadorRouter);
 router.use('/contracts', routeBodySizeLimit('default'), contractsRouter);
 router.use('/watchlist', routeBodySizeLimit('default'), watchlistRouter);
 router.use(
@@ -228,6 +241,13 @@ router.use('/errors', routeBodySizeLimit('default'), errorCatalogRouter);
 
 // Personal data export and account deletion for the signed-in user (#1325).
 router.use('/me', routeBodySizeLimit('default'), accountRouter);
+
+// Private trade journal notes (#1315).
+router.use('/me', routeBodySizeLimit('default'), tradeNotesRouter);
+
+// Risk disclosure acknowledgements (#1318).
+router.use('/disclosures', routeBodySizeLimit('default'), disclosuresRouter);
+router.use('/admin/disclosures', routeBodySizeLimit('admin'), disclosuresAdminRouter);
 
 // User support tickets (#1327).
 router.use('/support', routeBodySizeLimit('default'), supportRouter);
