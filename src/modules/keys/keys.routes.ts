@@ -58,6 +58,7 @@ import { httpGetKeyContractHolders } from './key-contract-holders.controller';
 
 import { KeySearchQueryTooShortError, searchKeys } from './key-search.service';
 import { KEY_SEARCH_MIN_QUERY_LENGTH } from '../../constants/notifications.constants';
+import { Prisma } from '@prisma/client';
 import dividendRouter from '../dividends/dividend.routes';
 import revenueDistributionsRouter from '../revenue/revenue-distributions.routes';
 import whitelistRouter from '../whitelist/whitelist.routes';
@@ -96,6 +97,9 @@ import {
    getKeyVestingHistory,
    getKeyVestingSummary,
    KeyVestingNotFoundError,
+   getVestingSchedule,
+   invalidateKeyVestingCache,
+   VestingNotFoundError,
 } from '../vesting/vesting.service';
 import { fetchCreatorProfilesByIds } from '../../utils/creator-batch.utils';
 import {
@@ -1598,9 +1602,252 @@ router.get(
       }
    }
 );
-
-/**
- * GET /api/v1/keys/:keyId/proposals?status=active|closed
+ 
+ /**
+  * POST /api/v1/keys/:keyId/vesting
+  * Creator-only: creates a vesting schedule for a beneficiary.
+  */
+ const createVestingBodySchema = z.object({
+    wallet: StellarAddressSchema,
+    totalAmount: z
+       .union([z.string(), z.number()])
+       .transform(v => (typeof v === 'string' ? v : v.toString()))
+       .refine(v => /^\d+$/.test(v) && BigInt(v) > 0n, 'totalAmount must be a positive integer'),
+    cliff: z.coerce
+       .number()
+       .int('cliff must be an integer')
+       .min(0, 'cliff must be non-negative'),
+    duration: z.coerce
+       .number()
+       .int('duration must be an integer')
+       .min(1, 'duration must be positive'),
+ });
+ 
+ router.post(
+    '/:keyId/vesting',
+    requireKeyCreator('keyId'),
+    async (req: AuthenticatedRequest, res, next) => {
+       try {
+          const keyId = String(req.params.keyId);
+          const parsed = createVestingBodySchema.safeParse(req.body);
+          if (!parsed.success) {
+             sendValidationError(
+                res,
+                'Invalid request body',
+                zodIssuesToDetails(parsed.error.issues)
+             );
+             return;
+          }
+ 
+          const { wallet, totalAmount, cliff, duration } = parsed.data;
+ 
+          const creator = await prisma.creatorProfile.findFirst({
+             where: { OR: [{ id: keyId }, { handle: keyId }] },
+             select: { id: true },
+          });
+          if (!creator) {
+             sendNotFound(res, 'Key');
+             return;
+          }
+ 
+          const ledger = await prisma.indexedLedger.findFirst({
+             orderBy: { updatedAt: 'desc' },
+             select: { ledger: true },
+          });
+          const currentLedger = ledger?.ledger ?? 0;
+ 
+          // Convert cliff and duration from seconds to ledgers (5 seconds per ledger)
+          const startLedger = currentLedger + Math.floor(cliff / 5);
+          const endLedger = startLedger + Math.floor(duration / 5);
+ 
+          const schedule = await prisma.vestingSchedule.create({
+             data: {
+                keyId: creator.id,
+                wallet,
+                totalKeys: totalAmount,
+                startLedger,
+                endLedger,
+                claimedKeys: '0',
+             },
+          });
+ 
+          await invalidateKeyVestingCache(creator.id, wallet);
+ 
+          sendSuccess(
+             res,
+             {
+                id: schedule.id,
+                keyId: creator.id,
+                wallet: schedule.wallet,
+                totalAmount: schedule.totalKeys.toString(),
+                claimedAmount: schedule.claimedKeys.toString(),
+                cliff,
+                duration,
+                startLedger: schedule.startLedger,
+                endLedger: schedule.endLedger,
+             },
+             201,
+             'Vesting schedule created successfully'
+          );
+       } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+             sendConflict(res, 'Vesting schedule already exists for this wallet');
+             return;
+          }
+          next(error);
+       }
+    }
+ );
+ 
+ /**
+  * GET /api/v1/keys/:keyId/vesting/:wallet
+  * Returns the vesting schedule and claimable amount for a beneficiary.
+  * Requires a JWT whose wallet matches the :wallet path param.
+  */
+ router.get(
+    '/:keyId/vesting/:wallet',
+    requireJwtAuth,
+    async (req: AuthenticatedRequest, res, next) => {
+       try {
+          const keyId = String(req.params.keyId);
+          const wallet = String(req.params.wallet);
+ 
+          if (req.user!.wallet.toLowerCase() !== wallet.toLowerCase()) {
+             sendError(res, 403, ErrorCode.FORBIDDEN, 'Only the beneficiary can view their vesting schedule');
+             return;
+          }
+ 
+          const ledger = await prisma.indexedLedger.findFirst({
+             orderBy: { updatedAt: 'desc' },
+             select: { ledger: true },
+          });
+          const currentLedger = ledger?.ledger ?? 0;
+ 
+          const schedule = await getVestingSchedule(keyId, wallet, currentLedger);
+ 
+          sendSuccess(res, {
+             vestedAmount: schedule.vestedAmount,
+             claimedAmount: schedule.claimedKeys,
+             claimableAmount: schedule.claimableAmount,
+             cliff: schedule.cliff,
+             duration: schedule.duration,
+             startLedger: schedule.startLedger,
+             endLedger: schedule.endLedger,
+          });
+       } catch (error) {
+          if (error instanceof VestingNotFoundError) {
+             sendNotFound(res, 'Vesting schedule');
+             return;
+          }
+          next(error);
+       }
+    }
+ );
+ 
+ /**
+  * POST /api/v1/keys/:keyId/vesting/:wallet/claim
+  * Submits a claim for the claimable vested amount.
+  * Requires a JWT whose wallet matches the :wallet path param.
+  */
+ router.post(
+    '/:keyId/vesting/:wallet/claim',
+    requireJwtAuth,
+    async (req: AuthenticatedRequest, res, next) => {
+       try {
+          const keyId = String(req.params.keyId);
+          const wallet = String(req.params.wallet);
+ 
+          if (req.user!.wallet.toLowerCase() !== wallet.toLowerCase()) {
+             sendError(res, 403, ErrorCode.FORBIDDEN, 'Only the beneficiary can claim vested keys');
+             return;
+          }
+ 
+          const schedule = await prisma.vestingSchedule.findUnique({
+             where: { keyId_wallet: { keyId, wallet } },
+          });
+ 
+          if (!schedule) {
+             sendNotFound(res, 'Vesting schedule');
+             return;
+          }
+ 
+          const ledger = await prisma.indexedLedger.findFirst({
+             orderBy: { updatedAt: 'desc' },
+             select: { ledger: true },
+          });
+          const currentLedger = ledger?.ledger ?? 0;
+ 
+          const total = BigInt(schedule.totalKeys.toString());
+          const claimed = BigInt(schedule.claimedKeys.toString());
+          const start = schedule.startLedger;
+          const end = schedule.endLedger;
+ 
+          let vested = 0n;
+          if (currentLedger >= end) {
+             vested = total;
+          } else if (currentLedger > start) {
+             const elapsed = BigInt(currentLedger - start);
+             const duration = BigInt(end - start);
+             vested = (total * elapsed) / duration;
+          }
+ 
+          const claimable = vested > claimed ? vested - claimed : 0n;
+ 
+          if (claimable <= 0n) {
+             if (currentLedger <= start) {
+                sendError(res, 400, ErrorCode.BAD_REQUEST, 'cliff_not_reached');
+                return;
+             }
+             sendError(res, 400, ErrorCode.BAD_REQUEST, 'NothingToClaim');
+             return;
+          }
+ 
+          const newClaimed = claimed + claimable;
+          await prisma.vestingSchedule.update({
+             where: { keyId_wallet: { keyId, wallet } },
+             data: { claimedKeys: newClaimed.toString() },
+          });
+ 
+          const updatedClaimable = vested > newClaimed ? vested - newClaimed : 0n;
+          const txHash = `optimistic-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          await prisma.vestingClaimHistory.create({
+             data: {
+                vestingId: schedule.id,
+                keyId: schedule.keyId,
+                wallet: schedule.wallet,
+                claimedAmount: claimable.toString(),
+                txHash,
+                ledger: currentLedger,
+             },
+          });
+          await invalidateKeyVestingCache(keyId, wallet);
+ 
+          await prisma.activity.create({
+             data: {
+                type: 'KEYS_CLAIMED',
+                actor: wallet,
+                creatorId: keyId,
+                payload: {
+                   keyId,
+                   claimed: claimable.toString(),
+                   claimableAfter: updatedClaimable.toString(),
+                },
+             },
+          });
+ 
+          sendSuccess(res, {
+             claimed: claimable.toString(),
+             claimableAmount: updatedClaimable.toString(),
+          });
+       } catch (error) {
+          logger.error({ error, keyId: req.params.keyId }, 'Vesting claim failed');
+          next(error);
+       }
+    }
+ );
+ 
+ /**
+  * GET /api/v1/keys/:keyId/proposals?status=active|closed
  * List governance proposals for a creator key.
  */
 const proposalStatusSchema = z.object({
