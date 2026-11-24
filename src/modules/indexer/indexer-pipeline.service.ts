@@ -699,6 +699,13 @@ export async function processIndexerEvents(
       await processGovernanceProposalEvents(governanceEvents);
    }
 
+   const { isConvictionEvent, processConvictionEvents } =
+      await import('./conviction-indexer.service');
+   const convictionEvents = events.filter(isConvictionEvent);
+   if (convictionEvents.length > 0) {
+      await processConvictionEvents(convictionEvents);
+   }
+
    // Subscription status cache (#1079): awaited before the cursor moves so a
    // failed write redelivers the batch instead of leaving a stale status.
    for (const event of subscriptionEvents) {
