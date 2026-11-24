@@ -15,6 +15,7 @@ import {
 } from './creator-verification/creator-verification.routes';
 import { screenerRouter, screensRouter } from './screener/screener.routes';
 import pushRouter from './push/push.routes';
+import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -238,5 +239,9 @@ router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 
 // Web push subscriptions & VAPID key (#1314).
 router.use('/push', routeBodySizeLimit('default'), pushRouter);
+
+// Embeddable SVG badge, widget & creator embed settings (#1320).
+router.use('/embed', routeBodySizeLimit('default'), embedRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
 
 export default router;
