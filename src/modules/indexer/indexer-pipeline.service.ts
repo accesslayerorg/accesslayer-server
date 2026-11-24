@@ -384,6 +384,187 @@ export async function processIndexerEvents(
          await upsertFeeSchedule({ keyId: data.keyId, startBps: Number(data.startBps), floorBps: Number(data.floorBps), decayLedgers: Number(data.decayLedgers), startLedger: Number(data.ledger) });
       }
    }
+   // #1349: launch cap config and buy events keep per-wallet cap status fresh.
+   const launchCapConfigEvents = events.filter(event =>
+      ['launch_cap_set', 'LAUNCH_CAP_SET'].includes(event.eventType),
+   );
+   if (launchCapConfigEvents.length > 0) {
+      const { upsertLaunchCapConfig } = await import('../keys/launch-cap.service');
+      for (const event of launchCapConfigEvents) {
+         const data = event as any;
+         if (typeof data.keyId !== 'string') continue;
+         if (!Number.isInteger(Number(data.startLedger)) || !Number.isInteger(Number(data.endLedger))) continue;
+         try {
+            await upsertLaunchCapConfig({
+               keyId: data.keyId,
+               startLedger: Number(data.startLedger),
+               endLedger: Number(data.endLedger),
+               startCap: BigInt(data.startCap ?? 0),
+               endCap: BigInt(data.endCap ?? 0),
+               exemptWallets: Array.isArray(data.exemptWallets) ? data.exemptWallets.map(String) : [],
+            });
+         } catch { /* malformed event ignored */ }
+      }
+   }
+   const launchBuyEvents = events.filter(event =>
+      ['launch_buy', 'LAUNCH_BUY'].includes(event.eventType),
+   );
+   if (launchBuyEvents.length > 0) {
+      const { recordLaunchPurchase } = await import('../keys/launch-cap.service');
+      for (const event of launchBuyEvents) {
+         const data = event as any;
+         if (typeof data.id !== 'string' || typeof data.keyId !== 'string' || typeof data.wallet !== 'string') continue;
+         if (!Number.isInteger(Number(data.ledger))) continue;
+         try {
+            await recordLaunchPurchase({
+               id: data.id,
+               keyId: data.keyId,
+               wallet: data.wallet,
+               amount: BigInt(data.amount ?? 0),
+               ledger: Number(data.ledger),
+            });
+         } catch { /* malformed event ignored */ }
+      }
+   }
+   // #1350: social recovery guardians and recovery lifecycle.
+   const guardianSetEvents = events.filter(event =>
+      ['guardians_set', 'GUARDIANS_SET'].includes(event.eventType),
+   );
+   if (guardianSetEvents.length > 0) {
+      const { handleGuardiansSet } = await import('../wallets/social-recovery.service');
+      for (const event of guardianSetEvents) {
+         const data = event as any;
+         if (typeof data.walletAddress !== 'string' || !Array.isArray(data.guardians)) continue;
+         if (!Number.isInteger(Number(data.threshold))) continue;
+         await handleGuardiansSet({
+            walletAddress: data.walletAddress,
+            guardians: data.guardians.map(String),
+            threshold: Number(data.threshold),
+            delayLedgers: Number.isFinite(Number(data.delayLedgers)) ? Number(data.delayLedgers) : 0,
+         });
+      }
+   }
+   const recoveryInitiatedEvents = events.filter(event =>
+      ['recovery_initiated', 'RECOVERY_INITIATED'].includes(event.eventType),
+   );
+   if (recoveryInitiatedEvents.length > 0) {
+      const { handleRecoveryInitiated } = await import('../wallets/social-recovery.service');
+      for (const event of recoveryInitiatedEvents) {
+         const data = event as any;
+         if (typeof data.requestId !== 'string' || typeof data.walletAddress !== 'string') continue;
+         if (typeof data.initiator !== 'string' || typeof data.newOwner !== 'string') continue;
+         if (!Number.isInteger(Number(data.initiatedLedger)) || !Number.isInteger(Number(data.earliestExecute))) continue;
+         await handleRecoveryInitiated({
+            requestId: data.requestId,
+            walletAddress: data.walletAddress,
+            initiator: data.initiator,
+            newOwner: data.newOwner,
+            initiatedLedger: Number(data.initiatedLedger),
+            earliestExecute: Number(data.earliestExecute),
+         });
+      }
+   }
+   const recoveryApprovedEvents = events.filter(event =>
+      ['recovery_approved', 'RECOVERY_APPROVED'].includes(event.eventType),
+   );
+   if (recoveryApprovedEvents.length > 0) {
+      const { handleRecoveryApproved } = await import('../wallets/social-recovery.service');
+      for (const event of recoveryApprovedEvents) {
+         const data = event as any;
+         if (typeof data.requestId !== 'string' || typeof data.guardian !== 'string') continue;
+         await handleRecoveryApproved({ requestId: data.requestId, guardian: data.guardian });
+      }
+   }
+   const recoveryCancelledEvents = events.filter(event =>
+      ['recovery_cancelled', 'RECOVERY_CANCELLED'].includes(event.eventType),
+   );
+   if (recoveryCancelledEvents.length > 0) {
+      const { handleRecoveryCancelled } = await import('../wallets/social-recovery.service');
+      for (const event of recoveryCancelledEvents) {
+         const data = event as any;
+         if (typeof data.requestId !== 'string') continue;
+         await handleRecoveryCancelled({ requestId: data.requestId });
+      }
+   }
+   const recoveryExecutedEvents = events.filter(event =>
+      ['recovery_executed', 'RECOVERY_EXECUTED'].includes(event.eventType),
+   );
+   if (recoveryExecutedEvents.length > 0) {
+      const { handleRecoveryExecuted } = await import('../wallets/social-recovery.service');
+      for (const event of recoveryExecutedEvents) {
+         const data = event as any;
+         if (typeof data.requestId !== 'string') continue;
+         await handleRecoveryExecuted({ requestId: data.requestId });
+      }
+   }
+   // #1351: limit order escrow lifecycle (create / fill / cancel / expiry reclaim).
+   const escrowCreatedEvents = events.filter(event =>
+      ['order_created', 'ORDER_CREATED'].includes(event.eventType),
+   );
+   if (escrowCreatedEvents.length > 0) {
+      const { handleOrderCreated } = await import('../orders/escrow-order.service');
+      for (const event of escrowCreatedEvents) {
+         const data = event as any;
+         if (typeof data.orderId !== 'string' || typeof data.wallet !== 'string' || typeof data.keyId !== 'string') continue;
+         if (!Number.isInteger(Number(data.ledger))) continue;
+         try {
+            await handleOrderCreated({
+               orderId: data.orderId,
+               wallet: data.wallet,
+               keyId: data.keyId,
+               side: typeof data.side === 'string' ? data.side : 'buy',
+               lockedAmount: BigInt(data.lockedAmount ?? 0),
+               limitPrice: BigInt(data.limitPrice ?? 0),
+               expiryLedger: Number.isFinite(Number(data.expiryLedger)) ? Number(data.expiryLedger) : undefined,
+               ledger: Number(data.ledger),
+            });
+         } catch { /* malformed event ignored */ }
+      }
+   }
+   const escrowFilledEvents = events.filter(event =>
+      ['order_filled', 'ORDER_FILLED'].includes(event.eventType),
+   );
+   if (escrowFilledEvents.length > 0) {
+      const { handleOrderFilled } = await import('../orders/escrow-order.service');
+      for (const event of escrowFilledEvents) {
+         const data = event as any;
+         if (typeof data.fillId !== 'string' || typeof data.orderId !== 'string' || typeof data.keeper !== 'string') continue;
+         if (!Number.isInteger(Number(data.ledger))) continue;
+         try {
+            await handleOrderFilled({
+               fillId: data.fillId,
+               orderId: data.orderId,
+               keeper: data.keeper,
+               fillPrice: BigInt(data.fillPrice ?? 0),
+               fillAmount: BigInt(data.fillAmount ?? 0),
+               keeperReward: BigInt(data.keeperReward ?? 0),
+               ledger: Number(data.ledger),
+            });
+         } catch { /* malformed event ignored */ }
+      }
+   }
+   const escrowCancelledEvents = events.filter(event =>
+      ['order_cancelled', 'ORDER_CANCELLED'].includes(event.eventType),
+   );
+   if (escrowCancelledEvents.length > 0) {
+      const { handleOrderCancelled } = await import('../orders/escrow-order.service');
+      for (const event of escrowCancelledEvents) {
+         const data = event as any;
+         if (typeof data.orderId !== 'string') continue;
+         await handleOrderCancelled({ orderId: data.orderId });
+      }
+   }
+   const escrowExpiredEvents = events.filter(event =>
+      ['order_expired', 'ORDER_EXPIRED', 'order_expiry_reclaim', 'ORDER_EXPIRY_RECLAIM'].includes(event.eventType),
+   );
+   if (escrowExpiredEvents.length > 0) {
+      const { handleOrderExpiryReclaim } = await import('../orders/escrow-order.service');
+      for (const event of escrowExpiredEvents) {
+         const data = event as any;
+         if (typeof data.orderId !== 'string') continue;
+         await handleOrderExpiryReclaim({ orderId: data.orderId });
+      }
+   }
    const tradedKeys = new Set(events.filter(isTradeEvent).map(event => event.creatorId).filter((id): id is string => typeof id === 'string'));
    if (tradedKeys.size > 0) {
       const { lockFeeSchedule } = await import('../keys/fee-schedule.service');
