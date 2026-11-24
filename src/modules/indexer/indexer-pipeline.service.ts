@@ -243,16 +243,27 @@ export async function processTradeEvents(
       // Event `price` is the unit (per-key) bonding-curve price in stroops,
       // consistent with upsertPriceSnapshot below.
       if (event.eventType === 'KEY_BOUGHT') {
-         await recordKeyPurchase(
+         const updatedOwnership = await recordKeyPurchase(
             actor,
             creatorId,
             tradeQty,
             pricePerKeyXlm,
             new Date(tradeAt)
          );
+         const { recordBalanceCheckpoint } = await import(
+            './balance-checkpoint-indexer.service'
+         );
+         await recordBalanceCheckpoint({
+            holder: actor,
+            keyId: creatorId,
+            ledger: Number(ledger),
+            balance: Number(updatedOwnership.balance),
+            timestamp: new Date(tradeAt),
+         });
       } else {
+         let updatedOwnership: { balance: unknown };
          try {
-            await recordKeySale(
+            updatedOwnership = await recordKeySale(
                actor,
                creatorId,
                tradeQty,
@@ -261,12 +272,27 @@ export async function processTradeEvents(
             );
          } catch {
             const balanceChange = -tradeQty;
-            await updateOwnership(actor, creatorId, balanceChange, {
-               event_type: 'sell',
-               ledger_sequence: Number(ledger),
-               occurredAt: new Date(tradeAt),
-            });
+            updatedOwnership = await updateOwnership(
+               actor,
+               creatorId,
+               balanceChange,
+               {
+                  event_type: 'sell',
+                  ledger_sequence: Number(ledger),
+                  occurredAt: new Date(tradeAt),
+               }
+            );
          }
+         const { recordBalanceCheckpoint } = await import(
+            './balance-checkpoint-indexer.service'
+         );
+         await recordBalanceCheckpoint({
+            holder: actor,
+            keyId: creatorId,
+            ledger: Number(ledger),
+            balance: Number(updatedOwnership.balance),
+            timestamp: new Date(tradeAt),
+         });
       }
 
       // 3. Recompute circulating supply first so the price snapshot/history
@@ -706,6 +732,13 @@ export async function processIndexerEvents(
       await processGovernanceProposalEvents(governanceEvents);
    }
 
+   const { isConvictionEvent, processConvictionEvents } =
+      await import('./conviction-indexer.service');
+   const convictionEvents = events.filter(isConvictionEvent);
+   if (convictionEvents.length > 0) {
+      await processConvictionEvents(convictionEvents);
+   }
+
    // Subscription status cache (#1079): awaited before the cursor moves so a
    // failed write redelivers the batch instead of leaving a stale status.
    for (const event of subscriptionEvents) {
@@ -721,6 +754,15 @@ export async function processIndexerEvents(
       await processKeyPollEvents(keyPollEvents);
    }
 
+   const {
+      isBalanceChangeEvent,
+      processBalanceChangeEvents,
+   } = await import('./balance-checkpoint-indexer.service');
+   const balanceChangeEvents = events.filter(isBalanceChangeEvent);
+   if (balanceChangeEvents.length > 0) {
+      await processBalanceChangeEvents(balanceChangeEvents);
+   }
+
    const { CURVE_UPDATE_EVENT_TYPES, processCurveUpdateEvents } =
       await import('./curve-update-indexer.service');
    const curveUpdateEvents = events.filter(event =>
@@ -728,6 +770,20 @@ export async function processIndexerEvents(
    );
    if (curveUpdateEvents.length > 0) {
       await processCurveUpdateEvents(curveUpdateEvents);
+   }
+
+   const { isPaymentAssetEvent, processPaymentAssetEvents } =
+      await import('./payment-asset-indexer.service');
+   const paymentAssetEvents = events.filter(isPaymentAssetEvent);
+   if (paymentAssetEvents.length > 0) {
+      await processPaymentAssetEvents(paymentAssetEvents);
+   }
+
+   const { isBountyEvent, processBountyEvents } =
+      await import('./bounty-indexer.service');
+   const bountyEvents = events.filter(isBountyEvent);
+   if (bountyEvents.length > 0) {
+      await processBountyEvents(bountyEvents);
    }
 
    const {

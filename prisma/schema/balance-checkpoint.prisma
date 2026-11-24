@@ -1,0 +1,20 @@
+// prisma/schema/balance-checkpoint.prisma
+// Indexed per-ledger balance checkpoints (#1323).
+// Stores at most one checkpoint per (holder, keyId, ledger) so historical
+// balance_at and as-of portfolio queries can use the composite index.
+
+model BalanceCheckpoint {
+  id        String   @id @default(cuid())
+  holder    String
+  keyId     String
+  ledger    Int
+  balance   Decimal  @db.Decimal(20, 7)
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([holder, keyId, ledger])
+  @@index([holder, keyId, ledger])
+  @@index([timestamp])
+  @@map("balance_checkpoints")
+}

@@ -26,6 +26,12 @@ import {
    milestoneReactionsRouter,
 } from './roadmap/roadmap.routes';
 import { keyQaRouter, qaRouter } from './qa/qa.routes';
+import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
+import {
+   broadcastCreatorRouter,
+   broadcastMeRouter,
+   broadcastPublicRouter,
+} from './broadcast/broadcast.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -115,6 +121,9 @@ import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
+import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
+import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
+import { dcaRouter } from './dca/dca.routes';
 
 const router = Router();
 
@@ -135,6 +144,7 @@ router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
 // Creator verification routes (#1324). Mounted ahead of creatorsRouter so
 // /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorBountiesRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
@@ -288,5 +298,22 @@ router.use('/milestones', routeBodySizeLimit('default'), milestoneReactionsRoute
 // Holder Q&A sessions (#1311).
 router.use('/keys', routeBodySizeLimit('default'), keyQaRouter);
 router.use('/qa', routeBodySizeLimit('default'), qaRouter);
+// Multi-asset payment registry & conversion quotes (#1309).
+router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
+router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
+
+// Bounty board (#1307).
+router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
+
+// Recurring purchase (DCA) plans (#1322).
+router.use('/dca', routeBodySizeLimit('default'), dcaRouter);
+// Embeddable SVG badge, widget & creator embed settings (#1320).
+router.use('/embed', routeBodySizeLimit('default'), embedRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
+
+// Consented creator email broadcast pipeline (#1319).
+router.use('/me', routeBodySizeLimit('default'), broadcastMeRouter);
+router.use('/broadcasts', routeBodySizeLimit('default'), broadcastPublicRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), broadcastCreatorRouter);
 
 export default router;
