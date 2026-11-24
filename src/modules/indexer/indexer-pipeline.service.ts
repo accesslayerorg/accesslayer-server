@@ -567,6 +567,27 @@ export async function processIndexerEvents(
       await processDutchAuctionEvents(dutchAuctionEvents);
    }
 
+   const {
+      COMMIT_REVEAL_LAUNCH_EVENT_TYPES,
+      processCommitRevealLaunchEvents,
+   } = await import('./commit-reveal-launch-indexer.service');
+   const commitRevealLaunchEvents = events.filter(event =>
+      COMMIT_REVEAL_LAUNCH_EVENT_TYPES.has(event.eventType)
+   );
+   if (commitRevealLaunchEvents.length > 0) {
+      await processCommitRevealLaunchEvents(commitRevealLaunchEvents);
+   }
+
+   const { PASS_EVENT_TYPES, processPassEvents } = await import(
+      './pass-event-indexer.service'
+   );
+   const passEvents = events.filter(event =>
+      PASS_EVENT_TYPES.has(event.eventType)
+   );
+   if (passEvents.length > 0) {
+      await processPassEvents(passEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }

@@ -85,6 +85,9 @@ export const envSchema = z
          .string()
          .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
       PAYSTACK_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PRIVATE_KEY: optionalNonEmptyString,
+      VAPID_SUBJECT: optionalNonEmptyString,
       ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
       API_VERSION: z.string().default('1.0.0'),
       ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
@@ -732,6 +735,15 @@ export const envSchema = z
          .int()
          .positive()
          .default(2000),
+
+      // PII scrubbing (src/lib/scrub.ts). Extra comma-separated field names
+      // are redacted from logs and error reports in addition to the defaults.
+      SCRUB_EXTRA_FIELDS: z.string().default(''),
+      // Keys the wallet-address salt. Unset means a random per-process key,
+      // so hashed wallets only correlate within one process lifetime.
+      SCRUB_WALLET_HASH_SECRET: optionalNonEmptyString,
+      // How often the wallet-address salt rotates.
+      SCRUB_WALLET_SALT_ROTATION_DAYS: z.coerce.number().positive().default(7),
    })
    .passthrough()
    .catchall(z.any())

@@ -4,6 +4,7 @@ import { getCreatorReadMetrics } from '../../utils/creator-read-metrics.utils';
 import { getCacheWarmMetrics } from '../../utils/cache-warm-metrics.utils';
 import { getOrderKeeperMetrics } from '../../utils/order-keeper-metrics.utils';
 import { getRetentionMetrics } from '../../utils/retention-metrics.utils';
+import { getPushMetrics } from '../../utils/push-metrics.utils';
 
 export const queueMetrics = (_: Request, res: Response): void => {
    const queues = getQueueDepths();
@@ -45,6 +46,13 @@ export const orderKeeperMetrics = (_: Request, res: Response): void => {
       .send(`${body}\n`);
 };
 
+export const pushMetrics = (_: Request, res: Response): void => {
+   res.status(200).json({
+      timestamp: new Date().toISOString(),
+      ...getPushMetrics(),
+   });
+};
+
 export const retentionMetrics = (_: Request, res: Response): void => {
    const samples = getRetentionMetrics();
    const body = [
@@ -59,4 +67,11 @@ export const retentionMetrics = (_: Request, res: Response): void => {
    res.status(200)
       .type('text/plain; version=0.0.4; charset=utf-8')
       .send(`${body}\n`);
+};
+
+export const pushMetrics = (_: Request, res: Response): void => {
+   res.status(200).json({
+      timestamp: new Date().toISOString(),
+      ...getPushMetrics(),
+   });
 };
