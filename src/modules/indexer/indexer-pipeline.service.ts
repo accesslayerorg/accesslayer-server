@@ -567,6 +567,17 @@ export async function processIndexerEvents(
       await processDutchAuctionEvents(dutchAuctionEvents);
    }
 
+   const {
+      COMMIT_REVEAL_LAUNCH_EVENT_TYPES,
+      processCommitRevealLaunchEvents,
+   } = await import('./commit-reveal-launch-indexer.service');
+   const commitRevealLaunchEvents = events.filter(event =>
+      COMMIT_REVEAL_LAUNCH_EVENT_TYPES.has(event.eventType)
+   );
+   if (commitRevealLaunchEvents.length > 0) {
+      await processCommitRevealLaunchEvents(commitRevealLaunchEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }
