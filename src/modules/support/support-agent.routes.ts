@@ -154,7 +154,7 @@ supportAgentRouter.get(
       try {
          sendAttachmentFile(
             res,
-            await getAttachmentForAgent(req.params.ticketId, req.params.attachmentId)
+            await getAttachmentForAgent(String(req.params.ticketId), String(req.params.attachmentId))
          );
       } catch (error) {
          if (!handleTicketError(res, error)) next(error);

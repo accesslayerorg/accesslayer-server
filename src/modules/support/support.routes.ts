@@ -202,8 +202,8 @@ supportRouter.get(
       try {
          const file = await getUserAttachment(
             linkedUserIdOf(req),
-            req.params.ticketId,
-            req.params.attachmentId
+            String(req.params.ticketId),
+            String(req.params.attachmentId)
          );
          sendAttachmentFile(res, file);
       } catch (error) {

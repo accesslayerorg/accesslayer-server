@@ -6,7 +6,6 @@
 // tickets through the admin routes.
 
 import { createHash } from 'crypto';
-import type { Prisma } from '@prisma/client';
 import { envConfig } from '../../config';
 import { SendMail } from '../../utils/mail.utils';
 import { PaginationMetadata } from '../../utils/api-response.utils';
@@ -411,7 +410,7 @@ export async function storeAttachmentUpload(
    const sha256 = createHash('sha256').update(bytes).digest('hex');
    const claimed = await prisma.ticketAttachment.updateMany({
       where: { id: attachmentId, status: 'pending' },
-      data: { status: 'uploaded', content: bytes, sha256, uploadedAt: now },
+      data: { status: 'uploaded', content: new Uint8Array(bytes), sha256, uploadedAt: now },
    });
    if (claimed.count === 0) {
       throw new AttachmentUploadError('This attachment has already been uploaded', 409);
@@ -470,37 +469,6 @@ export async function assignTicket(ticketId: string, assigneeId: string): Promis
    return toTicketView(row);
 }
 
-/**
- * Applies an agent status change and its history row inside `tx`, stamping
- * `resolvedAt` or `closedAt` when the new status calls for it.
- */
-async function applyAgentStatusChange(
-   tx: Prisma.TransactionClient,
-   ticket: { id: string; status: string },
-   toStatus: TicketStatus,
-   agentId: string,
-   now: Date
-): Promise<void> {
-   await tx.ticket.update({
-      where: { id: ticket.id },
-      data: {
-         status: toStatus,
-         ...(toStatus === 'resolved' ? { resolvedAt: now } : {}),
-         ...(toStatus === 'closed' ? { closedAt: now } : {}),
-      },
-   });
-   await tx.ticketStatusChange.create({
-      data: {
-         ticketId: ticket.id,
-         fromStatus: ticket.status,
-         toStatus,
-         actorType: 'agent',
-         actorId: agentId,
-         createdAt: now,
-      },
-   });
-}
-
 /** Sets a status explicitly. Each change is recorded with its timestamp. */
 export async function setTicketStatus(
    ticketId: string,
@@ -517,7 +485,26 @@ export async function setTicketStatus(
    const from = ticket.status as TicketStatus;
    if (from !== toStatus) {
       if (!canTransition(from, toStatus)) throw new InvalidStatusTransitionError(from, toStatus);
-      await prisma.$transaction(tx => applyAgentStatusChange(tx, ticket, toStatus, agentId, now));
+      await prisma.$transaction(async tx => {
+         await tx.ticket.update({
+            where: { id: ticket.id },
+            data: {
+               status: toStatus,
+               ...(toStatus === 'resolved' ? { resolvedAt: now } : {}),
+               ...(toStatus === 'closed' ? { closedAt: now } : {}),
+            },
+         });
+         await tx.ticketStatusChange.create({
+            data: {
+               ticketId: ticket.id,
+               fromStatus: ticket.status,
+               toStatus,
+               actorType: 'agent',
+               actorId: agentId,
+               createdAt: now,
+            },
+         });
+      });
    }
    return toTicketView(await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } }));
 }
@@ -549,7 +536,24 @@ export async function replyAsAgent(
       });
       await tx.ticket.update({ where: { id: ticketId }, data: { lastMessageAt: now } });
       if (next !== from) {
-         await applyAgentStatusChange(tx, ticket, next, agentId, now);
+         await tx.ticket.update({
+            where: { id: ticketId },
+            data: {
+               status: next,
+               ...(next === 'resolved' ? { resolvedAt: now } : {}),
+               ...(next === 'closed' ? { closedAt: now } : {}),
+            },
+         });
+         await tx.ticketStatusChange.create({
+            data: {
+               ticketId,
+               fromStatus: from,
+               toStatus: next,
+               actorType: 'agent',
+               actorId: agentId,
+               createdAt: now,
+            },
+         });
       }
       return created;
    });
