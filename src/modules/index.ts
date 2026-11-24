@@ -25,6 +25,7 @@ import {
    keyRoadmapRouter,
    milestoneReactionsRouter,
 } from './roadmap/roadmap.routes';
+import { keyQaRouter, qaRouter } from './qa/qa.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -283,5 +284,9 @@ router.use('/embedded-wallet', routeBodySizeLimit('auth'), embeddedWalletRouter)
 // Creator roadmap & holder reactions (#1310).
 router.use('/keys', routeBodySizeLimit('default'), keyRoadmapRouter);
 router.use('/milestones', routeBodySizeLimit('default'), milestoneReactionsRouter);
+
+// Holder Q&A sessions (#1311).
+router.use('/keys', routeBodySizeLimit('default'), keyQaRouter);
+router.use('/qa', routeBodySizeLimit('default'), qaRouter);
 
 export default router;
