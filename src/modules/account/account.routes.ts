@@ -5,13 +5,13 @@
 // The download route is authorised by its signed link alone, so the link can
 // be opened without a session.
 
-import { NextFunction, Request, Response, Router } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { ErrorCode } from '../../constants/error.constants';
 import {
-   AuthenticatedRequest,
-   requireJwtAuth,
-} from '../../middlewares/jwt-auth.middleware';
+   requireLinkedUser,
+   linkedUserIdOf,
+} from '../../middlewares/linked-user.middleware';
 import {
    sendConflict,
    sendError,
@@ -20,7 +20,6 @@ import {
    sendValidationError,
    zodIssuesToDetails,
 } from '../../utils/api-response.utils';
-import { prisma } from '../../utils/prisma.utils';
 import {
    AccountNotFoundError,
    cancelAccountDeletion,
@@ -42,41 +41,7 @@ import {
 
 export const accountRouter = Router();
 
-interface LinkedUserRequest extends AuthenticatedRequest {
-   accountUserId?: string;
-}
-
-/**
- * Requires a wallet JWT whose wallet is linked to a user. Responds 401 when
- * the wallet has no account, since there is nothing to export or delete.
- */
-function requireLinkedUser(req: Request, res: Response, next: NextFunction): void {
-   requireJwtAuth(req as AuthenticatedRequest, res, () => {
-      const wallet = (req as LinkedUserRequest).user?.wallet;
-      if (!wallet) return;
-
-      prisma.stellarWallet
-         .findUnique({ where: { address: wallet }, select: { userId: true } })
-         .then(link => {
-            if (!link) {
-               sendError(
-                  res,
-                  401,
-                  ErrorCode.UNAUTHORIZED,
-                  'Wallet is not linked to a user account. Link your wallet first.'
-               );
-               return;
-            }
-            (req as LinkedUserRequest).accountUserId = link.userId;
-            next();
-         })
-         .catch(next);
-   });
-}
-
-function linkedUserId(req: Request): string {
-   return (req as LinkedUserRequest).accountUserId as string;
-}
+const linkedUserId = linkedUserIdOf;
 
 const jobIdParamSchema = z.string().trim().min(1).max(64);
 const downloadQuerySchema = z.object({
