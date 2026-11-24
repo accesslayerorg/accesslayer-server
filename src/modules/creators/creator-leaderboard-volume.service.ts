@@ -4,6 +4,9 @@
 // Ranks creator keys by total trading volume (buys + sells combined) over a
 // rolling window, backed by a short-lived Redis cache so the aggregation
 // query doesn't run on every request.
+//
+// Trades flagged by the wash-trade detector (TradeFlag rows) are excluded
+// from volume totals via the `isFlagged` filter.
 
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
@@ -60,6 +63,8 @@ function windowMs(): number {
  * bypassing the cache. Volume for a trade is `amount * price_at_trade`
  * (both stored in the KEY_BOUGHT / KEY_SOLD activity payload), summed across
  * both event types so buys and sells both count toward a key's volume.
+ *
+ * Activities whose trade has a TradeFlag row are excluded (`isFlagged`).
  */
 export async function computeVolumeLeaderboard(): Promise<
    VolumeLeaderboardEntry[]
@@ -72,6 +77,8 @@ export async function computeVolumeLeaderboard(): Promise<
          type: { in: ['KEY_BOUGHT', 'KEY_SOLD'] },
          creatorId: { not: null },
          createdAt: { gte: windowStart, lte: new Date(now) },
+         // isFlagged filter: exclude trades that the wash-trade detector flagged.
+         isFlagged: false,
       },
       select: { creatorId: true, payload: true },
    });

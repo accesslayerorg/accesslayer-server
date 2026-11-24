@@ -16,6 +16,7 @@ import { acquireJobLock } from '../../utils/background-job-lock.utils';
 import { logger } from '../../utils/logger.utils';
 import { ErrorCode } from '../../constants/error.constants';
 import { updateProtocolFeeBps } from '../keys/key-fees.service';
+import { listTradeFlags } from '../../services/wash-trade.service';
 
 const UpdateCreatorMetadataSchema = z.object({
    isVerified: z.boolean().optional(),
@@ -41,6 +42,16 @@ const GetAuditLogSchema = z.object({
 });
 
 type GetAuditLogInput = z.infer<typeof GetAuditLogSchema>;
+
+const GetTradeFlagsSchema = z.object({
+   limit: z
+      .preprocess(
+         (val) => (val === undefined || val === '' ? 50 : Number(val)),
+         z.number().int().positive().transform((val) => Math.min(val, 100))
+      ),
+   cursor: z.string().optional(),
+   rule: z.string().optional(),
+});
 
 export const httpUpdateCreatorMetadata: AsyncController = async (
    req,
@@ -366,6 +377,42 @@ export const httpGetAuditLog: AsyncController = async (
          pagination: {
             limit: input.limit,
             cursor: input.cursor,
+            nextCursor: result.nextCursor ?? null,
+            hasMore: result.hasMore,
+         },
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const httpGetTradeFlags: AsyncController = async (
+   req: AdminRequest,
+   res: Response,
+   next
+) => {
+   try {
+      const parsed = GetTradeFlagsSchema.safeParse(req.query);
+      if (!parsed.success) {
+         return sendValidationError(res, 'Invalid query parameters', [
+            {
+               field: 'query',
+               message: 'Invalid pagination or filter parameters',
+            },
+         ]);
+      }
+
+      const result = await listTradeFlags({
+         limit: parsed.data.limit,
+         cursor: parsed.data.cursor,
+         rule: parsed.data.rule,
+      });
+
+      sendSuccess(res, {
+         entries: result.entries,
+         pagination: {
+            limit: parsed.data.limit,
+            cursor: parsed.data.cursor,
             nextCursor: result.nextCursor ?? null,
             hasMore: result.hasMore,
          },

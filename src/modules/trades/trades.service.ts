@@ -8,6 +8,14 @@ export interface TradeCursorPayload {
    timestamp?: string;
 }
 
+/**
+ * Filter that excludes trades flagged by the wash-trade detector from
+ * leaderboard and volume aggregates.
+ */
+export function notFlaggedWhere(): { isFlagged: { not: boolean } } {
+   return { isFlagged: { not: true } };
+}
+
 export interface FormattedBundleTrade {
    id: string;
    type: 'bundle';

@@ -13,7 +13,12 @@ model Trade {
   /// Defaults to 'XLM' for trades recorded before multi-currency support (#934).
   paymentAsset String   @default("XLM")
   type         String   @default("single")
+  /// Set by the wash-trade detector when the trade matches a suspicious rule.
+  /// Flagged trades are excluded from leaderboard and volume aggregates.
+  isFlagged    Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  flags TradeFlag[]
 
   // Partitioned by timestamp month (#1333); unique/indexes include partition key.
   @@unique([ledger, txHash, timestamp], name: "ledger_txHash")
@@ -22,8 +27,25 @@ model Trade {
   @@index([ledger])
   @@index([paymentAsset])
   @@index([creatorId, paymentAsset])
+  @@index([isFlagged])
   /// Per-wallet, per-key chronological scans for realized gains (#1218).
   @@index([buyer, creatorId, timestamp])
   @@index([creatorId, timestamp])
   @@index([timestamp])
+}
+
+/// A wash-trading flag raised by the detector for a specific trade.
+/// Uniqueness on (tradeId, rule) makes re-running the detector idempotent.
+model TradeFlag {
+  id        String   @id @default(cuid())
+  tradeId   String
+  rule      String
+  score     Float
+  createdAt DateTime @default(now())
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeId, rule])
+  @@index([rule])
+  @@index([createdAt])
 }

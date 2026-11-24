@@ -7,6 +7,8 @@ import {
    httpUpdateProtocolFee,
    httpGetAuditLog,
 } from './admin.controllers';
+import { httpListTradeFlags } from './trade-flags.controllers';
+import { flagStatusQuerySchema } from './trade-flags.schemas';
 import {
    httpListReferralHolds,
    httpResolveReferralHold,
@@ -168,6 +170,10 @@ adminRouter.delete('/impersonate', adminGuard, httpEndImpersonation);
 // 'REJECTED' } resolves a PENDING hold; releasing pays the reward once.
 adminRouter.get('/referral-holds', adminGuard, httpListReferralHolds);
 adminRouter.patch('/referral-holds/:id', adminGuard, httpResolveReferralHold);
+
+// ── Wash trading flags ────────────────────────────────────────
+// GET /admin/trade-flags?rule=&limit=&cursor= lists detector flags.
+adminRouter.get('/trade-flags', adminGuard, httpListTradeFlags);
 
 // ── Security monitoring (#1035) ───────────────────────────────
 
