@@ -4,6 +4,7 @@ import scheduledTransferRouter from './scheduled-transfers/scheduled-transfer.ro
 import marketplaceRouter from './marketplaces/marketplace.routes';
 import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes';
 import concentrationRouter from './concentration/concentration.routes';
+import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -188,6 +189,7 @@ router.use('/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
 router.use('/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
 router.use('/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
 router.use('/keys', routeBodySizeLimit('default'), concentrationRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyLpRewardsRouter);
 router.use('/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
 router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
 

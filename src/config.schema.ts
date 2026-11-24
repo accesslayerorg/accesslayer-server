@@ -297,6 +297,18 @@ export const envSchema = z
       // LP position registry contract
       LP_CONTRACT_ID: optionalNonEmptyString,
 
+      // Key LP reward accrual (#1196): share of each key's trading volume, in
+      // basis points, that funds its LP reward pool. The hourly accrual job
+      // distributes the pool pro-rata by lp_tokens; it catches up at most
+      // LP_REWARD_ACCRUAL_MAX_CATCHUP_EPOCHS missed epochs per key per run.
+      LP_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(30),
+      LP_REWARD_ACCRUAL_ENABLED: booleanCoerce.default(true),
+      LP_REWARD_ACCRUAL_MAX_CATCHUP_EPOCHS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
+
       // Staking contract (#1086): deployed staking contract used for live
       // get_stake_rewards simulation calls. When unset, accrued rewards
       // degrade gracefully to '0' rather than failing.
