@@ -1,4 +1,6 @@
 import { getRoyaltyEnforcement } from '../marketplaces/marketplace.service';
+import { getFeeSchedule, getFeeCurve } from './fee-schedule.service';
+import { prisma } from '../../utils/prisma.utils';
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
@@ -296,6 +298,22 @@ const launchAuctionBidsQuerySchema = z.object({
 });
 
 const router = Router();
+
+router.get('/:keyId/fee-schedule', async (req, res, next) => {
+   try {
+      const checkpoint = await prisma.indexedLedger.findUnique({ where: { id: 1 } });
+      return sendSuccess(res, await getFeeSchedule(String(req.params.keyId), checkpoint?.ledger ?? 0));
+   } catch (error) { next(error); }
+});
+
+router.get('/:keyId/fee-schedule/curve', async (req, res, next) => {
+   try {
+      const parsed = z.coerce.number().int().min(2).max(100).safeParse(req.query.points ?? 20);
+      if (!parsed.success) return sendValidationError(res, 'Invalid points; expected an integer from 2 to 100');
+      const checkpoint = await prisma.indexedLedger.findUnique({ where: { id: 1 } });
+      return sendSuccess(res, await getFeeCurve(String(req.params.keyId), checkpoint?.ledger ?? 0, parsed.data));
+   } catch (error) { next(error); }
+});
 
 const registerKeyBodySchema = z.preprocess(
    (val: any) => {
