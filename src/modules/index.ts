@@ -5,6 +5,14 @@ import marketplaceRouter from './marketplaces/marketplace.routes';
 import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes';
 import concentrationRouter from './concentration/concentration.routes';
 import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
+import errorCatalogRouter from './error-catalog/error-catalog.routes';
+import accountRouter from './account/account.routes';
+import { supportAttachmentUploadRouter, supportRouter } from './support/support.routes';
+import { supportAgentRouter } from './support/support-agent.routes';
+import {
+   creatorVerificationAdminRouter,
+   creatorVerificationRouter,
+} from './creator-verification/creator-verification.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -96,6 +104,9 @@ router.use('/health', routeBodySizeLimit('default'), healthRouter);
 router.use('/status', routeBodySizeLimit('default'), statusRouter);
 router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
+// Creator verification routes (#1324). Mounted ahead of creatorsRouter so
+// /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
@@ -109,6 +120,13 @@ router.use(
    routeBodySizeLimit('admin'),
    adminReportsRouter
 );
+// Support agent routes (#1327), guarded by the admin JWT per route.
+router.use('/admin/support', routeBodySizeLimit('admin'), supportAgentRouter);
+// Creator verification review queue (#1324), guarded by the admin JWT per route.
+router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificationAdminRouter);
+// Attachment uploads take raw bytes, so this router is mounted without the
+// JSON parser that the rest of /support uses (#1327).
+router.use('/support', supportAttachmentUploadRouter);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
@@ -194,5 +212,14 @@ router.use('/keys', routeBodySizeLimit('default'), concentrationRouter);
 router.use('/keys', routeBodySizeLimit('default'), keyLpRewardsRouter);
 router.use('/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
 router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
+
+// Contract error catalog and decoding helper (#1326).
+router.use('/errors', routeBodySizeLimit('default'), errorCatalogRouter);
+
+// Personal data export and account deletion for the signed-in user (#1325).
+router.use('/me', routeBodySizeLimit('default'), accountRouter);
+
+// User support tickets (#1327).
+router.use('/support', routeBodySizeLimit('default'), supportRouter);
 
 export default router;
