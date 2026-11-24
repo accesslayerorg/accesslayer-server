@@ -12,6 +12,7 @@ import {
    httpGetWalletBalanceHistory,
    httpGetWalletPortfolioAsOf,
 } from "./balance-history.controllers";
+import { httpGetWalletPerformance } from "./wallet-performance.controllers";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
@@ -95,5 +96,13 @@ walletsRouter.get('/:address/balance-history', httpGetWalletBalanceHistory);
  * resolved ledger and approximation flag (#1323).
  */
 walletsRouter.get('/:address/portfolio', httpGetWalletPortfolioAsOf);
+
+/**
+ * GET /v1/wallets/:address/performance?range=
+ *
+ * Returns time-weighted portfolio performance, normalized benchmark series,
+ * and summary return differences (#1321).
+ */
+walletsRouter.get('/:address/performance', httpGetWalletPerformance);
 
 export default walletsRouter;
