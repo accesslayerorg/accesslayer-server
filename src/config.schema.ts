@@ -280,7 +280,6 @@ export const envSchema = z
          .positive()
          .default(60),
 
-      
       // Dynamic fee contract (#1055)
       DYNAMIC_FEE_CONTRACT_ID: optionalNonEmptyString,
 
@@ -362,6 +361,10 @@ export const envSchema = z
          .int()
          .positive()
          .default(60),
+      // Daily bounded retention worker. Keep dry-run enabled until an
+      // operator explicitly opts into deleting production data.
+      RETENTION_WORKER_ENABLED: booleanCoerce.default(true),
+      RETENTION_DRY_RUN: booleanCoerce.default(true),
       SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
          .number()
          .int()
@@ -689,7 +692,11 @@ export const envSchema = z
       // Single-swap size (XLM) that earns the WHALE_HOLDER badge.
       BADGE_WHALE_THRESHOLD_XLM: z.coerce.number().positive().default(10000),
       // Continuous hold (days) that earns the DIAMOND_HANDS badge.
-      BADGE_HOLD_MILESTONE_DAYS: z.coerce.number().int().positive().default(365),
+      BADGE_HOLD_MILESTONE_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(365),
       // Highest leaderboard rank (inclusive) that earns the TOP_TRADER badge.
       BADGE_TOP_TRADER_MAX_RANK: z.coerce.number().int().positive().default(10),
       // Max mint attempts before a transient failure is treated as terminal.
@@ -702,7 +709,11 @@ export const envSchema = z
       VAULT_LENDING_CONTRACT_ID: optionalNonEmptyString,
       LIQUIDATION_KEEPER_SECRET: optionalNonEmptyString,
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
-      SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
+      SLOW_REQUEST_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(2000),
    })
    .passthrough()
    .catchall(z.any())

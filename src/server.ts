@@ -53,6 +53,10 @@ import {
    stopSessionActivityCleanupJob,
 } from './jobs/session-activity-cleanup.job';
 import {
+   startRetentionWorker,
+   stopRetentionWorker,
+} from './workers/retention.worker';
+import {
    startCampaignCronJobs,
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
@@ -61,7 +65,10 @@ import {
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
-import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
+import {
+   broadcastServerClosing,
+   closeAllConnections,
+} from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
 import {
@@ -130,6 +137,7 @@ async function startServer() {
       startStatusProbeJob();
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
+      startRetentionWorker();
       startCampaignCronJobs();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
@@ -179,6 +187,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopStatusProbeJob();
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
+      stopRetentionWorker();
       stopCampaignCronJobs();
       stopAutoInvestListener();
       await prisma.$disconnect();
