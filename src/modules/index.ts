@@ -56,6 +56,7 @@ import {
    guardianRequestsRouter,
 } from './wallets/social-recovery.routes';
 import alertsRouter from './alerts/alert.router';
+import analyticsRouter from './analytics/analytics.routes';
 import invoiceRouter from './invoice/invoice.routes';
 import { issuerRouter } from './invoice/invoice-protocol.routes';
 import freezeRouter from './freeze/freeze.routes';
@@ -180,6 +181,7 @@ router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 router.use('/wallets', routeBodySizeLimit('default'), socialRecoveryRouter);
 router.use('/guardians', routeBodySizeLimit('default'), guardianRequestsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
+router.use('/analytics', routeBodySizeLimit('default'), analyticsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
