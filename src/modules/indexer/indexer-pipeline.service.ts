@@ -745,6 +745,17 @@ export async function processIndexerEvents(
       await processSubscriptionCreatedEvent(event as Record<string, unknown>);
    }
 
+   // Protocol pause and escape-hatch events (#1265). Awaited before the cursor
+   // moves; the unique (txHash, eventIndex) keys keep replays idempotent.
+   const {
+      isProtocolEscapeEvent,
+      processProtocolEscapeEvents,
+   } = await import('./protocol-escape-indexer.service');
+   const protocolEscapeEvents = events.filter(isProtocolEscapeEvent);
+   if (protocolEscapeEvents.length > 0) {
+      await processProtocolEscapeEvents(protocolEscapeEvents);
+   }
+
    // Token rescues (#1271). Awaited before the cursor moves, so a failed write
    // redelivers the batch and the unique (txHash, eventIndex) key keeps it idempotent.
    const {
