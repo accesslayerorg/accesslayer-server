@@ -115,6 +115,9 @@ import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
+import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
+import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
+import { dcaRouter } from './dca/dca.routes';
 
 const router = Router();
 
@@ -135,6 +138,7 @@ router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
 // Creator verification routes (#1324). Mounted ahead of creatorsRouter so
 // /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorBountiesRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
@@ -278,6 +282,15 @@ router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 // Web push subscriptions & VAPID key (#1314).
 router.use('/push', routeBodySizeLimit('default'), pushRouter);
 
+// Multi-asset payment registry & conversion quotes (#1309).
+router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
+router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
+
+// Bounty board (#1307).
+router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
+
+// Recurring purchase (DCA) plans (#1322).
+router.use('/dca', routeBodySizeLimit('default'), dcaRouter);
 // Embeddable SVG badge, widget & creator embed settings (#1320).
 router.use('/embed', routeBodySizeLimit('default'), embedRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);

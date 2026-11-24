@@ -1,0 +1,22 @@
+// prisma/schema/payment-asset.prisma
+// Multi-asset payment registry (#1309).
+
+model PaymentAsset {
+  id            String    @id @default(cuid())
+  /// Stellar asset contract address or "native" for XLM.
+  token         String    @unique
+  symbol        String
+  decimals      Int       @default(7)
+  /// Oracle contract address or price feed identifier.
+  oracle        String?
+  enabled       Boolean   @default(true)
+  /// Last known rate in 7-decimal internal precision (10_000_000 = 1.0 XLM).
+  rate7         BigInt?
+  rateUpdatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([enabled])
+  @@index([symbol])
+  @@map("payment_assets")
+}
