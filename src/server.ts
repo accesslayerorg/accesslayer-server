@@ -73,6 +73,10 @@ import {
    stopRefreshKeyMetricsJob,
 } from './jobs/refresh-key-metrics.job';
 import {
+   startPushEventListeners,
+   stopPushEventListeners,
+} from './modules/push/push.service';
+import {
    startAutoInvestListener,
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
@@ -154,6 +158,7 @@ async function startServer() {
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
+      startPushEventListeners();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
 
@@ -207,6 +212,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();
+      stopPushEventListeners();
       stopAutoInvestListener();
       await prisma.$disconnect();
       logger.info('Database connection closed');

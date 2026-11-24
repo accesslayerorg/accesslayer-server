@@ -3,6 +3,7 @@ import {
    cacheWarmMetrics,
    creatorReadMetrics,
    orderKeeperMetrics,
+   pushMetrics,
    queueMetrics,
    retentionMetrics,
 } from './metrics.controllers';
@@ -23,5 +24,8 @@ router.get('/order-keeper', orderKeeperMetrics);
 
 // Rows deleted by the retention worker, in Prometheus exposition format.
 router.get('/retention', retentionMetrics);
+
+// Web push delivery and retry counters (#1314).
+router.get('/push', pushMetrics);
 
 export default router;

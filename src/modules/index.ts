@@ -14,6 +14,7 @@ import {
    creatorVerificationRouter,
 } from './creator-verification/creator-verification.routes';
 import { screenerRouter, screensRouter } from './screener/screener.routes';
+import pushRouter from './push/push.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -234,5 +235,8 @@ router.use('/support', routeBodySizeLimit('default'), supportRouter);
 // Key screener & saved screens (#1312).
 router.use('/screener', routeBodySizeLimit('default'), screenerRouter);
 router.use('/screens', routeBodySizeLimit('default'), screensRouter);
+
+// Web push subscriptions & VAPID key (#1314).
+router.use('/push', routeBodySizeLimit('default'), pushRouter);
 
 export default router;

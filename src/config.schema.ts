@@ -85,6 +85,9 @@ export const envSchema = z
          .string()
          .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
       PAYSTACK_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PRIVATE_KEY: optionalNonEmptyString,
+      VAPID_SUBJECT: optionalNonEmptyString,
       ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
       API_VERSION: z.string().default('1.0.0'),
       ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
