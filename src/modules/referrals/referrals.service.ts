@@ -13,9 +13,15 @@
 // The payout is written to the `ReferralEvent` fee ledger.
 
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
+import {
+   ReferralAbuseDecision,
+   ReferralAbuseService,
+} from '../../services/referral-abuse.service';
+import { prefetchFundingSource } from '../../services/wallet-funding.service';
 import { loadProtocolFeeBps } from '../keys/key-fees.service';
 import {
    buildPaginatedResponse,
@@ -214,6 +220,10 @@ export async function registerReferral(
          },
          'Referral relationship registered'
       );
+
+      // Resolve the referee's funding source now (best effort, never throws)
+      // so a sybil cluster is visible before any of its members trade (#1241).
+      await prefetchFundingSource(referee);
 
       return {
          referralId: referral.id,
@@ -469,7 +479,7 @@ export async function recordTradeReferralReward(
    // Find the referral to get the referrer
    const referral = await prisma.referral.findUnique({
       where: { refereeAddress },
-      select: { referrerAddress: true },
+      select: { id: true, referrerAddress: true },
    });
 
    // Wallet is not referred
@@ -478,6 +488,16 @@ export async function recordTradeReferralReward(
    }
 
    const referrerAddress = referral.referrerAddress;
+
+   // Verdict from an earlier trade (#1241). A rejected referral never earns;
+   // a pending one has every reward withheld until an admin releases it.
+   const existingHold = await prisma.referralHold.findUnique({
+      where: { referralId: referral.id },
+      select: { id: true, status: true },
+   });
+   if (existingHold?.status === 'REJECTED') {
+      return false;
+   }
 
    // Get the current referral count for the referrer to determine tier
    const referralCount = await prisma.referral.count({
@@ -495,6 +515,92 @@ export async function recordTradeReferralReward(
 
    if (rewardXlm <= 0) {
       return false;
+   }
+
+   // Abuse detection (#1241) runs until the referral has a verdict. It may
+   // call Horizon, which must never happen inside a database transaction, and
+   // a Horizon outage throws here so the indexer retries the event instead of
+   // paying an unchecked reward.
+   let withhold = existingHold?.status === 'PENDING';
+   let verdict: Exclude<ReferralAbuseDecision, { action: 'allow' }> | null =
+      null;
+   if (!existingHold) {
+      const decision = await ReferralAbuseService.evaluate({
+         referrerAddress,
+         refereeAddress,
+      });
+      if (decision.action !== 'allow') {
+         verdict = decision;
+         withhold = true;
+      }
+   }
+
+   if (withhold) {
+      const outcome = await prisma.$transaction(async (tx) => {
+         // The first flagged trade records the verdict; concurrent trades for
+         // the same referee converge on the same row.
+         const hold =
+            existingHold ??
+            (await tx.referralHold.upsert({
+               where: { referralId: referral.id },
+               create: {
+                  referralId: referral.id,
+                  reason: verdict!.reason,
+                  status: verdict!.action === 'reject' ? 'REJECTED' : 'PENDING',
+                  details: verdict!.details as Prisma.InputJsonValue,
+                  referrerAddress,
+                  refereeAddress,
+               },
+               update: {},
+               select: { id: true, status: true },
+            }));
+
+         if (hold.status === 'REJECTED') {
+            return 'rejected' as const;
+         }
+
+         // Touching the row takes its lock, serialising this insert against a
+         // concurrent release: either the release sees this reward when it
+         // reads the withheld rows, or this update sees RELEASED and the
+         // reward is paid directly below. A reward can never be orphaned.
+         const locked = await tx.referralHold.updateMany({
+            where: { id: hold.id, status: 'PENDING' },
+            data: { updatedAt: new Date() },
+         });
+         if (locked.count === 0) {
+            return 'released' as const;
+         }
+
+         await tx.referralHoldReward.create({
+            data: {
+               holdId: hold.id,
+               keyId: input.keyId,
+               rewardXlm,
+               tierMultiplier,
+               txHash: input.txHash ?? null,
+               eventIndex: input.eventIndex ?? null,
+               tradedAt: tradeAt,
+            },
+         });
+         return 'withheld' as const;
+      });
+
+      if (outcome !== 'released') {
+         logger.warn(
+            {
+               type: 'referral_reward_withheld',
+               referrerAddress,
+               refereeAddress,
+               keyId: input.keyId,
+               rewardXlm,
+               outcome,
+               ...(verdict ? { reason: verdict.reason } : {}),
+            },
+            'Referral reward withheld by abuse detection'
+         );
+         return false;
+      }
+      // Released while this trade was in flight: pay it normally.
    }
 
    // Write the referral event

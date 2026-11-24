@@ -7,6 +7,10 @@ import {
    httpUpdateProtocolFee,
    httpGetAuditLog,
 } from './admin.controllers';
+import {
+   httpListReferralHolds,
+   httpResolveReferralHold,
+} from './referral-holds.controllers';
 import { getFlaggedSessions } from './session-security.service';
 import { safeIntParam } from '../../utils/query.utils';
 import { httpSyncKeyState } from './key-sync.controllers';
@@ -133,6 +137,13 @@ adminRouter.post('/keys/:keyId/resume', adminGuard, httpSetKeyTradingPaused);
 adminRouter.post('/keys/:keyId/sync', adminGuard, httpSyncKeyState);
 adminRouter.patch('/protocol-fee', adminGuard, httpUpdateProtocolFee);
 adminRouter.get('/audit-log', adminGuard, httpGetAuditLog);
+
+// ── Referral abuse review (#1241) ─────────────────────────────
+// GET /admin/referral-holds?status=&limit=&cursor= lists withheld referral
+// rewards. PATCH /admin/referral-holds/:id with { status: 'RELEASED' |
+// 'REJECTED' } resolves a PENDING hold; releasing pays the reward once.
+adminRouter.get('/referral-holds', adminGuard, httpListReferralHolds);
+adminRouter.patch('/referral-holds/:id', adminGuard, httpResolveReferralHold);
 
 // ── Security monitoring (#1035) ───────────────────────────────
 
