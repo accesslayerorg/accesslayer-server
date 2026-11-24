@@ -466,6 +466,29 @@ export async function searchTransaction(
    return null;
 }
 
+// ── Suggest (typeahead) ───────────────────────────────────────────────────────
+
+/**
+ * Mixed typeahead suggestions over creators and keys (#1329, minimal first
+ * pass). Reuses the existing ranked search queries, which already exclude
+ * deprecated keys via `deprecated`; trigram/typo tolerance and a dedicated
+ * cache/rate-limit layer are out of scope for this pass.
+ */
+export async function suggestSearch(
+   query: string,
+   limit: number
+): Promise<{ keys: SearchKeyResult[]; creators: SearchCreatorResult[] }> {
+   const capped = Math.min(limit, 10);
+   const [keys, creators] = await Promise.all([
+      searchKeys(query, { limit: capped }),
+      searchCreators(query, { limit: capped }),
+   ]);
+   return {
+      keys: keys.items.filter(k => !k.deprecated),
+      creators: creators.items,
+   };
+}
+
 // ── Grouped overlay search ────────────────────────────────────────────────────
 
 /**
