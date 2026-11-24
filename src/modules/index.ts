@@ -9,6 +9,10 @@ import errorCatalogRouter from './error-catalog/error-catalog.routes';
 import accountRouter from './account/account.routes';
 import { supportAttachmentUploadRouter, supportRouter } from './support/support.routes';
 import { supportAgentRouter } from './support/support-agent.routes';
+import {
+   creatorVerificationAdminRouter,
+   creatorVerificationRouter,
+} from './creator-verification/creator-verification.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -99,6 +103,9 @@ router.use('/health', routeBodySizeLimit('default'), healthRouter);
 router.use('/status', routeBodySizeLimit('default'), statusRouter);
 router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
+// Creator verification routes (#1324). Mounted ahead of creatorsRouter so
+// /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
@@ -114,6 +121,8 @@ router.use(
 );
 // Support agent routes (#1327), guarded by the admin JWT per route.
 router.use('/admin/support', routeBodySizeLimit('admin'), supportAgentRouter);
+// Creator verification review queue (#1324), guarded by the admin JWT per route.
+router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificationAdminRouter);
 // Attachment uploads take raw bytes, so this router is mounted without the
 // JSON parser that the rest of /support uses (#1327).
 router.use('/support', supportAttachmentUploadRouter);
