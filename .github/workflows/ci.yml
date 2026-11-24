@@ -192,3 +192,30 @@ jobs:
               name: k6-loadtest-summary
               path: loadtest-summary.json
               if-no-files-found: warn
+
+   error-catalog:
+      runs-on: ubuntu-latest
+
+      steps:
+         - uses: actions/checkout@v4
+
+         - uses: actions/checkout@v4
+           with:
+              repository: accesslayerorg/accesslayer-contracts
+              path: contracts-src
+
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - run: pnpm install --frozen-lockfile
+
+         # Fails when error-catalog.json is stale or when a contract error has
+         # no doc comment and is not in scripts/error-catalog-baseline.json (#1326).
+         - name: Verify contract error catalog
+           run: pnpm exec ts-node --transpile-only scripts/build-error-catalog.ts --contracts-dir contracts-src --check
