@@ -219,3 +219,31 @@ jobs:
          # no doc comment and is not in scripts/error-catalog-baseline.json (#1326).
          - name: Verify contract error catalog
            run: pnpm exec ts-node --transpile-only scripts/build-error-catalog.ts --contracts-dir contracts-src --check
+
+   migration-safety:
+      # Checks only migrations added or changed by the pull request against the
+      # base branch. See docs/migrations.md (#1344).
+      if: github.event_name == 'pull_request'
+      runs-on: ubuntu-latest
+
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+           with:
+              fetch-depth: 0
+
+         - name: Setup pnpm
+           uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - run: pnpm install --frozen-lockfile
+
+         - name: Check new migrations for expand/contract safety
+           run: pnpm exec ts-node --transpile-only scripts/check-migrations.ts --base "origin/${{ github.base_ref }}"

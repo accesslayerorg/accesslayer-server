@@ -6,6 +6,11 @@ import { logExpiredTokenRejection } from '../utils/expired-token-log.utils';
 
 export interface AdminRequest extends Request {
    adminId?: string;
+   /**
+    * Epoch seconds of the admin's last second-factor verification, from the
+    * `mfa_at` token claim. Used to gate step-up actions (#1342).
+    */
+   adminMfaVerifiedAt?: number;
 }
 
 export function adminGuard(
@@ -25,6 +30,7 @@ export function adminGuard(
          sub?: string;
          adminId?: string;
          role?: string;
+         mfa_at?: number;
       };
       const adminId = payload.adminId ?? payload.sub;
       if (payload.role !== 'admin' || !adminId) {
@@ -32,6 +38,9 @@ export function adminGuard(
          return;
       }
       req.adminId = adminId;
+      if (typeof payload.mfa_at === 'number') {
+         req.adminMfaVerifiedAt = payload.mfa_at;
+      }
       next();
    } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
