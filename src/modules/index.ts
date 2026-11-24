@@ -8,6 +8,10 @@ import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
 import errorCatalogRouter from './error-catalog/error-catalog.routes';
 import accountRouter from './account/account.routes';
 import tradeNotesRouter from './trade-notes/trade-notes.routes';
+import {
+   disclosuresAdminRouter,
+   disclosuresRouter,
+} from './disclosures/disclosures.routes';
 import { supportAttachmentUploadRouter, supportRouter } from './support/support.routes';
 import { supportAgentRouter } from './support/support-agent.routes';
 import {
@@ -230,6 +234,10 @@ router.use('/me', routeBodySizeLimit('default'), accountRouter);
 
 // Private trade journal notes (#1315).
 router.use('/me', routeBodySizeLimit('default'), tradeNotesRouter);
+
+// Risk disclosure acknowledgements (#1318).
+router.use('/disclosures', routeBodySizeLimit('default'), disclosuresRouter);
+router.use('/admin/disclosures', routeBodySizeLimit('admin'), disclosuresAdminRouter);
 
 // User support tickets (#1327).
 router.use('/support', routeBodySizeLimit('default'), supportRouter);
