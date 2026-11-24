@@ -10,11 +10,11 @@ jobs:
       runs-on: ubuntu-latest
       timeout-minutes: 20
       steps:
-         - uses: actions/checkout@v4
-         - uses: pnpm/action-setup@v4
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+         - uses: pnpm/action-setup@<PNPM_ACTION_SETUP_V4_SHA> # v4
            with:
               version: 10.6.5
-         - uses: actions/setup-node@v4
+         - uses: actions/setup-node@<SETUP_NODE_V4_SHA> # v4
            with:
               node-version: 20
               cache: pnpm
@@ -30,7 +30,7 @@ jobs:
            run: ./chaos/run-chaos.sh
          - name: Upload chaos artifacts
            if: always()
-           uses: actions/upload-artifact@v4
+           uses: actions/upload-artifact@<UPLOAD_ARTIFACT_V4_SHA> # v4
            with:
               name: chaos-artifacts
               path: chaos/artifacts

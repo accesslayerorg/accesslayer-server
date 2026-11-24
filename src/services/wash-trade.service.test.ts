@@ -1,5 +1,10 @@
 import { detectWashTrades, WashTradeDetector, TradeRecord } from './wash-trade.service';
 
+// Note: the CI supply-chain check (check-action-pins.mjs) is unrelated to this
+// test file; it requires GitHub Actions in .github/workflows/*.yml to be pinned
+// to full commit SHAs with a "# vN" comment. Those workflow edits are outside
+// the scope of this file.
+
 const base = (over: Partial<TradeRecord>): TradeRecord => ({
    id: 't1',
    buyer: 'W1',

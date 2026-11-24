@@ -8,6 +8,8 @@ import {
    httpGetAuditLog,
 } from './admin.controllers';
 import { httpListTradeFlags } from './trade-flags.controllers';
+// Wash trading detector: flags round trips and circular funded-wallet flows.
+// Service: src/services/wash-trade.service.ts (WashTradeDetector.analyze).
 import { flagStatusQuerySchema } from './trade-flags.schemas';
 import {
    httpListReferralHolds,
