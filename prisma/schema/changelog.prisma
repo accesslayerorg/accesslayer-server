@@ -1,0 +1,53 @@
+// prisma/schema/changelog.prisma
+// Product changelog entries and per-wallet unread tracking (#1356).
+
+enum ChangelogCategory {
+  NEW
+  IMPROVED
+  FIXED
+}
+
+/// DRAFT is admin-only. SCHEDULED becomes publicly visible once `publishedAt`
+/// passes, without a worker flipping the status. PUBLISHED is visible from
+/// `publishedAt`, which is set when it is published.
+enum ChangelogStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+}
+
+model ChangelogEntry {
+  id          String            @id @default(cuid())
+  title       String
+  /// Markdown body, sanitized on save.
+  body        String
+  category    ChangelogCategory
+  status      ChangelogStatus   @default(DRAFT)
+  /// Optional release label such as "2026.11" or "v1.4.0".
+  version     String?
+  /// Optional link to a longer write-up or docs page.
+  url         String?
+  /// When the entry becomes (or became) publicly visible. Null for drafts.
+  publishedAt DateTime?
+  /// Admin id that created the entry.
+  createdBy   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  /// Public feed: visible statuses, newest first, id tiebreaker for cursors.
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([category, status, publishedAt(sort: Desc)])
+  @@map("changelog_entries")
+}
+
+/// Last time a wallet opened the What's new view. Entries visible after
+/// `lastReadAt` count as unread; a wallet with no row has read nothing.
+model ChangelogRead {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  lastReadAt    DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("changelog_reads")
+}

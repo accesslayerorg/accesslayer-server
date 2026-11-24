@@ -133,6 +133,7 @@ import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.rou
 import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
 import { dcaRouter } from './dca/dca.routes';
 import { regionRulesAdminRouter, regionsRouter } from './regions/regions.routes';
+import { changelogAdminRouter, changelogRouter } from './changelog/changelog.routes';
 
 const router = Router();
 
@@ -176,6 +177,8 @@ router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificati
 // mounted ahead of adminRouter like the other admin sub-routers.
 router.use('/admin/regions/rules', routeBodySizeLimit('admin'), regionRulesAdminRouter);
 router.use('/regions', routeBodySizeLimit('default'), regionsRouter);
+// Product changelog admin workflow (#1356), guarded by the admin JWT per route.
+router.use('/admin/changelog', routeBodySizeLimit('admin'), changelogAdminRouter);
 // Attachment uploads take raw bytes, so this router is mounted without the
 // JSON parser that the rest of /support uses (#1327).
 router.use('/support', supportAttachmentUploadRouter);
@@ -336,5 +339,8 @@ router.use('/me', routeBodySizeLimit('default'), followedCollectionsRouter);
 // Public portfolio profiles (#1355).
 router.use('/me', routeBodySizeLimit('default'), publicProfileMeRouter);
 router.use('/public', routeBodySizeLimit('default'), publicProfilesRouter);
+
+// Product changelog (#1356).
+router.use('/changelog', routeBodySizeLimit('default'), changelogRouter);
 
 export default router;
