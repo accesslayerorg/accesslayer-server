@@ -33,6 +33,10 @@ import {
    broadcastPublicRouter,
 } from './broadcast/broadcast.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
+import {
+   publicProfileMeRouter,
+   publicProfilesRouter,
+} from './public-profiles/public-profile.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
 import { queryCostGovernor } from '../middlewares/query-cost-governor.middleware';
@@ -315,5 +319,9 @@ router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
 router.use('/me', routeBodySizeLimit('default'), broadcastMeRouter);
 router.use('/broadcasts', routeBodySizeLimit('default'), broadcastPublicRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), broadcastCreatorRouter);
+
+// Public portfolio profiles (#1355).
+router.use('/me', routeBodySizeLimit('default'), publicProfileMeRouter);
+router.use('/public', routeBodySizeLimit('default'), publicProfilesRouter);
 
 export default router;

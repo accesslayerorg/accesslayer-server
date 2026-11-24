@@ -1,0 +1,31 @@
+// prisma/schema/public-profile.prisma
+// Opt-in public portfolio pages with a handle registry and per-field privacy
+// controls (#1355).
+
+/// One public profile per wallet. Every visibility flag defaults to false, so a
+/// new profile exposes nothing until the owner opts in field by field.
+model PublicProfile {
+  id               String   @id @default(cuid())
+  /// Stellar wallet address that owns the profile.
+  wallet           String   @unique
+  /// Public handle, stored lowercase so lookups and uniqueness are case-insensitive.
+  handle           String   @unique
+  /// A disabled profile is served exactly like an unknown handle (404).
+  enabled          Boolean  @default(false)
+  /// Portfolio value (and, with exact amounts, the per-key positions).
+  showHoldings     Boolean  @default(false)
+  /// Realised plus unrealised profit and loss.
+  showPnl          Boolean  @default(false)
+  /// Number of distinct keys currently held.
+  showKeyCount     Boolean  @default(false)
+  /// The date the wallet joined.
+  showJoined       Boolean  @default(false)
+  /// The wallet address itself. Hidden unless the owner opts in.
+  showWallet       Boolean  @default(false)
+  /// When false, visible amounts are published as fixed ranges instead of exact values.
+  showExactAmounts Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("public_profiles")
+}
