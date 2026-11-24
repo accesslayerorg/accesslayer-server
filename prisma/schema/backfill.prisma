@@ -1,0 +1,31 @@
+// prisma/schema/backfill.prisma
+// Shard progress for the parallel indexer backfill tool (#1337).
+//
+// One row per shard of a backfill run. A run is identified by `runKey`, which
+// is derived from the contract, the ledger range and the shard count. Running
+// the same command again resumes: COMPLETED shards are skipped.
+
+model BackfillJob {
+  id              String    @id @default(cuid())
+  /// Stable identifier for the run: hash of contract, range and shard count.
+  runKey          String
+  shardIndex      Int
+  contractId      String
+  fromLedger      Int
+  toLedger        Int
+  /// "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+  status          String    @default("PENDING")
+  attempts        Int       @default(0)
+  eventsFetched   Int       @default(0)
+  eventsInserted  Int       @default(0)
+  eventsDuplicate Int       @default(0)
+  lastError       String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([runKey, shardIndex])
+  @@index([status])
+  @@map("backfill_jobs")
+}
