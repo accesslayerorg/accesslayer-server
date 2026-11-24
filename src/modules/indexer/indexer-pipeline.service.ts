@@ -745,6 +745,17 @@ export async function processIndexerEvents(
       await processSubscriptionCreatedEvent(event as Record<string, unknown>);
    }
 
+   // Token rescues (#1271). Awaited before the cursor moves, so a failed write
+   // redelivers the batch and the unique (txHash, eventIndex) key keeps it idempotent.
+   const {
+      isTokenRescueEvent,
+      processTokenRescueEvents,
+   } = await import('./token-rescue-indexer.service');
+   const tokenRescueEvents = events.filter(isTokenRescueEvent);
+   if (tokenRescueEvents.length > 0) {
+      await processTokenRescueEvents(tokenRescueEvents);
+   }
+
    // Community poll events are processed in chain order before advancing the
    // shared cursor, so a vote or close cannot be skipped after a failed write.
    const keyPollEvents = events.filter(isKeyPollEvent);
