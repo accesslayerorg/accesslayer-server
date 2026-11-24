@@ -81,6 +81,10 @@ import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
+import {
+   keyPassEventsRouter,
+   passEventsRouter,
+} from './pass-events/pass-events.routes';
 import tipsRouter from './tips/tips.routes';
 import { flagRouter } from './flags/feature-flags.routes';
 import commentsRouter from './comments/comments.routes';
@@ -149,6 +153,7 @@ router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
 router.use('/keys', routeBodySizeLimit('default'), commitRevealLaunchRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyPassEventsRouter);
 router.use('/launches', routeBodySizeLimit('default'), launchesRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
 router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
@@ -196,6 +201,7 @@ router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
+router.use('/events', routeBodySizeLimit('default'), passEventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
 router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);

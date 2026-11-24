@@ -578,6 +578,16 @@ export async function processIndexerEvents(
       await processCommitRevealLaunchEvents(commitRevealLaunchEvents);
    }
 
+   const { PASS_EVENT_TYPES, processPassEvents } = await import(
+      './pass-event-indexer.service'
+   );
+   const passEvents = events.filter(event =>
+      PASS_EVENT_TYPES.has(event.eventType)
+   );
+   if (passEvents.length > 0) {
+      await processPassEvents(passEvents);
+   }
+
    if (tradeEvents.length > 0) {
       await processTradeEvents(tradeEvents, { advanceCursor: false });
    }

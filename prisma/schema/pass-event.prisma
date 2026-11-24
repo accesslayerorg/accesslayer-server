@@ -1,0 +1,45 @@
+// prisma/schema/pass-event.prisma
+
+/// Creator event pass indexed from `event_created`, `redeemed`, and `event_closed` (#1332).
+model PassEvent {
+  id                String   @id
+  keyId             String
+  creatorWallet     String
+  title             String?
+  startLedger       Int
+  endLedger         Int
+  capacity          Int
+  redeemedCount     Int      @default(0)
+  minBalance        Decimal  @default(1) @db.Decimal(36, 7)
+  closed            Boolean  @default(false)
+  createdTxHash     String
+  createdEventIndex Int
+  closedTxHash      String?
+  closedEventIndex  Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  redemptions PassRedemption[]
+
+  @@unique([createdTxHash, createdEventIndex])
+  @@index([keyId, startLedger])
+  @@map("pass_events")
+}
+
+/// Individual holder redemption for a PassEvent (#1332).
+model PassRedemption {
+  id         String   @id @default(cuid())
+  eventId    String
+  wallet     String
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  redeemedAt DateTime @default(now())
+
+  event PassEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@unique([eventId, wallet])
+  @@index([eventId, ledger(sort: Desc), id(sort: Desc)])
+  @@map("pass_redemptions")
+}
