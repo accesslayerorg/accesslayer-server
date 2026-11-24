@@ -737,6 +737,13 @@ export async function processIndexerEvents(
       await processPaymentAssetEvents(paymentAssetEvents);
    }
 
+   const { isBountyEvent, processBountyEvents } =
+      await import('./bounty-indexer.service');
+   const bountyEvents = events.filter(isBountyEvent);
+   if (bountyEvents.length > 0) {
+      await processBountyEvents(bountyEvents);
+   }
+
    const {
       MILESTONE_REWARD_CLAIMED_EVENT_TYPES,
       processMilestoneRewardClaimedEvents,

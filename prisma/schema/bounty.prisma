@@ -1,0 +1,68 @@
+// prisma/schema/bounty.prisma
+// Escrowed bounty board models (#1307).
+
+model Bounty {
+  id                String             @id @default(cuid())
+  onChainId         String             @unique
+  keyId             String
+  creatorHandle     String
+  creatorWallet     String
+  title             String
+  description       String?
+  rewardAmount      BigInt
+  awardedAmount     BigInt             @default(0)
+  reclaimedAmount   BigInt             @default(0)
+  maxWinners        Int                @default(1)
+  winnersCount      Int                @default(0)
+  deadlineLedger    Int
+  reclaimedAtLedger Int?
+  txHash            String
+  eventIndex        Int
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  submissions       BountySubmission[]
+  awards            BountyAward[]
+
+  @@index([keyId])
+  @@index([creatorHandle])
+  @@index([rewardAmount])
+  @@map("bounties")
+}
+
+model BountySubmission {
+  id           String   @id @default(cuid())
+  bountyId     String
+  submissionId String
+  submitter    String
+  contentUri   String
+  ledger       Int
+  txHash       String
+  eventIndex   Int
+  createdAt    DateTime @default(now())
+
+  bounty       Bounty   @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@unique([bountyId, submissionId])
+  @@index([bountyId])
+  @@map("bounty_submissions")
+}
+
+model BountyAward {
+  id           String   @id @default(cuid())
+  bountyId     String
+  submissionId String?
+  winner       String
+  amount       BigInt
+  ledger       Int
+  txHash       String
+  eventIndex   Int
+  createdAt    DateTime @default(now())
+
+  bounty       Bounty   @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@index([bountyId])
+  @@map("bounty_awards")
+}

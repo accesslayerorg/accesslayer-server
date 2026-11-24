@@ -110,6 +110,7 @@ import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
 import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
+import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
 
 const router = Router();
 
@@ -130,6 +131,7 @@ router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
 // Creator verification routes (#1324). Mounted ahead of creatorsRouter so
 // /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorBountiesRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
@@ -276,5 +278,8 @@ router.use('/push', routeBodySizeLimit('default'), pushRouter);
 // Multi-asset payment registry & conversion quotes (#1309).
 router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
 router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
+
+// Bounty board (#1307).
+router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
 
 export default router;
