@@ -6,6 +6,7 @@ import {
    pushMetrics,
    queueMetrics,
    retentionMetrics,
+   rpcPoolMetrics,
 } from './metrics.controllers';
 
 const router = Router();
@@ -27,5 +28,8 @@ router.get('/retention', retentionMetrics);
 
 // Web push delivery and retry counters (#1314).
 router.get('/push', pushMetrics);
+
+// RPC pool health/failover metrics (#1336).
+router.get('/rpc-pool', rpcPoolMetrics);
 
 export default router;

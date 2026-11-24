@@ -221,6 +221,15 @@ export const envSchema = z
             'STELLAR_SOROBAN_RPC_URL must be a valid URL (e.g. https://soroban-testnet.stellar.org)'
          )
          .default('https://soroban-testnet.stellar.org'),
+      // Comma-separated Soroban RPC endpoints for health-based failover (#1336).
+      // Falls back to STELLAR_SOROBAN_RPC_URL when unset.
+      SOROBAN_RPC_URLS: optionalNonEmptyString,
+      RPC_POOL_PROBE_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+      RPC_POOL_COOLDOWN_MS: z.coerce.number().int().positive().default(60000),
+      RPC_POOL_MAX_LEDGER_LAG: z.coerce.number().int().nonnegative().default(5),
+      RPC_POOL_ERROR_RATE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
+      RPC_POOL_MIN_SAMPLES_FOR_ERROR_RATE: z.coerce.number().int().positive().default(5),
+      RPC_POOL_HEDGE_DELAY_MS: z.coerce.number().int().positive().default(750),
 
       // Limit-order keeper: required profit over simulated network fee.
       ORDER_KEEPER_PROFIT_MARGIN_BPS: z.coerce
@@ -386,6 +395,10 @@ export const envSchema = z
       // operator explicitly opts into deleting production data.
       RETENTION_WORKER_ENABLED: booleanCoerce.default(true),
       RETENTION_DRY_RUN: booleanCoerce.default(true),
+      // Partition maintenance (#1333)
+      PARTITION_MANAGER_ENABLED: booleanCoerce.default(true),
+      PARTITION_RETENTION_MONTHS: z.coerce.number().int().positive().default(12),
+      PARTITION_PRECREATE_MONTHS: z.coerce.number().int().positive().default(3),
       SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
          .number()
          .int()

@@ -5,6 +5,7 @@ import { getCacheWarmMetrics } from '../../utils/cache-warm-metrics.utils';
 import { getOrderKeeperMetrics } from '../../utils/order-keeper-metrics.utils';
 import { getRetentionMetrics } from '../../utils/retention-metrics.utils';
 import { getPushMetrics } from '../../utils/push-metrics.utils';
+import { toPrometheusMetrics as rpcPoolPrometheus } from '../../utils/rpc-pool-metrics.utils';
 
 export const queueMetrics = (_: Request, res: Response): void => {
    const queues = getQueueDepths();
@@ -69,9 +70,8 @@ export const retentionMetrics = (_: Request, res: Response): void => {
       .send(`${body}\n`);
 };
 
-export const pushMetrics = (_: Request, res: Response): void => {
-   res.status(200).json({
-      timestamp: new Date().toISOString(),
-      ...getPushMetrics(),
-   });
+export const rpcPoolMetrics = (_: Request, res: Response): void => {
+   res.status(200)
+      .type('text/plain; version=0.0.4; charset=utf-8')
+      .send(rpcPoolPrometheus());
 };

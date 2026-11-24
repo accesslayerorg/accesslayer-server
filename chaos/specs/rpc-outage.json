@@ -1,0 +1,7 @@
+{
+   "name": "rpc-outage-60s",
+   "proxy": "soroban-rpc",
+   "type": "timeout",
+   "attributes": { "timeout": 60000 },
+   "durationMs": 60000
+}

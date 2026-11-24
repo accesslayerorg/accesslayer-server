@@ -1,0 +1,26 @@
+{
+   "name": "@accesslayer/sdk",
+   "version": "0.1.0",
+   "private": false,
+   "type": "module",
+   "main": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+   "files": [
+      "dist",
+      "README.md"
+   ],
+   "scripts": {
+      "generate": "node ./scripts/generate.mjs",
+      "build": "tsc -p tsconfig.json",
+      "test": "vitest run",
+      "check:generated": "node ./scripts/generate.mjs --check"
+   },
+   "dependencies": {
+      "openapi-fetch": "^0.13.5"
+   },
+   "devDependencies": {
+      "openapi-typescript": "^7.6.1",
+      "typescript": "^5.8.2",
+      "vitest": "^3.1.1"
+   }
+}
