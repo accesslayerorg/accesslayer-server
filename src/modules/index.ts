@@ -13,6 +13,8 @@ import {
    creatorVerificationAdminRouter,
    creatorVerificationRouter,
 } from './creator-verification/creator-verification.routes';
+import { screenerRouter, screensRouter } from './screener/screener.routes';
+import pushRouter from './push/push.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -44,6 +46,7 @@ import { investorHealthRouter } from './portfolio/portfolio-health-score.routes'
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
 import keysRouter from './keys/keys.routes';
+import commitRevealLaunchRouter from './keys/commit-reveal-launch.routes';
 import launchesRouter from './keys/launches.routes';
 import cooldownRouter from './keys/cooldown.routes';
 import notificationsRouter from './notifications/notification.routes';
@@ -79,6 +82,10 @@ import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import eventsRouter from './events/events.routes';
+import {
+   keyPassEventsRouter,
+   passEventsRouter,
+} from './pass-events/pass-events.routes';
 import tipsRouter from './tips/tips.routes';
 import { flagRouter } from './flags/feature-flags.routes';
 import commentsRouter from './comments/comments.routes';
@@ -146,6 +153,8 @@ router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
+router.use('/keys', routeBodySizeLimit('default'), commitRevealLaunchRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyPassEventsRouter);
 router.use('/launches', routeBodySizeLimit('default'), launchesRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
 router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
@@ -193,6 +202,7 @@ router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
+router.use('/events', routeBodySizeLimit('default'), passEventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
 router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
@@ -221,5 +231,12 @@ router.use('/me', routeBodySizeLimit('default'), accountRouter);
 
 // User support tickets (#1327).
 router.use('/support', routeBodySizeLimit('default'), supportRouter);
+
+// Key screener & saved screens (#1312).
+router.use('/screener', routeBodySizeLimit('default'), screenerRouter);
+router.use('/screens', routeBodySizeLimit('default'), screensRouter);
+
+// Web push subscriptions & VAPID key (#1314).
+router.use('/push', routeBodySizeLimit('default'), pushRouter);
 
 export default router;
