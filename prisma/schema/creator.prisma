@@ -78,6 +78,8 @@ model CreatorProfile {
 
   keyReports           KeyReport[]
   verificationApplications VerificationApplication[]
+  embedSettings        EmbedSettings?
+  embedWeeklyLoads     EmbedWeeklyLoad[]
 
   @@index([userId])
   @@index([successorKeyId])

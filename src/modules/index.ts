@@ -20,6 +20,12 @@ import {
 } from './creator-verification/creator-verification.routes';
 import { screenerRouter, screensRouter } from './screener/screener.routes';
 import pushRouter from './push/push.routes';
+import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
+import {
+   broadcastCreatorRouter,
+   broadcastMeRouter,
+   broadcastPublicRouter,
+} from './broadcast/broadcast.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -285,5 +291,13 @@ router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
 
 // Recurring purchase (DCA) plans (#1322).
 router.use('/dca', routeBodySizeLimit('default'), dcaRouter);
+// Embeddable SVG badge, widget & creator embed settings (#1320).
+router.use('/embed', routeBodySizeLimit('default'), embedRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
+
+// Consented creator email broadcast pipeline (#1319).
+router.use('/me', routeBodySizeLimit('default'), broadcastMeRouter);
+router.use('/broadcasts', routeBodySizeLimit('default'), broadcastPublicRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), broadcastCreatorRouter);
 
 export default router;
