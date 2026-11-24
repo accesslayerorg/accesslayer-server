@@ -34,6 +34,10 @@ import ownershipRouter from './ownership/ownership.routes';
 import subscriptionRouter from './subscriptions/subscription.routes';
 import webhookRouter from './webhooks/webhook.router';
 import walletsRouter from './wallets/wallets.routes';
+import {
+   socialRecoveryRouter,
+   guardianRequestsRouter,
+} from './wallets/social-recovery.routes';
 import alertsRouter from './alerts/alert.router';
 import invoiceRouter from './invoice/invoice.routes';
 import { issuerRouter } from './invoice/invoice-protocol.routes';
@@ -74,6 +78,8 @@ import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import dutchAuctionRouter from './dutch-auctions/dutch-auction.routes';
 import ordersRouter from './orders/order.routes';
+import escrowOrderRouter from './orders/escrow-order.routes';
+import triggerRouter from './orders/trigger-group.routes';
 import holdersRouter from './dividends/holders.routes';
 import multisigRouter from './multisig/multisig.routes';
 import discoveryRouter from './keys/discovery.routes';
@@ -144,6 +150,9 @@ router.use('/investors', routeBodySizeLimit('default'), investorHealthRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
+// #1350: social recovery guardian config + pending recovery view.
+router.use('/wallets', routeBodySizeLimit('default'), socialRecoveryRouter);
+router.use('/guardians', routeBodySizeLimit('default'), guardianRequestsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
@@ -200,6 +209,10 @@ router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/auctions', dutchAuctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
+// #1351: limit order escrow — indexed on-chain order state + keeper stats.
+router.use('/orders', routeBodySizeLimit('default'), escrowOrderRouter);
+// #1352: linked take-profit / stop-loss triggers (OCO).
+router.use('/triggers', routeBodySizeLimit('default'), triggerRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
 router.use('/events', routeBodySizeLimit('default'), passEventsRouter);
