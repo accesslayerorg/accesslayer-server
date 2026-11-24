@@ -243,16 +243,27 @@ export async function processTradeEvents(
       // Event `price` is the unit (per-key) bonding-curve price in stroops,
       // consistent with upsertPriceSnapshot below.
       if (event.eventType === 'KEY_BOUGHT') {
-         await recordKeyPurchase(
+         const updatedOwnership = await recordKeyPurchase(
             actor,
             creatorId,
             tradeQty,
             pricePerKeyXlm,
             new Date(tradeAt)
          );
+         const { recordBalanceCheckpoint } = await import(
+            './balance-checkpoint-indexer.service'
+         );
+         await recordBalanceCheckpoint({
+            holder: actor,
+            keyId: creatorId,
+            ledger: Number(ledger),
+            balance: Number(updatedOwnership.balance),
+            timestamp: new Date(tradeAt),
+         });
       } else {
+         let updatedOwnership: { balance: unknown };
          try {
-            await recordKeySale(
+            updatedOwnership = await recordKeySale(
                actor,
                creatorId,
                tradeQty,
@@ -261,12 +272,27 @@ export async function processTradeEvents(
             );
          } catch {
             const balanceChange = -tradeQty;
-            await updateOwnership(actor, creatorId, balanceChange, {
-               event_type: 'sell',
-               ledger_sequence: Number(ledger),
-               occurredAt: new Date(tradeAt),
-            });
+            updatedOwnership = await updateOwnership(
+               actor,
+               creatorId,
+               balanceChange,
+               {
+                  event_type: 'sell',
+                  ledger_sequence: Number(ledger),
+                  occurredAt: new Date(tradeAt),
+               }
+            );
          }
+         const { recordBalanceCheckpoint } = await import(
+            './balance-checkpoint-indexer.service'
+         );
+         await recordBalanceCheckpoint({
+            holder: actor,
+            keyId: creatorId,
+            ledger: Number(ledger),
+            balance: Number(updatedOwnership.balance),
+            timestamp: new Date(tradeAt),
+         });
       }
 
       // 3. Recompute circulating supply first so the price snapshot/history
@@ -517,6 +543,15 @@ export async function processIndexerEvents(
       const { processKeyPollEvents } =
          await import('./key-poll-indexer.service');
       await processKeyPollEvents(keyPollEvents);
+   }
+
+   const {
+      isBalanceChangeEvent,
+      processBalanceChangeEvents,
+   } = await import('./balance-checkpoint-indexer.service');
+   const balanceChangeEvents = events.filter(isBalanceChangeEvent);
+   if (balanceChangeEvents.length > 0) {
+      await processBalanceChangeEvents(balanceChangeEvents);
    }
 
    const { CURVE_UPDATE_EVENT_TYPES, processCurveUpdateEvents } =

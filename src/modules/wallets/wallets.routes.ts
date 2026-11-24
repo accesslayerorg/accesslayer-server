@@ -8,6 +8,10 @@ import {
    httpGetWalletGainsCsv,
 } from "./wallet-gains.controllers";
 import { httpGetWalletReferrals } from "../referrals/referrals.controller";
+import {
+   httpGetWalletBalanceHistory,
+   httpGetWalletPortfolioAsOf,
+} from "./balance-history.controllers";
 import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
@@ -76,5 +80,20 @@ walletsRouter.get('/:address/following', jwtAuth, httpGetWalletFollowing);
  * and pending claim. Public endpoint, no authentication required.
  */
 walletsRouter.get('/:address/referrals', httpGetWalletReferrals);
+
+/**
+ * GET /v1/wallets/:address/balance-history?keyId=&from=&to=
+ *
+ * Returns step points of checkpointed balances between ledgers (#1323).
+ */
+walletsRouter.get('/:address/balance-history', httpGetWalletBalanceHistory);
+
+/**
+ * GET /v1/wallets/:address/portfolio?asOf=<ISO date>
+ *
+ * Returns a wallet's holdings as of an ISO timestamp, including the
+ * resolved ledger and approximation flag (#1323).
+ */
+walletsRouter.get('/:address/portfolio', httpGetWalletPortfolioAsOf);
 
 export default walletsRouter;
