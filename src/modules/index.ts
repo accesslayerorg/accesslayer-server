@@ -21,6 +21,10 @@ import {
 import { screenerRouter, screensRouter } from './screener/screener.routes';
 import pushRouter from './push/push.routes';
 import embeddedWalletRouter from './auth/embedded-wallet.routes';
+import {
+   keyRoadmapRouter,
+   milestoneReactionsRouter,
+} from './roadmap/roadmap.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -275,5 +279,9 @@ router.use('/push', routeBodySizeLimit('default'), pushRouter);
 
 // Embedded wallet signing & export (#1313).
 router.use('/embedded-wallet', routeBodySizeLimit('auth'), embeddedWalletRouter);
+
+// Creator roadmap & holder reactions (#1310).
+router.use('/keys', routeBodySizeLimit('default'), keyRoadmapRouter);
+router.use('/milestones', routeBodySizeLimit('default'), milestoneReactionsRouter);
 
 export default router;
