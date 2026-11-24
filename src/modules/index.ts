@@ -62,6 +62,10 @@ import portfolioRouter from './portfolio/portfolio.routes';
 import referralTierRouter from './referrals/referral-tier.routes';
 import referralRouter from './referrals/referrals.routes';
 import referralEarningsRouter from './referrals/referral-earnings.routes';
+import {
+   ambassadorRouter,
+   referralClickRouter,
+} from './ambassador/ambassador.routes';
 import contractsRouter from './contracts/contract.routes';
 import stakingRouter from './staking/staking.routes';
 import { stakingEpochRouter, keyEpochRouter } from './staking/staking-epoch.routes';
@@ -174,6 +178,8 @@ router.use('/portfolio', routeBodySizeLimit('default'), portfolioRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralTierRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralEarningsRouter);
+router.use('/referrals', routeBodySizeLimit('default'), referralClickRouter);
+router.use('/ambassador', routeBodySizeLimit('default'), ambassadorRouter);
 router.use('/contracts', routeBodySizeLimit('default'), contractsRouter);
 router.use('/watchlist', routeBodySizeLimit('default'), watchlistRouter);
 router.use(
