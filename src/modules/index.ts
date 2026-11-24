@@ -13,6 +13,7 @@ import {
    creatorVerificationAdminRouter,
    creatorVerificationRouter,
 } from './creator-verification/creator-verification.routes';
+import { screenerRouter, screensRouter } from './screener/screener.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -221,5 +222,9 @@ router.use('/me', routeBodySizeLimit('default'), accountRouter);
 
 // User support tickets (#1327).
 router.use('/support', routeBodySizeLimit('default'), supportRouter);
+
+// Key screener & saved screens (#1312).
+router.use('/screener', routeBodySizeLimit('default'), screenerRouter);
+router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 
 export default router;
