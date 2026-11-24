@@ -20,6 +20,7 @@ import {
 } from './creator-verification/creator-verification.routes';
 import { screenerRouter, screensRouter } from './screener/screener.routes';
 import pushRouter from './push/push.routes';
+import embeddedWalletRouter from './auth/embedded-wallet.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -271,5 +272,8 @@ router.use('/screens', routeBodySizeLimit('default'), screensRouter);
 
 // Web push subscriptions & VAPID key (#1314).
 router.use('/push', routeBodySizeLimit('default'), pushRouter);
+
+// Embedded wallet signing & export (#1313).
+router.use('/embedded-wallet', routeBodySizeLimit('auth'), embeddedWalletRouter);
 
 export default router;
