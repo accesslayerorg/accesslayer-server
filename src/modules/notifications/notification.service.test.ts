@@ -41,6 +41,10 @@ jest.mock('../../utils/prisma.utils', () => ({
       circuitBreakerTrip: { findMany: jest.fn() },
       priceAlert: { findMany: jest.fn() },
       vaultHealth: { findMany: jest.fn().mockResolvedValue([]) },
+      collectionFollow: { findMany: jest.fn().mockResolvedValue([]) },
+      collectionItem: { findMany: jest.fn().mockResolvedValue([]) },
+      keyFreeze: { findMany: jest.fn().mockResolvedValue([]) },
+      keyReport: { findMany: jest.fn().mockResolvedValue([]) },
    },
 }));
 
@@ -166,5 +170,45 @@ describe('notification.service', () => {
             maxBps: 3000,
          })
       );
+   });
+   it('derives collection_item_added for keys added after the wallet followed (#1353)', async () => {
+      (prisma.trade.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.keyOwnership.findMany as jest.Mock).mockResolvedValue([]);
+      redisSets.set(REDIS_KEYS.priceMovedSet, new Set());
+      (prisma.collectionFollow.findMany as jest.Mock).mockResolvedValueOnce([
+         { collectionId: 'col-1', createdAt: new Date('2026-08-20T00:00:00.000Z') },
+      ]);
+      (prisma.collectionItem.findMany as jest.Mock).mockResolvedValueOnce([
+         {
+            keyId: 'key-a',
+            note: 'Editor pick',
+            createdAt: new Date('2026-08-26T10:00:00.000Z'),
+            collectionId: 'col-1',
+            collection: { slug: 'stellar-picks', title: 'Stellar picks' },
+         },
+      ]);
+      (prisma.creatorProfile.findMany as jest.Mock).mockResolvedValue([{ id: 'key-a' }]);
+      redisStore.set(
+         REDIS_KEYS.notificationsReadAt(wallet),
+         '2026-08-26T11:00:00.000Z'
+      );
+
+      const items = await listNotifications(wallet, now);
+      const added = items.filter(item => item.type === 'collection_item_added');
+
+      expect(added).toEqual([
+         {
+            id: 'collection_item_added:col-1:key-a',
+            type: 'collection_item_added',
+            createdAt: '2026-08-26T10:00:00.000Z',
+            read: true,
+            payload: {
+               collectionSlug: 'stellar-picks',
+               collectionTitle: 'Stellar picks',
+               keyId: 'key-a',
+               note: 'Editor pick',
+            },
+         },
+      ]);
    });
 });

@@ -26,6 +26,10 @@ import {
    milestoneReactionsRouter,
 } from './roadmap/roadmap.routes';
 import { keyQaRouter, qaRouter } from './qa/qa.routes';
+import {
+   collectionsRouter,
+   followedCollectionsRouter,
+} from './collections/collections.routes';
 import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
 import {
    broadcastCreatorRouter,
@@ -319,6 +323,10 @@ router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
 router.use('/me', routeBodySizeLimit('default'), broadcastMeRouter);
 router.use('/broadcasts', routeBodySizeLimit('default'), broadcastPublicRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), broadcastCreatorRouter);
+
+// Curated collections (#1353).
+router.use('/collections', routeBodySizeLimit('default'), collectionsRouter);
+router.use('/me', routeBodySizeLimit('default'), followedCollectionsRouter);
 
 // Public portfolio profiles (#1355).
 router.use('/me', routeBodySizeLimit('default'), publicProfileMeRouter);

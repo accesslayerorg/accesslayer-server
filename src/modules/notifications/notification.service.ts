@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma.utils';
 import { getRedis } from '../../utils/redis.utils';
 import {
    CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT,
+   COLLECTION_ITEM_NOTIFICATION_LIMIT,
    LOCKUP_WARNING_WINDOW_MS,
    NOTIFICATION_TYPES,
    REDIS_KEYS,
@@ -12,6 +13,7 @@ import {
    markPriceMovedDelivered,
 } from '../keys/price-moved.redis';
 import { NotificationItem } from './notification.types';
+import { listFollowedCollectionItemAdds } from '../collections/collections.service';
 
 async function getLastReadAt(walletAddress: string): Promise<Date | null> {
    const redis = getRedis();
@@ -378,6 +380,29 @@ async function buildVaultHealthWarning(
    );
 }
 
+/** Keys added to followed collections after the wallet followed them (#1353). */
+async function buildCollectionItemAdded(
+   walletAddress: string,
+   lastReadAt: Date | null
+): Promise<NotificationItem[]> {
+   const adds = await listFollowedCollectionItemAdds(
+      walletAddress,
+      COLLECTION_ITEM_NOTIFICATION_LIMIT
+   );
+   return adds.map(add => ({
+      id: `collection_item_added:${add.collectionId}:${add.keyId}`,
+      type: NOTIFICATION_TYPES.COLLECTION_ITEM_ADDED,
+      createdAt: add.createdAt.toISOString(),
+      read: isRead(add.createdAt, lastReadAt),
+      payload: {
+         collectionSlug: add.collection.slug,
+         collectionTitle: add.collection.title,
+         keyId: add.keyId,
+         note: add.note,
+      },
+   }));
+}
+
 export async function listNotifications(
    walletAddress: string,
    now: Date = new Date()
@@ -392,6 +417,7 @@ export async function listNotifications(
       keyDeprecated,
       circuitBreakerTrips,
       vaultHealthWarnings,
+      collectionItemsAdded,
    ] = await Promise.all([
       buildTradeCompleted(walletAddress, lastReadAt),
       buildLockupExpiring(walletAddress, lastReadAt, now),
@@ -400,6 +426,7 @@ export async function listNotifications(
       buildKeyDeprecated(walletAddress, lastReadAt),
       buildCircuitBreakerTripped(walletAddress, lastReadAt),
       buildVaultHealthWarning(walletAddress, lastReadAt),
+      buildCollectionItemAdded(walletAddress, lastReadAt),
    ]);
 
    return [
@@ -410,6 +437,7 @@ export async function listNotifications(
       ...keyDeprecated,
       ...circuitBreakerTrips,
       ...vaultHealthWarnings,
+      ...collectionItemsAdded,
    ].sort(
       (a, b) =>
          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
