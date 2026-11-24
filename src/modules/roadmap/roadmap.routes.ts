@@ -14,6 +14,7 @@ import {
    sendValidationError,
    zodIssuesToDetails,
    ErrorCode,
+   ErrorCodeType,
 } from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
 import {
@@ -66,7 +67,7 @@ function handleRoadmapError(
    context: string
 ): void {
    if (error instanceof RoadmapServiceError) {
-      sendError(res, error.statusCode, error.code as ErrorCode, error.message);
+      sendError(res, error.statusCode, error.code as ErrorCodeType, error.message);
       return;
    }
    logger.error({ error }, context);

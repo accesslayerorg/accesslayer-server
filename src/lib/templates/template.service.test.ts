@@ -1,3 +1,32 @@
+import { TemplateService } from "./template.service";
+
+// French "welcome" omits its subject so the per-field fallback is exercised.
+const service = new TemplateService(
+  {
+    en: {
+      welcome: {
+        subject: "Welcome, {{name}}",
+        title: "Hello {{name}}",
+        body: "Hi {{name}}, your account is ready.",
+      },
+    },
+    es: {
+      welcome: {
+        subject: "Bienvenido, {{name}}",
+        title: "Hola {{name}}",
+        body: "Hola {{name}}, tu cuenta está lista.",
+      },
+    },
+    fr: {
+      welcome: {
+        title: "Bonjour {{name}}",
+        body: "Bonjour {{name}}, votre compte est prêt.",
+      },
+    },
+  },
+  { warn: jest.fn() },
+);
+
 describe("TemplateService", () => {
   it("renders English templates", () => {
     const result = service.render("welcome", "en", {

@@ -159,11 +159,8 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startRetentionWorker();
-<<<<<<< HEAD
       startAccountLifecycleWorker();
-=======
       startPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
@@ -217,11 +214,8 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopRetentionWorker();
-<<<<<<< HEAD
       stopAccountLifecycleWorker();
-=======
       stopPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();

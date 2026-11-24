@@ -34,28 +34,6 @@ function readPositiveInteger(
 }
 
 /**
- * Reads a non-negative integer from an environment variable.
- *
- * Falls back to the default when the variable is missing or invalid.
- */
-function readNonNegativeInteger(
-  envValue: string | undefined,
-  defaultValue: number,
-): number {
-  if (envValue === undefined || envValue.trim() === "") {
-    return defaultValue;
-  }
-
-  const parsed = Number(envValue);
-
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    return defaultValue;
-  }
-
-  return parsed;
-}
-
-/**
  * Number of unique reports required before content is automatically hidden
  * pending moderator review.
  *

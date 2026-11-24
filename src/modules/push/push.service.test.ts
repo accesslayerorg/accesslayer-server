@@ -213,7 +213,7 @@ describe('PushService (#1314)', () => {
          orderId: 'o1',
          wallet: 'GWALLET1',
          keyId: 'k1',
-         side: 'buy',
+         side: 'BUY',
          targetPrice: '10',
          quantity: '5',
          currentPrice: '9',

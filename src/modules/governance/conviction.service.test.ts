@@ -87,7 +87,7 @@ describe('ConvictionService & Indexer (#1306)', () => {
          ]);
          (prisma.governanceProposal.findFirst as jest.Mock).mockResolvedValue(null);
          (prisma.ledgerCheckpoint.findFirst as jest.Mock).mockResolvedValue({
-            ledgerSequence: 103,
+            ledger: 103,
          });
          (prisma.convictionStake.findUnique as jest.Mock).mockResolvedValue({
             wallet: 'GWALLET1',
@@ -142,7 +142,7 @@ describe('ConvictionService & Indexer (#1306)', () => {
             { wallet: 'GOTHER', amount: 500n },
          ]);
          (prisma.ledgerCheckpoint.findFirst as jest.Mock).mockResolvedValue({
-            ledgerSequence: 150,
+            ledger: 150,
          });
          (prisma.convictionStake.findUnique as jest.Mock).mockResolvedValue({
             wallet: 'GWALLET1',

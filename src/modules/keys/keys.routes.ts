@@ -1,7 +1,6 @@
 import { getRoyaltyEnforcement } from '../marketplaces/marketplace.service';
 import { getFeeSchedule, getFeeCurve } from './fee-schedule.service';
 import { getLaunchCapStatus, getLaunchCapRamp } from './launch-cap.service';
-import { prisma } from '../../utils/prisma.utils';
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';

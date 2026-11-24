@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { prisma } from '../../utils/prisma.utils';
-import { cacheGet, cacheSet } from '../../utils/redis.utils';
+import { cacheGet, cacheSetRaw } from '../../utils/redis.utils';
 import { HourlyAggregator } from '../../workers/hourly-aggregator.worker';
 import { activityHeatmapRouter } from './activity-heatmap.routes';
 import {
@@ -24,7 +24,7 @@ jest.mock('../../utils/prisma.utils', () => ({
 
 jest.mock('../../utils/redis.utils', () => ({
    cacheGet: jest.fn().mockResolvedValue(null),
-   cacheSet: jest.fn().mockResolvedValue(undefined),
+   cacheSetRaw: jest.fn().mockResolvedValue(undefined),
 }));
 
 const app = express();
@@ -90,7 +90,7 @@ describe('Trading Activity Heatmap (#1317)', () => {
             trades: 12,
             volume: 600,
          });
-         expect(cacheSet).toHaveBeenCalledWith(
+         expect(cacheSetRaw).toHaveBeenCalledWith(
             'keys:heatmap:key-1:30:America/New_York',
             expect.any(String),
             HEATMAP_CACHE_TTL_SECONDS

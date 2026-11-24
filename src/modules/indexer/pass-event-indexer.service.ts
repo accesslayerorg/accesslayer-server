@@ -125,7 +125,7 @@ async function handleRedeemed(event: IndexerChainEvent): Promise<void> {
             wallet,
             txHash: event.txHash,
             eventIndex: event.eventIndex,
-            ledger: event.ledger,
+            ledger: event.ledger ?? 0,
          },
       });
 

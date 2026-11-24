@@ -5,14 +5,15 @@
 // - Event claims use `ingested_events`, unique on (txHash, eventIndex). A
 //   violation of that constraint means another writer already owns the event.
 
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma as defaultPrisma } from '../../../utils/prisma.utils';
+
+type Db = typeof defaultPrisma;
 import type { BackfillPlan } from './backfill-plan';
 import type { BackfillEvent } from './backfill-source';
 import type { BackfillStore, ShardRecord, ShardStats, ShardStatus } from './backfill-runner';
 
 const UNIQUE_VIOLATION = 'P2002';
-const RECORD_NOT_FOUND = 'P2025';
 
 function optionalString(value: unknown): string | undefined {
    if (value === undefined || value === null) return undefined;
@@ -31,7 +32,7 @@ function isPrismaError(error: unknown, code: string): boolean {
    );
 }
 
-export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): BackfillStore {
+export function createPrismaBackfillStore(db: Db = defaultPrisma): BackfillStore {
    return {
       async ensureShards(plan: BackfillPlan) {
          await db.backfillJob.createMany({
@@ -128,20 +129,18 @@ export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): Bac
       },
 
       async releaseEvent(event: BackfillEvent) {
-         try {
-            await db.ingestedEvent.delete({
-               where: { txHash_eventIndex: { txHash: event.txHash, eventIndex: event.eventIndex } },
-            });
-         } catch (error) {
-            if (!isPrismaError(error, RECORD_NOT_FOUND)) throw error;
-         }
+         // The unique key includes the partition column (createdAt), so match on
+         // the dedup pair directly. A missing row is not an error.
+         await db.ingestedEvent.deleteMany({
+            where: { txHash: event.txHash, eventIndex: event.eventIndex },
+         });
       },
    };
 }
 
 /** Counts confirmed ingested events in a ledger range, for run verification. */
 export function countIngestedEventsInRange(
-   db: PrismaClient = defaultPrisma
+   db: Db = defaultPrisma
 ): (fromLedger: number, toLedger: number) => Promise<number> {
    return (fromLedger, toLedger) =>
       db.ingestedEvent.count({

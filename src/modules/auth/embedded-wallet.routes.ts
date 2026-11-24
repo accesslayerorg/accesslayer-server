@@ -13,6 +13,7 @@ import {
    sendValidationError,
    zodIssuesToDetails,
    ErrorCode,
+   ErrorCodeType,
 } from '../../utils/api-response.utils';
 import {
    signWithEmbeddedWallet,
@@ -43,7 +44,7 @@ function handleEmbeddedWalletError(
    context: string
 ): void {
    if (error instanceof PasskeyServiceError) {
-      sendError(res, error.statusCode, error.code as ErrorCode, error.message);
+      sendError(res, error.statusCode, error.code as ErrorCodeType, error.message);
       return;
    }
    logger.error({ error }, context);

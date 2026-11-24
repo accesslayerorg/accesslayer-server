@@ -44,7 +44,14 @@ export class TemplateService {
       throw new Error("Default template is unavailable.");
     }
 
-    const fallbackUsed = !localized;
+    // Unsupported locales, missing translations and translations missing an
+    // individual field all fall back to English.
+    const unsupportedLocale =
+      locale.toLowerCase().split(/[-_]/)[0] !== requestedLocale;
+    const missingField = (["subject", "title"] as const).some(
+      (field) => english[field] !== undefined && localized?.[field] === undefined,
+    );
+    const fallbackUsed = unsupportedLocale || !localized || missingField;
 
     if (fallbackUsed) {
       // Never log user variables, emails, payroll details, or rendered content.
@@ -55,19 +62,22 @@ export class TemplateService {
       });
     }
 
-    const content = localized ?? english;
-
     return {
       templateId,
       locale: localized ? requestedLocale : DEFAULT_LOCALE,
       requestedLocale,
       fallbackUsed,
-      subject: this.renderField(content.subject, variables),
-      title: this.renderField(content.title, variables),
-      body: this.renderField(content.body, variables),
+      subject: this.renderField(localized?.subject ?? english.subject, variables),
+      title: this.renderField(localized?.title ?? english.title, variables),
+      body: this.renderField(localized?.body ?? english.body, variables),
     };
   }
 
+  private renderField(template: string, variables: TemplateVariables): string;
+  private renderField(
+    template: string | undefined,
+    variables: TemplateVariables,
+  ): string | undefined;
   private renderField(
     template: string | undefined,
     variables: TemplateVariables,
