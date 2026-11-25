@@ -1,0 +1,4544 @@
+{
+  "schemaVersion": 1,
+  "repository": "accesslayerorg/accesslayer-contracts",
+  "contracts": {
+    "access-control": {
+      "versions": [
+        {
+          "version": "src-6fb556920cd6f6ce",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "AccessControlError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AccessControlError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AccessControlError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "auto-invest-registry": {
+      "versions": [
+        {
+          "version": "src-f999da310d213f77",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "AutoInvestError",
+              "name": "NotFound",
+              "code": 1,
+              "message": "The specified rule ID was not found.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "MinRatingOutOfRange",
+              "code": 2,
+              "message": "Minimum rating must be between 100 and 500 (scaled by 100, e.g. 450 = 4.50).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "MaxPriceInvalid",
+              "code": 3,
+              "message": "Maximum purchase price must be strictly greater than zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "MaxPerKeyZero",
+              "code": 4,
+              "message": "Maximum keys per key ID must be strictly greater than zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "Deactivated",
+              "code": 5,
+              "message": "Cannot update a deactivated rule.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "AlreadyInactive",
+              "code": 6,
+              "message": "Rule has already been deactivated.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "TooManyRules",
+              "code": 7,
+              "message": "Wallet has reached the maximum allowed registered rules (50).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AutoInvestError",
+              "name": "ArithmeticOverflow",
+              "code": 8,
+              "message": "Arithmetic overflow while incrementing rule counter.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "badge-contract": {
+      "versions": [
+        {
+          "version": "src-3e95d148b82f1f5c",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "BadgeError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "BadgeAlreadyEarned",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "ContractAlreadyAuthorized",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "ContractNotAuthorized",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BadgeError",
+              "name": "NoAuthorisedContract",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "circuit-breaker": {
+      "versions": [
+        {
+          "version": "src-968774b83945c438",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "CircuitBreakerError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerError",
+              "name": "InvalidThreshold",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerError",
+              "name": "CircuitBreakerActive",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "common": {
+      "versions": [
+        {
+          "version": "src-f018570a41bddc1a",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "Error",
+              "name": "Reentrant",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "creator-keys": {
+      "versions": [
+        {
+          "version": "src-d0264b53850fc1f2",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "AllowanceError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow while decrementing a balance or allowance.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ZeroAmount",
+              "code": 2,
+              "message": "The requested transfer amount was zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "SelfTransfer",
+              "code": 3,
+              "message": "The spender attempted to transfer to itself.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "InsufficientBalance",
+              "code": 4,
+              "message": "The owner's live (non-frozen) key balance is smaller than the amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "InsufficientAllowance",
+              "code": 5,
+              "message": "The spender's approved allowance is smaller than the amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "NotRegistered",
+              "code": 6,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ProtocolPaused",
+              "code": 7,
+              "message": "The contract is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "FrozenPosition",
+              "code": 8,
+              "message": "The sender's keys are frozen and cannot be transferred.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "HoldingCapExceeded",
+              "code": 9,
+              "message": "The recipient would exceed the creator's per-wallet holding cap.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ZeroAddress",
+              "code": 10,
+              "message": "The spender address was the zero address.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "CooldownActive",
+              "code": 11,
+              "message": "The sender is still inside the creator's post-buy cooldown window.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "KeyFrozen",
+              "code": 12,
+              "message": "The key is frozen, so the transfer is rejected.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "CallbackInProgress",
+              "code": 13,
+              "message": "A receiver callback is in progress, so a nested transfer is rejected.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "BelowMinimumBond",
+              "code": 2,
+              "message": "The bond amount is below the configured minimum.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "BondNotFound",
+              "code": 3,
+              "message": "No bond has been staked for this creator.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "Unauthorized",
+              "code": 4,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "Overflow",
+              "code": 5,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotPositiveAmount",
+              "code": 6,
+              "message": "The bond amount is not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TokenNotConfigured",
+              "code": 7,
+              "message": "No XLM Stellar Asset Contract has been configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TokenAlreadyConfigured",
+              "code": 8,
+              "message": "The XLM token address can only be configured once.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "AlreadyDeposited",
+              "code": 9,
+              "message": "The creator has already deposited a bond.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "InvalidSlashBps",
+              "code": 10,
+              "message": "The slash basis points are outside `1..=10_000`.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotDeprecated",
+              "code": 11,
+              "message": "The key has not completed deprecation.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TreasuryNotConfigured",
+              "code": 12,
+              "message": "No treasury address has been configured for slashed XLM.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "AlreadyTrading",
+              "code": 13,
+              "message": "A key has already traded and can no longer make its initial bond deposit.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BelowPriceFloor",
+              "code": 2,
+              "message": "The discounted price is below the minimum price floor.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BundleExpired",
+              "code": 3,
+              "message": "The bundle has expired.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BundleNotFound",
+              "code": 4,
+              "message": "The bundle was not found.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "EmptyBundle",
+              "code": 5,
+              "message": "The bundle entry list is empty.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "InsufficientBalance",
+              "code": 6,
+              "message": "The buyer has insufficient balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "Overflow",
+              "code": 7,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "Unauthorized",
+              "code": 8,
+              "message": "The caller is not the bundle creator.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "ProtocolPaused",
+              "code": 9,
+              "message": "The protocol is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "InvalidThreshold",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "CircuitBreakerActive",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownActive",
+              "code": 1,
+              "message": "The buyer's last purchase was too recent; the per-key cooldown period has not yet elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownTooLong",
+              "code": 2,
+              "message": "The requested cooldown exceeds the maximum of 720 ledgers (~1 hour).",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "NotRegistered",
+              "code": 3,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownViolation",
+              "code": 4,
+              "message": "A trade (buy or sell) was blocked because the per-wallet trade cooldown window has not yet elapsed since the last trade. The number of seconds remaining is emitted in the accompanying `CooldownViolationEvent`.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "DurationTooLong",
+              "code": 5,
+              "message": "The requested cooldown duration exceeds the allowed maximum of [`MAX_TRADE_COOLDOWN_SECS`].",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "InvalidMilestoneCount",
+              "code": 1,
+              "message": "Milestones vector is empty or exceeds the maximum of 5.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "ThresholdNotAscending",
+              "code": 2,
+              "message": "Supply thresholds must be strictly ascending.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "InvalidExponent",
+              "code": 3,
+              "message": "Exponent must be in the range 1..=5.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "NotRegistered",
+              "code": 4,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "Overflow",
+              "code": 5,
+              "message": "Arithmetic overflow occurred during curve calculation.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The admin set is unset or a signer is not a member of it.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "InsufficientSigners",
+              "code": 2,
+              "message": "Fewer than the required number of distinct signers were supplied.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "DuplicateSigner",
+              "code": 3,
+              "message": "The same signer appeared more than once.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "AlreadyPaused",
+              "code": 4,
+              "message": "`pause_platform` was called while the platform is already paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "NotPaused",
+              "code": 5,
+              "message": "A resume action was attempted while the platform is not paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "ResumeAlreadyQueued",
+              "code": 6,
+              "message": "A resume is already queued.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "ResumeNotQueued",
+              "code": 7,
+              "message": "`resume_platform` was called without a queued resume.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "TimelockNotElapsed",
+              "code": 8,
+              "message": "`resume_platform` was called before the 24h timelock elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "Overflow",
+              "code": 9,
+              "message": "Arithmetic overflow while computing the resume timestamp.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "PollNotFound",
+              "code": 2,
+              "message": "The poll does not exist for the creator.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "AlreadyClosed",
+              "code": 3,
+              "message": "The poll has already been closed.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow while extending a deadline.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "TooEarlyToEscalate",
+              "code": 5,
+              "message": "The proposal is not close enough to its deadline to be evaluated.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "BelowEscalationThreshold",
+              "code": 6,
+              "message": "Participation is not within the escalation threshold of quorum.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "MaxExtensionsReached",
+              "code": 7,
+              "message": "The proposal already consumed its maximum number of extensions.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "EscalationDisabled",
+              "code": 8,
+              "message": "Quorum escalation is disabled because no config is set.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "InvalidEscalationConfig",
+              "code": 9,
+              "message": "The supplied escalation configuration is invalid.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "NotRegistered",
+              "code": 10,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The `caller` is not the `creator` owning the key.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NoCoCreatorSet",
+              "code": 2,
+              "message": "`remove_co_creator` was called but no co-creator is configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NotRegistered",
+              "code": 3,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "AuctionAlreadyStarted",
+              "code": 4,
+              "message": "An auction is already in progress (supply > 0) and cannot be configured or cancelled.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NotPositiveAmount",
+              "code": 5,
+              "message": "A price or quantity was zero when a positive value was required.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "InvalidAuctionConfig",
+              "code": 6,
+              "message": "The auction supply was outside the valid range (1..=10_000).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NoAuctionConfigured",
+              "code": 7,
+              "message": "`cancel_auction` or `buy_key` (auction path) but no auction is configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "AlreadyConfigured",
+              "code": 8,
+              "message": "A one-time key configuration has already been stored.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "InvalidCurveMilestones",
+              "code": 9,
+              "message": "Supply slope tiers are empty, too numerous, unsorted, or negative.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "NotPositiveAmount",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionNotFound",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "NoRewardsPending",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ZeroLiquidityPool",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionAlreadyClosed",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "RateOutOfBounds",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "NotRegistered",
+              "code": 20,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "Overflow",
+              "code": 21,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "InvalidOptionCount",
+              "code": 22,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuestionTooLong",
+              "code": 23,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "OptionTooLong",
+              "code": 24,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "PollNotFound",
+              "code": 25,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "PollExpired",
+              "code": 26,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "NotAHolder",
+              "code": 27,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "InvalidOption",
+              "code": 28,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumNotReached",
+              "code": 29,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumTooHigh",
+              "code": 30,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumTooLow",
+              "code": 31,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "Unauthorized",
+              "code": 32,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "AlreadyClosed",
+              "code": 33,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "InvalidInterface",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "ContractPaused",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "NoPendingUpgrade",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "TimelockActive",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "InvalidScore",
+              "code": 2,
+              "message": "The score is outside the accepted range (1–5).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotAHolder",
+              "code": 3,
+              "message": "The rater holds zero keys for this creator.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow while accumulating a reputation delta.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "NotRegistered",
+              "code": 2,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "NotPositiveAmount",
+              "code": 4,
+              "message": "The supplied violation penalty is not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotRescuable",
+              "code": 2,
+              "message": "The requested amount exceeds the token's untracked surplus.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotPositiveAmount",
+              "code": 3,
+              "message": "The amount or threshold was not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow or underflow in the tracked-balance ledger.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TimelockRequired",
+              "code": 5,
+              "message": "The amount is above the timelock threshold and no matching rescue is queued.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TimelockNotElapsed",
+              "code": 6,
+              "message": "A matching rescue is queued but its timelock delay has not elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "AlreadyQueued",
+              "code": 7,
+              "message": "A matching rescue is already queued.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotQueued",
+              "code": 8,
+              "message": "No matching rescue is queued.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TrackedBalanceViolated",
+              "code": 9,
+              "message": "The transfer would have left the contract holding less than its tracked balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the creator owning the key.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "NotRegistered",
+              "code": 2,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "TaxExceedsMax",
+              "code": 3,
+              "message": "The requested tax exceeds the protocol ceiling (`MAX_SELL_TAX_BPS`).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow while accruing the tax into the buyback pool.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "NotPositiveAmount",
+              "code": 2,
+              "message": "The requested amount (or lock period) was zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "InsufficientBalance",
+              "code": 3,
+              "message": "The holder's liquid (non-staked) balance is smaller than the staked amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionNotFound",
+              "code": 4,
+              "message": "No staking position exists for the given `(creator, holder, stake_id)`.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionNotLocked",
+              "code": 5,
+              "message": "The position is no longer locked, so `early_unstake` cannot be used.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionLocked",
+              "code": 6,
+              "message": "The position is still locked, so `claim_stake_reward` cannot be used yet.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "NotRegistered",
+              "code": 7,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "ProtocolPaused",
+              "code": 8,
+              "message": "The contract is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "InsufficientBalance",
+              "code": 2,
+              "message": "One side has insufficient liquid balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "FrozenPosition",
+              "code": 3,
+              "message": "One wallet's position is frozen.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow in fee calculation.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "ProtocolPaused",
+              "code": 5,
+              "message": "The protocol is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "ZeroAmount",
+              "code": 6,
+              "message": "Swap amount is zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "TradeLimitExceeded",
+              "code": 1,
+              "message": "The swap amount exceeded the configured per-key buy or sell limit.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "LimitTooHigh",
+              "code": 2,
+              "message": "The requested trade limit is above the allowed ceiling ([`MAX_TRADE_LIMIT`]).",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        },
+        {
+          "version": "src-b13e6355d0d8aed6",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "AllowanceError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow while decrementing a balance or allowance.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ZeroAmount",
+              "code": 2,
+              "message": "The requested transfer amount was zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "SelfTransfer",
+              "code": 3,
+              "message": "The spender attempted to transfer to itself.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "InsufficientBalance",
+              "code": 4,
+              "message": "The owner's live (non-frozen) key balance is smaller than the amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "InsufficientAllowance",
+              "code": 5,
+              "message": "The spender's approved allowance is smaller than the amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "NotRegistered",
+              "code": 6,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ProtocolPaused",
+              "code": 7,
+              "message": "The contract is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "FrozenPosition",
+              "code": 8,
+              "message": "The sender's keys are frozen and cannot be transferred.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "HoldingCapExceeded",
+              "code": 9,
+              "message": "The recipient would exceed the creator's per-wallet holding cap.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "ZeroAddress",
+              "code": 10,
+              "message": "The spender address was the zero address.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "CooldownActive",
+              "code": 11,
+              "message": "The sender is still inside the creator's post-buy cooldown window.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "KeyFrozen",
+              "code": 12,
+              "message": "The key is frozen, so the transfer is rejected.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AllowanceError",
+              "name": "CallbackInProgress",
+              "code": 13,
+              "message": "A receiver callback is in progress, so a nested transfer is rejected.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "BelowMinimumBond",
+              "code": 2,
+              "message": "The bond amount is below the configured minimum.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "BondNotFound",
+              "code": 3,
+              "message": "No bond has been staked for this creator.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "Unauthorized",
+              "code": 4,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "Overflow",
+              "code": 5,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotPositiveAmount",
+              "code": 6,
+              "message": "The bond amount is not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TokenNotConfigured",
+              "code": 7,
+              "message": "No XLM Stellar Asset Contract has been configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TokenAlreadyConfigured",
+              "code": 8,
+              "message": "The XLM token address can only be configured once.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "AlreadyDeposited",
+              "code": 9,
+              "message": "The creator has already deposited a bond.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "InvalidSlashBps",
+              "code": 10,
+              "message": "The slash basis points are outside `1..=10_000`.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "NotDeprecated",
+              "code": 11,
+              "message": "The key has not completed deprecation.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "TreasuryNotConfigured",
+              "code": 12,
+              "message": "No treasury address has been configured for slashed XLM.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BondError",
+              "name": "AlreadyTrading",
+              "code": 13,
+              "message": "A key has already traded and can no longer make its initial bond deposit.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BelowPriceFloor",
+              "code": 2,
+              "message": "The discounted price is below the minimum price floor.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BundleExpired",
+              "code": 3,
+              "message": "The bundle has expired.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "BundleNotFound",
+              "code": 4,
+              "message": "The bundle was not found.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "EmptyBundle",
+              "code": 5,
+              "message": "The bundle entry list is empty.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "InsufficientBalance",
+              "code": 6,
+              "message": "The buyer has insufficient balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "Overflow",
+              "code": 7,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "Unauthorized",
+              "code": 8,
+              "message": "The caller is not the bundle creator.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "BundleError",
+              "name": "ProtocolPaused",
+              "code": 9,
+              "message": "The protocol is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "InvalidThreshold",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "CircuitBreakerActive",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CircuitBreakerRemoteError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownActive",
+              "code": 1,
+              "message": "The buyer's last purchase was too recent; the per-key cooldown period has not yet elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownTooLong",
+              "code": 2,
+              "message": "The requested cooldown exceeds the maximum of 720 ledgers (~1 hour).",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "NotRegistered",
+              "code": 3,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "CooldownViolation",
+              "code": 4,
+              "message": "A trade (buy or sell) was blocked because the per-wallet trade cooldown window has not yet elapsed since the last trade. The number of seconds remaining is emitted in the accompanying `CooldownViolationEvent`.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CooldownError",
+              "name": "DurationTooLong",
+              "code": 5,
+              "message": "The requested cooldown duration exceeds the allowed maximum of [`MAX_TRADE_COOLDOWN_SECS`].",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "InvalidMilestoneCount",
+              "code": 1,
+              "message": "Milestones vector is empty or exceeds the maximum of 5.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "ThresholdNotAscending",
+              "code": 2,
+              "message": "Supply thresholds must be strictly ascending.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "InvalidExponent",
+              "code": 3,
+              "message": "Exponent must be in the range 1..=5.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "NotRegistered",
+              "code": 4,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "Overflow",
+              "code": 5,
+              "message": "Arithmetic overflow occurred during curve calculation.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CurveConfigError",
+              "name": "CurveAlreadyActive",
+              "code": 6,
+              "message": "The curve is already in use: keys have been sold, so the configuration can no longer change and would reprice existing holdings.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The admin set is unset or a signer is not a member of it.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "InsufficientSigners",
+              "code": 2,
+              "message": "Fewer than the required number of distinct signers were supplied.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "DuplicateSigner",
+              "code": 3,
+              "message": "The same signer appeared more than once.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "AlreadyPaused",
+              "code": 4,
+              "message": "`pause_platform` was called while the platform is already paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "NotPaused",
+              "code": 5,
+              "message": "A resume action was attempted while the platform is not paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "ResumeAlreadyQueued",
+              "code": 6,
+              "message": "A resume is already queued.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "ResumeNotQueued",
+              "code": 7,
+              "message": "`resume_platform` was called without a queued resume.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "TimelockNotElapsed",
+              "code": 8,
+              "message": "`resume_platform` was called before the 24h timelock elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EmergencyPauseError",
+              "name": "Overflow",
+              "code": 9,
+              "message": "Arithmetic overflow while computing the resume timestamp.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "PollNotFound",
+              "code": 2,
+              "message": "The poll does not exist for the creator.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "AlreadyClosed",
+              "code": 3,
+              "message": "The poll has already been closed.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow while extending a deadline.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "TooEarlyToEscalate",
+              "code": 5,
+              "message": "The proposal is not close enough to its deadline to be evaluated.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "BelowEscalationThreshold",
+              "code": 6,
+              "message": "Participation is not within the escalation threshold of quorum.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "MaxExtensionsReached",
+              "code": 7,
+              "message": "The proposal already consumed its maximum number of extensions.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "EscalationDisabled",
+              "code": 8,
+              "message": "Quorum escalation is disabled because no config is set.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "InvalidEscalationConfig",
+              "code": 9,
+              "message": "The supplied escalation configuration is invalid.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "EscalationError",
+              "name": "NotRegistered",
+              "code": 10,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The `caller` is not the `creator` owning the key.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NoCoCreatorSet",
+              "code": 2,
+              "message": "`remove_co_creator` was called but no co-creator is configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NotRegistered",
+              "code": 3,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "AuctionAlreadyStarted",
+              "code": 4,
+              "message": "An auction is already in progress (supply > 0) and cannot be configured or cancelled.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NotPositiveAmount",
+              "code": 5,
+              "message": "A price or quantity was zero when a positive value was required.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "InvalidAuctionConfig",
+              "code": 6,
+              "message": "The auction supply was outside the valid range (1..=10_000).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "NoAuctionConfigured",
+              "code": 7,
+              "message": "`cancel_auction` or `buy_key` (auction path) but no auction is configured.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "AlreadyConfigured",
+              "code": 8,
+              "message": "A one-time key configuration has already been stored.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeatureError",
+              "name": "InvalidCurveMilestones",
+              "code": 9,
+              "message": "Supply slope tiers are empty, too numerous, unsorted, or negative.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "NotPositiveAmount",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionNotFound",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "NoRewardsPending",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ZeroLiquidityPool",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionAlreadyClosed",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "RateOutOfBounds",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "NotRegistered",
+              "code": 20,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "Overflow",
+              "code": 21,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "InvalidOptionCount",
+              "code": 22,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuestionTooLong",
+              "code": 23,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "OptionTooLong",
+              "code": 24,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "PollNotFound",
+              "code": 25,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "PollExpired",
+              "code": 26,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "NotAHolder",
+              "code": 27,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "InvalidOption",
+              "code": 28,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumNotReached",
+              "code": 29,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumTooHigh",
+              "code": 30,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "QuorumTooLow",
+              "code": 31,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "Unauthorized",
+              "code": 32,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PollError",
+              "name": "AlreadyClosed",
+              "code": 33,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "InvalidInterface",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "ContractPaused",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "NoPendingUpgrade",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ProxyError",
+              "name": "TimelockActive",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "InvalidScore",
+              "code": 2,
+              "message": "The score is outside the accepted range (1–5).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotAHolder",
+              "code": 3,
+              "message": "The rater holds zero keys for this creator.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow while accumulating a reputation delta.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "NotRegistered",
+              "code": 2,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReputationError",
+              "name": "NotPositiveAmount",
+              "code": 4,
+              "message": "The supplied violation penalty is not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotRescuable",
+              "code": 2,
+              "message": "The requested amount exceeds the token's untracked surplus.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotPositiveAmount",
+              "code": 3,
+              "message": "The amount or threshold was not positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow or underflow in the tracked-balance ledger.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TimelockRequired",
+              "code": 5,
+              "message": "The amount is above the timelock threshold and no matching rescue is queued.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TimelockNotElapsed",
+              "code": 6,
+              "message": "A matching rescue is queued but its timelock delay has not elapsed.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "AlreadyQueued",
+              "code": 7,
+              "message": "A matching rescue is already queued.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "NotQueued",
+              "code": 8,
+              "message": "No matching rescue is queued.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RescueError",
+              "name": "TrackedBalanceViolated",
+              "code": 9,
+              "message": "The transfer would have left the contract holding less than its tracked balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "Unauthorized",
+              "code": 1,
+              "message": "The caller is not the creator owning the key.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "NotRegistered",
+              "code": 2,
+              "message": "The creator address is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "TaxExceedsMax",
+              "code": 3,
+              "message": "The requested tax exceeds the protocol ceiling (`MAX_SELL_TAX_BPS`).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SellTaxError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow while accruing the tax into the buyback pool.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "Overflow",
+              "code": 1,
+              "message": "Arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "NotPositiveAmount",
+              "code": 2,
+              "message": "The requested amount (or lock period) was zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "InsufficientBalance",
+              "code": 3,
+              "message": "The holder's liquid (non-staked) balance is smaller than the staked amount.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionNotFound",
+              "code": 4,
+              "message": "No staking position exists for the given `(creator, holder, stake_id)`.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionNotLocked",
+              "code": 5,
+              "message": "The position is no longer locked, so `early_unstake` cannot be used.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "PositionLocked",
+              "code": 6,
+              "message": "The position is still locked, so `claim_stake_reward` cannot be used yet.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "NotRegistered",
+              "code": 7,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "StakingError",
+              "name": "ProtocolPaused",
+              "code": 8,
+              "message": "The contract is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The key has not been registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "InvalidFee",
+              "code": 2,
+              "message": "The per-period fee is negative.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "InvalidPeriod",
+              "code": 3,
+              "message": "The period length is zero seconds.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "TierAlreadyExists",
+              "code": 4,
+              "message": "A tier already exists for this `(key_id, tier_id)`.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "TierNotFound",
+              "code": 5,
+              "message": "No tier is configured for this `(key_id, tier_id)`.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SubscriptionTierError",
+              "name": "Overflow",
+              "code": 6,
+              "message": "Arithmetic overflow while storing or extending an expiry.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "NotRegistered",
+              "code": 1,
+              "message": "The creator is not registered.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "InsufficientBalance",
+              "code": 2,
+              "message": "One side has insufficient liquid balance.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "FrozenPosition",
+              "code": 3,
+              "message": "One wallet's position is frozen.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "Overflow",
+              "code": 4,
+              "message": "Arithmetic overflow in fee calculation.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "ProtocolPaused",
+              "code": 5,
+              "message": "The protocol is paused.",
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SwapError",
+              "name": "ZeroAmount",
+              "code": 6,
+              "message": "Swap amount is zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "TradeLimitExceeded",
+              "code": 1,
+              "message": "The swap amount exceeded the configured per-key buy or sell limit.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "LimitTooHigh",
+              "code": 2,
+              "message": "The requested trade limit is above the allowed ceiling ([`MAX_TRADE_LIMIT`]).",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TradeLimitError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": "The caller is not the protocol admin.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "creator-keys-factory": {
+      "versions": [
+        {
+          "version": "src-5626a6403bb59616",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "FactoryError",
+              "name": "AlreadyInitialised",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FactoryError",
+              "name": "NotInitialised",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FactoryError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FactoryError",
+              "name": "InvalidConfig",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FactoryError",
+              "name": "InitialisationFailed",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "dividend-contract": {
+      "versions": [
+        {
+          "version": "src-2229d7b9d32d8ec6",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "DividendError",
+              "name": "NotInitialized",
+              "code": 1,
+              "message": "`initialize` was never called, or the snapshot id does not exist.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "AlreadyInitialized",
+              "code": 2,
+              "message": "`initialize` was called a second time.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": "The caller is not the creator owning the key (or not the snapshot's creator).",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "NotPositiveAmount",
+              "code": 4,
+              "message": "A supplied amount was zero or negative where a positive value is required.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "SnapshotNotFound",
+              "code": 5,
+              "message": "No snapshot with that id exists.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "AlreadyClaimed",
+              "code": 6,
+              "message": "The holder already claimed this snapshot; each snapshot is claimable once.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "NothingToClaim",
+              "code": 7,
+              "message": "The caller has nothing to claim from the snapshot (zero balance, no funding, or not part of the snapshot).",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "NoKeyHolders",
+              "code": 8,
+              "message": "The key has no recorded holders, so a snapshot would be empty.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "HolderLimitExceeded",
+              "code": 9,
+              "message": "The key's holder registry is larger than [`MAX_SNAPSHOT_HOLDERS`].",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DividendError",
+              "name": "Overflow",
+              "code": 10,
+              "message": "Arithmetic overflow while accumulating balances or amounts.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "key-analytics": {
+      "versions": [
+        {
+          "version": "src-678dd89a67ec37ad",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "SnapshotExists",
+              "code": 1,
+              "message": "A snapshot for this key and date already exists.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "SnapshotNotFound",
+              "code": 2,
+              "message": "No snapshot was found for this key and date.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "InvalidRange",
+              "code": 3,
+              "message": "`from_date` is strictly greater than `to_date`.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "RangeTooLarge",
+              "code": 4,
+              "message": "Requested date range span exceeds [`MAX_SNAPSHOT_RANGE_DAYS`].",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "AlreadyInitialized",
+              "code": 5,
+              "message": "Contract is already initialized.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "NotInitialized",
+              "code": 6,
+              "message": "Contract has not been initialized with the creator-keys address.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "MetricFetchFailed",
+              "code": 7,
+              "message": "Cross-contract metric fetch failed or metric source returned an error.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AnalyticsSnapshotError",
+              "name": "ArithmeticOverflow",
+              "code": 8,
+              "message": "Arithmetic overflow occurred while computing market capitalization.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "key-discovery-registry": {
+      "versions": [
+        {
+          "version": "src-0d0aba506d6cacb0",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "DiscoveryError",
+              "name": "AlreadyInitialised",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "NotInitialised",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "AlreadyRegistered",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "KeyNotRegistered",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "NotPositiveAmount",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiscoveryError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "key-health-score": {
+      "versions": [
+        {
+          "version": "src-62df9268668b2dc0",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "HealthScoreError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "HealthScoreError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "HealthScoreError",
+              "name": "InvalidWeights",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "HealthScoreError",
+              "name": "InsufficientHealth",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "HealthScoreError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "key-liquidity-depth": {
+      "versions": [
+        {
+          "version": "src-5c52f8f310116cd6",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "LiquidityDepthError",
+              "name": "InvalidPrice",
+              "code": 1,
+              "message": "Price must be strictly positive (> 0).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LiquidityDepthError",
+              "name": "InvalidAmount",
+              "code": 2,
+              "message": "Amount must be strictly positive (> 0).",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LiquidityDepthError",
+              "name": "PriceLevelNotFound",
+              "code": 3,
+              "message": "Price level was not found when attempting to cancel depth.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LiquidityDepthError",
+              "name": "InsufficientDepth",
+              "code": 4,
+              "message": "Cancellation amount exceeds the available depth volume at the price level.",
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LiquidityDepthError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": "Arithmetic overflow in volume calculation.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "key-staking-contract": {
+      "versions": [
+        {
+          "version": "src-ca2b910793af5228",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "KeyStakingError",
+              "name": "NotPositiveAmount",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "InvalidEpochs",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "StakeNotFound",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochNotComplete",
+              "code": 4,
+              "message": "The stake's lock period (or the epoch being distributed) has not ended.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "StakeAlreadyClosed",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "AlreadyInitialized",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "NotInitialized",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochEnded",
+              "code": 8,
+              "message": "The epoch being funded has already ended.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochAlreadyDistributed",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "InvalidEpochDuration",
+              "code": 11,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            }
+          ]
+        },
+        {
+          "version": "src-8c37e1322524dc70",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "KeyStakingError",
+              "name": "NotPositiveAmount",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "InvalidEpochs",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "StakeNotFound",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochNotComplete",
+              "code": 4,
+              "message": "The stake's lock period (or the epoch being distributed) has not ended.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "StakeAlreadyClosed",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "AlreadyInitialized",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "NotInitialized",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochEnded",
+              "code": 8,
+              "message": "The epoch being funded has already ended.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "EpochAlreadyDistributed",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "InvalidEpochDuration",
+              "code": 11,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "KeyStakingError",
+              "name": "UnbondingNotReady",
+              "code": 12,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "launch-auction": {
+      "versions": [
+        {
+          "version": "src-24a4d3dec3171a59",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "AuctionError",
+              "name": "BelowMinimum",
+              "code": 1,
+              "message": "Bid amount is below the auction's minimum required bid.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "AuctionNotFound",
+              "code": 2,
+              "message": "Specified auction was not found.",
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "AuctionExpired",
+              "code": 3,
+              "message": "Auction has closed and no longer accepts bids.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "AuctionNotClosed",
+              "code": 4,
+              "message": "Auction duration has not ended; cannot settle before close.",
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "AlreadySettled",
+              "code": 5,
+              "message": "Auction has already been settled.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "Unauthorized",
+              "code": 6,
+              "message": "Caller is not authorized to perform this operation.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "InvalidSupply",
+              "code": 7,
+              "message": "Supply must be strictly greater than zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "InvalidDuration",
+              "code": 8,
+              "message": "Auction duration must be strictly greater than zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "AuctionError",
+              "name": "InvalidMinBid",
+              "code": 9,
+              "message": "Minimum bid must be strictly greater than zero.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "leaderboard-contract": {
+      "versions": [
+        {
+          "version": "src-4c31dfc5d982de8c",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "Error",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "Error",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "Error",
+              "name": "InvalidLimit",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "Error",
+              "name": "InvalidScore",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "lp-reward-contract": {
+      "versions": [
+        {
+          "version": "src-d9ebb0190015f296",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "LpRewardError",
+              "name": "NotPositiveAmount",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionNotFound",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "NoRewardsPending",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ZeroLiquidityPool",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "PositionAlreadyClosed",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "LpRewardError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "multisig-admin": {
+      "versions": [
+        {
+          "version": "src-7bf09d863cc698a7",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "MultisigError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "InvalidSignerSet",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "ProposalNotFound",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "AlreadyVoted",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "ProposalRejected",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "ThresholdNotReached",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "AlreadyExecuted",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "InvalidAction",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "TimelockActive",
+              "code": 11,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "MultisigError",
+              "name": "NoPendingUpdate",
+              "code": 12,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "nonce-registry": {
+      "versions": [
+        {
+          "version": "src-1f6ade84222a5bca",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "NonceRegistryError",
+              "name": "NonceAlreadyUsed",
+              "code": 1,
+              "message": "The nonce has already been consumed for this wallet.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "personhood-hook": {
+      "versions": [
+        {
+          "version": "src-5391da0bbea69a88",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "PersonhoodError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "InvalidAttestation",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "WalletAlreadyLinked",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "MaxWalletsReached",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "CooldownActive",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "UnverifiedWallet",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "CapExceeded",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "AttestationExpired",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "PersonhoodError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "protocol-fee-contract": {
+      "versions": [
+        {
+          "version": "src-39a23a068589fce4",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "FeeError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeeError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeeError",
+              "name": "InvalidSplit",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeeError",
+              "name": "InvalidAmount",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "FeeError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "rating-contract": {
+      "versions": [
+        {
+          "version": "src-4d958101226d11d8",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "RatingError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "InvalidScore",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotAHolder",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "AlreadyRated",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "NotRated",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "RatingError",
+              "name": "ArithmeticOverflow",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "referral-contract": {
+      "versions": [
+        {
+          "version": "src-b6f2f4f649f40df7",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "ContractError",
+              "name": "AlreadyInitialised",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidRate",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidThreshold",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NotPositiveAmount",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "ArithmeticOverflow",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NoRewardsPending",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "SelfReferral",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "ReferralAlreadyRegistered",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidFeeAmount",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "reserve-contract": {
+      "versions": [
+        {
+          "version": "src-a3b1320da4634408",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "ReserveError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReserveError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReserveError",
+              "name": "NotPositiveAmount",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReserveError",
+              "name": "ArithmeticOverflow",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReserveError",
+              "name": "InsufficientReserve",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ReserveError",
+              "name": "ExceedsDeploymentCap",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "seasonal-rewards": {
+      "versions": [
+        {
+          "version": "src-30e1a4d62286baa7",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "SeasonalError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "CampaignNotFound",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "InvalidTimeWindow",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "CampaignActive",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "NotQualified",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "AlreadyClaimed",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "InvalidCriteria",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SeasonalError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "session-nonce": {
+      "versions": [
+        {
+          "version": "src-6c4e26f42bb91eec",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "SessionNonceError",
+              "name": "NonceAlreadyUsed",
+              "code": 1,
+              "message": "The supplied nonce is not the wallet's current nonce: it was already consumed (replay) or is ahead of the counter (out of order).",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "SessionNonceError",
+              "name": "NonceOverflow",
+              "code": 2,
+              "message": "The wallet's nonce counter cannot be incremented further.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "storage-cleanup": {
+      "versions": [
+        {
+          "version": "src-bbf55e93f55c56e8",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "CleanupError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "RecordActive",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "RecordNotFound",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "InsufficientFund",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Add the missing balance or reduce the amount, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "ReferencedBySnapshot",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "ReferencedByClaim",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "CleanupError",
+              "name": "ArithmeticOverflow",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "subscription-contract": {
+      "versions": [
+        {
+          "version": "src-5276278a7fae234f",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "ContractError",
+              "name": "NotPositiveDuration",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "SubscriptionNotFound",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "ArithmeticOverflow",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "timelock": {
+      "versions": [
+        {
+          "version": "src-a33edec09e782359",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "TimelockError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "MinDelayNotMet",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "TimeRemaining",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "ActionNotFound",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TimelockError",
+              "name": "InvalidDelay",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "treasury-diversification": {
+      "versions": [
+        {
+          "version": "src-e9467f5b0d978fc0",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "DiversificationError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "Unauthorized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "InvalidRoute",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "InvalidSlippage",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "CapExceeded",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "SwapsPaused",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Wait until the contract or feature is resumed, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "InvalidTargets",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "TimelockActive",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "DiversificationError",
+              "name": "ArithmeticOverflow",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "twap-oracle-contract": {
+      "versions": [
+        {
+          "version": "src-788d1564df915792",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "TwapOracleError",
+              "name": "TWAPInvalid",
+              "code": 1,
+              "message": "Returned when minimum observation count threshold is not met or window is invalid.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TwapOracleError",
+              "name": "NotPositiveAmount",
+              "code": 2,
+              "message": "Swap price must be strictly positive.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TwapOracleError",
+              "name": "UnsupportedWindow",
+              "code": 3,
+              "message": "Requested window is outside the supported range or zero.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TwapOracleError",
+              "name": "Unauthorized",
+              "code": 4,
+              "message": "Caller is not authorized to perform this operation.",
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TwapOracleError",
+              "name": "ArithmeticOverflow",
+              "code": 5,
+              "message": "Numerical calculation resulted in an arithmetic overflow.",
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "TwapOracleError",
+              "name": "AlreadyInitialized",
+              "code": 6,
+              "message": "Smart contract is already initialized with an admin.",
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    },
+    "vesting-contract": {
+      "versions": [
+        {
+          "version": "src-2ed1b1cb5466af9d",
+          "wasmHash": null,
+          "sourceCommit": "9a833d7f7a659e1c98e35ed88ba0639222778efc",
+          "errors": [
+            {
+              "enum": "ContractError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "VestNotFound",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "CliffNotReached",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NotPositiveAmount",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidDuration",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidCliff",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NoVestedTokens",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        },
+        {
+          "version": "src-3b9b0b5561ba3691",
+          "wasmHash": null,
+          "sourceCommit": null,
+          "errors": [
+            {
+              "enum": "ContractError",
+              "name": "AlreadyInitialized",
+              "code": 1,
+              "message": null,
+              "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NotInitialized",
+              "code": 2,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "Unauthorized",
+              "code": 3,
+              "message": null,
+              "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "VestNotFound",
+              "code": 4,
+              "message": null,
+              "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "CliffNotReached",
+              "code": 5,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NotPositiveAmount",
+              "code": 6,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidDuration",
+              "code": 7,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidCliff",
+              "code": 8,
+              "message": null,
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NoVestedTokens",
+              "code": 9,
+              "message": null,
+              "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "ArithmeticOverflow",
+              "code": 10,
+              "message": null,
+              "suggestedAction": "Reduce the amount or value so the result stays in range, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "InvalidAdmin",
+              "code": 11,
+              "message": "The proposed admin is the current admin or a zero-equivalent address.",
+              "suggestedAction": "Correct the invalid input and retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "NoPendingAdmin",
+              "code": 12,
+              "message": "There is no pending admin transfer.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            },
+            {
+              "enum": "ContractError",
+              "name": "AdminTransferExpired",
+              "code": 13,
+              "message": "The pending admin transfer expired before it was accepted.",
+              "suggestedAction": "Wait for the required time window to pass, then retry.",
+              "actionSource": "derived"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

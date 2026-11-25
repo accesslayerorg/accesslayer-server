@@ -1,0 +1,17 @@
+// prisma/schema/push-subscription.prisma
+
+/// Browser Web Push subscription with per-event preferences (#1314).
+model PushSubscription {
+  id            String    @id @default(cuid())
+  wallet        String
+  endpoint      String    @unique
+  keys          Json
+  events        String[]
+  failureCount  Int       @default(0)
+  nextRetryAt   DateTime?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+
+  @@index([wallet])
+  @@map("push_subscriptions")
+}

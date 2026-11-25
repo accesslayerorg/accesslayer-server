@@ -9,6 +9,7 @@ See also:
 - [Retry and Backoff](./RETRY_BACKOFF.md) — retry strategy and exhaustion behaviour
 - [Dead-Letter Queue Workflow](./DLQ_WORKFLOW.md) — DLQ investigation runbook
 - [Feature Flags](./FEATURE_FLAGS.md) — startup validation and flag reference
+- [Backfill Runbook](./BACKFILL.md) — reprocessing historical ledger ranges in parallel
 
 ---
 

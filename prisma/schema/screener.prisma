@@ -1,0 +1,16 @@
+// prisma/schema/screener.prisma
+
+/// User-saved screener filter configuration (#1312).
+/// Limited to 20 saved screens per wallet in ScreenerService.
+model SavedScreen {
+  id        String   @id @default(cuid())
+  wallet    String
+  name      String
+  rules     Json
+  sort      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wallet, createdAt(sort: Desc)])
+  @@map("saved_screens")
+}

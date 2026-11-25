@@ -1,8 +1,14 @@
 import pino from 'pino';
 import os from 'os';
 import { requestContextStorage } from './als.utils';
+import { createPinoScrubHooks, createScrubRulesFromEnv } from '../lib/scrub';
 
 const isDevelopment = process.env.MODE === 'development';
+
+// Every log call's message and fields pass through the shared scrub rules
+// (emails, tokens, API keys, seeds, hashed wallets). See
+// docs/logging-pii-scrubbing.md.
+const scrubRules = createScrubRulesFromEnv();
 
 /**
  * Structured application logger.
@@ -24,6 +30,7 @@ export const logger = pino({
       const traceId = requestContextStorage.getStore()?.traceId;
       return traceId ? { traceId } : {};
    },
+   hooks: createPinoScrubHooks(scrubRules),
    transport: isDevelopment
       ? {
            target: 'pino-pretty',

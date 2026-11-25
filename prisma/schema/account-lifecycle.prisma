@@ -1,0 +1,47 @@
+// prisma/schema/account-lifecycle.prisma
+// Personal data export and account deletion workflow (#1325).
+
+/// A user's request for a JSON archive of their personal data. The lifecycle
+/// worker builds the archive; it is served through a signed link until
+/// `expiresAt`, after which the archive is discarded.
+model DataExportJob {
+  id          String    @id @default(cuid())
+  userId      String
+  /// "queued" | "processing" | "completed" | "failed" | "expired"
+  status      String    @default("queued")
+  archive     Json?
+  error       String?
+  requestedAt DateTime  @default(now())
+  completedAt DateTime?
+  /// Download link expiry, set when the archive is completed.
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("data_export_jobs")
+}
+
+/// A request to delete an account. Deletion is held for a 14-day grace period
+/// and can be cancelled until `scheduledFor`. The worker then anonymizes the
+/// account. `pseudonymId` replaces the user's identity in retained records.
+model DeletionRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  /// "pending" | "processing" | "completed" | "cancelled"
+  status       String    @default("pending")
+  pseudonymId  String    @unique
+  scheduledFor DateTime
+  cancelledAt  DateTime?
+  completedAt  DateTime?
+  /// Last processing error, kept so a failed run can be diagnosed.
+  error        String?
+  requestedAt  DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([status, scheduledFor])
+  @@map("deletion_requests")
+}

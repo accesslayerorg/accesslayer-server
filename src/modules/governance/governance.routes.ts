@@ -44,6 +44,10 @@ import {
    NonceMismatchError,
 } from '../nonce';
 import { getCurrentAdmin, listGovernanceEvents } from './governance-events.service';
+import {
+   convictionService,
+   ConvictionProposalNotFoundError,
+} from './conviction.service';
 
 import votingWeightRouter from './governance-voting-weight.routes';
 
@@ -343,5 +347,49 @@ router.post(
       }
    }
 );
+
+/**
+ * GET /v1/governance/conviction/:proposalId?wallet=
+ * Returns conviction voting progress and optional per-holder stake (#1306).
+ */
+router.get('/conviction/:proposalId', async (req, res, next) => {
+   try {
+      const proposalId = String(req.params.proposalId);
+      const wallet =
+         typeof req.query.wallet === 'string' && req.query.wallet.trim().length > 0
+            ? req.query.wallet.trim()
+            : undefined;
+      const result = await convictionService.progress(proposalId, { wallet });
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof ConvictionProposalNotFoundError) {
+         sendNotFound(res, 'Proposal');
+         return;
+      }
+      next(error);
+   }
+});
+
+/**
+ * GET /v1/governance/proposals/:id/ragequit?wallet=
+ * Returns rage-quit window status, total exits vs cap, and wallet eligibility (#1306).
+ */
+router.get('/proposals/:id/ragequit', async (req, res, next) => {
+   try {
+      const proposalId = String(req.params.id);
+      const wallet =
+         typeof req.query.wallet === 'string' && req.query.wallet.trim().length > 0
+            ? req.query.wallet.trim()
+            : undefined;
+      const result = await convictionService.getRagequitStatus(proposalId, { wallet });
+      sendSuccess(res, result);
+   } catch (error) {
+      if (error instanceof ConvictionProposalNotFoundError) {
+         sendNotFound(res, 'Proposal');
+         return;
+      }
+      next(error);
+   }
+});
 
 export default router;

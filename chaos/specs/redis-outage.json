@@ -1,0 +1,7 @@
+{
+   "name": "redis-outage",
+   "proxy": "redis",
+   "type": "timeout",
+   "attributes": { "timeout": 15000 },
+   "durationMs": 15000
+}

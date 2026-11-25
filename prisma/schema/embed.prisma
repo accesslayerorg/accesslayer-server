@@ -1,0 +1,29 @@
+// prisma/schema/embed.prisma
+// Embeddable SVG badge & widget settings and weekly load counters (#1320).
+
+model EmbedSettings {
+  id             String   @id @default(cuid())
+  creatorId      String   @unique
+  enabled        Boolean  @default(true)
+  allowedDomains String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@map("embed_settings")
+}
+
+model EmbedWeeklyLoad {
+  id        String   @id @default(cuid())
+  creatorId String
+  weekStart DateTime
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, weekStart])
+  @@index([creatorId, weekStart])
+  @@map("embed_weekly_loads")
+}

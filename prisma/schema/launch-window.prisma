@@ -1,0 +1,53 @@
+// prisma/schema/launch-window.prisma
+
+/// Commit-reveal fair launch window for a creator key (#1264).
+model LaunchWindow {
+  id                String   @id @default(cuid())
+  keyId             String   @unique
+  /// commit | reveal | settled
+  phase             String   @default("commit")
+  commitEndLedger   Int
+  revealEndLedger   Int
+  clearingPrice     Decimal? @db.Decimal(36, 7)
+  commitCount       Int      @default(0)
+  revealCount       Int      @default(0)
+  settledTxHash     String?
+  settledEventIndex Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  commits LaunchCommit[]
+
+  @@index([phase])
+  @@map("launch_windows")
+}
+
+/// Per-wallet commitment and reveal state for a commit-reveal launch (#1264).
+model LaunchCommit {
+  id               String   @id @default(cuid())
+  launchWindowId   String
+  keyId            String
+  wallet           String
+  commitment       String
+  revealed         Boolean  @default(false)
+  amount           Decimal? @db.Decimal(36, 7)
+  maxPrice         Decimal? @db.Decimal(36, 7)
+  filledAmount     Decimal? @db.Decimal(36, 7)
+  /// pending | revealed | filled | unfilled
+  fillStatus       String   @default("pending")
+  commitTxHash     String
+  commitEventIndex Int
+  commitLedger     Int
+  revealTxHash     String?
+  revealEventIndex Int?
+  revealLedger     Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  launchWindow LaunchWindow @relation(fields: [launchWindowId], references: [id], onDelete: Cascade)
+
+  @@unique([commitTxHash, commitEventIndex])
+  @@unique([keyId, wallet])
+  @@index([launchWindowId, revealed])
+  @@map("launch_commits")
+}

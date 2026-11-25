@@ -1,0 +1,11 @@
+model RetentionRun {
+  id          String   @id @default(cuid())
+  tableName   String
+  rowsDeleted Int      @default(0)
+  dryRun      Boolean  @default(false)
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([tableName, createdAt])
+  @@map("retention_runs")
+}

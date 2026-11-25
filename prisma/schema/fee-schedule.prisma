@@ -1,0 +1,11 @@
+model FeeSchedule {
+  keyId        String   @id
+  startBps     Int
+  floorBps     Int
+  decayLedgers Int
+  startLedger  Int
+  locked       Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@map("fee_schedules")
+}

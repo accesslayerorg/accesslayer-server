@@ -1,0 +1,24 @@
+model LaunchCapConfig {
+  keyId          String   @id
+  startLedger    Int
+  endLedger      Int
+  startCap       String
+  endCap         String
+  exemptWallets  String[] @default([])
+  updatedAt      DateTime @updatedAt
+
+  @@map("launch_cap_configs")
+}
+
+model LaunchPurchase {
+  id          String   @id
+  keyId       String
+  wallet      String
+  amount      String
+  ledger      Int
+  recordedAt  DateTime @default(now())
+
+  @@index([keyId, wallet])
+  @@index([keyId, ledger])
+  @@map("launch_purchases")
+}
