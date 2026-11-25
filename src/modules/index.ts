@@ -56,6 +56,15 @@ import {
    guardianRequestsRouter,
 } from './wallets/social-recovery.routes';
 import alertsRouter from './alerts/alert.router';
+import analyticsRouter from './analytics/analytics.routes';
+import {
+   tokenRescueAdminRouter,
+   tokenRescuePublicRouter,
+} from './token-rescue/token-rescue.routes';
+import {
+   protocolEscapeRouter,
+   walletEscapeRouter,
+} from './protocol/protocol-escape.routes';
 import invoiceRouter from './invoice/invoice.routes';
 import { issuerRouter } from './invoice/invoice-protocol.routes';
 import freezeRouter from './freeze/freeze.routes';
@@ -166,7 +175,9 @@ router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificati
 // Attachment uploads take raw bytes, so this router is mounted without the
 // JSON parser that the rest of /support uses (#1327).
 router.use('/support', supportAttachmentUploadRouter);
+router.use('/admin', routeBodySizeLimit('admin'), tokenRescueAdminRouter);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
+router.use('/transparency', routeBodySizeLimit('default'), tokenRescuePublicRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
 router.use('/invoices', routeBodySizeLimit('default'), invoiceRouter);
@@ -175,11 +186,13 @@ router.use('/issuers', routeBodySizeLimit('default'), issuerVerificationRouter);
 router.use('/investors', routeBodySizeLimit('default'), investorHealthRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
+router.use('/wallets', routeBodySizeLimit('default'), walletEscapeRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
 // #1350: social recovery guardian config + pending recovery view.
 router.use('/wallets', routeBodySizeLimit('default'), socialRecoveryRouter);
 router.use('/guardians', routeBodySizeLimit('default'), guardianRequestsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
+router.use('/analytics', routeBodySizeLimit('default'), analyticsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
 router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
@@ -205,6 +218,7 @@ router.use('/webhooks', routeBodySizeLimit('default'), horizonWebhookRouter);
 router.use('/vesting', routeBodySizeLimit('default'), vestingRouter);
 router.use('/investor', routeBodySizeLimit('default'), investorRouter);
 router.use('/followers', routeBodySizeLimit('default'), followerRouter);
+router.use('/protocol', routeBodySizeLimit('default'), protocolEscapeRouter);
 router.use('/protocol', routeBodySizeLimit('default'), protocolRouter);
 router.use('/platform', routeBodySizeLimit('default'), platformRouter);
 

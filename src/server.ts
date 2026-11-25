@@ -77,6 +77,10 @@ import {
    stopRefreshKeyMetricsJob,
 } from './jobs/refresh-key-metrics.job';
 import {
+   startKeyAnalyticsLeaderboardJob,
+   stopKeyAnalyticsLeaderboardJob,
+} from './jobs/key-analytics-leaderboard.job';
+import {
    startPushEventListeners,
    stopPushEventListeners,
 } from './modules/push/push.service';
@@ -167,6 +171,7 @@ async function startServer() {
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
+      startKeyAnalyticsLeaderboardJob();
       startPushEventListeners();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
@@ -225,6 +230,7 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();
+      stopKeyAnalyticsLeaderboardJob();
       stopPushEventListeners();
       stopAutoInvestListener();
       await prisma.$disconnect();
