@@ -4,6 +4,34 @@ import scheduledTransferRouter from './scheduled-transfers/scheduled-transfer.ro
 import marketplaceRouter from './marketplaces/marketplace.routes';
 import royaltyEnforcementRouter from './marketplaces/royalty-enforcement.routes';
 import concentrationRouter from './concentration/concentration.routes';
+import keyLpRewardsRouter from './lp-rewards/lp-rewards.routes';
+import errorCatalogRouter from './error-catalog/error-catalog.routes';
+import accountRouter from './account/account.routes';
+import tradeNotesRouter from './trade-notes/trade-notes.routes';
+import {
+   disclosuresAdminRouter,
+   disclosuresRouter,
+} from './disclosures/disclosures.routes';
+import { supportAttachmentUploadRouter, supportRouter } from './support/support.routes';
+import { supportAgentRouter } from './support/support-agent.routes';
+import {
+   creatorVerificationAdminRouter,
+   creatorVerificationRouter,
+} from './creator-verification/creator-verification.routes';
+import { screenerRouter, screensRouter } from './screener/screener.routes';
+import pushRouter from './push/push.routes';
+import embeddedWalletRouter from './auth/embedded-wallet.routes';
+import {
+   keyRoadmapRouter,
+   milestoneReactionsRouter,
+} from './roadmap/roadmap.routes';
+import { keyQaRouter, qaRouter } from './qa/qa.routes';
+import { embedRouter, embedCreatorRouter } from './embed/embed.routes';
+import {
+   broadcastCreatorRouter,
+   broadcastMeRouter,
+   broadcastPublicRouter,
+} from './broadcast/broadcast.routes';
 import { airdropAdminRouter, airdropRouter } from './airdrops/airdrop.routes';
 import { Router } from 'express';
 import { routeBodySizeLimit } from '../middlewares/body-size-limit.middleware';
@@ -23,6 +51,10 @@ import ownershipRouter from './ownership/ownership.routes';
 import subscriptionRouter from './subscriptions/subscription.routes';
 import webhookRouter from './webhooks/webhook.router';
 import walletsRouter from './wallets/wallets.routes';
+import {
+   socialRecoveryRouter,
+   guardianRequestsRouter,
+} from './wallets/social-recovery.routes';
 import alertsRouter from './alerts/alert.router';
 import invoiceRouter from './invoice/invoice.routes';
 import { issuerRouter } from './invoice/invoice-protocol.routes';
@@ -35,6 +67,9 @@ import { investorHealthRouter } from './portfolio/portfolio-health-score.routes'
 import tradingRouter from './trading/multi-buy.routes';
 import sequencerRouter from './admin/sequencer.routes';
 import keysRouter from './keys/keys.routes';
+import activityHeatmapRouter from './keys/activity-heatmap.routes';
+import commitRevealLaunchRouter from './keys/commit-reveal-launch.routes';
+import launchesRouter from './keys/launches.routes';
 import cooldownRouter from './keys/cooldown.routes';
 import notificationsRouter from './notifications/notification.routes';
 import horizonWebhookRouter from './webhooks/horizon-webhook.routes';
@@ -51,6 +86,10 @@ import portfolioRouter from './portfolio/portfolio.routes';
 import referralTierRouter from './referrals/referral-tier.routes';
 import referralRouter from './referrals/referrals.routes';
 import referralEarningsRouter from './referrals/referral-earnings.routes';
+import {
+   ambassadorRouter,
+   referralClickRouter,
+} from './ambassador/ambassador.routes';
 import contractsRouter from './contracts/contract.routes';
 import stakingRouter from './staking/staking.routes';
 import { stakingEpochRouter, keyEpochRouter } from './staking/staking-epoch.routes';
@@ -61,6 +100,8 @@ import lpRouter from './lp/lp.routes';
 import auctionRouter from './auctions/auction.routes';
 import dutchAuctionRouter from './dutch-auctions/dutch-auction.routes';
 import ordersRouter from './orders/order.routes';
+import escrowOrderRouter from './orders/escrow-order.routes';
+import triggerRouter from './orders/trigger-group.routes';
 import holdersRouter from './dividends/holders.routes';
 import multisigRouter from './multisig/multisig.routes';
 import discoveryRouter from './keys/discovery.routes';
@@ -70,6 +111,10 @@ import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
 import announcementsRouter from './announcements/announcements.routes';
 import eventsRouter from './events/events.routes';
+import {
+   keyPassEventsRouter,
+   passEventsRouter,
+} from './pass-events/pass-events.routes';
 import tipsRouter from './tips/tips.routes';
 import { flagRouter } from './flags/feature-flags.routes';
 import commentsRouter from './comments/comments.routes';
@@ -77,6 +122,9 @@ import { commentsModerationRouter } from './comments/comments.routes';
 import { adminReportsRouter } from './reports/key-reports.routes';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 import { relatedKeysRouter } from '../routes/keys.routes';
+import { paymentAssetsRouter, quotesRouter } from './payments/payment-assets.routes';
+import { bountiesRouter, creatorBountiesRouter } from './bounties/bounty.routes';
+import { dcaRouter } from './dca/dca.routes';
 
 const router = Router();
 
@@ -95,6 +143,10 @@ router.use('/health', routeBodySizeLimit('default'), healthRouter);
 router.use('/status', routeBodySizeLimit('default'), statusRouter);
 router.use('/auth', routeBodySizeLimit('auth'), authRouter);
 router.use('/config', routeBodySizeLimit('default'), configRouter);
+// Creator verification routes (#1324). Mounted ahead of creatorsRouter so
+// /creators/me/verification is not captured by the /:id routes there.
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorBountiesRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorVerificationRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorsRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), creatorRouter);
 router.use('/creator', routeBodySizeLimit('creators'), creatorsRouter);
@@ -108,6 +160,13 @@ router.use(
    routeBodySizeLimit('admin'),
    adminReportsRouter
 );
+// Support agent routes (#1327), guarded by the admin JWT per route.
+router.use('/admin/support', routeBodySizeLimit('admin'), supportAgentRouter);
+// Creator verification review queue (#1324), guarded by the admin JWT per route.
+router.use('/admin/verification', routeBodySizeLimit('admin'), creatorVerificationAdminRouter);
+// Attachment uploads take raw bytes, so this router is mounted without the
+// JSON parser that the rest of /support uses (#1327).
+router.use('/support', supportAttachmentUploadRouter);
 router.use('/admin', routeBodySizeLimit('admin'), adminRouter);
 router.use('/activity', routeBodySizeLimit('default'), activityRouter);
 router.use('/ownership', routeBodySizeLimit('default'), ownershipRouter);
@@ -118,6 +177,9 @@ router.use('/investors', routeBodySizeLimit('default'), investorHealthRouter);
 router.use('/subscriptions', routeBodySizeLimit('default'), subscriptionRouter);
 router.use(CREATORS_BASE, routeBodySizeLimit('creators'), webhookRouter);
 router.use('/wallets', routeBodySizeLimit('default'), walletsRouter);
+// #1350: social recovery guardian config + pending recovery view.
+router.use('/wallets', routeBodySizeLimit('default'), socialRecoveryRouter);
+router.use('/guardians', routeBodySizeLimit('default'), guardianRequestsRouter);
 router.use('/alerts', routeBodySizeLimit('default'), alertsRouter);
 router.use('/trading', routeBodySizeLimit('default'), tradingRouter);
 router.use('/internal', routeBodySizeLimit('default'), sequencerRouter);
@@ -127,6 +189,10 @@ router.use('/keys', routeBodySizeLimit('default'), relatedKeysRouter);
 // /:keyId/unfreeze fall through to freeze handlers if keysRouter doesn't own
 // them. Both share the same body-size group.
 router.use('/keys', routeBodySizeLimit('default'), keysRouter);
+router.use('/keys', routeBodySizeLimit('default'), activityHeatmapRouter);
+router.use('/keys', routeBodySizeLimit('default'), commitRevealLaunchRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyPassEventsRouter);
+router.use('/launches', routeBodySizeLimit('default'), launchesRouter);
 router.use('/keys', routeBodySizeLimit('default'), freezeRouter);
 router.use('/keys', routeBodySizeLimit('default'), commentsRouter);
 router.use('/cooldowns', routeBodySizeLimit('default'), cooldownRouter);
@@ -153,6 +219,8 @@ router.use('/portfolio', routeBodySizeLimit('default'), portfolioRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralTierRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralRouter);
 router.use('/referrals', routeBodySizeLimit('default'), referralEarningsRouter);
+router.use('/referrals', routeBodySizeLimit('default'), referralClickRouter);
+router.use('/ambassador', routeBodySizeLimit('default'), ambassadorRouter);
 router.use('/contracts', routeBodySizeLimit('default'), contractsRouter);
 router.use('/watchlist', routeBodySizeLimit('default'), watchlistRouter);
 router.use(
@@ -171,8 +239,13 @@ router.use('/auctions', routeBodySizeLimit('default'), auctionRouter);
 router.use('/auctions', dutchAuctionRouter);
 router.use('/holders', routeBodySizeLimit('default'), holdersRouter);
 router.use('/orders', routeBodySizeLimit('default'), ordersRouter);
+// #1351: limit order escrow — indexed on-chain order state + keeper stats.
+router.use('/orders', routeBodySizeLimit('default'), escrowOrderRouter);
+// #1352: linked take-profit / stop-loss triggers (OCO).
+router.use('/triggers', routeBodySizeLimit('default'), triggerRouter);
 router.use('/multisig', routeBodySizeLimit('default'), multisigRouter);
 router.use('/events', routeBodySizeLimit('default'), eventsRouter);
+router.use('/events', routeBodySizeLimit('default'), passEventsRouter);
 router.use('/tips', routeBodySizeLimit('default'), tipsRouter);
 router.use('/comments', routeBodySizeLimit('default'), commentsModerationRouter);
 router.use('/discovery', routeBodySizeLimit('default'), discoveryRouter);
@@ -190,7 +263,59 @@ router.use('/wallets', routeBodySizeLimit('default'), scheduledTransferRouter);
 router.use('/marketplaces', routeBodySizeLimit('default'), marketplaceRouter);
 router.use('/keys', routeBodySizeLimit('default'), royaltyEnforcementRouter);
 router.use('/keys', routeBodySizeLimit('default'), concentrationRouter);
+router.use('/keys', routeBodySizeLimit('default'), keyLpRewardsRouter);
 router.use('/admin/airdrops', routeBodySizeLimit('admin'), airdropAdminRouter);
 router.use('/airdrops', routeBodySizeLimit('default'), airdropRouter);
+
+// Contract error catalog and decoding helper (#1326).
+router.use('/errors', routeBodySizeLimit('default'), errorCatalogRouter);
+
+// Personal data export and account deletion for the signed-in user (#1325).
+router.use('/me', routeBodySizeLimit('default'), accountRouter);
+
+// Private trade journal notes (#1315).
+router.use('/me', routeBodySizeLimit('default'), tradeNotesRouter);
+
+// Risk disclosure acknowledgements (#1318).
+router.use('/disclosures', routeBodySizeLimit('default'), disclosuresRouter);
+router.use('/admin/disclosures', routeBodySizeLimit('admin'), disclosuresAdminRouter);
+
+// User support tickets (#1327).
+router.use('/support', routeBodySizeLimit('default'), supportRouter);
+
+// Key screener & saved screens (#1312).
+router.use('/screener', routeBodySizeLimit('default'), screenerRouter);
+router.use('/screens', routeBodySizeLimit('default'), screensRouter);
+
+// Web push subscriptions & VAPID key (#1314).
+router.use('/push', routeBodySizeLimit('default'), pushRouter);
+
+// Embedded wallet signing & export (#1313).
+router.use('/embedded-wallet', routeBodySizeLimit('auth'), embeddedWalletRouter);
+
+// Creator roadmap & holder reactions (#1310).
+router.use('/keys', routeBodySizeLimit('default'), keyRoadmapRouter);
+router.use('/milestones', routeBodySizeLimit('default'), milestoneReactionsRouter);
+
+// Holder Q&A sessions (#1311).
+router.use('/keys', routeBodySizeLimit('default'), keyQaRouter);
+router.use('/qa', routeBodySizeLimit('default'), qaRouter);
+// Multi-asset payment registry & conversion quotes (#1309).
+router.use('/payment-assets', routeBodySizeLimit('default'), paymentAssetsRouter);
+router.use('/quotes', routeBodySizeLimit('default'), quotesRouter);
+
+// Bounty board (#1307).
+router.use('/bounties', routeBodySizeLimit('default'), bountiesRouter);
+
+// Recurring purchase (DCA) plans (#1322).
+router.use('/dca', routeBodySizeLimit('default'), dcaRouter);
+// Embeddable SVG badge, widget & creator embed settings (#1320).
+router.use('/embed', routeBodySizeLimit('default'), embedRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), embedCreatorRouter);
+
+// Consented creator email broadcast pipeline (#1319).
+router.use('/me', routeBodySizeLimit('default'), broadcastMeRouter);
+router.use('/broadcasts', routeBodySizeLimit('default'), broadcastPublicRouter);
+router.use(CREATORS_BASE, routeBodySizeLimit('creators'), broadcastCreatorRouter);
 
 export default router;

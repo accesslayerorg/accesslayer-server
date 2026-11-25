@@ -1,4 +1,10 @@
-import { moveToDLQ, getDLQDepth, syncDLQMetrics } from '../indexer-dlq.utils';
+import {
+   moveToDLQ,
+   getDLQDepth,
+   getDLQQueueSummary,
+   syncDLQMetrics,
+   syncDLQQueueMetrics,
+} from '../indexer-dlq.utils';
 import { prisma } from '../prisma.utils';
 import { setQueueDepth } from '../queue-metrics.utils';
 
@@ -7,6 +13,7 @@ jest.mock('../prisma.utils', () => ({
       indexerDLQ: {
          create: jest.fn(),
          count: jest.fn(),
+         groupBy: jest.fn(),
       },
    },
 }));
@@ -40,26 +47,67 @@ describe('indexer-dlq.utils', () => {
    });
 
    describe('getDLQDepth', () => {
-      it('should call prisma.indexerDLQ.count without where if jobType is not provided', async () => {
+      it('counts only live (not yet replayed) entries when jobType is not provided', async () => {
          (prisma.indexerDLQ.count as jest.Mock).mockResolvedValue(5);
 
          const depth = await getDLQDepth();
 
          expect(depth).toBe(5);
          expect(prisma.indexerDLQ.count).toHaveBeenCalledWith({
-            where: undefined,
+            where: { replayedAt: null },
          });
       });
 
-      it('should call prisma.indexerDLQ.count with where if jobType is provided', async () => {
+      it('counts live entries for one jobType when jobType is provided', async () => {
          (prisma.indexerDLQ.count as jest.Mock).mockResolvedValue(2);
 
          const depth = await getDLQDepth('TEST_JOB');
 
          expect(depth).toBe(2);
          expect(prisma.indexerDLQ.count).toHaveBeenCalledWith({
-            where: { jobType: 'TEST_JOB' },
+            where: { replayedAt: null, jobType: 'TEST_JOB' },
          });
+      });
+   });
+
+   describe('getDLQQueueSummary', () => {
+      it('reports depth and oldest age per job type', async () => {
+         const now = new Date('2026-11-24T12:00:00.000Z');
+         (prisma.indexerDLQ.groupBy as jest.Mock).mockResolvedValue([
+            {
+               jobType: 'KEY_DEPTH',
+               _count: { _all: 3 },
+               _min: { createdAt: new Date('2026-11-24T11:00:00.000Z') },
+            },
+         ]);
+
+         const summary = await getDLQQueueSummary(now);
+
+         expect(summary).toEqual([
+            { queue: 'KEY_DEPTH', depth: 3, oldestAgeSeconds: 3600 },
+         ]);
+      });
+   });
+
+   describe('syncDLQQueueMetrics', () => {
+      it('publishes depth and age for each job type queue', async () => {
+         const now = new Date('2026-11-24T12:00:00.000Z');
+         (prisma.indexerDLQ.groupBy as jest.Mock).mockResolvedValue([
+            {
+               jobType: 'outbox:order_filled',
+               _count: { _all: 1 },
+               _min: { createdAt: new Date('2026-11-24T11:59:30.000Z') },
+            },
+         ]);
+
+         await syncDLQQueueMetrics(now);
+
+         expect(setQueueDepth).toHaveBeenCalledWith(
+            'outbox:order_filled',
+            'dlq',
+            1,
+            30
+         );
       });
    });
 

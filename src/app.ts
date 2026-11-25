@@ -50,6 +50,11 @@ import { envConfig } from './config';
 import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
 import { sanctionedAddressMiddleware } from './middlewares/sanctioned-address.middleware';
+import { impersonationGuard } from './middlewares/impersonation-guard.middleware';
+import {
+   responseCachePolicyMiddleware,
+   responseCompressionMiddleware,
+} from './middlewares/response-representation.middleware';
 
 const app: Express = express();
 
@@ -88,6 +93,15 @@ app.use(requestLoggerMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(appRateLimit);
 app.use(sanctionedAddressMiddleware);
+// Read-only impersonation enforcement (#1342). Must run before every router
+// so an impersonation token can never reach a write or sensitive route.
+app.use(impersonationGuard);
+// Response representation (#1343): cache-control defaults for authenticated
+// traffic, then gzip/brotli for compressible bodies. Both wrap res.send, so
+// they cover res.json too. Express's built-in ETag and 304 handling sits on
+// top of the final bytes.
+app.use(responseCachePolicyMiddleware);
+app.use(responseCompressionMiddleware);
 
 // Health check endpoints are now in /api/v1/health
 

@@ -1,0 +1,16 @@
+// prisma/schema/trade-hourly-stat.prisma
+// Hourly trading activity aggregation per key (#1317).
+
+model TradeHourlyStat {
+  id          String   @id @default(cuid())
+  keyId       String
+  bucketStart DateTime
+  trades      Int      @default(0)
+  volume      Decimal  @default(0) @db.Decimal(20, 7)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([keyId, bucketStart])
+  @@index([keyId, bucketStart])
+  @@map("trade_hourly_stats")
+}

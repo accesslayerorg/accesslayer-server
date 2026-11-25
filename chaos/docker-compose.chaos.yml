@@ -1,0 +1,35 @@
+services:
+   postgres:
+      image: postgres:16-alpine
+      environment:
+         POSTGRES_USER: access
+         POSTGRES_PASSWORD: access
+         POSTGRES_DB: accesslayer
+      ports: ['54329:5432']
+      healthcheck:
+         test: ['CMD-SHELL', 'pg_isready -U access -d accesslayer']
+         interval: 2s
+         timeout: 2s
+         retries: 30
+
+   redis:
+      image: redis:7-alpine
+      ports: ['6389:6379']
+
+   mock-soroban-rpc:
+      build:
+         context: .
+         dockerfile: chaos/mock-soroban-rpc/Dockerfile
+      ports: ['18080:8080']
+
+   toxiproxy:
+      image: ghcr.io/shopify/toxiproxy:2.9.0
+      ports:
+         - '8474:8474'
+         - '15432:15432'
+         - '16379:16379'
+         - '18081:18081'
+      depends_on:
+         - postgres
+         - redis
+         - mock-soroban-rpc

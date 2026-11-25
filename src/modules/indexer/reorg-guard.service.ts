@@ -166,20 +166,18 @@ export async function recordLedgerIngestion(
       async tx => {
          for (const event of uniqueEvents) {
             const fields = toIngestedEventFields(event, header);
-            await tx.ingestedEvent.upsert({
-               where: {
-                  txHash_eventIndex: {
-                     txHash: event.txHash,
-                     eventIndex: event.eventIndex,
-                  },
-               },
-               create: { ...fields, status: 'CONFIRMED' },
-               update: {
-                  ...fields,
-                  status: 'CONFIRMED',
-                  reorgedAt: null,
-               },
+            const existing = await tx.ingestedEvent.findFirst({
+               where: { txHash: event.txHash, eventIndex: event.eventIndex },
+               select: { id: true, createdAt: true },
             });
+            if (existing) {
+               await tx.ingestedEvent.update({
+                  where: { id_createdAt: { id: existing.id, createdAt: existing.createdAt } as any },
+                  data: { ...fields, status: 'CONFIRMED', reorgedAt: null },
+               });
+            } else {
+               await tx.ingestedEvent.create({ data: { ...fields, status: 'CONFIRMED' } });
+            }
          }
 
          await tx.ledgerCheckpoint.upsert({

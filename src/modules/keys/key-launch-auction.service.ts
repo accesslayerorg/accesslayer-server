@@ -21,6 +21,23 @@ type AuctionRow = {
    settledAt: Date | string | null;
 };
 
+export type LaunchPhase = 'upcoming' | 'live' | 'recent';
+
+/**
+ * Classifies a launch auction into exactly one calendar tab (#1328): not
+ * started yet, within its bidding window, or settled/ended.
+ */
+export function classifyLaunchPhase(
+   auction: Pick<AuctionRow, 'status' | 'startsAt' | 'endsAt'>,
+   now: Date
+): LaunchPhase {
+   const startsAt = new Date(auction.startsAt).getTime();
+   const endsAt = new Date(auction.endsAt).getTime();
+   if (now.getTime() < startsAt) return 'upcoming';
+   if (now.getTime() <= endsAt && auction.status === 'active') return 'live';
+   return 'recent';
+}
+
 function formatAuction(row: AuctionRow, now: Date) {
    const endsAt = new Date(row.endsAt);
    return {

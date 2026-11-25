@@ -517,6 +517,68 @@ Move a key report through the moderation lifecycle (#1226).
   allowed from the report's current status (also returned when another
   moderator changed the status concurrently).
 
+### GET /admin/referral-holds
+
+List referrals flagged by abuse detection (#1241). A flagged referral earns
+nothing until an admin reviews it; its rewards are withheld, trade by trade,
+while the hold is `PENDING`.
+
+- **Auth:** Admin required
+- **Query:** `status` (`PENDING` | `RELEASED` | `REJECTED`, optional), `limit`,
+  `cursor` (newest first)
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "items": [
+         {
+            "id": "cm123...",
+            "referralId": "cm456...",
+            "reason": "FUNDING_CLUSTER",
+            "status": "PENDING",
+            "details": {
+               "funder": "G...",
+               "refereesInWindow": 6,
+               "threshold": 5,
+               "windowHours": 24
+            },
+            "referrerAddress": "G...",
+            "refereeAddress": "G...",
+            "rewardXlm": 0.075,
+            "withheldTrades": 3,
+            "resolvedBy": null,
+            "resolvedAt": null,
+            "createdAt": "2026-11-05T12:00:01.000Z"
+         }
+      ],
+      "has_more": false,
+      "next_cursor": null
+   }
+}
+```
+
+- **Reasons:** `SELF_REFERRAL`, `LINKED_WALLETS` (one wallet funded the other)
+  and `SHARED_FUNDING_SOURCE` are rejected automatically (`REJECTED`, final).
+  `FUNDING_CLUSTER` (more than 5 referees first funded by one account within
+  24 hours) is held for review (`PENDING`).
+- **Errors:** `400` invalid `status`, `limit` or `cursor`; `401`; `403`.
+
+### PATCH /admin/referral-holds/:id
+
+Resolve a `PENDING` hold (#1241).
+
+- **Auth:** Admin required
+- **Body:** `{ "status": "RELEASED" | "REJECTED" }`
+- **Behaviour:** `RELEASED` pays every withheld reward exactly once and lets
+  later trades pay normally. `REJECTED` never pays; later trades are ignored.
+  Both are recorded in the audit log.
+- **Response:** `200 OK` with the updated hold (same shape as above)
+- **Errors:** `400` invalid id or body (including `PENDING` or extra fields);
+  `401`; `403`; `404` hold not found; `409` hold is not `PENDING` (already
+  resolved, or rejected automatically by detection).
+
 ### POST /admin/proposals
 
 Create a new multisig proposal requiring multi-sig approval.

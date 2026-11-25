@@ -85,6 +85,9 @@ export const envSchema = z
          .string()
          .min(1, 'PAYSTACK_SECRET_KEY is required for payment processing'),
       PAYSTACK_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PUBLIC_KEY: optionalNonEmptyString,
+      VAPID_PRIVATE_KEY: optionalNonEmptyString,
+      VAPID_SUBJECT: optionalNonEmptyString,
       ENABLE_RESPONSE_TIMING: booleanCoerce.default(true),
       API_VERSION: z.string().default('1.0.0'),
       ENABLE_API_VERSION_HEADER: booleanCoerce.default(true),
@@ -143,6 +146,12 @@ export const envSchema = z
       // paid to the referrer, in basis points (500 = 5%). Paid once per
       // referee, on their first trade only (see src/modules/referrals).
       REFERRAL_REWARD_BPS: z.coerce.number().int().nonnegative().default(500),
+
+      // Referral abuse detection (#1241): comma-separated Stellar addresses
+      // of known high-volume funders (exchange or anchor hot wallets). Wallets
+      // funded by these accounts are not treated as sharing a funding source
+      // or forming a sybil cluster, since many unrelated users share them.
+      REFERRAL_ABUSE_FUNDER_ALLOWLIST: optionalNonEmptyString,
 
       // 2-of-3 admin multisig set for key deprecation (#882). Comma-separated
       // Stellar addresses of the admin quorum. When unset, deprecation still
@@ -212,6 +221,15 @@ export const envSchema = z
             'STELLAR_SOROBAN_RPC_URL must be a valid URL (e.g. https://soroban-testnet.stellar.org)'
          )
          .default('https://soroban-testnet.stellar.org'),
+      // Comma-separated Soroban RPC endpoints for health-based failover (#1336).
+      // Falls back to STELLAR_SOROBAN_RPC_URL when unset.
+      SOROBAN_RPC_URLS: optionalNonEmptyString,
+      RPC_POOL_PROBE_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+      RPC_POOL_COOLDOWN_MS: z.coerce.number().int().positive().default(60000),
+      RPC_POOL_MAX_LEDGER_LAG: z.coerce.number().int().nonnegative().default(5),
+      RPC_POOL_ERROR_RATE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
+      RPC_POOL_MIN_SAMPLES_FOR_ERROR_RATE: z.coerce.number().int().positive().default(5),
+      RPC_POOL_HEDGE_DELAY_MS: z.coerce.number().int().positive().default(750),
 
       // Limit-order keeper: required profit over simulated network fee.
       ORDER_KEEPER_PROFIT_MARGIN_BPS: z.coerce
@@ -280,7 +298,6 @@ export const envSchema = z
          .positive()
          .default(60),
 
-      
       // Dynamic fee contract (#1055)
       DYNAMIC_FEE_CONTRACT_ID: optionalNonEmptyString,
 
@@ -291,6 +308,18 @@ export const envSchema = z
 
       // LP position registry contract
       LP_CONTRACT_ID: optionalNonEmptyString,
+
+      // Key LP reward accrual (#1196): share of each key's trading volume, in
+      // basis points, that funds its LP reward pool. The hourly accrual job
+      // distributes the pool pro-rata by lp_tokens; it catches up at most
+      // LP_REWARD_ACCRUAL_MAX_CATCHUP_EPOCHS missed epochs per key per run.
+      LP_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(30),
+      LP_REWARD_ACCRUAL_ENABLED: booleanCoerce.default(true),
+      LP_REWARD_ACCRUAL_MAX_CATCHUP_EPOCHS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(24),
 
       // Staking contract (#1086): deployed staking contract used for live
       // get_stake_rewards simulation calls. When unset, accrued rewards
@@ -362,6 +391,14 @@ export const envSchema = z
          .int()
          .positive()
          .default(60),
+      // Daily bounded retention worker. Keep dry-run enabled until an
+      // operator explicitly opts into deleting production data.
+      RETENTION_WORKER_ENABLED: booleanCoerce.default(true),
+      RETENTION_DRY_RUN: booleanCoerce.default(true),
+      // Partition maintenance (#1333)
+      PARTITION_MANAGER_ENABLED: booleanCoerce.default(true),
+      PARTITION_RETENTION_MONTHS: z.coerce.number().int().positive().default(12),
+      PARTITION_PRECREATE_MONTHS: z.coerce.number().int().positive().default(3),
       SESSION_ANOMALY_RATE_WINDOW_MINUTES: z.coerce
          .number()
          .int()
@@ -689,7 +726,11 @@ export const envSchema = z
       // Single-swap size (XLM) that earns the WHALE_HOLDER badge.
       BADGE_WHALE_THRESHOLD_XLM: z.coerce.number().positive().default(10000),
       // Continuous hold (days) that earns the DIAMOND_HANDS badge.
-      BADGE_HOLD_MILESTONE_DAYS: z.coerce.number().int().positive().default(365),
+      BADGE_HOLD_MILESTONE_DAYS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(365),
       // Highest leaderboard rank (inclusive) that earns the TOP_TRADER badge.
       BADGE_TOP_TRADER_MAX_RANK: z.coerce.number().int().positive().default(10),
       // Max mint attempts before a transient failure is treated as terminal.
@@ -702,7 +743,20 @@ export const envSchema = z
       VAULT_LENDING_CONTRACT_ID: optionalNonEmptyString,
       LIQUIDATION_KEEPER_SECRET: optionalNonEmptyString,
       // Slow request threshold (#754): warn-level log for requests exceeding this duration
-      SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
+      SLOW_REQUEST_THRESHOLD_MS: z.coerce
+         .number()
+         .int()
+         .positive()
+         .default(2000),
+
+      // PII scrubbing (src/lib/scrub.ts). Extra comma-separated field names
+      // are redacted from logs and error reports in addition to the defaults.
+      SCRUB_EXTRA_FIELDS: z.string().default(''),
+      // Keys the wallet-address salt. Unset means a random per-process key,
+      // so hashed wallets only correlate within one process lifetime.
+      SCRUB_WALLET_HASH_SECRET: optionalNonEmptyString,
+      // How often the wallet-address salt rotates.
+      SCRUB_WALLET_SALT_ROTATION_DAYS: z.coerce.number().positive().default(7),
    })
    .passthrough()
    .catchall(z.any())

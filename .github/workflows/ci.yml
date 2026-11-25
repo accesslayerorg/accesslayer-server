@@ -12,15 +12,15 @@ jobs:
 
       steps:
          - name: Checkout
-           uses: actions/checkout@v4
+           uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
          - name: Setup pnpm
-           uses: pnpm/action-setup@v4
+           uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
            with:
               version: 10.6.5
 
          - name: Setup Node.js
-           uses: actions/setup-node@v4
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
            with:
               node-version: 20
               cache: pnpm
@@ -70,11 +70,11 @@ jobs:
          RUN_INVOICE_PROTOCOL_INTEGRATION: '1'
          PUPPETEER_SKIP_DOWNLOAD: '1'
       steps:
-         - uses: actions/checkout@v4
-         - uses: pnpm/action-setup@v4
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
            with:
               version: 10.6.5
-         - uses: actions/setup-node@v4
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
            with:
               node-version: 20
               cache: pnpm
@@ -136,13 +136,13 @@ jobs:
          CLOUDINARY_API_SECRET: test-api-secret
          PAYSTACK_SECRET_KEY: test-paystack-secret
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-         - uses: pnpm/action-setup@v4
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
            with:
               version: 10.6.5
 
-         - uses: actions/setup-node@v4
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
            with:
               node-version: 20
               cache: pnpm
@@ -161,7 +161,7 @@ jobs:
            run: pnpm exec ts-node --transpile-only loadtest/seed.ts
 
          - name: Setup k6
-           uses: grafana/setup-k6-action@v1
+           uses: grafana/setup-k6-action@c47136d33d365efbeb9ae7266908b5dcf98cdece # v1
 
          - name: Build and start application server
            run: |
@@ -187,8 +187,63 @@ jobs:
 
          - name: Upload k6 summary report
            if: always()
-           uses: actions/upload-artifact@v4
+           uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
            with:
               name: k6-loadtest-summary
               path: loadtest-summary.json
               if-no-files-found: warn
+
+   error-catalog:
+      runs-on: ubuntu-latest
+
+      steps:
+         - uses: actions/checkout@v4
+
+         - uses: actions/checkout@v4
+           with:
+              repository: accesslayerorg/accesslayer-contracts
+              path: contracts-src
+
+         - uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - run: pnpm install --frozen-lockfile
+
+         # Fails when error-catalog.json is stale or when a contract error has
+         # no doc comment and is not in scripts/error-catalog-baseline.json (#1326).
+         - name: Verify contract error catalog
+           run: pnpm exec ts-node --transpile-only scripts/build-error-catalog.ts --contracts-dir contracts-src --check
+
+   migration-safety:
+      # Checks only migrations added or changed by the pull request against the
+      # base branch. See docs/migrations.md (#1344).
+      if: github.event_name == 'pull_request'
+      runs-on: ubuntu-latest
+
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+           with:
+              fetch-depth: 0
+
+         - name: Setup pnpm
+           uses: pnpm/action-setup@v4
+           with:
+              version: 10.6.5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - run: pnpm install --frozen-lockfile
+
+         - name: Check new migrations for expand/contract safety
+           run: pnpm exec ts-node --transpile-only scripts/check-migrations.ts --base "origin/${{ github.base_ref }}"

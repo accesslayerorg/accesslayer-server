@@ -1,4 +1,7 @@
 import { getRoyaltyEnforcement } from '../marketplaces/marketplace.service';
+import { getFeeSchedule, getFeeCurve } from './fee-schedule.service';
+import { getLaunchCapStatus, getLaunchCapRamp } from './launch-cap.service';
+import { prisma } from '../../utils/prisma.utils';
 // src/modules/keys/keys.routes.ts
 import { Router } from 'express';
 import { z } from 'zod';
@@ -83,7 +86,7 @@ import {
    DuplicateKeyRegistrationError,
    InvalidOnChainContractError,
 } from './key-registration.service';
-import { prisma } from '../../utils/prisma.utils';
+
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
 import {
@@ -297,6 +300,64 @@ const launchAuctionBidsQuerySchema = z.object({
 });
 
 const router = Router();
+
+router.get('/:keyId/fee-schedule', async (req, res, next) => {
+   try {
+      const checkpoint = await prisma.indexedLedger.findUnique({ where: { id: 1 } });
+      return sendSuccess(res, await getFeeSchedule(String(req.params.keyId), checkpoint?.ledger ?? 0));
+   } catch (error) { next(error); }
+});
+
+router.get('/:keyId/fee-schedule/curve', async (req, res, next) => {
+   try {
+      const parsed = z.coerce.number().int().min(2).max(100).safeParse(req.query.points ?? 20);
+      if (!parsed.success) return sendValidationError(res, 'Invalid points; expected an integer from 2 to 100');
+      const checkpoint = await prisma.indexedLedger.findUnique({ where: { id: 1 } });
+      return sendSuccess(res, await getFeeCurve(String(req.params.keyId), checkpoint?.ledger ?? 0, parsed.data));
+   } catch (error) { next(error); }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/launch-cap?wallet=<address>
+ *
+ * Launch-window purchase cap status for a single wallet (#1349).
+ * Returns the current cap (linearly interpolated from start→end), the
+ * wallet's cumulative purchases in the window, the remaining allowance,
+ * an exemption flag and the next ledger at which the cap moves. After
+ * the window ends the route returns windowActive=false with cap/remaining
+ * nulled; the raw purchases total is still reported.
+ */
+router.get('/:keyId/launch-cap', async (req, res, next) => {
+   try {
+      const walletParsed = z.string().min(1, 'wallet is required').safeParse(req.query.wallet);
+      if (!walletParsed.success) {
+         return sendValidationError(res, 'Invalid wallet', [{ field: 'wallet', message: 'required' }]);
+      }
+      const checkpoint = await prisma.indexedLedger.findUnique({ where: { id: 1 } });
+      const status = await getLaunchCapStatus(
+         String(req.params.keyId),
+         walletParsed.data,
+         checkpoint?.ledger ?? 0,
+      );
+      return sendSuccess(res, status);
+   } catch (error) { next(error); }
+});
+
+/**
+ * GET /api/v1/keys/:keyId/launch-cap/ramp?points=<n>
+ *
+ * Returns the cap curve sampled at `points` evenly spaced ledgers between
+ * the window start and end (inclusive), for client-side charting (#1349).
+ */
+router.get('/:keyId/launch-cap/ramp', async (req, res, next) => {
+   try {
+      const parsed = z.coerce.number().int().min(2).max(500).safeParse(req.query.points ?? 20);
+      if (!parsed.success) {
+         return sendValidationError(res, 'Invalid points; expected an integer from 2 to 500');
+      }
+      return sendSuccess(res, await getLaunchCapRamp(String(req.params.keyId), parsed.data));
+   } catch (error) { next(error); }
+});
 
 const registerKeyBodySchema = z.preprocess(
    (val: any) => {

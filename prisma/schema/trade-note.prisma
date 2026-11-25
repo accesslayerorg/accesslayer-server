@@ -1,0 +1,19 @@
+// prisma/schema/trade-note.prisma
+// Private trade journal notes with encrypted bodies (#1315).
+
+model TradeNote {
+  id        String   @id @default(cuid())
+  wallet    String
+  txHash    String
+  keyId     String?
+  /// AES-256-GCM encrypted note body; never logged or exposed in analytics.
+  body      String
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([wallet, txHash])
+  @@index([wallet, updatedAt(sort: Desc)])
+  @@index([wallet, keyId])
+  @@map("trade_notes")
+}
