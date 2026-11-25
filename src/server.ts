@@ -65,6 +65,10 @@ import {
    stopPartitionManagerWorker,
 } from './workers/partition-manager.worker';
 import {
+   startDigestWorker,
+   stopDigestWorker,
+} from './workers/digest.worker';
+import {
    startCampaignCronJobs,
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
@@ -159,11 +163,9 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startRetentionWorker();
-<<<<<<< HEAD
       startAccountLifecycleWorker();
-=======
       startPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
+      startDigestWorker();
       startCampaignCronJobs();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
@@ -217,11 +219,9 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopRetentionWorker();
-<<<<<<< HEAD
       stopAccountLifecycleWorker();
-=======
       stopPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
+      stopDigestWorker();
       stopCampaignCronJobs();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();

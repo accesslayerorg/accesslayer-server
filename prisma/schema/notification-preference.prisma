@@ -1,0 +1,21 @@
+// prisma/schema/notification-preference.prisma
+// Wallet email notification preferences and digest subscriptions (#1217).
+
+model NotificationPreference {
+  id             String    @id @default(cuid())
+  wallet         String    @unique
+  email          String
+  frequency      String    @default("daily") // "daily" | "weekly"
+  events         String[]  // Array of subscribed event types
+  verifiedAt     DateTime?
+  lastDigestAt   DateTime?
+  unsubscribedAt DateTime?
+  claimToken     String?   // For worker concurrency deduplication
+  claimExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([verifiedAt, unsubscribedAt, frequency])
+  @@index([wallet])
+  @@map("notification_preferences")
+}

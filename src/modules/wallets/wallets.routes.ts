@@ -17,6 +17,11 @@ import { cacheControl } from "../../middlewares/cache-control.middleware";
 import { ACTIVITY_FEED_CACHE_PRESET } from "../../constants/activity-feed-cache.constants";
 import { requireWalletParamMatch } from "../../middlewares/jwt-auth.middleware";
 import { jwtAuth } from "../../middlewares/jwt.middleware";
+import { requireStellarSignature } from "../../middlewares/stellar-signature.middleware";
+import {
+   httpGetNotificationPreferences,
+   httpUpdateNotificationPreferences,
+} from "../notifications/notification-preference.controllers";
 
 const walletsRouter = Router();
 
@@ -104,5 +109,22 @@ walletsRouter.get('/:address/portfolio', httpGetWalletPortfolioAsOf);
  * and summary return differences (#1321).
  */
 walletsRouter.get('/:address/performance', httpGetWalletPerformance);
+
+/**
+ * GET /v1/wallets/:address/notifications
+ * PUT /v1/wallets/:address/notifications
+ *
+ * Notification preferences and digest settings (#1217).
+ */
+walletsRouter.get(
+   '/:address/notifications',
+   requireStellarSignature(),
+   httpGetNotificationPreferences
+);
+walletsRouter.put(
+   '/:address/notifications',
+   requireStellarSignature(),
+   httpUpdateNotificationPreferences
+);
 
 export default walletsRouter;

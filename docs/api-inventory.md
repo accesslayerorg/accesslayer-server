@@ -81,11 +81,22 @@ Public activity feed endpoints.
 
 ## Wallets Module
 
-Wallet activity and trade history endpoints.
+Wallet activity, trade history, and notification preference endpoints.
 
-| Method | Path                         | Description                                                   |
-| :----- | :--------------------------- | :------------------------------------------------------------ |
-| `GET`  | `/wallets/:address/activity` | Return paginated trade history (buys and sells) for a wallet. |
+| Method | Path                              | Description                                                             |
+| :----- | :-------------------------------- | :---------------------------------------------------------------------- |
+| `GET`  | `/wallets/:address/activity`      | Return paginated trade history (buys and sells) for a wallet.           |
+| `GET`  | `/wallets/:address/notifications` | Get email digest notification preferences for a Stellar wallet address. |
+| `PUT`  | `/wallets/:address/notifications` | Update notification preferences and send email verification if changed. |
+
+## Notifications Module
+
+Email verification and one-click unsubscribe endpoints.
+
+| Method | Path                                | Description                                                                 |
+| :----- | :---------------------------------- | :-------------------------------------------------------------------------- |
+| `GET`  | `/notifications/verify?token=`      | Verify email address using a signed 24-hour verification token.             |
+| `GET`  | `/notifications/unsubscribe?token=` | One-click unsubscribe from email digest using a signed token without login. |
 
 ## Referrals Module
 
