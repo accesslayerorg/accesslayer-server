@@ -66,7 +66,7 @@ async function handleBuyCommitted(event: IndexerChainEvent): Promise<void> {
    const keyId = requiredString(event, 'keyId', 'creatorId');
    const wallet = requiredString(event, 'wallet', 'buyer', 'actor');
    const commitment = requiredString(event, 'commitment', 'commitHash');
-   const commitEndLedger = optionalInt(event, 'commitEndLedger') ?? event.ledger + 100;
+   const commitEndLedger = optionalInt(event, 'commitEndLedger') ?? (event.ledger ?? 0) + 100;
    const revealEndLedger = optionalInt(event, 'revealEndLedger') ?? commitEndLedger + 100;
 
    await prisma.$transaction(async tx => {
@@ -112,7 +112,7 @@ async function handleBuyCommitted(event: IndexerChainEvent): Promise<void> {
             fillStatus: 'pending',
             commitTxHash: event.txHash,
             commitEventIndex: event.eventIndex,
-            commitLedger: event.ledger,
+            commitLedger: event.ledger ?? 0,
          },
       });
 

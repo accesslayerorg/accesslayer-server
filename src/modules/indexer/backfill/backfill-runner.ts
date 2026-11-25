@@ -110,7 +110,7 @@ async function processShard(
    const stats: ShardStats = { eventsFetched: 0, eventsInserted: 0, eventsDuplicate: 0 };
 
    await store.markRunning(plan.runKey, range.shardIndex);
-   log('backfill shard started', { runKey: plan.runKey, shardIndex: range.shardIndex, ...range });
+   log('backfill shard started', { runKey: plan.runKey, ...range });
 
    try {
       let cursor: string | null = null;

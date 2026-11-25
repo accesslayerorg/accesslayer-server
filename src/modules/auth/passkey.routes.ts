@@ -9,6 +9,7 @@ import {
    sendValidationError,
    zodIssuesToDetails,
    ErrorCode,
+   ErrorCodeType,
 } from '../../utils/api-response.utils';
 import {
    createPasskeyRegistrationOptions,
@@ -43,7 +44,7 @@ const loginVerifySchema = z.object({
 
 function handlePasskeyError(res: Response, error: unknown, context: string): void {
    if (error instanceof PasskeyServiceError) {
-      sendError(res, error.statusCode, error.code as ErrorCode, error.message);
+      sendError(res, error.statusCode, error.code as ErrorCodeType, error.message);
       return;
    }
    logger.error({ error }, context);

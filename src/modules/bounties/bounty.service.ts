@@ -80,10 +80,10 @@ export function computeReclaimableAmount(
 
 async function getCurrentLedger(): Promise<number> {
    const latest = await prisma.ledgerCheckpoint.findFirst({
-      orderBy: { ledgerSequence: 'desc' },
-      select: { ledgerSequence: true },
+      orderBy: { ledger: 'desc' },
+      select: { ledger: true },
    });
-   return latest?.ledgerSequence ?? 0;
+   return latest?.ledger ?? 0;
 }
 
 function serializeBountySummary(bounty: BountyRecord, currentLedger: number) {

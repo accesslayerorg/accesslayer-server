@@ -208,6 +208,7 @@ export async function cacheSetJson(
 }
 
 /** Store a raw response payload (status + body) for idempotency replay. */
+export const cacheSet = cacheSetRaw;
 export async function cacheSetRaw(
    key: string,
    value: string,

@@ -1,3 +1,6 @@
+SET lock_timeout = '5s';
+SET statement_timeout = '30s';
+
 -- CreateEnum
 CREATE TYPE "AnnouncementStatus" AS ENUM ('draft', 'scheduled', 'published', 'cancelled');
 

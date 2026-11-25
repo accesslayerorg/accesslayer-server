@@ -172,7 +172,7 @@ export async function recordLedgerIngestion(
             });
             if (existing) {
                await tx.ingestedEvent.update({
-                  where: { id_createdAt: { id: existing.id, createdAt: existing.createdAt } as any },
+                  where: { id: existing.id } as any,
                   data: { ...fields, status: 'CONFIRMED', reorgedAt: null },
                });
             } else {

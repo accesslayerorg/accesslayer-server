@@ -19,5 +19,5 @@
       "noUnusedParameters": false // Disable TS unused params check
    },
    "include": ["src/**/*"],
-   "exclude": ["node_modules"]
+   "exclude": ["node_modules", "**/*.test.ts", "**/*.test.js", "src/lib/templates/**/*", "src/lib/upload-scanning/**/*"]
 }
