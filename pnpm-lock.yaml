@@ -46,6 +46,9 @@ importers:
          cors:
             specifier: ^2.8.5
             version: 2.8.6
+         csv-parse:
+            specifier: ^6.1.0
+            version: 6.2.1
          dotenv:
             specifier: ^16.5.0
             version: 16.6.1
@@ -3443,6 +3446,12 @@ packages:
       resolution:
          {
             integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==,
+         }
+
+   csv-parse@6.2.1:
+      resolution:
+         {
+            integrity: sha512-LRLMV+UCyfMokp8Wb411duBf1gaBKJfOfBWU9eHMJ+b+cJYZsNu3AFmjJf3+yPGd59Exz1TsMjaSFyxnYB9+IQ==,
          }
 
    data-uri-to-buffer@4.0.1:
@@ -9580,6 +9589,7 @@ snapshots:
 
    dateformat@4.6.3: {}
 
+   csv-parse@6.2.1: {}
    dayjs@1.11.23: {}
 
    debug@2.6.9:
