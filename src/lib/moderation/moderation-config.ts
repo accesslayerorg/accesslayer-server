@@ -38,7 +38,7 @@ function readPositiveInteger(
  *
  * Falls back to the default when the variable is missing or invalid.
  */
-function readNonNegativeInteger(
+export function readNonNegativeInteger(
   envValue: string | undefined,
   defaultValue: number,
 ): number {

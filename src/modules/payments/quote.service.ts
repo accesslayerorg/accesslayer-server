@@ -412,13 +412,11 @@ export class QuoteService {
       const rateSnapshot = await this.getAssetRate(paymentAsset);
 
       // Compute bonding curve cost in 7-decimal XLM stroops
-      const currentSupply = BigInt(
-         Math.max(0, Math.floor(Number(creator.circulatingSupply)))
-      );
+      const currentSupply = Math.max(0, Math.floor(Number(creator.circulatingSupply)));
       const milestones = validateMilestones(creator.curveMilestones);
       const costStroops = buyCost(
          currentSupply,
-         BigInt(quantity),
+         quantity,
          milestones,
          creator.baseExponent
       );

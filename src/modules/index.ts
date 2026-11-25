@@ -118,6 +118,7 @@ import tradesRouter from './trades/trades.routes';
 import tradersRouter from './traders/traders.routes';
 import nonceRouter from './nonce/nonce.routes';
 import swapsRouter from './swaps/swaps.routes';
+import announcementsRouter from './announcements/announcements.routes';
 import eventsRouter from './events/events.routes';
 import {
    keyPassEventsRouter,
@@ -266,6 +267,7 @@ router.use('/trades', routeBodySizeLimit('default'), tradesRouter);
 router.use('/traders', routeBodySizeLimit('default'), tradersRouter);
 router.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 router.use('/swaps', routeBodySizeLimit('default'), swapsRouter);
+router.use('/announcements', routeBodySizeLimit('default'), announcementsRouter);
 router.use('/flags', routeBodySizeLimit('default'), flagRouter);
 
 router.use('/campaigns', routeBodySizeLimit('default'), campaignsRouter);

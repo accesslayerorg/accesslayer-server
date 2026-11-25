@@ -67,6 +67,7 @@ model CreatorProfile {
   priceHistory     CreatorPriceHistory[]
   pendingPurchases PendingKeyPurchase[]
   posts            CreatorPost[]
+  announcements    Announcement[]
   followers        Follow[]
   walletFollowers   WalletCreatorFollow[]
   relaunches       CreatorKeyRelaunch[]
