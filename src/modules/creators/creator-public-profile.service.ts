@@ -23,11 +23,25 @@ export interface CreatorPublicProfileResult {
    totalVolume: string;
    avgRating: number;
    isVerified: boolean;
+   /** Verification badge (#1324); same value as `isVerified`. */
+   verified: boolean;
+   /** When the creator's verification was approved, or null. */
+   verifiedAt: string | null;
    handle: string | null;
    displayName: string | null;
    bio: string | null;
    avatarUrl: string | null;
    stats: CreatorPublicProfileStats;
+}
+
+/** Earliest approval time among verified profiles, as ISO text, or null. */
+export function earliestVerifiedAt(
+   profiles: ReadonlyArray<{ isVerified: boolean; verifiedAt?: Date | null }>
+): string | null {
+   const times = profiles
+      .filter(profile => profile.isVerified && profile.verifiedAt)
+      .map(profile => (profile.verifiedAt as Date).getTime());
+   return times.length > 0 ? new Date(Math.min(...times)).toISOString() : null;
 }
 
 export interface CreatorDeployedKeyItem {
@@ -37,6 +51,10 @@ export interface CreatorDeployedKeyItem {
    bio: string | null;
    avatarUrl: string | null;
    isVerified: boolean;
+   /** Verification badge (#1324); same value as `isVerified`. */
+   verified: boolean;
+   /** When the key's creator was verified, or null. */
+   verifiedAt: string | null;
    holderCount: number;
    totalTradingVolume: string;
    status: string;
@@ -91,6 +109,7 @@ async function resolveWalletProfiles(wallet: string) {
          website: true,
          discord: true,
          isVerified: true,
+         verifiedAt: true,
          tradingPaused: true,
          deprecatedAt: true,
          followersCount: true,
@@ -196,6 +215,8 @@ export async function getCreatorPublicProfile(
       totalVolume: totalTradingVolume.toString(),
       avgRating: clampedRating,
       isVerified,
+      verified: isVerified,
+      verifiedAt: earliestVerifiedAt(profiles),
       handle: primaryProfile?.handle ?? null,
       displayName: primaryProfile?.displayName ?? null,
       bio: primaryProfile?.bio ?? null,
@@ -285,6 +306,7 @@ export async function getCreatorDeployedKeys(
          bio: true,
          avatarUrl: true,
          isVerified: true,
+         verifiedAt: true,
          tradingPaused: true,
          deprecatedAt: true,
          createdAt: true,
@@ -334,6 +356,8 @@ export async function getCreatorDeployedKeys(
             bio: p.bio,
             avatarUrl: p.avatarUrl,
             isVerified: p.isVerified,
+            verified: p.isVerified,
+            verifiedAt: p.verifiedAt ? p.verifiedAt.toISOString() : null,
             holderCount,
             totalTradingVolume: totalTradingVolume.toString(),
             status,

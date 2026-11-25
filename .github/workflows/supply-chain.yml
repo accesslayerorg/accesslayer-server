@@ -1,0 +1,95 @@
+name: Supply chain
+
+# SBOM, license policy, dependency advisories and action pinning.
+# See docs/security/supply-chain.md for the process and how to handle failures.
+
+on:
+   pull_request:
+   push:
+      branches: [main]
+   release:
+      types: [published]
+   workflow_dispatch:
+
+permissions:
+   contents: read
+
+jobs:
+   policy:
+      name: Pins, licenses and advisories
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+
+         - name: Check GitHub Actions are pinned to commit SHAs
+           run: node scripts/check-action-pins.mjs
+
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         - name: Check production dependency licenses
+           run: |
+              pnpm dlx license-checker-rseidelsohn@5.0.1 --production --json > licenses.json
+              node scripts/check-licenses.mjs licenses.json license-policy.json
+
+         - name: Check high and critical advisories
+           run: |
+              pnpm audit --json > audit.json || true
+              node scripts/check-audit-exceptions.mjs audit.json security/audit-exceptions.json
+
+   sbom:
+      name: Generate SBOM
+      # Runs for every published release and on manual dispatch.
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      permissions:
+         contents: write
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         - name: Generate CycloneDX SBOM (production dependencies)
+           run: |
+              pnpm dlx @cyclonedx/cyclonedx-npm@7.0.1 --omit dev --spec-version 1.5 \
+                 --output-format JSON --output-file sbom.cdx.json
+              node -e "const s=require('./sbom.cdx.json'); console.log('components:', (s.components||[]).length)"
+
+         - name: Upload SBOM artifact
+           uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+           with:
+              name: sbom-${{ github.event.release.tag_name || github.sha }}
+              path: sbom.cdx.json
+              retention-days: 90
+
+         - name: Attach SBOM to the release
+           if: github.event_name == 'release'
+           env:
+              GH_TOKEN: ${{ github.token }}
+              TAG: ${{ github.event.release.tag_name }}
+           run: gh release upload "$TAG" sbom.cdx.json --clobber

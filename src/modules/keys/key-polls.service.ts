@@ -1,8 +1,17 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { cacheGetJson, cacheSetJson } from '../../utils/redis.utils';
 import { Decimal } from '@prisma/client/runtime/library';
 
+/**
+ * Poll reads are cached for 30s. PollVoteCast and PollClosed events invalidate
+ * every `key:polls*:<keyId>:*` entry (see key-poll-indexer.service.ts).
+ */
 export const KEY_POLLS_CACHE_SECONDS = 30;
+export const KEY_POLLS_DEFAULT_LIMIT = 20;
+export const KEY_POLLS_MAX_LIMIT = 100;
+
+export type KeyPollStatusFilter = 'active' | 'closed' | 'all';
 
 export class KeyPollNotFoundError extends Error {
    readonly resource: 'Key' | 'Poll';
@@ -18,13 +27,21 @@ export class KeyPollNotFoundError extends Error {
    }
 }
 
-interface PollVoteStatus {
+/** Raised when a pagination cursor does not name a poll under the key. */
+export class InvalidKeyPollCursorError extends Error {
+   constructor(cursor: string) {
+      super(`Invalid poll cursor: ${cursor}`);
+      this.name = 'InvalidKeyPollCursorError';
+   }
+}
+
+export interface PollVoteStatus {
    wallet: string;
    voted: boolean;
    vote: { optionIndex: number; option: string; weight: string } | null;
 }
 
-interface PollResult {
+export interface PollResult {
    pollId: string;
    question: string;
    options: string[];
@@ -34,21 +51,61 @@ interface PollResult {
    results: Record<string, string>;
    expiresAt: Date;
    closedAt: Date | null;
+   /** Whole seconds until the poll expires; 0 once it is closed. */
+   timeRemainingSeconds: number;
 }
 
-interface PollDetail extends PollResult {
+export interface PollDetail extends PollResult {
    optionResults: Array<{
       optionIndex: number;
       option: string;
       votes: number;
       weight: string;
    }>;
+   /** Present only when the request names a wallet. */
+   walletVote?: PollVoteStatus;
+}
+
+export interface KeyPollsPageOptions {
+   status?: KeyPollStatusFilter;
+   cursor?: string;
+   limit?: number;
+}
+
+export interface KeyPollsPage {
+   items: PollResult[];
+   /** The pollId to pass as `cursor` for the next page, or null at the end. */
+   nextCursor: string | null;
 }
 
 function normalizeOptions(value: unknown): string[] {
    return Array.isArray(value)
       ? value.filter((option): option is string => typeof option === 'string')
       : [];
+}
+
+function normalizeLimit(limit: number | undefined): number {
+   if (limit === undefined || !Number.isFinite(limit)) {
+      return KEY_POLLS_DEFAULT_LIMIT;
+   }
+   return Math.min(Math.max(Math.trunc(limit), 1), KEY_POLLS_MAX_LIMIT);
+}
+
+/**
+ * Filter for a status view. A poll counts as closed when the indexer has seen
+ * PollClosed or when its expiry has passed, so both checks are applied.
+ */
+export function pollStatusWhere(
+   status: KeyPollStatusFilter,
+   now: Date
+): Prisma.KeyPollWhereInput {
+   if (status === 'active') {
+      return { status: { not: 'closed' }, expiresAt: { gt: now } };
+   }
+   if (status === 'closed') {
+      return { OR: [{ status: 'closed' }, { expiresAt: { lte: now } }] };
+   }
+   return {};
 }
 
 async function getPollResults(
@@ -86,14 +143,13 @@ async function getPollResults(
       (total, result) => total.plus(result.weight),
       new Decimal(0)
    );
+   const now = Date.now();
+   const closed = poll.status === 'closed' || poll.expiresAt.getTime() <= now;
    const response: PollResult = {
       pollId: poll.pollId,
       question: poll.question,
       options,
-      status:
-         poll.status === 'closed' || poll.expiresAt.getTime() <= Date.now()
-            ? 'closed'
-            : 'active',
+      status: closed ? 'closed' : 'active',
       totalVotes: optionResults.reduce(
          (total, result) => total + result.votes,
          0
@@ -102,6 +158,9 @@ async function getPollResults(
       results,
       expiresAt: poll.expiresAt,
       closedAt: poll.closedAt,
+      timeRemainingSeconds: closed
+         ? 0
+         : Math.max(0, Math.ceil((poll.expiresAt.getTime() - now) / 1000)),
    };
    return includeOptionResults ? { ...response, optionResults } : response;
 }
@@ -114,39 +173,83 @@ async function requireKey(keyId: string): Promise<void> {
    if (!key) throw new KeyPollNotFoundError(keyId);
 }
 
-export async function getKeyPolls(keyId: string): Promise<PollResult[]> {
-   const cacheKey = `key:polls:${keyId}:list`;
-   const cached = await cacheGetJson<PollResult[]>(cacheKey);
+/**
+ * One page of a key's polls, newest expiry first. `cursor` is the pollId of
+ * the last poll on the previous page.
+ */
+export async function getKeyPolls(
+   keyId: string,
+   options: KeyPollsPageOptions = {}
+): Promise<KeyPollsPage> {
+   const status = options.status ?? 'all';
+   const limit = normalizeLimit(options.limit);
+   const cursor = options.cursor ?? null;
+   const cacheKey = `key:polls:${keyId}:list:${status}:${cursor ?? 'first'}:${limit}`;
+   const cached = await cacheGetJson<KeyPollsPage>(cacheKey);
    if (cached !== null) return cached;
 
    await requireKey(keyId);
-   const polls = await prisma.keyPoll.findMany({
-      where: { keyId },
+
+   let cursorArgs:
+      | { cursor: { keyId_pollId: { keyId: string; pollId: string } }; skip: number }
+      | undefined;
+   if (cursor !== null) {
+      const cursorPoll = await prisma.keyPoll.findUnique({
+         where: { keyId_pollId: { keyId, pollId: cursor } },
+         select: { pollId: true },
+      });
+      if (!cursorPoll) throw new InvalidKeyPollCursorError(cursor);
+      cursorArgs = {
+         cursor: { keyId_pollId: { keyId, pollId: cursor } },
+         skip: 1,
+      };
+   }
+
+   // Fetch one extra row to learn whether another page exists.
+   const rows = await prisma.keyPoll.findMany({
+      where: { keyId, ...pollStatusWhere(status, new Date()) },
       orderBy: [{ expiresAt: 'desc' }, { pollId: 'asc' }],
+      take: limit + 1,
+      ...cursorArgs,
    });
-   const results = await Promise.all(
-      polls.map(poll => getPollResults(poll, false) as Promise<PollResult>)
+   const hasMore = rows.length > limit;
+   const pageRows = hasMore ? rows.slice(0, limit) : rows;
+   const items = await Promise.all(
+      pageRows.map(poll => getPollResults(poll, false) as Promise<PollResult>)
    );
-   await cacheSetJson(cacheKey, results, KEY_POLLS_CACHE_SECONDS);
-   return results;
+   const page: KeyPollsPage = {
+      items,
+      nextCursor: hasMore ? pageRows[pageRows.length - 1].pollId : null,
+   };
+   await cacheSetJson(cacheKey, page, KEY_POLLS_CACHE_SECONDS);
+   return page;
 }
 
+/**
+ * Poll detail with per-option results. When `wallet` is given, the wallet's
+ * vote is attached as `walletVote`. The vote lookup has its own cache entry,
+ * so the detail entry does not vary by wallet.
+ */
 export async function getKeyPoll(
    keyId: string,
-   pollId: string
+   pollId: string,
+   wallet?: string
 ): Promise<PollDetail> {
    const cacheKey = `key:polls:${keyId}:${pollId}:detail`;
-   const cached = await cacheGetJson<PollDetail>(cacheKey);
-   if (cached !== null) return cached;
+   let detail = await cacheGetJson<PollDetail>(cacheKey);
+   if (detail === null) {
+      await requireKey(keyId);
+      const poll = await prisma.keyPoll.findUnique({
+         where: { keyId_pollId: { keyId, pollId } },
+      });
+      if (!poll) throw new KeyPollNotFoundError(keyId, pollId);
+      detail = (await getPollResults(poll, true)) as PollDetail;
+      await cacheSetJson(cacheKey, detail, KEY_POLLS_CACHE_SECONDS);
+   }
 
-   await requireKey(keyId);
-   const poll = await prisma.keyPoll.findUnique({
-      where: { keyId_pollId: { keyId, pollId } },
-   });
-   if (!poll) throw new KeyPollNotFoundError(keyId, pollId);
-   const result = (await getPollResults(poll, true)) as PollDetail;
-   await cacheSetJson(cacheKey, result, KEY_POLLS_CACHE_SECONDS);
-   return result;
+   if (wallet === undefined) return detail;
+   const walletVote = await getKeyPollVote(keyId, pollId, wallet);
+   return { ...detail, walletVote };
 }
 
 export async function getKeyPollVote(

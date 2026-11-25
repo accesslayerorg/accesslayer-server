@@ -1,0 +1,50 @@
+model GuardianSet {
+  walletAddress String   @id
+  guardians     String[]
+  threshold     Int
+  delayLedgers  Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@map("guardian_sets")
+}
+
+model RecoveryRequest {
+  id               String                @id
+  walletAddress    String
+  initiator        String
+  newOwner         String
+  initiatedLedger  Int
+  earliestExecute  Int
+  status           String                @default("pending")
+  executedAt       DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime              @default(now())
+  approvals        RecoveryApproval[]
+
+  @@index([walletAddress])
+  @@map("recovery_requests")
+}
+
+model RecoveryApproval {
+  requestId  String
+  guardian   String
+  approvedAt DateTime         @default(now())
+  request    RecoveryRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, guardian])
+  @@map("recovery_approvals")
+}
+
+model RecoveryNotification {
+  id            String   @id
+  walletAddress String
+  requestId     String
+  priority      String   @default("high")
+  channel       String
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([walletAddress])
+  @@index([requestId])
+  @@map("recovery_notifications")
+}

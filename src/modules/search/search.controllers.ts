@@ -17,7 +17,35 @@ import {
    searchCreators,
    searchKeys,
    SearchQueryTooShortError,
+   suggestSearch,
 } from './search.service';
+
+/**
+ * GET /api/v1/search/suggest?q=&limit= (#1329, minimal first pass).
+ */
+export const httpSearchSuggest: AsyncController = async (req, res, next) => {
+   const parsed = searchPaginationQuerySchema.safeParse(req.query);
+   if (!parsed.success) {
+      sendValidationError(
+         res,
+         'Invalid search query',
+         zodIssuesToDetails(parsed.error.issues)
+      );
+      return;
+   }
+   try {
+      sendSuccess(
+         res,
+         await suggestSearch(parsed.data.q, parsed.data.limit)
+      );
+   } catch (error) {
+      if (error instanceof SearchQueryTooShortError) {
+         sendError(res, 400, ErrorCode.VALIDATION_ERROR, error.message);
+         return;
+      }
+      next(error);
+   }
+};
 
 /**
  * GET /api/v1/search?q=

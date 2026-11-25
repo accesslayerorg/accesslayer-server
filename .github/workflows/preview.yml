@@ -1,0 +1,145 @@
+name: Preview environments
+
+# One ephemeral stack per pull request, with its own database schema and seed
+# data. See docs/preview-environments.md for setup and debugging.
+#
+# Fork pull requests never run the deploy or teardown jobs: they receive no
+# secrets, and pull_request (not pull_request_target) keeps fork code away from
+# the staging credentials.
+
+on:
+   pull_request:
+      types: [opened, reopened, synchronize, closed]
+   schedule:
+      - cron: '17 4 * * *'
+   workflow_dispatch:
+
+permissions:
+   contents: read
+
+concurrency:
+   group: preview-${{ github.event.pull_request.number || 'sweep' }}
+   cancel-in-progress: false
+
+jobs:
+   deploy:
+      name: Deploy preview
+      if: >-
+         github.event_name == 'pull_request' &&
+         github.event.action != 'closed' &&
+         github.event.pull_request.head.repo.full_name == github.repository
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      environment: preview
+      permissions:
+         contents: read
+         pull-requests: write
+      env:
+         GH_TOKEN: ${{ github.token }}
+         PREVIEW_DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+         PREVIEW_DEPLOY_HOOK_URL: ${{ secrets.PREVIEW_DEPLOY_HOOK_URL }}
+         PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
+         PREVIEW_SOROBAN_RPC_URL: ${{ vars.PREVIEW_SOROBAN_RPC_URL }}
+         PREVIEW_ORACLE_MODE: ${{ vars.PREVIEW_ORACLE_MODE || 'mock' }}
+         MAX_CONCURRENT_PREVIEWS: ${{ vars.MAX_CONCURRENT_PREVIEWS || '5' }}
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         - name: Generate Prisma client
+           run: pnpm exec prisma generate
+
+         - name: Provision, migrate, seed and deploy
+           env:
+              GITHUB_REPOSITORY: ${{ github.repository }}
+              HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+           run: >-
+              node scripts/preview/preview-env.mjs provision
+              --pr ${{ github.event.pull_request.number }}
+              --sha ${{ github.event.pull_request.head.sha }}
+
+   teardown:
+      name: Tear down preview
+      if: >-
+         github.event_name == 'pull_request' &&
+         github.event.action == 'closed' &&
+         github.event.pull_request.head.repo.full_name == github.repository
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+      environment: preview
+      permissions:
+         contents: read
+         pull-requests: write
+      env:
+         GH_TOKEN: ${{ github.token }}
+         GITHUB_REPOSITORY: ${{ github.repository }}
+         PREVIEW_DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+         PREVIEW_DEPLOY_HOOK_URL: ${{ secrets.PREVIEW_DEPLOY_HOOK_URL }}
+         PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         - name: Drop schema and remove deployment
+           run: node scripts/preview/preview-env.mjs teardown --pr ${{ github.event.pull_request.number }}
+
+   sweep:
+      name: Remove stale previews
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      environment: preview
+      permissions:
+         contents: read
+         pull-requests: write
+      env:
+         GH_TOKEN: ${{ github.token }}
+         GITHUB_REPOSITORY: ${{ github.repository }}
+         PREVIEW_DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+         PREVIEW_DEPLOY_HOOK_URL: ${{ secrets.PREVIEW_DEPLOY_HOOK_URL }}
+         PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+           with:
+              persist-credentials: false
+
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install dependencies
+           run: pnpm install --frozen-lockfile
+
+         - name: Remove closed and inactive previews (7 days)
+           run: node scripts/preview/preview-env.mjs sweep --max-age-days 7

@@ -1,0 +1,76 @@
+// prisma/schema/broadcast.prisma
+// Consented creator email broadcast pipeline (#1319).
+
+model BroadcastConsent {
+  id               String    @id @default(cuid())
+  userId           String
+  wallet           String
+  keyId            String
+  email            String
+  status           String    @default("PENDING") // PENDING | CONFIRMED | OPTED_OUT
+  confirmTokenHash String?
+  confirmExpiresAt DateTime?
+  confirmedAt      DateTime?
+  optedOutAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, keyId])
+  @@index([keyId, status])
+  @@index([email])
+  @@map("broadcast_consents")
+}
+
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String   // UNSUBSCRIBE | BOUNCE | COMPLAINT
+  createdAt DateTime @default(now())
+
+  @@map("email_suppressions")
+}
+
+model Broadcast {
+  id              String    @id @default(cuid())
+  creatorId       String
+  subject         String
+  bodyHtml        String
+  bodyText        String?
+  minBalance      Decimal   @default(0) @db.Decimal(20, 7)
+  status          String    @default("SCHEDULED") // SCHEDULED | SENDING | COMPLETED | FAILED
+  scheduledFor    DateTime  @default(now())
+  sentAt          DateTime?
+  recipientCount  Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  bouncedCount    Int       @default(0)
+  suppressedCount Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  deliveries BroadcastDelivery[]
+
+  @@index([creatorId, createdAt])
+  @@index([status, scheduledFor])
+  @@map("broadcasts")
+}
+
+model BroadcastDelivery {
+  id             String    @id @default(cuid())
+  broadcastId    String
+  consentId      String?
+  recipientEmail String
+  wallet         String
+  status         String    @default("PENDING") // PENDING | SENT | FAILED | BOUNCED | SUPPRESSED
+  attempts       Int       @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, recipientEmail])
+  @@index([broadcastId, status])
+  @@map("broadcast_deliveries")
+}

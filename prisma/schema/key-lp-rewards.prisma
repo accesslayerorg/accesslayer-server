@@ -1,0 +1,117 @@
+// prisma/schema/key-lp-rewards.prisma
+// Key LP reward accrual and pro-rata distribution (#1196).
+//
+// Each creator key has a reward pool funded hourly from its trading fees
+// (LP_FEE_BPS of epoch trade volume). At every hourly epoch the pool is split
+// across LP positions pro-rata by their *eligible* lp_tokens, credited to
+// accrued_rewards, and LPs claim accrued - claimed through the API.
+//
+// Amount units:
+//   - lp_tokens / eligible_lp_tokens / entry_price: decimal with 7 places.
+//   - reward amounts: integer base units (stroops), the same unit as
+//     Trade.price * Trade.quantity.
+
+/// One LP position per (key, wallet).
+///
+/// `eligibleLpTokens` is the balance that earns in the epoch being processed:
+/// deposits only become eligible at the first epoch boundary after they land
+/// (so a new position joins the *next* epoch's distribution), while
+/// withdrawals reduce eligibility immediately.
+model KeyLpPosition {
+  id                  String    @id @default(cuid())
+  keyId               String
+  wallet              String
+  lpTokens            Decimal   @default(0) @db.Decimal(38, 7)
+  entryPrice          Decimal   @default(0) @db.Decimal(38, 7)
+  eligibleLpTokens    Decimal   @default(0) @db.Decimal(38, 7)
+  accruedRewards      Decimal   @default(0) @db.Decimal(38, 0)
+  claimedRewards      Decimal   @default(0) @db.Decimal(38, 0)
+  lastDepositAt       DateTime?
+  lastAccruedEpochEnd DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  accruals KeyLpRewardAccrual[]
+  claims   KeyLpRewardClaim[]
+
+  @@unique([keyId, wallet])
+  @@index([wallet])
+  @@map("key_lp_positions")
+}
+
+/// Per-key reward pool. `balance` is funded but not yet distributed (carried
+/// over when an epoch has no eligible liquidity). `lastEpochEnd` is the
+/// accrual cursor: the next epoch to process starts here.
+model KeyLpRewardPool {
+  keyId            String   @id
+  balance          Decimal  @default(0) @db.Decimal(38, 0)
+  totalFunded      Decimal  @default(0) @db.Decimal(38, 0)
+  totalDistributed Decimal  @default(0) @db.Decimal(38, 0)
+  lastEpochEnd     DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("key_lp_reward_pools")
+}
+
+/// Audit row for one processed hourly epoch of one key. The unique
+/// (keyId, epochStart) pair makes epoch processing idempotent.
+model KeyLpRewardEpoch {
+  id                    String   @id @default(cuid())
+  keyId                 String
+  epochStart            DateTime
+  epochEnd              DateTime
+  tradeVolume           Decimal  @db.Decimal(38, 0)
+  lpFeeBps              Int
+  fundedAmount          Decimal  @db.Decimal(38, 0)
+  /// Pool balance available for this epoch (carry-over + funded).
+  poolAmount            Decimal  @db.Decimal(38, 0)
+  distributedAmount     Decimal  @db.Decimal(38, 0)
+  carriedOverAmount     Decimal  @db.Decimal(38, 0)
+  totalEligibleLpTokens Decimal  @db.Decimal(38, 7)
+  positionCount         Int
+  createdAt             DateTime @default(now())
+
+  accruals KeyLpRewardAccrual[]
+
+  @@unique([keyId, epochStart])
+  @@index([epochStart])
+  @@map("key_lp_reward_epochs")
+}
+
+/// One position's pro-rata share of one epoch's pool.
+model KeyLpRewardAccrual {
+  id               String   @id @default(cuid())
+  epochId          String
+  positionId       String
+  eligibleLpTokens Decimal  @db.Decimal(38, 7)
+  amount           Decimal  @db.Decimal(38, 0)
+  createdAt        DateTime @default(now())
+
+  epoch    KeyLpRewardEpoch @relation(fields: [epochId], references: [id], onDelete: Cascade)
+  position KeyLpPosition    @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@unique([epochId, positionId])
+  @@index([positionId])
+  @@map("key_lp_reward_accruals")
+}
+
+/// A claim of accrued rewards. Created atomically with the position's
+/// claimedRewards update; `status` tracks payout settlement to the wallet.
+model KeyLpRewardClaim {
+  id         String    @id @default(cuid())
+  positionId String
+  keyId      String
+  wallet     String
+  amount     Decimal   @db.Decimal(38, 0)
+  status     String    @default("pending") // pending | settled | failed
+  txHash     String?
+  settledAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  position KeyLpPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([keyId, wallet, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("key_lp_reward_claims")
+}

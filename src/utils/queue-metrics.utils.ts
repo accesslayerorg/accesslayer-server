@@ -18,6 +18,8 @@ export interface QueueDepthEntry {
    queue: string;
    state: QueueState;
    depth: number;
+   /** Age in seconds of the oldest item in this queue state, when known (#1341). */
+   oldestAgeSeconds?: number;
    updatedAt: string;
 }
 
@@ -30,12 +32,14 @@ function key(queue: string, state: QueueState): string {
 export function setQueueDepth(
    queue: string,
    state: QueueState,
-   depth: number
+   depth: number,
+   oldestAgeSeconds?: number
 ): void {
    registry.set(key(queue, state), {
       queue,
       state,
       depth,
+      ...(oldestAgeSeconds !== undefined ? { oldestAgeSeconds } : {}),
       updatedAt: new Date().toISOString(),
    });
 }

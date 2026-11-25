@@ -1,0 +1,44 @@
+// prisma/schema/roadmap.prisma
+// Creator roadmap milestones and holder-gated reactions (#1310).
+
+enum RoadmapMilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  DELAYED
+  COMPLETED
+  CANCELLED
+}
+
+model RoadmapMilestone {
+  id          String                 @id @default(cuid())
+  keyId       String
+  title       String
+  description String?
+  status      RoadmapMilestoneStatus @default(PLANNED)
+  position    Int                    @default(0)
+  targetDate  DateTime?
+  revisedDate DateTime?
+  delayReason String?
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  reactions   MilestoneReaction[]
+
+  @@index([keyId, position])
+  @@map("roadmap_milestones")
+}
+
+model MilestoneReaction {
+  id            String   @id @default(cuid())
+  milestoneId   String
+  walletAddress String
+  reaction      String
+  createdAt     DateTime @default(now())
+
+  milestone     RoadmapMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@unique([milestoneId, walletAddress])
+  @@index([milestoneId])
+  @@map("milestone_reactions")
+}

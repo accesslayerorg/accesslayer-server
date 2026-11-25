@@ -1,0 +1,58 @@
+// prisma/schema/ambassador.prisma
+// Ambassador referral clicks, 30-day attribution, and daily payout accruals (#1316).
+
+model ReferralClick {
+  id             String   @id @default(cuid())
+  referrerWallet String
+  referralCode   String
+  cookieId       String
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmTerm        String?
+  utmContent     String?
+  clickedAt      DateTime @default(now())
+
+  @@index([cookieId, clickedAt(sort: Desc)])
+  @@index([referrerWallet, clickedAt(sort: Desc)])
+  @@index([referralCode])
+  @@map("referral_clicks")
+}
+
+model ReferralAttribution {
+  id             String    @id @default(cuid())
+  refereeWallet  String    @unique
+  referrerWallet String
+  clickId        String?
+  cookieId       String?
+  referralCode   String?
+  attributedAt   DateTime  @default(now())
+  firstTradeAt   DateTime?
+  tradeCount     Int       @default(0)
+  totalVolume    Decimal   @default(0) @db.Decimal(20, 7)
+  isHeld         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([referrerWallet, attributedAt])
+  @@index([referrerWallet, firstTradeAt])
+  @@map("referral_attributions")
+}
+
+model AmbassadorPayout {
+  id               String   @id @default(cuid())
+  ambassadorWallet String
+  payoutDate       DateTime @db.Date
+  tier             Int
+  tierShare        Float
+  activeTraders    Int      @default(0)
+  totalFees        Decimal  @db.Decimal(20, 7)
+  accruedAmount    Decimal  @db.Decimal(20, 7)
+  status           String   @default("accrued")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([ambassadorWallet, payoutDate])
+  @@index([ambassadorWallet, payoutDate(sort: Desc)])
+  @@map("ambassador_payouts")
+}
