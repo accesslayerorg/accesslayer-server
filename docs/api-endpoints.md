@@ -1080,6 +1080,84 @@ Returns the wallet's `escape` status and its `holdings`. Each holding has
 
 ---
 
+## Notification Endpoints
+
+### GET /wallets/:address/notifications
+
+Get email digest notification preferences for a Stellar wallet address.
+
+- **Auth:** Stellar wallet signature (`x-wallet-address`, `x-signature`, `x-signature-timestamp`, `x-signature-network`). The signed wallet must match `:address` (`403 Forbidden` otherwise).
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "wallet": "GBEXAMPLEWALLETADDRESS",
+      "email": "user@example.com",
+      "frequency": "daily",
+      "events": ["BUY", "SELL"],
+      "verified": true,
+      "verifiedAt": "2026-11-25T10:00:00.000Z",
+      "unsubscribed": false,
+      "lastDigestAt": null
+   }
+}
+```
+
+### PUT /wallets/:address/notifications
+
+Create or update notification preferences for a Stellar wallet. If the email address changes or is set for the first time, `verifiedAt` is reset to `null` and a verification email is sent with a 24-hour signed verification token.
+
+- **Auth:** Stellar wallet signature (`x-wallet-address`, `x-signature`, `x-signature-timestamp`, `x-signature-network`). The signed wallet must match `:address` (`403 Forbidden` otherwise).
+- **Body:**
+
+```json
+{
+   "email": "user@example.com",
+   "frequency": "daily",
+   "events": ["BUY", "SELL"]
+}
+```
+
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "wallet": "GBEXAMPLEWALLETADDRESS",
+      "email": "user@example.com",
+      "frequency": "daily",
+      "events": ["BUY", "SELL"],
+      "verified": false,
+      "verifiedAt": null,
+      "unsubscribed": false,
+      "lastDigestAt": null
+   }
+}
+```
+
+### GET /notifications/verify
+
+Verify an email address using a signed HMAC verification token.
+
+- **Auth:** None (token-based).
+- **Query Parameters:**
+   - `token` (string, required): 24-hour signed HMAC token binding wallet and email.
+- **Response:** `200 OK` (JSON or HTML verification confirmation page).
+
+### GET /notifications/unsubscribe
+
+One-click unsubscribe from email digest notifications without requiring login.
+
+- **Auth:** None (token-based).
+- **Query Parameters:**
+   - `token` (string, required): Signed HMAC token binding wallet and unsubscribe purpose.
+- **Response:** `200 OK` (JSON or HTML unsubscribe confirmation page).
+
+---
+
 ## Common Headers
 
 | Header             | Description                               |
