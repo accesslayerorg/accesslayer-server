@@ -44,6 +44,8 @@ model Referral {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  hold            ReferralHold?
+
   @@index([referrerAddress, createdAt])
   @@index([referrerAddress])
 }
@@ -189,4 +191,76 @@ model ReferralEarning {
   @@index([referrerWallet, tier])
   @@index([sourceWallet])
   @@map("referral_earnings")
+}
+
+/// Review state of a referral reward that abuse detection withheld (#1241).
+enum ReferralHoldStatus {
+  /// Waiting for an admin to release or reject it; no reward paid yet.
+  PENDING
+  /// An admin approved it; the withheld reward was paid exactly once.
+  RELEASED
+  /// Rejected, either automatically (self-referral, shared funding source,
+  /// linked wallets) or by an admin. No reward is ever paid.
+  REJECTED
+}
+
+/// Abuse-detection verdict for a referral (#1241). At most one per referral.
+/// While PENDING, every reward the referral earns is withheld as a
+/// `ReferralHoldReward` row; releasing the hold pays them all, once. Once
+/// RELEASED later trades pay normally, and once REJECTED they never pay.
+model ReferralHold {
+  id              String             @id @default(cuid())
+  referralId      String             @unique
+  referral        Referral           @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  /// Machine-readable rule that fired (SELF_REFERRAL, SHARED_FUNDING_SOURCE,
+  /// LINKED_WALLETS, FUNDING_CLUSTER).
+  reason          String
+  status          ReferralHoldStatus @default(PENDING)
+  /// Evidence for reviewers (funder address, cluster size, window).
+  details         Json?
+
+  referrerAddress String
+  refereeAddress  String
+
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  rewards         ReferralHoldReward[]
+
+  @@index([status, createdAt])
+}
+
+/// One reward withheld by a PENDING `ReferralHold` (#1241): everything needed
+/// to write the `ReferralEvent` fee row if an admin releases the hold.
+model ReferralHoldReward {
+  id             String       @id @default(cuid())
+  holdId         String
+  hold           ReferralHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+
+  keyId          String
+  rewardXlm      Decimal      @db.Decimal(20, 7)
+  /// Tier multiplier in effect when the reward was earned.
+  tierMultiplier Float        @default(1.0)
+  txHash         String?
+  eventIndex     Int?
+  tradedAt       DateTime
+  createdAt      DateTime     @default(now())
+
+  @@index([holdId])
+}
+
+/// Cached account funding source: the account that issued the
+/// `create_account` operation which first funded a wallet (#1241). Only
+/// resolved lookups are stored. Used by referral abuse detection.
+model WalletFundingSource {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  funder    String
+  fundedAt  DateTime
+  fetchedAt DateTime @default(now())
+
+  @@index([funder, fundedAt])
 }

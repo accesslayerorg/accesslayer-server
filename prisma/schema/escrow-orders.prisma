@@ -1,0 +1,33 @@
+model EscrowOrder {
+  id           String   @id
+  wallet       String
+  keyId        String
+  side         String
+  lockedAmount String
+  limitPrice   String
+  status       String   @default("open")
+  expiryLedger Int?
+  createdLedger Int
+  updatedAt    DateTime @updatedAt
+  fills        EscrowFill[]
+
+  @@index([wallet, status])
+  @@index([keyId, status])
+  @@map("escrow_orders")
+}
+
+model EscrowFill {
+  id            String   @id
+  orderId       String
+  keeper        String
+  fillPrice     String
+  fillAmount    String
+  keeperReward  String
+  ledger        Int
+  recordedAt    DateTime @default(now())
+  order         EscrowOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([keeper])
+  @@map("escrow_fills")
+}

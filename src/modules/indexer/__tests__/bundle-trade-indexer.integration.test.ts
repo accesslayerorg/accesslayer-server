@@ -37,9 +37,9 @@ function makeMockBundleDb() {
             async ({
                where,
             }: {
-               where: { ledger_txHash: { ledger: number; txHash: string } };
+               where: { ledger: number; txHash: string };
             }) => {
-               const key = `${where.ledger_txHash.ledger}:${where.ledger_txHash.txHash}`;
+               const key = `${where.ledger}:${where.txHash}`;
                return store.has(key) ? store.get(key) : null;
             }
          ),

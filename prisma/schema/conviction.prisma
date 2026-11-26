@@ -1,0 +1,56 @@
+// prisma/schema/conviction.prisma
+// Conviction voting stakes, snapshots, and rage-quit exits (#1306).
+
+model ConvictionStake {
+  id             String   @id @default(cuid())
+  proposalId     String
+  keyId          String
+  wallet         String
+  amount         BigInt   @default(0)
+  stakedAtLedger Int
+  unstakedAtLedger Int?
+  isActive       Boolean  @default(true)
+  lastEventId    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([proposalId, wallet])
+  @@index([proposalId, isActive])
+  @@index([keyId, wallet])
+  @@map("conviction_stakes")
+}
+
+model ConvictionSnapshot {
+  id          String   @id @default(cuid())
+  proposalId  String
+  keyId       String
+  ledger      Int
+  totalStaked BigInt   @default(0)
+  conviction  BigInt   @default(0)
+  threshold   BigInt   @default(0)
+  executed    Boolean  @default(false)
+  txHash      String
+  eventIndex  Int
+  createdAt   DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([proposalId, ledger])
+  @@map("conviction_snapshots")
+}
+
+model RagequitExit {
+  id         String   @id @default(cuid())
+  proposalId String
+  keyId      String
+  wallet     String
+  amount     BigInt
+  ledger     Int
+  txHash     String
+  eventIndex Int
+  createdAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@unique([proposalId, wallet])
+  @@index([proposalId])
+  @@map("ragequit_exits")
+}

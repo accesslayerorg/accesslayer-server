@@ -12,6 +12,12 @@ import {
    processIndexerChainEvents,
    IndexerChainEvent,
 } from '../../utils/indexer-event-processor.utils';
+import {
+   KeyLpDb,
+   recordKeyLpDeposit,
+   recordKeyLpWithdrawal,
+} from '../lp-rewards/lp-rewards.service';
+import { parseScaled } from '../lp-rewards/lp-reward-math';
 
 export interface LpChainEvent extends IndexerChainEvent {
    eventType: 'LP_ADDED' | 'LP_CLAIMED' | 'LP_REMOVED';
@@ -23,6 +29,47 @@ export interface LpChainEvent extends IndexerChainEvent {
    rewardAmount?: string;
    /** Liquidity amount, only meaningful for LP_ADDED. */
    amount?: string;
+   /**
+    * LP tokens minted, only meaningful for LP_ADDED. Mirrored into
+    * key_lp_positions for reward accrual (#1196); falls back to `amount`.
+    */
+   lpTokens?: string;
+   /** Price the liquidity entered at, only meaningful for LP_ADDED. */
+   entryPrice?: string;
+}
+
+/**
+ * Mirrors an LP deposit into key_lp_positions inside the indexer's
+ * transaction. Events without a usable token amount are skipped (logged),
+ * so the legacy LpPosition write is never blocked by this.
+ */
+async function mirrorKeyLpDeposit(
+   tx: KeyLpDb,
+   event: LpChainEvent
+): Promise<void> {
+   const lpTokens = event.lpTokens ?? event.amount;
+   if (lpTokens === undefined) return;
+   let tokens: bigint;
+   try {
+      tokens = parseScaled(lpTokens);
+      if (event.entryPrice !== undefined) parseScaled(event.entryPrice);
+   } catch {
+      logger.warn(
+         buildLogFields({
+            type: 'key_lp_position_invalid_amount',
+            eventId: `${event.txHash}:${event.eventIndex}`,
+         }),
+         'Skipping key_lp_positions mirror for LP event with an invalid amount'
+      );
+      return;
+   }
+   if (tokens === 0n) return;
+   await recordKeyLpDeposit(tx, {
+      keyId: event.keyId,
+      wallet: event.wallet,
+      lpTokens,
+      price: event.entryPrice,
+   });
 }
 
 function normalizeEventType(
@@ -173,6 +220,7 @@ export async function processLpEvents(
                      },
                   });
                }
+               await mirrorKeyLpDeposit(tx, event);
                return;
             }
 
@@ -204,7 +252,8 @@ export async function processLpEvents(
                return;
             }
 
-            // LP_REMOVED
+            // LP_REMOVED — full removal, matching the legacy LpPosition model.
+            await recordKeyLpWithdrawal(tx, { keyId, wallet });
             const existing = await tx.lpPosition.findFirst({
                where: { wallet, keyId },
             });

@@ -1,0 +1,289 @@
+[
+   {
+      "id": "GHSA-4r6h-8v6p-xvw6",
+      "package": "xlsx",
+      "reason": "Pending upstream fix for Prototype Pollution in sheetJS",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-5pgg-2g8v-p4x9",
+      "package": "xlsx",
+      "reason": "Pending upstream fix for SheetJS Regular Expression Denial of Service (ReDoS)",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-3jxr-9vmj-r5cp",
+      "package": "brace-expansion",
+      "reason": "Pending upstream fix for brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-v2hh-gcrm-f6hx",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to host confusion via literal backslash authority delimiter",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-f88m-g3jw-g9cj",
+      "package": "sharp",
+      "reason": "Pending upstream fix for sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-mh99-v99m-4gvg",
+      "package": "brace-expansion",
+      "reason": "Pending upstream fix for brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-7p8r-x3mc-p8w7",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to host confusion via backslash authority introducer",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-mwp4-54f8-5fhr",
+      "package": "ip-address",
+      "reason": "Pending upstream fix for ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-rgw5-rvv9-x895",
+      "package": "brace-expansion",
+      "reason": "Pending upstream fix for brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-5p4m-2wfm-xmqj",
+      "package": "js-yaml",
+      "reason": "Pending upstream fix for JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-jmr9-qjv8-65gv",
+      "package": "extract-zip",
+      "reason": "Pending upstream fix for extract-zip unvalidated symlink path traversal",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-ggr8-5vv4-36mx",
+      "package": "deepmerge-ts",
+      "reason": "Pending upstream fix for DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-c83g-rgw3-j3cx",
+      "package": "browserslist",
+      "reason": "Pending upstream fix for Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-73wf-gq98-2v4g",
+      "package": "browserslist",
+      "reason": "Pending upstream fix for Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-p6gq-j5cr-w38f",
+      "package": "nodemailer",
+      "reason": "Pending upstream fix for Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-f65p-4m7j-42xc",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-fph4-wmhf-6fwf",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to server-side request forgery via repeated hostname percent-decoding",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-jqff-g426-hqxp",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-7pqw-9j4j-h8q3",
+      "package": "extract-zip",
+      "reason": "Pending upstream fix for extract-zip allows arbitrary file writes through symlink archive entries",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-rgj7-g3m4-5g8c",
+      "package": "sharp",
+      "reason": "Pending upstream fix for sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-2883-xcg3-v3hh",
+      "package": "js-yaml",
+      "reason": "Pending upstream fix for js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-2x7j-588g-ccc2",
+      "package": "nodemailer",
+      "reason": "Pending upstream fix for Nodemailer: Quadratic (O(n²)) time complexity in addressparser allows remote denial of service via a crafted address list",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-4c8g-83qw-93j6",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to host confusion via failed IDN canonicalization",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-qw65-cvwx-89v3",
+      "package": "fast-uri",
+      "reason": "Pending upstream fix for fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-qhr7-859c-m2p7",
+      "package": "brace-expansion",
+      "reason": "Pending upstream fix for brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-6j4f-fj2g-mc7p",
+      "package": "brace-expansion",
+      "reason": "Pending upstream fix for brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-v53p-9fqp-m79j",
+      "package": "nodemailer",
+      "reason": "Pending upstream fix for Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-c475-qrg2-pj4r",
+      "package": "basic-ftp",
+      "reason": "Pending upstream fix for basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking)",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-r7g4-qg5f-qqm2",
+      "package": "nodemailer",
+      "reason": "Pending upstream fix for Nodemailer: Improper TLS Certificate Validation in OAuth2 Token Fetch Enables Credential Interception",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-jqcg-44mw-7w3h",
+      "package": "proxy-addr",
+      "reason": "Pending upstream fix for proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-5gmw-xhrv-c9v3",
+      "package": "tinypool",
+      "reason": "Pending upstream fix for Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-85c8-ppgw-ccpr",
+      "package": "tinypool",
+      "reason": "Pending upstream fix for Tinypool: Prototype Pollution Gadget to RCE in run() options",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-wq5f-xc86-pv6w",
+      "package": "sharp",
+      "reason": "Pending upstream fix for sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-8r5x-fm3f-whwj",
+      "package": "handlebars",
+      "reason": "Pending upstream fix for Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-p8wg-vrv2-v86f",
+      "package": "handlebars",
+      "reason": "Pending upstream fix for Handlebars: JavaScript Injection via Own Property Check Bypass",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-q3jh-wrc6-jgq8",
+      "package": "follow-redirects",
+      "reason": "Pending upstream fix for follow-redirects array-form headers bypass cross-origin credential stripping",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-8r9p-f939-6h3c",
+      "package": "follow-redirects",
+      "reason": "Pending upstream fix for follow-redirects sensitiveHeaders regex escaping can expose credential headers",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "reason": "Pending upstream fix for Zod can exhaust memory while validating oversized constrained collections",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-27r3-jxmh-p828",
+      "package": "body-parser",
+      "reason": "Pending upstream fix for body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-mrwp-f3q8-3g9p",
+      "package": "follow-redirects",
+      "reason": "Pending upstream fix for follow-redirects: Cross-realm sensitiveHeaders arrays are discarded and custom credentials can follow redirects",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   },
+   {
+      "id": "GHSA-7589-6fvf-x4pw",
+      "package": "effect",
+      "reason": "Pending upstream fix for Effect: ReDoS in Schema.TemplateLiteral compiled regex",
+      "approvedBy": "security-team",
+      "expires": "2027-05-31"
+   }
+]

@@ -63,12 +63,10 @@ export async function processTradeEvent(
       return false;
    }
 
-   const existing = await db.trade.findUnique({
+   const existing = await db.trade.findFirst({
       where: {
-         ledger_txHash: {
-            ledger: event.ledger,
-            txHash: event.tx_hash,
-         },
+         ledger: event.ledger,
+         txHash: event.tx_hash,
       },
       select: { id: true },
    });

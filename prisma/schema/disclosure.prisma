@@ -1,0 +1,33 @@
+// prisma/schema/disclosure.prisma
+// Versioned risk disclosure acknowledgements and enforcement (#1318).
+
+model DisclosureVersion {
+  id          String   @id @default(cuid())
+  version     String   @unique
+  textHash    String
+  contentUrl  String
+  isActive    Boolean  @default(true)
+  publishedBy String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  acceptances DisclosureAcceptance[]
+
+  @@index([isActive, publishedAt(sort: Desc)])
+  @@map("disclosure_versions")
+}
+
+model DisclosureAcceptance {
+  id                String            @id @default(cuid())
+  wallet            String
+  versionId         String
+  version           String
+  disclosureVersion DisclosureVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  acceptedAt        DateTime          @default(now())
+  ipHash            String
+  userAgentHash     String
+
+  @@unique([wallet, versionId])
+  @@index([wallet, version])
+  @@map("disclosure_acceptances")
+}

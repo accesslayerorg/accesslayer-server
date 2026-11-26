@@ -11,6 +11,9 @@ model OutboxEvent {
   createdAt    DateTime @default(now())
   publishedAt  DateTime?
   attempts     Int      @default(0)
+  // Dispatch priority: "critical" | "normal" | "bulk" (#1341). Critical events
+  // are always fetched first; bulk events are capped per poll cycle.
+  priority     String   @default("normal")
 
   @@index([type])
   @@index([publishedAt])

@@ -13,6 +13,8 @@ model CreatorProfile {
   discord           String?
   perkSummary       String?
   isVerified        Boolean  @default(false)
+  /// When the creator's verification was approved (#1324). Null until approved.
+  verifiedAt        DateTime?
   tradingPaused     Boolean  @default(false)
   circulatingSupply Decimal  @default(0)
   /// Maximum number of keys that can exist (null = uncapped).
@@ -65,6 +67,7 @@ model CreatorProfile {
   priceHistory     CreatorPriceHistory[]
   pendingPurchases PendingKeyPurchase[]
   posts            CreatorPost[]
+  announcements    Announcement[]
   followers        Follow[]
   walletFollowers   WalletCreatorFollow[]
   relaunches       CreatorKeyRelaunch[]
@@ -75,6 +78,9 @@ model CreatorProfile {
   socialMetadataEvents SocialMetadataEvent[]
 
   keyReports           KeyReport[]
+  verificationApplications VerificationApplication[]
+  embedSettings        EmbedSettings?
+  embedWeeklyLoads     EmbedWeeklyLoad[]
 
   @@index([userId])
   @@index([successorKeyId])
