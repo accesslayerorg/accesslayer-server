@@ -168,11 +168,11 @@ export async function recordLedgerIngestion(
             const fields = toIngestedEventFields(event, header);
             const existing = await tx.ingestedEvent.findFirst({
                where: { txHash: event.txHash, eventIndex: event.eventIndex },
-               select: { id: true, createdAt: true },
+               select: { id: true },
             });
             if (existing) {
                await tx.ingestedEvent.update({
-                  where: { id: existing.id } as any,
+                  where: { id: existing.id },
                   data: { ...fields, status: 'CONFIRMED', reorgedAt: null },
                });
             } else {

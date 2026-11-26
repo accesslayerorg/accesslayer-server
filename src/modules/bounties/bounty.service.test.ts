@@ -75,7 +75,7 @@ describe('BountyService & Indexer (#1307)', () => {
    describe('BountyService queries', () => {
       it('lists bounties with cursor pagination and status filtering', async () => {
          (prisma.ledgerCheckpoint.findFirst as jest.Mock).mockResolvedValue({
-            ledgerSequence: 100,
+            ledger: 100,
          });
          (prisma.bounty.findMany as jest.Mock).mockResolvedValue([
             {
@@ -106,7 +106,7 @@ describe('BountyService & Indexer (#1307)', () => {
 
       it('returns detail with submissions, awards, and winnersRemaining', async () => {
          (prisma.ledgerCheckpoint.findFirst as jest.Mock).mockResolvedValue({
-            ledgerSequence: 100,
+            ledger: 100,
          });
          (prisma.bounty.findFirst as jest.Mock).mockResolvedValue({
             id: 'b1',
@@ -165,7 +165,7 @@ describe('BountyService & Indexer (#1307)', () => {
 
       it('lists creator bounties with reclaimable totals', async () => {
          (prisma.ledgerCheckpoint.findFirst as jest.Mock).mockResolvedValue({
-            ledgerSequence: 500,
+            ledger: 500,
          });
          (prisma.bounty.findMany as jest.Mock).mockResolvedValue([
             {

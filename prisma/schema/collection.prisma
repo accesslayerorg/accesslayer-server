@@ -1,0 +1,61 @@
+// prisma/schema/collection.prisma
+// Curated key collections maintained by editors and followed by wallets (#1353).
+
+enum CollectionStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Collection {
+  id            String           @id @default(cuid())
+  slug          String           @unique
+  title         String
+  description   String?
+  status        CollectionStatus @default(DRAFT)
+  /// Wallets allowed to manage items, notes, order, editors and publish status.
+  editorWallets String[]
+  followerCount Int              @default(0)
+  /// Set the first time the collection is published; drives listing order.
+  publishedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  items   CollectionItem[]
+  follows CollectionFollow[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String
+  /// CreatorProfile id of the curated key.
+  keyId        String
+  /// 0-based display order, unique within the collection.
+  position     Int
+  /// Editor annotation shown next to the key.
+  note         String?
+  addedBy      String
+  createdAt    DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, keyId])
+  @@unique([collectionId, position])
+  @@index([createdAt])
+  @@map("collection_items")
+}
+
+model CollectionFollow {
+  id            String   @id @default(cuid())
+  collectionId  String
+  walletAddress String
+  createdAt     DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, walletAddress])
+  @@index([walletAddress])
+  @@map("collection_follows")
+}

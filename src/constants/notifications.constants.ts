@@ -12,6 +12,7 @@ export const NOTIFICATION_TYPES = {
    MILESTONE_CROSSED: 'milestone_crossed',
    CIRCUIT_BREAKER_TRIPPED: 'circuit_breaker_tripped',
    VAULT_HEALTH_WARNING: 'vault_health_warning',
+   COLLECTION_ITEM_ADDED: 'collection_item_added',
 } as const;
 
 export type NotificationType =
@@ -38,6 +39,9 @@ export const REDIS_KEYS = {
 
 /** Trips surfaced as circuit_breaker_tripped notifications, newest first (#987). */
 export const CIRCUIT_BREAKER_TRIP_NOTIFICATION_LIMIT = 50;
+
+/** Followed-collection additions surfaced as notifications, newest first (#1353). */
+export const COLLECTION_ITEM_NOTIFICATION_LIMIT = 50;
 
 export const KEY_FEES_CACHE_TTL_SECONDS = 60;
 export const KEY_AUCTION_CACHE_TTL_SECONDS = 30;

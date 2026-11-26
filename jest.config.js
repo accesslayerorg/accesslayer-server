@@ -2,6 +2,15 @@
 module.exports = {
    testEnvironment: 'node',
    transform: {
+      // sanitize-html (src/lib/sanitize.ts) depends on the ESM-only
+      // htmlparser2 12 family; compile just those packages to CommonJS.
+      '/node_modules/.+\\.js$': [
+         'ts-jest',
+         {
+            diagnostics: false,
+            tsconfig: { allowJs: true, module: 'commonjs', isolatedModules: true },
+         },
+      ],
       '^.+\\.[tj]sx?$': [
          'ts-jest',
          {
@@ -10,6 +19,9 @@ module.exports = {
          },
       ],
    },
+   transformIgnorePatterns: [
+      '/node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(htmlparser2|domhandler|domutils|dom-serializer|domelementtype|entities)/)',
+   ],
    maxWorkers: 2,
    workerIdleMemoryLimit: '512MB',
    moduleNameMapper: {

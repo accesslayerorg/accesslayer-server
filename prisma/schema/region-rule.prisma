@@ -1,0 +1,24 @@
+// prisma/schema/region-rule.prisma
+// Jurisdiction restriction rules (#1354): which features are unavailable in
+// which countries, and the neutral reason code returned to blocked callers.
+
+enum RegionRuleAction {
+  BLOCK
+}
+
+model RegionRule {
+  id          String           @id @default(cuid())
+  /// Feature identifier passed to regionGuard(), e.g. "key_trading".
+  feature     String
+  /// ISO 3166-1 alpha-2 country code, stored uppercase.
+  countryCode String           @db.VarChar(2)
+  action      RegionRuleAction @default(BLOCK)
+  /// Neutral, machine-readable reason code returned with HTTP 451.
+  reason      String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([feature, countryCode])
+  @@index([countryCode])
+  @@map("region_rules")
+}

@@ -285,6 +285,7 @@ Error codes are defined in `src/constants/error.constants.ts` and should be trea
 ```
 
 ---
+
 ### TOKEN_EXPIRY_TAMPERED
 
 **HTTP Status:** 401 Unauthorized
@@ -386,6 +387,33 @@ The response body extends the standard error envelope with top-level
    "error": {
       "code": "MISSING_IAT",
       "message": "Token is missing the issued-at (iat) claim"
+   }
+}
+```
+
+---
+
+### REGION_RESTRICTED
+
+**HTTP Status:** 451 Unavailable For Legal Reasons
+
+**Meaning:** The feature is not offered in the caller's detected or declared country.
+
+**When to use:**
+
+- `regionGuard(feature)` matched a jurisdiction rule (see [region-restrictions.md](./region-restrictions.md))
+
+The neutral reason code from the matching rule is returned in `details[0].message`.
+
+**Example:**
+
+```json
+{
+   "success": false,
+   "error": {
+      "code": "REGION_RESTRICTED",
+      "message": "This feature is not available in your region.",
+      "details": [{ "field": "reason", "message": "REGULATORY_RESTRICTION" }]
    }
 }
 ```

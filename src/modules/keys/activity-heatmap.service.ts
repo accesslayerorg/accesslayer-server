@@ -1,5 +1,5 @@
 import { prisma } from '../../utils/prisma.utils';
-import { cacheGet, cacheSet } from '../../utils/redis.utils';
+import { cacheGet, cacheSetRaw } from '../../utils/redis.utils';
 import { HeatmapRange } from './activity-heatmap.schemas';
 
 export const HEATMAP_CACHE_TTL_SECONDS = 300; // 5 minutes
@@ -149,7 +149,7 @@ export async function getActivityHeatmap(
       matrix,
    };
 
-   await cacheSet(cacheKey, JSON.stringify(result), HEATMAP_CACHE_TTL_SECONDS);
+   await cacheSetRaw(cacheKey, JSON.stringify(result), HEATMAP_CACHE_TTL_SECONDS);
 
    return result;
 }

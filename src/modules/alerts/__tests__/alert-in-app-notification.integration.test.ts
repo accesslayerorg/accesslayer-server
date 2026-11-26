@@ -16,6 +16,7 @@ jest.mock('../../../utils/prisma.utils', () => ({
       creatorProfile: { findMany: jest.fn().mockResolvedValue([]) },
       circuitBreakerTrip: { findMany: jest.fn().mockResolvedValue([]) },
       vaultHealth: { findMany: jest.fn().mockResolvedValue([]) },
+      collectionFollow: { findMany: jest.fn().mockResolvedValue([]) },
    },
 }));
 jest.mock('../../../utils/logger.utils', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));

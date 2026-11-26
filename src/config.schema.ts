@@ -481,6 +481,16 @@ export const envSchema = z
       TRACE_ID_TRUSTED_TOKEN: optionalNonEmptyString,
       INTERNAL_SERVICE_KEY: optionalNonEmptyString,
 
+      // Jurisdiction restrictions (#1354). See docs/region-restrictions.md.
+      // Path to a GeoLite2-Country .mmdb file. Unset means no country is
+      // detected and only declared-country rules apply.
+      GEOIP_DB_PATH: optionalNonEmptyString,
+      // Comma-separated IPs or CIDRs of proxies whose X-Forwarded-For header
+      // is honored for geolocation. Unset means the connection address is used.
+      TRUSTED_PROXIES: optionalNonEmptyString,
+      // HMAC key for hashing IPs in region decision logs. Falls back to JWT_SECRET.
+      IP_HASH_SECRET: optionalNonEmptyString,
+
       // Query cost governor (#755): rolling per-wallet (or per-IP, when
       // unauthenticated) database query budget. See
       // src/middlewares/query-cost-governor.middleware.ts.
