@@ -1,3 +1,6 @@
+SET lock_timeout = '5s';
+SET statement_timeout = '30s';
+
 CREATE TABLE "sell_blocks" (
     "id" TEXT NOT NULL,
     "wallet" TEXT NOT NULL,
