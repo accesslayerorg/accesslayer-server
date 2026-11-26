@@ -28,6 +28,9 @@ import {
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SKIPPED_DIRS = new Set(['target', 'node_modules', '.git', 'tests']);
+// Match the repository's Prettier tabWidth so the generated catalog is
+// byte-identical to the committed (formatted) file in --check mode.
+const JSON_INDENT = 3;
 
 interface CliOptions {
    contractsDir: string;
@@ -159,7 +162,7 @@ function main(): void {
       sourceCommit: options.sourceCommit,
       wasmHashes: hashWasmFiles(options.wasmDir, crates),
    });
-   const serialized = `${JSON.stringify(built, null, 2)}\n`;
+   const serialized = `${JSON.stringify(built, null, JSON_INDENT)}\n`;
    const undocumented = listUndocumentedErrors(built);
 
    if (options.check) {
@@ -196,7 +199,7 @@ function main(): void {
    if (options.writeBaseline) {
       writeFileSync(
          options.baselinePath,
-         `${JSON.stringify({ undocumented }, null, 2)}\n`
+         `${JSON.stringify({ undocumented }, null, JSON_INDENT)}\n`
       );
       console.log(`Wrote ${options.baselinePath}`);
    }
