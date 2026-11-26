@@ -6,12 +6,12 @@ of running the branch locally. The workflow is [`.github/workflows/preview.yml`]
 
 ## Lifecycle
 
-| Event | What happens |
-| --- | --- |
+| Event                          | What happens                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | PR opened, reopened or updated | Schema `preview_pr_<n>` is created, migrated and seeded. The deploy hook deploys the stack. The health check runs. The PR gets the `preview` label and a comment with the URL and health status. |
-| Push to the PR | The same schema and deployment are updated. The same comment is edited in place. |
-| PR closed | The schema is dropped with `CASCADE`. The deploy hook removes the deployment. The label and comment are updated. |
-| Daily sweep (04:17 UTC) | Previews for closed PRs are removed. Previews with no activity for 7 days are removed. |
+| Push to the PR                 | The same schema and deployment are updated. The same comment is edited in place.                                                                                                                 |
+| PR closed                      | The schema is dropped with `CASCADE`. The deploy hook removes the deployment. The label and comment are updated.                                                                                 |
+| Daily sweep (04:17 UTC)        | Previews for closed PRs are removed. Previews with no activity for 7 days are removed.                                                                                                           |
 
 Fork pull requests do not get a preview. They receive no secrets, so the deploy and teardown
 jobs skip them. Maintainers can open a branch in the main repository to test a fork's changes.
@@ -29,22 +29,27 @@ jobs skip them. Maintainers can open a branch in the main repository to test a f
 Set these in the repository settings. The workflow uses the `preview` environment, so you can
 add protection rules there (required reviewers, deployment branches).
 
-| Name | Kind | Purpose |
-| --- | --- | --- |
-| `PREVIEW_DATABASE_ADMIN_URL` | secret | Postgres URL without `schema=`, with rights to create and drop schemas on the shared preview database |
-| `PREVIEW_DEPLOY_HOOK_URL` | secret | Endpoint on the staging cluster that deploys and tears down preview stacks |
-| `PREVIEW_DEPLOY_TOKEN` | secret | Bearer token for the deploy hook |
-| `PREVIEW_SOROBAN_RPC_URL` | variable | Shared test network RPC for previews |
-| `PREVIEW_ORACLE_MODE` | variable | Defaults to `mock` for deterministic prices |
-| `MAX_CONCURRENT_PREVIEWS` | variable | Defaults to `5` |
+| Name                         | Kind     | Purpose                                                                                               |
+| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `PREVIEW_DATABASE_ADMIN_URL` | secret   | Postgres URL without `schema=`, with rights to create and drop schemas on the shared preview database |
+| `PREVIEW_DEPLOY_HOOK_URL`    | secret   | Endpoint on the staging cluster that deploys and tears down preview stacks                            |
+| `PREVIEW_DEPLOY_TOKEN`       | secret   | Bearer token for the deploy hook                                                                      |
+| `PREVIEW_SOROBAN_RPC_URL`    | variable | Shared test network RPC for previews                                                                  |
+| `PREVIEW_ORACLE_MODE`        | variable | Defaults to `mock` for deterministic prices                                                           |
+| `MAX_CONCURRENT_PREVIEWS`    | variable | Defaults to `5`                                                                                       |
 
 ### Deploy hook contract
 
 `scripts/preview/preview-env.mjs` calls the hook with `POST` and a JSON body:
 
 ```json
-{ "action": "deploy", "pr": 123, "sha": "<head sha>", "schema": "preview_pr_123",
-  "env": { "SOROBAN_RPC_URL": "…", "ORACLE_MODE": "mock" } }
+{
+   "action": "deploy",
+   "pr": 123,
+   "sha": "<head sha>",
+   "schema": "preview_pr_123",
+   "env": { "SOROBAN_RPC_URL": "…", "ORACLE_MODE": "mock" }
+}
 ```
 
 The hook replies `200` with `{ "url": "https://…" }`. Teardown posts `{ "action": "teardown", "pr", "schema" }`.

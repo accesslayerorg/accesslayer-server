@@ -6,10 +6,10 @@ Creators apply for the verified badge by linking their public accounts and placi
 
 Requires a wallet JWT for a wallet linked to a user who owns a creator profile.
 
-| Method | Path                                | Purpose                                                              |
-| ------ | ----------------------------------- | -------------------------------------------------------------------- |
-| `POST` | `/creators/me/verification`         | Apply. `201` with the application and its `proofCode`.               |
-| `GET`  | `/creators/me/verification`         | Your most recent application, or `null`.                             |
+| Method | Path                        | Purpose                                                |
+| ------ | --------------------------- | ------------------------------------------------------ |
+| `POST` | `/creators/me/verification` | Apply. `201` with the application and its `proofCode`. |
+| `GET`  | `/creators/me/verification` | Your most recent application, or `null`.               |
 
 ### Applying
 
@@ -33,13 +33,13 @@ Requires a wallet JWT for a wallet linked to a user who owns a creator profile.
 
 Requires the admin JWT.
 
-| Method | Path                                             | Purpose                                                         |
-| ------ | ------------------------------------------------ | --------------------------------------------------------------- |
-| `GET`  | `/applications?status=&page=&limit=`             | Review queue, oldest first.                                     |
-| `GET`  | `/applications/:id`                              | Application with its proofs and full decision history.           |
-| `POST` | `/applications/:id/claim`                        | Claim for review. `submitted` moves to `in_review`.              |
-| `POST` | `/applications/:id/proof-check`                  | Fetch every linked page and look for the proof code.             |
-| `POST` | `/applications/:id/decision`                     | `{ "decision": "approved" \| "rejected", "note": "..." }`        |
+| Method | Path                                 | Purpose                                                   |
+| ------ | ------------------------------------ | --------------------------------------------------------- |
+| `GET`  | `/applications?status=&page=&limit=` | Review queue, oldest first.                               |
+| `GET`  | `/applications/:id`                  | Application with its proofs and full decision history.    |
+| `POST` | `/applications/:id/claim`            | Claim for review. `submitted` moves to `in_review`.       |
+| `POST` | `/applications/:id/proof-check`      | Fetch every linked page and look for the proof code.      |
+| `POST` | `/applications/:id/decision`         | `{ "decision": "approved" \| "rejected", "note": "..." }` |
 
 ### Workflow
 

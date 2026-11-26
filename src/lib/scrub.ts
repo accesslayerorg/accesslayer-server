@@ -272,7 +272,7 @@ export function createPinoScrubHooks(rules: ScrubRules) {
          this: unknown,
          args: unknown[],
          // pino's LogFn overloads cannot be expressed more narrowly here.
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          
          method: (...params: any[]) => void
       ): void {
          const scrubbed = args.map(arg => scrub(arg, rules));

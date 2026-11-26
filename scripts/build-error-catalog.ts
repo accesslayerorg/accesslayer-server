@@ -12,13 +12,7 @@
 //                 undocumented baseline (so new errors must be documented).
 
 import { createHash } from 'crypto';
-import { execFileSync } from 'child_process';
-import {
-   existsSync,
-   readdirSync,
-   readFileSync,
-   writeFileSync,
-} from 'fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import {
    crateNameForPath,
@@ -34,6 +28,9 @@ import {
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SKIPPED_DIRS = new Set(['target', 'node_modules', '.git', 'tests']);
+// Match the repository's Prettier tabWidth so the generated catalog is
+// byte-identical to the committed (formatted) file in --check mode.
+const JSON_INDENT = 3;
 
 interface CliOptions {
    contractsDir: string;
@@ -61,13 +58,17 @@ function parseOptions(args: string[]): CliOptions {
       throw new Error('--contracts-dir is required');
    }
    const resolvedContracts = path.resolve(contractsDir);
-   const sourceCommit =
-      readFlag(args, '--source-commit') ?? detectGitCommit(resolvedContracts);
+   // A contracts checkout is external and moves independently. Do not derive
+   // catalog validity from its mutable default-branch HEAD, since that makes
+   // CI output vary while the contract source/enums remain unchanged.
+   const sourceCommit = readFlag(args, '--source-commit') ?? null;
    const wasmDir = readFlag(args, '--wasm-dir');
 
    return {
       contractsDir: resolvedContracts,
-      outPath: path.resolve(readFlag(args, '--out') ?? path.join(REPO_ROOT, 'error-catalog.json')),
+      outPath: path.resolve(
+         readFlag(args, '--out') ?? path.join(REPO_ROOT, 'error-catalog.json')
+      ),
       baselinePath: path.resolve(
          readFlag(args, '--baseline') ??
             path.join(REPO_ROOT, 'scripts', 'error-catalog-baseline.json')
@@ -79,19 +80,17 @@ function parseOptions(args: string[]): CliOptions {
    };
 }
 
-function detectGitCommit(dir: string): string | null {
-   try {
-      return execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], {
-         encoding: 'utf8',
-      }).trim();
-   } catch {
-      return null;
-   }
-}
-
-function collectRustFiles(dir: string, relativeDir: string, out: string[]): void {
-   for (const entry of readdirSync(path.join(dir, relativeDir), { withFileTypes: true })) {
-      const relative = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+function collectRustFiles(
+   dir: string,
+   relativeDir: string,
+   out: string[]
+): void {
+   for (const entry of readdirSync(path.join(dir, relativeDir), {
+      withFileTypes: true,
+   })) {
+      const relative = relativeDir
+         ? `${relativeDir}/${entry.name}`
+         : entry.name;
       if (entry.isDirectory()) {
          if (!SKIPPED_DIRS.has(entry.name)) {
             collectRustFiles(dir, relative, out);
@@ -117,7 +116,10 @@ function scanContracts(contractsDir: string): ScannedContractError[] {
    return scanned;
 }
 
-function hashWasmFiles(wasmDir: string | null, crates: string[]): Record<string, string> {
+function hashWasmFiles(
+   wasmDir: string | null,
+   crates: string[]
+): Record<string, string> {
    const hashes: Record<string, string> = {};
    if (!wasmDir) return hashes;
    for (const crate of crates) {
@@ -144,7 +146,9 @@ function main(): void {
    const options = parseOptions(process.argv.slice(2));
    const scanned = scanContracts(options.contractsDir);
    if (scanned.length === 0) {
-      throw new Error(`No #[contracterror] enums found under ${options.contractsDir}`);
+      throw new Error(
+         `No #[contracterror] enums found under ${options.contractsDir}`
+      );
    }
 
    const existing: ErrorCatalogFile | null = existsSync(options.outPath)
@@ -158,7 +162,7 @@ function main(): void {
       sourceCommit: options.sourceCommit,
       wasmHashes: hashWasmFiles(options.wasmDir, crates),
    });
-   const serialized = `${JSON.stringify(built, null, 2)}\n`;
+   const serialized = `${JSON.stringify(built, null, JSON_INDENT)}\n`;
    const undocumented = listUndocumentedErrors(built);
 
    if (options.check) {
@@ -179,7 +183,9 @@ function main(): void {
          );
       }
       if (problems.length > 0) {
-         problems.forEach(problem => console.error(`error-catalog: ${problem}`));
+         problems.forEach(problem =>
+            console.error(`error-catalog: ${problem}`)
+         );
          process.exitCode = 1;
          return;
       }
@@ -193,7 +199,7 @@ function main(): void {
    if (options.writeBaseline) {
       writeFileSync(
          options.baselinePath,
-         `${JSON.stringify({ undocumented }, null, 2)}\n`
+         `${JSON.stringify({ undocumented }, null, JSON_INDENT)}\n`
       );
       console.log(`Wrote ${options.baselinePath}`);
    }

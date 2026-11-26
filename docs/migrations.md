@@ -8,17 +8,17 @@ This guide covers the rules that CI enforces and the expand / migrate / contract
 
 The `migration-safety` job in `.github/workflows/ci.yml` runs `scripts/check-migrations.ts` against every `prisma/schema/migrations/*/migration.sql` file that the pull request adds or changes. Historical migrations are not re-checked.
 
-| Rule             | Fails when a new migration contains                                                    |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| `drop-column`    | `DROP COLUMN`                                                                          |
-| `drop-table`     | `DROP TABLE`                                                                           |
-| `alter-type`     | `ALTER TYPE`, `SET DATA TYPE`, or `ALTER COLUMN ... TYPE`                              |
-| `rename`         | `RENAME COLUMN` or `RENAME TO`                                                         |
-| `index-not-concurrent` | `CREATE INDEX` or `DROP INDEX` without `CONCURRENTLY` on a table that existed before the migration |
-| `concurrent-index-mixed` | a `CONCURRENTLY` index statement in a file with any other statement (see [Creating indexes](#creating-indexes)) |
-| `missing-lock-timeout` | no `SET lock_timeout` statement (not required for a lone `CONCURRENTLY` index file) |
-| `missing-statement-timeout` | no `SET statement_timeout` statement (same exemption)                       |
-| `invalid-escape-hatch` | a `-- migration-safe:` comment with a reason shorter than 10 characters          |
+| Rule                        | Fails when a new migration contains                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `drop-column`               | `DROP COLUMN`                                                                                                   |
+| `drop-table`                | `DROP TABLE`                                                                                                    |
+| `alter-type`                | `ALTER TYPE`, `SET DATA TYPE`, or `ALTER COLUMN ... TYPE`                                                       |
+| `rename`                    | `RENAME COLUMN` or `RENAME TO`                                                                                  |
+| `index-not-concurrent`      | `CREATE INDEX` or `DROP INDEX` without `CONCURRENTLY` on a table that existed before the migration              |
+| `concurrent-index-mixed`    | a `CONCURRENTLY` index statement in a file with any other statement (see [Creating indexes](#creating-indexes)) |
+| `missing-lock-timeout`      | no `SET lock_timeout` statement (not required for a lone `CONCURRENTLY` index file)                             |
+| `missing-statement-timeout` | no `SET statement_timeout` statement (same exemption)                                                           |
+| `invalid-escape-hatch`      | a `-- migration-safe:` comment with a reason shorter than 10 characters                                         |
 
 Two exemptions apply automatically:
 
@@ -70,11 +70,11 @@ Remove the old shape in a later release: `DROP COLUMN`, `DROP TABLE`, or the old
 
 ### Example: renaming a column
 
-| Release | Migration                                              | App change                                    |
-| ------- | ------------------------------------------------------ | --------------------------------------------- |
-| 1       | Add `display_name`, nullable                           | Write both `name` and `display_name`          |
-| 2       | Backfill `display_name` from `name` in batches         | Read `display_name` and fall back to `name`   |
-| 3       | Drop `name`                                            | Only `display_name` remains                   |
+| Release | Migration                                      | App change                                  |
+| ------- | ---------------------------------------------- | ------------------------------------------- |
+| 1       | Add `display_name`, nullable                   | Write both `name` and `display_name`        |
+| 2       | Backfill `display_name` from `name` in batches | Read `display_name` and fall back to `name` |
+| 3       | Drop `name`                                    | Only `display_name` remains                 |
 
 Each release is safe to roll back to the one before it.
 

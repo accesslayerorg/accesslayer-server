@@ -6,13 +6,13 @@ under review. This page is the operator guide.
 
 ## What runs and when
 
-| Check | Runs on | Fails when | Script or config |
-| --- | --- | --- | --- |
-| Action pinning | every PR and push to `main` | a `uses:` line is not pinned to a 40-character commit SHA | [`scripts/check-action-pins.mjs`](../../scripts/check-action-pins.mjs) |
-| Production licenses | every PR and push to `main` | a package license is not on the allowlist, or an exception has expired | [`license-policy.json`](../../license-policy.json), [`scripts/check-licenses.mjs`](../../scripts/check-licenses.mjs) |
-| High and critical advisories | every PR and push to `main` | an advisory has no current, dated exception | [`security/audit-exceptions.json`](../../security/audit-exceptions.json), [`scripts/check-audit-exceptions.mjs`](../../scripts/check-audit-exceptions.mjs) |
-| SBOM (CycloneDX 1.5, production only) | each published release, and manual dispatch | never fails the build; it uploads `sbom-<tag>` and attaches `sbom.cdx.json` to the release | `@cyclonedx/cyclonedx-npm@7.0.1` |
-| Dependency updates | weekly, Monday before 06:00 UTC | not applicable | `renovate.json` |
+| Check                                 | Runs on                                     | Fails when                                                                                 | Script or config                                                                                                                                           |
+| ------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Action pinning                        | every PR and push to `main`                 | a `uses:` line is not pinned to a 40-character commit SHA                                  | [`scripts/check-action-pins.mjs`](../../scripts/check-action-pins.mjs)                                                                                     |
+| Production licenses                   | every PR and push to `main`                 | a package license is not on the allowlist, or an exception has expired                     | [`license-policy.json`](../../license-policy.json), [`scripts/check-licenses.mjs`](../../scripts/check-licenses.mjs)                                       |
+| High and critical advisories          | every PR and push to `main`                 | an advisory has no current, dated exception                                                | [`security/audit-exceptions.json`](../../security/audit-exceptions.json), [`scripts/check-audit-exceptions.mjs`](../../scripts/check-audit-exceptions.mjs) |
+| SBOM (CycloneDX 1.5, production only) | each published release, and manual dispatch | never fails the build; it uploads `sbom-<tag>` and attaches `sbom.cdx.json` to the release | `@cyclonedx/cyclonedx-npm@7.0.1`                                                                                                                           |
+| Dependency updates                    | weekly, Monday before 06:00 UTC             | not applicable                                                                             | `renovate.json`                                                                                                                                            |
 
 Tool versions are pinned in the workflow (`license-checker-rseidelsohn@5.0.1`,
 `@cyclonedx/cyclonedx-npm@7.0.1`). Bump them deliberately.
@@ -54,6 +54,7 @@ Exceptions expire. When one expires, the check fails again until it is renewed w
 
    `id` must match the advisory's GHSA id or a CVE id. Exceptions cannot be open-ended, so each
    one needs an expiry date.
+
 4. Put a link to the advisory in the pull request and say when the exception will be removed.
 
 `audit-ci` is not used: it has no expiry support, and dated exceptions are the point of this process.

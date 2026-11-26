@@ -847,6 +847,16 @@ export async function processIndexerEvents(
       await processDutchAuctionEvents(dutchAuctionEvents);
    }
 
+   const { SELL_BLOCK_EVENT_TYPES, processSellBlockEvents } = await import(
+      './sell-block-indexer.service'
+   );
+   const sellBlockEvents = events.filter(event =>
+      SELL_BLOCK_EVENT_TYPES.has(event.eventType)
+   );
+   if (sellBlockEvents.length > 0) {
+      await processSellBlockEvents(sellBlockEvents);
+   }
+
    const {
       COMMIT_REVEAL_LAUNCH_EVENT_TYPES,
       processCommitRevealLaunchEvents,

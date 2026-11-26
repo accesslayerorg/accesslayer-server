@@ -6,14 +6,14 @@ User routes need a wallet JWT for a wallet linked to a user account. Agent route
 
 ## User routes (`/v1/support`)
 
-| Method | Path                                                 | Purpose                                              |
-| ------ | ---------------------------------------------------- | ---------------------------------------------------- |
-| `POST` | `/tickets`                                           | Create a ticket with up to 3 attachments. `201` with one upload link per attachment. |
-| `GET`  | `/tickets`                                           | Your tickets, most recently active first. Filter with `status`. |
-| `GET`  | `/tickets/:ticketId`                                 | One ticket with its thread, attachments and status history. |
-| `POST` | `/tickets/:ticketId/messages`                        | Reply. A reply on a `waiting` or `resolved` ticket reopens it. `409` on a closed ticket. |
-| `GET`  | `/tickets/:ticketId/attachments/:attachmentId`       | Download an uploaded attachment.                     |
-| `PUT`  | `/attachments/:attachmentId/upload?expires=&sig=`    | Upload the bytes for one attachment (raw body, see below). |
+| Method | Path                                              | Purpose                                                                                  |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `POST` | `/tickets`                                        | Create a ticket with up to 3 attachments. `201` with one upload link per attachment.     |
+| `GET`  | `/tickets`                                        | Your tickets, most recently active first. Filter with `status`.                          |
+| `GET`  | `/tickets/:ticketId`                              | One ticket with its thread, attachments and status history.                              |
+| `POST` | `/tickets/:ticketId/messages`                     | Reply. A reply on a `waiting` or `resolved` ticket reopens it. `409` on a closed ticket. |
+| `GET`  | `/tickets/:ticketId/attachments/:attachmentId`    | Download an uploaded attachment.                                                         |
+| `PUT`  | `/attachments/:attachmentId/upload?expires=&sig=` | Upload the bytes for one attachment (raw body, see below).                               |
 
 Another user's ticket returns `404`, the same as a ticket that does not exist.
 
@@ -24,7 +24,13 @@ Another user's ticket returns `404`, the same as a ticket that does not exist.
    "category": "payments",
    "subject": "Payment did not arrive",
    "description": "I paid on 20 November but my keys were not credited.",
-   "attachments": [{ "fileName": "receipt.png", "contentType": "image/png", "sizeBytes": 183420 }]
+   "attachments": [
+      {
+         "fileName": "receipt.png",
+         "contentType": "image/png",
+         "sizeBytes": 183420
+      }
+   ]
 }
 ```
 
@@ -54,26 +60,26 @@ The server then checks the bytes:
 
 ### Attachment rules
 
-| Rule                                   | Result                                    |
-| -------------------------------------- | ----------------------------------------- |
-| More than 3 attachments                | `400`                                     |
-| A file over 5 MB                       | `400`                                     |
-| Executable or script extension         | `400`, blocked before any upload link is issued |
-| Type other than PNG, JPEG, GIF, WebP, PDF or plain text | `400`        |
-| Bytes that do not match the declared type or are executable | `422`              |
-| Upload link expired or tampered        | `403`                                     |
-| Second upload for the same attachment  | `409`                                     |
+| Rule                                                        | Result                                          |
+| ----------------------------------------------------------- | ----------------------------------------------- |
+| More than 3 attachments                                     | `400`                                           |
+| A file over 5 MB                                            | `400`                                           |
+| Executable or script extension                              | `400`, blocked before any upload link is issued |
+| Type other than PNG, JPEG, GIF, WebP, PDF or plain text     | `400`                                           |
+| Bytes that do not match the declared type or are executable | `422`                                           |
+| Upload link expired or tampered                             | `403`                                           |
+| Second upload for the same attachment                       | `409`                                           |
 
 ## Agent routes (`/v1/admin/support`)
 
-| Method | Path                                                  | Purpose                                                    |
-| ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
-| `GET`  | `/tickets?status=&assigneeId=&page=&limit=`           | All tickets.                                               |
-| `GET`  | `/tickets/:ticketId`                                  | Full thread, attachments and status history (includes `userId`). |
-| `POST` | `/tickets/:ticketId/assign`                           | Assign to `assigneeId`, or to the calling agent.          |
-| `POST` | `/tickets/:ticketId/replies`                          | Reply to the user. Optional `status` in the body.          |
-| `POST` | `/tickets/:ticketId/status`                           | Set a status. The change is timestamped.                   |
-| `GET`  | `/tickets/:ticketId/attachments/:attachmentId`        | Download an attachment.                                    |
+| Method | Path                                           | Purpose                                                          |
+| ------ | ---------------------------------------------- | ---------------------------------------------------------------- |
+| `GET`  | `/tickets?status=&assigneeId=&page=&limit=`    | All tickets.                                                     |
+| `GET`  | `/tickets/:ticketId`                           | Full thread, attachments and status history (includes `userId`). |
+| `POST` | `/tickets/:ticketId/assign`                    | Assign to `assigneeId`, or to the calling agent.                 |
+| `POST` | `/tickets/:ticketId/replies`                   | Reply to the user. Optional `status` in the body.                |
+| `POST` | `/tickets/:ticketId/status`                    | Set a status. The change is timestamped.                         |
+| `GET`  | `/tickets/:ticketId/attachments/:attachmentId` | Download an attachment.                                          |
 
 ### Status workflow
 

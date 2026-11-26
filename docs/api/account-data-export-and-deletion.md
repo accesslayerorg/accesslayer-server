@@ -6,11 +6,11 @@ Account routes need a wallet JWT (`Authorization: Bearer <token>`) for a wallet 
 
 ## Data export
 
-| Method | Path                                 | Purpose                                                   |
-| ------ | ------------------------------------ | --------------------------------------------------------- |
-| `POST` | `/v1/me/data-export`                 | Queue an export. `202` with the job. `409` if one is already queued or running. |
-| `GET`  | `/v1/me/data-export/:id`             | Status of one of your exports, with `downloadUrl` once ready. |
-| `GET`  | `/v1/me/data-export/:id/download`    | The archive as a JSON attachment. Authorised by the `expires` and `sig` query parameters, not a session. |
+| Method | Path                              | Purpose                                                                                                  |
+| ------ | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `POST` | `/v1/me/data-export`              | Queue an export. `202` with the job. `409` if one is already queued or running.                          |
+| `GET`  | `/v1/me/data-export/:id`          | Status of one of your exports, with `downloadUrl` once ready.                                            |
+| `GET`  | `/v1/me/data-export/:id/download` | The archive as a JSON attachment. Authorised by the `expires` and `sig` query parameters, not a session. |
 
 ### Archive contents
 
@@ -29,11 +29,11 @@ Exports are built by the account lifecycle worker, which runs every minute. Only
 
 ## Account deletion
 
-| Method   | Path             | Purpose                                                              |
-| -------- | ---------------- | -------------------------------------------------------------------- |
-| `POST`   | `/v1/me/deletion` | Schedule deletion. `201` on success. `409` lists each blocker.       |
-| `GET`    | `/v1/me/deletion` | Latest deletion request, or `null`.                                  |
-| `DELETE` | `/v1/me/deletion` | Cancel a pending deletion. Allowed only during the grace period.     |
+| Method   | Path              | Purpose                                                          |
+| -------- | ----------------- | ---------------------------------------------------------------- |
+| `POST`   | `/v1/me/deletion` | Schedule deletion. `201` on success. `409` lists each blocker.   |
+| `GET`    | `/v1/me/deletion` | Latest deletion request, or `null`.                              |
+| `DELETE` | `/v1/me/deletion` | Cancel a pending deletion. Allowed only during the grace period. |
 
 ### Grace period and blockers
 

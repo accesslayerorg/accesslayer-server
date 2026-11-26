@@ -86,7 +86,7 @@ function resolveWebPushClient(): WebPushClient {
    }
    // Load web-push dynamically so environments without the optional package
    // still compile cleanly and can inject a mock in tests.
-   // eslint-disable-next-line @typescript-eslint/no-require-imports
+    
    return require('web-push') as WebPushClient;
 }
 

@@ -13,18 +13,18 @@ pnpm exec ts-node --transpile-only scripts/backfill.ts \
   --source-url https://<indexer-worker>/export --verify
 ```
 
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--contract` | required | Soroban contract id to backfill |
-| `--from`, `--to` | required | Inclusive ledger range |
-| `--shards` | required | Number of contiguous ledger ranges, 1 to 1024 |
-| `--concurrency` | `4` | Shards processed at once |
-| `--rps` | `5` | Maximum source requests per second. Keeps the RPC pool free for the live indexer |
-| `--page-size` | `200` | Events requested per page |
-| `--source-url` | `BACKFILL_EVENT_SOURCE_URL` | Export endpoint of the indexer worker |
-| `--verify` | off | Run the verification pass after the backfill |
-| `--dry-run` | off | Print the run key and shard ranges, then exit |
-| `--allow-live-range` | off | Permit `--to` above the live cursor. Only use this when the range is final |
+| Flag                 | Default                     | Meaning                                                                          |
+| -------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `--contract`         | required                    | Soroban contract id to backfill                                                  |
+| `--from`, `--to`     | required                    | Inclusive ledger range                                                           |
+| `--shards`           | required                    | Number of contiguous ledger ranges, 1 to 1024                                    |
+| `--concurrency`      | `4`                         | Shards processed at once                                                         |
+| `--rps`              | `5`                         | Maximum source requests per second. Keeps the RPC pool free for the live indexer |
+| `--page-size`        | `200`                       | Events requested per page                                                        |
+| `--source-url`       | `BACKFILL_EVENT_SOURCE_URL` | Export endpoint of the indexer worker                                            |
+| `--verify`           | off                         | Run the verification pass after the backfill                                     |
+| `--dry-run`          | off                         | Print the run key and shard ranges, then exit                                    |
+| `--allow-live-range` | off                         | Permit `--to` above the live cursor. Only use this when the range is final       |
 
 Use `--dry-run` first. It prints the run key and every shard range, and it does not touch the database.
 
@@ -73,11 +73,11 @@ balances match the chain".
 
 ## Exit codes
 
-| Code | Meaning |
-| --- | --- |
-| `0` | Every shard completed and verification (if requested) found nothing |
-| `1` | At least one shard failed, a verification mismatch was found, or the live-cursor guard fired |
-| `2` | Bad arguments |
+| Code | Meaning                                                                                      |
+| ---- | -------------------------------------------------------------------------------------------- |
+| `0`  | Every shard completed and verification (if requested) found nothing                          |
+| `1`  | At least one shard failed, a verification mismatch was found, or the live-cursor guard fired |
+| `2`  | Bad arguments                                                                                |
 
 ## Design notes
 

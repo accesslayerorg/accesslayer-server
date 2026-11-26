@@ -37,6 +37,14 @@ import { getProtocolLpOverview } from './lp-overview.service';
 import { flashLoanViolationsQuerySchema } from './flash-loan-violations.schemas';
 import { getFlashLoanViolations } from './flash-loan-violations.service';
 import {
+   sellBlocksQuerySchema,
+   sellBlocksSummaryQuerySchema,
+} from './sell-blocks.schemas';
+import {
+   getSellBlocks,
+   getSellBlocksSummary,
+} from './sell-blocks.service';
+import {
    adminGuard,
    AdminRequest,
 } from '../../middlewares/admin-guard.middleware';
@@ -297,6 +305,64 @@ adminRouter.get(
          sendSuccess(res, await getFlashLoanViolations(parsed.data));
       } catch (error) {
          logger.error({ error }, 'Flash loan violations lookup failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/admin/sell-blocks?wallet=&keyId=&cursor=&limit=
+ *
+ * Lists blocked same-ledger sells with optional wallet/key filters and
+ * cursor-based pagination. Requires admin authorization.
+ */
+adminRouter.get(
+   '/sell-blocks',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = sellBlocksQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid sell blocks query',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         sendSuccess(res, await getSellBlocks(parsed.data));
+      } catch (error) {
+         logger.error({ error }, 'Sell blocks lookup failed');
+         next(error);
+      }
+   }
+);
+
+/**
+ * GET /api/v1/admin/sell-blocks/summary?window=24h
+ *
+ * Summarizes blocked sells by wallet and key, most frequent wallets first.
+ * Requires admin authorization.
+ */
+adminRouter.get(
+   '/sell-blocks/summary',
+   adminGuard,
+   async (req: AdminRequest, res, next) => {
+      const parsed = sellBlocksSummaryQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+         sendValidationError(
+            res,
+            'Invalid sell blocks summary query',
+            zodIssuesToDetails(parsed.error.issues)
+         );
+         return;
+      }
+
+      try {
+         sendSuccess(res, await getSellBlocksSummary(parsed.data));
+      } catch (error) {
+         logger.error({ error }, 'Sell blocks summary failed');
          next(error);
       }
    }

@@ -5,16 +5,16 @@ before it leaves the process. The rules live in [`src/lib/scrub.ts`](../src/lib/
 
 ## What is removed
 
-| Kind | Example input | Output |
-| --- | --- | --- |
-| Sensitive field names (any depth, any case, `-`/`_` ignored) | `{ "apiKey": "…" }`, `{ "Set-Cookie": "…" }` | `"[REDACTED]"` |
-| Email addresses in strings | `jane@example.com` | `[REDACTED:email]` |
-| Bearer tokens | `Bearer abc.def` | `Bearer [REDACTED:token]` |
-| JWTs | `eyJhbGciOi…` | `[REDACTED:jwt]` |
-| Provider API keys | `sk_live_…`, `pk_test_…` | `[REDACTED:api-key]` |
-| Inline secrets | `api_key=abc123` | `api_key=[REDACTED:secret]` |
-| Stellar secret seeds (`S…`) | `SC…` | `[REDACTED:seed]` |
-| Stellar wallet addresses (`G…`) | `GABC…` | `wallet_` + 16 hex chars (see below) |
+| Kind                                                         | Example input                                | Output                               |
+| ------------------------------------------------------------ | -------------------------------------------- | ------------------------------------ |
+| Sensitive field names (any depth, any case, `-`/`_` ignored) | `{ "apiKey": "…" }`, `{ "Set-Cookie": "…" }` | `"[REDACTED]"`                       |
+| Email addresses in strings                                   | `jane@example.com`                           | `[REDACTED:email]`                   |
+| Bearer tokens                                                | `Bearer abc.def`                             | `Bearer [REDACTED:token]`            |
+| JWTs                                                         | `eyJhbGciOi…`                                | `[REDACTED:jwt]`                     |
+| Provider API keys                                            | `sk_live_…`, `pk_test_…`                     | `[REDACTED:api-key]`                 |
+| Inline secrets                                               | `api_key=abc123`                             | `api_key=[REDACTED:secret]`          |
+| Stellar secret seeds (`S…`)                                  | `SC…`                                        | `[REDACTED:seed]`                    |
+| Stellar wallet addresses (`G…`)                              | `GABC…`                                      | `wallet_` + 16 hex chars (see below) |
 
 Default sensitive field names are in `DEFAULT_SENSITIVE_FIELDS`. Add deployment-specific
 names with `SCRUB_EXTRA_FIELDS` (comma-separated), for example `SCRUB_EXTRA_FIELDS=vatNumber,shippingCode`.
@@ -33,11 +33,11 @@ correlate events for one wallet:
 
 ## Where the rules apply
 
-| Integration | Entry point | Status |
-| --- | --- | --- |
-| Application logger (pino) | `hooks.logMethod` in [`src/utils/logger.utils.ts`](../src/utils/logger.utils.ts) scrubs the message and every field | Active |
-| Ad-hoc pino keys | `createScrubSerializer(rules)` | Available |
-| Sentry `beforeSend` | `createSentryBeforeSend(rules)` drops `user`, removes request cookies, scrubs the rest | Ready. The Sentry SDK is not a dependency yet |
+| Integration               | Entry point                                                                                                         | Status                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Application logger (pino) | `hooks.logMethod` in [`src/utils/logger.utils.ts`](../src/utils/logger.utils.ts) scrubs the message and every field | Active                                        |
+| Ad-hoc pino keys          | `createScrubSerializer(rules)`                                                                                      | Available                                     |
+| Sentry `beforeSend`       | `createSentryBeforeSend(rules)` drops `user`, removes request cookies, scrubs the rest                              | Ready. The Sentry SDK is not a dependency yet |
 
 Scrubbing works on a deep copy. The original object is never mutated.
 

@@ -43,6 +43,13 @@ jest.mock('./badge-minted-indexer.service', () => ({
    BADGE_MINTED_EVENT_TYPES: new Set(['BadgeMinted', 'BADGE_MINTED']),
    processBadgeMintedEvents: jest.fn(),
 }));
+jest.mock('./sell-block-indexer.service', () => ({
+   SELL_BLOCK_EVENT_TYPES: new Set([
+      'same_ledger_sell_blocked',
+      'SAME_LEDGER_SELL_BLOCKED',
+   ]),
+   processSellBlockEvents: jest.fn(),
+}));
 
 jest.mock('../ownership/ownership.service', () => ({
    updateOwnership: jest.fn(),
@@ -64,6 +71,7 @@ jest.mock('../creators/creator-leaderboard-volume.service', () => ({
 
 jest.mock('../referrals/referrals.service', () => ({
    recordFirstTradeReferralReward: jest.fn(),
+   recordTradeReferralReward: jest.fn(),
 }));
 
 jest.mock('../creators/creator-portfolio.service', () => ({
@@ -98,6 +106,8 @@ const mockGovernanceHandler = processGovernanceProposalEvents as jest.Mock;
 const mockKeyPollHandler = jest.requireMock('./key-poll-indexer.service')
    .processKeyPollEvents as jest.Mock;
 const mockBadgeMintHandler = processBadgeMintedEvents as jest.Mock;
+const mockSellBlockHandler = jest.requireMock('./sell-block-indexer.service')
+   .processSellBlockEvents as jest.Mock;
 const mockUpsertPriceSnapshot = upsertPriceSnapshot as jest.Mock;
 const mockPrisma = prisma as unknown as {
    activity: { create: jest.Mock };
@@ -193,6 +203,22 @@ describe('processIndexerEvents', () => {
       await processIndexerEvents([pollEvent]);
 
       expect(mockKeyPollHandler).toHaveBeenCalledWith([pollEvent]);
+   });
+
+   it('routes same-ledger sell block events to the sell-block indexer', async () => {
+      const event: IndexerChainEvent = {
+         eventType: 'same_ledger_sell_blocked',
+         txHash: 'tx-sell-block',
+         eventIndex: 1,
+         ledger: 721,
+         wallet: 'GSELLER',
+         keyId: 'GKEY',
+         amount: '2',
+      };
+
+      await processIndexerEvents([event]);
+
+      expect(mockSellBlockHandler).toHaveBeenCalledWith([event]);
    });
 
    it('advances the cursor for a batch containing only social events', async () => {

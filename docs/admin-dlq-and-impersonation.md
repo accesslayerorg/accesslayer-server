@@ -12,12 +12,12 @@ Without `mfa_at`, or with a stale value, `POST /admin/impersonate` returns `403`
 
 Failed indexer jobs are stored in the `IndexerDLQ` table. Outbox events that exhaust their publish attempts are written there too, with `jobType` `outbox:<event type>`.
 
-| Method   | Path                          | Purpose                                                                                                   |
-| -------- | ----------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/admin/dlq`                  | List live entries, oldest first. Filters: `queue` (job type), `error` (substring of the failure reason), `cursor`, `limit` (max 100). Also returns per-queue depth and oldest age. |
-| `POST`   | `/admin/dlq/:id/replay`       | Replay one entry. `404` if missing, `409` if already replayed.                                            |
-| `POST`   | `/admin/dlq/replay`           | Replay up to 500 entries selected by `ids`, or by `queue` / `error`. Requires one of those selectors.      |
-| `DELETE` | `/admin/dlq/:id`              | Delete an entry. Body `{ "reason": "..." }` is required, at least 10 characters. The delete and its audit record commit in one transaction. |
+| Method   | Path                    | Purpose                                                                                                                                                                            |
+| -------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/admin/dlq`            | List live entries, oldest first. Filters: `queue` (job type), `error` (substring of the failure reason), `cursor`, `limit` (max 100). Also returns per-queue depth and oldest age. |
+| `POST`   | `/admin/dlq/:id/replay` | Replay one entry. `404` if missing, `409` if already replayed.                                                                                                                     |
+| `POST`   | `/admin/dlq/replay`     | Replay up to 500 entries selected by `ids`, or by `queue` / `error`. Requires one of those selectors.                                                                              |
+| `DELETE` | `/admin/dlq/:id`        | Delete an entry. Body `{ "reason": "..." }` is required, at least 10 characters. The delete and its audit record commit in one transaction.                                        |
 
 Behaviour to know about:
 
@@ -43,10 +43,10 @@ Run one outbox publisher per deployment. Rows are not row-locked.
 
 Support staff can view what a user sees. The session is read-only and short-lived.
 
-| Method   | Path                    | Body                          | Result                                                        |
-| -------- | ----------------------- | ----------------------------- | ------------------------------------------------------------- |
-| `POST`   | `/admin/impersonate`    | `{ "walletAddress", "reason" }` | `{ sessionId, token, targetWallet, expiresAt, readOnly: true }` |
-| `DELETE` | `/admin/impersonate`    | `{ "sessionId", "reason"? }`  | Ends the session immediately. `404` if unknown, `409` if already ended. |
+| Method   | Path                 | Body                            | Result                                                                  |
+| -------- | -------------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| `POST`   | `/admin/impersonate` | `{ "walletAddress", "reason" }` | `{ sessionId, token, targetWallet, expiresAt, readOnly: true }`         |
+| `DELETE` | `/admin/impersonate` | `{ "sessionId", "reason"? }`    | Ends the session immediately. `404` if unknown, `409` if already ended. |
 
 The returned `token` is a bearer token that authenticates as the target wallet, valid for 15 minutes. The server enforces these rules on every request that carries it:
 

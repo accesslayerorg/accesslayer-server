@@ -820,6 +820,26 @@ Replay indexer events.
 - **Auth:** Admin required
 - **Response:** `200 OK`
 
+### GET /admin/sell-blocks
+
+Cursor-paginated history of contract-blocked same-ledger sells (#1273).
+
+- **Auth:** Admin required
+- **Query:** `wallet` and `keyId` (optional exact filters), `cursor` (optional
+  row ID from the previous page), and `limit` (default `50`, max `100`)
+- **Response:** `200 OK`, with `blocks` and `pagination` (`hasMore`,
+  `nextCursor`, and `limit`)
+
+### GET /admin/sell-blocks/summary
+
+Counts same-ledger sell blocks by wallet and key over a rolling time window
+(#1273). Wallets are ordered by block count descending.
+
+- **Auth:** Admin required
+- **Query:** `window` (optional, defaults to `24h`; hours or days from `1h` to
+  `365d`)
+- **Response:** `200 OK`, with total count, ranked wallets and per-key counts
+
 ### GET /admin/flash-loan-violations
 
 Wallets that triggered the on-chain flash loan guard (#938), sorted by
