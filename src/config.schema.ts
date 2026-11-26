@@ -98,6 +98,10 @@ export const envSchema = z
       DB_POOL_WAIT_ERROR_MS: z.coerce.number().int().positive().default(5000),
       WEBHOOK_MAX_PER_CREATOR: z.coerce.number().int().positive().default(5),
       WEBHOOK_RETRY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+      // Token rescues above this amount (base units) send one alert. Unset disables alerts (#1271).
+      TOKEN_RESCUE_ALERT_THRESHOLD: optionalNonEmptyString,
+      // Ledgers after a protocol pause before escape redemptions open (#1265).
+      PROTOCOL_ESCAPE_DELAY_LEDGERS: z.coerce.number().int().nonnegative().default(17280),
 
       APP_SECRET: z
          .string()

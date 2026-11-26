@@ -1023,18 +1023,60 @@ indexed.
 
 #### GET /keys/:keyId/polls
 
-Lists all active and closed polls for a key with expiry, total votes, total
-voting weight, and per-option weight tallies.
+Returns one page of polls as `{ items, nextCursor }`, newest expiry first. Each
+item has total votes, total voting weight, per-option weight tallies, and
+`timeRemainingSeconds` (`0` once closed).
+
+Query parameters: `status` (`active`, `closed` or `all`, default `all`),
+`cursor` (the `nextCursor` from the previous page), and `limit` (1 to 100,
+default 20). A `cursor` that does not name a poll for the key returns `400`.
+Pages are cached for 30 seconds and invalidated by vote and close events.
 
 #### GET /keys/:keyId/polls/:pollId
 
 Returns poll details and per-option vote counts and weights in `optionResults`.
+Pass `?wallet=G...` to include `walletVote`, the wallet's vote for this poll.
 
 #### GET /keys/:keyId/polls/:pollId/votes/:wallet
 
 Returns whether the wallet voted and, if so, its selected option and indexed
 vote weight. Invalid Stellar wallet addresses return `400`; unknown keys or
 polls return `404`.
+
+#### GET /analytics/keys/leaderboard
+
+Ranks all keys by `metric`, which is `volume` (24h trade value, the default),
+`holders` (positive balances) or `reputation` (creator reputation score). Each
+entry has `rank`, `key_id`, `key_name`, `creator`, `metric_value` and
+`24h_change`. `24h_change` is the percent change in key price between the
+latest daily snapshot and the one a UTC day earlier, or `null` when that pair
+is missing. `limit` defaults to 20 and is capped at 100; larger values return
+`400`. Rankings are cached for 5 minutes and rebuilt by the analytics job.
+
+#### GET /admin/rescues
+
+Admin only (`403` for other roles). Returns token rescues newest first as
+`{ items, nextCursor, totals }`, with optional `token`, `cursor` and `limit`
+(1 to 100, default 20) query parameters. `totals` has per-token running totals.
+
+#### GET /transparency/rescues
+
+Public, no authentication. Returns `{ totals }`, with each token's
+`totalAmount`, `rescueCount` and `lastRescueLedger`. Recipient, admin and
+transaction hash are not included.
+
+#### GET /protocol/escape
+
+Returns `pausedSince`, `escapeEnabledAtLedger`, `active` and `currentLedger`.
+Escape opens `PROTOCOL_ESCAPE_DELAY_LEDGERS` ledgers after the pause and is
+`active` once the indexed ledger reaches that point.
+
+#### GET /wallets/:address/escape
+
+Returns the wallet's `escape` status and its `holdings`. Each holding has
+`balance`, `circulatingSupply`, `reserveBalance`, `redeemed` and
+`estimatedRecoverable` (balance / circulating supply x reserve, rounded down to
+7 decimals). Redeemed positions estimate to zero. Invalid addresses return `400`.
 
 ---
 

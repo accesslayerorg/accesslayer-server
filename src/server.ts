@@ -69,6 +69,10 @@ import {
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
 import {
+   startAnnouncementPublisherWorker,
+   stopAnnouncementPublisherWorker,
+} from './jobs/announcement-publisher.worker';
+import {
    startLpRewardAccrualJob,
    stopLpRewardAccrualJob,
 } from './jobs/lp-reward-accrual.job';
@@ -76,6 +80,10 @@ import {
    startRefreshKeyMetricsJob,
    stopRefreshKeyMetricsJob,
 } from './jobs/refresh-key-metrics.job';
+import {
+   startKeyAnalyticsLeaderboardJob,
+   stopKeyAnalyticsLeaderboardJob,
+} from './jobs/key-analytics-leaderboard.job';
 import {
    startPushEventListeners,
    stopPushEventListeners,
@@ -162,8 +170,10 @@ async function startServer() {
       startAccountLifecycleWorker();
       startPartitionManagerWorker();
       startCampaignCronJobs();
+      startAnnouncementPublisherWorker();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
+      startKeyAnalyticsLeaderboardJob();
       startPushEventListeners();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
@@ -217,8 +227,10 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopAccountLifecycleWorker();
       stopPartitionManagerWorker();
       stopCampaignCronJobs();
+      stopAnnouncementPublisherWorker();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();
+      stopKeyAnalyticsLeaderboardJob();
       stopPushEventListeners();
       stopAutoInvestListener();
       await prisma.$disconnect();

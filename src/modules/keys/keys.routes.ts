@@ -68,6 +68,7 @@ import reservesRouter from '../reserves/reserves.routes';
 import contentAccessRouter from '../content-access/content-access.routes';
 import tipsRouter from '../tips/tips.routes';
 import keyPollsRouter from './key-polls.routes';
+import { keyAnnouncementsRouter } from '../announcements/announcements.routes';
 import { keyReportsRouter } from '../reports/key-reports.routes';
 import {
    requireJwtAuth,
@@ -84,7 +85,7 @@ import {
    DuplicateKeyRegistrationError,
    InvalidOnChainContractError,
 } from './key-registration.service';
-import { prisma } from '../../utils/prisma.utils';
+
 import { logger } from '../../utils/logger.utils';
 import { invalidateCreatorDashboardCache } from '../creator/creator-dashboard.service';
 import {
@@ -2390,6 +2391,7 @@ router.use('/', contentAccessRouter);
 // Mount tip history routes (#1132)
 router.use('/', tipsRouter);
 router.use('/', keyPollsRouter);
+router.use('/', keyAnnouncementsRouter);
 // Key report submission (#1226): POST /:keyId/reports
 router.use('/', keyReportsRouter);
 

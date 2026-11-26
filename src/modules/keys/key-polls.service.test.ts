@@ -57,21 +57,80 @@ describe('community poll read service', () => {
    });
 
    it('returns accurate totals and caches poll lists for 30 seconds', async () => {
-      const result = await getKeyPolls('key-1');
+      const page = await getKeyPolls('key-1');
 
-      expect(result[0]).toMatchObject({
+      expect(page.nextCursor).toBeNull();
+      expect(page.items[0]).toMatchObject({
          pollId: 'poll-1',
          totalVotes: 2,
          totalVotingWeight: '7.5',
          results: { A: '7.5', B: '0' },
          status: 'active',
       });
+      expect(page.items[0].timeRemainingSeconds).toBeGreaterThan(0);
       expect(cacheSetJson).toHaveBeenCalledWith(
-         'key:polls:key-1:list',
-         result,
+         'key:polls:key-1:list:all:first:20',
+         page,
          KEY_POLLS_CACHE_SECONDS
       );
       expect(KEY_POLLS_CACHE_SECONDS).toBe(30);
+   });
+
+   it('returns a next cursor when another page exists', async () => {
+      const second = { ...poll, pollId: 'poll-2' };
+      const third = { ...poll, pollId: 'poll-3' };
+      mockPrisma.keyPoll.findMany.mockResolvedValue([poll, second, third]);
+
+      const page = await getKeyPolls('key-1', { limit: 2 });
+
+      expect(page.items.map(item => item.pollId)).toEqual(['poll-1', 'poll-2']);
+      expect(page.nextCursor).toBe('poll-2');
+      expect(mockPrisma.keyPoll.findMany).toHaveBeenCalledWith(
+         expect.objectContaining({ take: 3 })
+      );
+   });
+
+   it('applies the closed filter and reports zero time remaining', async () => {
+      const closedPoll = {
+         ...poll,
+         pollId: 'poll-old',
+         status: 'closed',
+         closedAt: new Date('2026-06-01T00:00:00.000Z'),
+      };
+      mockPrisma.keyPoll.findMany.mockResolvedValue([closedPoll]);
+
+      const page = await getKeyPolls('key-1', { status: 'closed' });
+
+      expect(mockPrisma.keyPoll.findMany).toHaveBeenCalledWith(
+         expect.objectContaining({
+            where: expect.objectContaining({
+               keyId: 'key-1',
+               OR: expect.any(Array),
+            }),
+         })
+      );
+      expect(page.items[0]).toMatchObject({
+         status: 'closed',
+         timeRemainingSeconds: 0,
+      });
+   });
+
+   it('rejects a cursor that does not name a poll under the key', async () => {
+      mockPrisma.keyPoll.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+         getKeyPolls('key-1', { cursor: 'missing-poll' })
+      ).rejects.toThrow('Invalid poll cursor: missing-poll');
+   });
+
+   it('attaches the wallet vote to poll detail when a wallet is given', async () => {
+      const detail = await getKeyPoll('key-1', 'poll-1', 'G123');
+
+      expect(detail.walletVote).toEqual({
+         wallet: 'G123',
+         voted: true,
+         vote: { optionIndex: 1, option: 'B', weight: '3.25' },
+      });
    });
 
    it('returns per-option results for poll details', async () => {
