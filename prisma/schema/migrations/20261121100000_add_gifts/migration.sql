@@ -1,3 +1,7 @@
+-- Migration safety: abort instead of queueing behind locks, and bound statement runtime
+SET lock_timeout = '5s';
+SET statement_timeout = '30s';
+
 -- CreateTable
 CREATE TABLE "Gift" (
     "id" TEXT NOT NULL,
