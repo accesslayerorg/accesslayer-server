@@ -8,6 +8,24 @@ export interface TradeCursorPayload {
    timestamp?: string;
 }
 
+/**
+ * Filter that excludes trades flagged by the wash-trade detector from
+ * leaderboard and volume aggregates.
+ */
+export function notFlaggedWhere(): { isFlagged: { not: boolean } } {
+   return { isFlagged: { not: true } };
+}
+
+/**
+ * Applies the isFlagged exclusion to an existing where clause so that
+ * wash-trade-flagged trades are omitted from leaderboard and volume totals.
+ */
+export function withoutFlagged<T extends Record<string, any>>(
+   where: T
+): T & { isFlagged: { not: boolean } } {
+   return { ...where, ...notFlaggedWhere() };
+}
+
 export interface FormattedBundleTrade {
    id: string;
    type: 'bundle';
@@ -257,7 +275,7 @@ export async function fetchWalletTrades(
 
    let singleRows: any[] = [];
    if (includeSingle && db.trade?.findMany) {
-      const tradeWhere: any = { buyer: wallet };
+      const tradeWhere: any = { buyer: wallet, ...notFlaggedWhere() };
       if (from || to) {
          tradeWhere.timestamp = {};
          if (from) tradeWhere.timestamp.gte = new Date(from);
