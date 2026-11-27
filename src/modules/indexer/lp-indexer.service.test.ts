@@ -9,6 +9,11 @@ jest.mock('../../utils/prisma.utils', () => {
          create: jest.fn(),
          update: jest.fn(),
       },
+      keyLpPosition: {
+         findUnique: jest.fn(),
+         create: jest.fn(),
+         update: jest.fn(),
+      },
    };
    return {
       prisma: {

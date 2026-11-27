@@ -23,12 +23,13 @@ import {
    IndexerChainEvent,
 } from '../../utils/indexer-event-processor.utils';
 import { moveToDLQ } from '../../utils/indexer-dlq.utils';
-import { invalidateKeyTipsCache } from '../tips/tips.service';
+import { invalidateKeyTipsCache, resolveTipKeyId } from '../tips/tips.service';
 import { stroopsToXlmDecimalString } from './reserve-indexer.service';
 
 export const TIP_SENT_EVENT_TYPES: ReadonlySet<string> = new Set([
    'TIP_SENT',
    'TipSent',
+   'tip_sent',
    'tip',
 ]);
 
@@ -40,6 +41,7 @@ export interface ParsedTipEvent {
    /** Amount in XLM (converted from stroops). */
    amountXlm: string;
    messageHash: string | null;
+   anonymous: boolean;
    tippedAt: Date;
    ledger: number;
    eventIndex: number;
@@ -82,7 +84,12 @@ function readStringField(
 
 /** Pure validation of a raw event into a typed, persistable tip row. */
 export function parseTipEvent(event: IndexerChainEvent): TipParseResult {
-   const raw = event as Record<string, unknown>;
+   const envelope = event as Record<string, unknown>;
+   const payload = envelope.payload;
+   const raw = {
+      ...(payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {}),
+      ...envelope,
+   };
 
    const keyId = readStringField(
       raw,
@@ -104,6 +111,11 @@ export function parseTipEvent(event: IndexerChainEvent): TipParseResult {
    const amount = parseBigInt(raw.amount);
    if (amount === null || amount <= 0n) {
       return { ok: false, reason: 'missing or invalid amount' };
+   }
+
+   const anonymous = raw.anonymous ?? raw.isAnonymous ?? raw.is_anonymous ?? false;
+   if (typeof anonymous !== 'boolean') {
+      return { ok: false, reason: 'invalid anonymous flag' };
    }
 
    const messageHash =
@@ -152,6 +164,7 @@ export function parseTipEvent(event: IndexerChainEvent): TipParseResult {
          tipper,
          amountXlm: stroopsToXlmDecimalString(amount),
          messageHash,
+         anonymous,
          tippedAt,
          ledger,
          eventIndex,
@@ -188,7 +201,7 @@ export async function processTipEvent(
       return false;
    }
 
-   const value = parsed.value;
+   const value = { ...parsed.value, keyId: await resolveTipKeyId(parsed.value.keyId) };
 
    // The tip row and the running total share one transaction: if the event
    // was already applied (P2002 on the unique constraint) the whole
@@ -202,6 +215,7 @@ export async function processTipEvent(
                tipper: value.tipper,
                amount: value.amountXlm,
                messageHash: value.messageHash,
+               anonymous: value.anonymous,
                ledger: value.ledger,
                txHash: value.txHash,
                eventIndex: value.eventIndex,
@@ -240,7 +254,7 @@ export async function processTipEvent(
          type: applied ? 'tip_indexed' : 'tip_replay_skipped',
          eventId,
          key_id: value.keyId,
-         tipper: value.tipper,
+         tipper: value.anonymous ? null : value.tipper,
          amount_xlm: value.amountXlm,
       },
       applied ? 'TipSent event indexed' : 'Replayed TipSent event skipped'

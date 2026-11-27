@@ -24,8 +24,30 @@ import {
    loadFeeTierConfig,
 } from './fee-tier.service';
 import { logger } from '../../utils/logger.utils';
+import { getState } from './upgrade.service';
+import {
+   getProtocolFeesState,
+   getProtocolFeesHistory,
+} from './fee-change.service';
 
 const router = Router();
+
+router.get('/version', async (_req: Request, res: Response) => {
+   const key = 'protocol:version';
+   try {
+      const cached = await cacheGetJson<{ current: string; pending: unknown }>(key);
+      if (cached !== null) {
+         sendSuccess(res, cached);
+         return;
+      }
+      const state = await getState();
+      await cacheSetJson(key, state, 15);
+      sendSuccess(res, state);
+   } catch (error) {
+      logger.error({ error }, 'Failed to fetch protocol version');
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, 'Failed to fetch protocol version');
+   }
+});
 
 const updateFeeTierBodySchema = z.object({
    tiers: z
@@ -328,5 +350,52 @@ router.patch(
       }
    }
 );
+
+/**
+ * GET /v1/protocol/fees
+ * Returns the current protocol fee configuration and any pending timelocked
+ * change with its execution ledger and estimated execution time (#1308).
+ */
+router.get('/fees', async (_req: Request, res: Response) => {
+   try {
+      const state = await getProtocolFeesState();
+      sendSuccess(res, state);
+   } catch (error) {
+      logger.error({ error }, 'Failed to fetch protocol fees');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to fetch protocol fees'
+      );
+   }
+});
+
+/**
+ * GET /v1/protocol/fees/history?cursor=
+ * Returns cursor-paginated past protocol fee configurations with effective ledgers (#1308).
+ */
+router.get('/fees/history', async (req: Request, res: Response) => {
+   const cursor =
+      typeof req.query.cursor === 'string' && req.query.cursor.trim()
+         ? req.query.cursor.trim()
+         : undefined;
+   const rawLimit = req.query.limit ? Number(req.query.limit) : undefined;
+   const limit =
+      rawLimit !== undefined && Number.isFinite(rawLimit) ? rawLimit : undefined;
+
+   try {
+      const history = await getProtocolFeesHistory({ cursor, limit });
+      sendSuccess(res, history);
+   } catch (error) {
+      logger.error({ error }, 'Failed to fetch protocol fee history');
+      sendError(
+         res,
+         500,
+         ErrorCode.INTERNAL_ERROR,
+         'Failed to fetch protocol fee history'
+      );
+   }
+});
 
 export default router;

@@ -1,0 +1,85 @@
+// prisma/schema/support-ticket.prisma
+// In-app support tickets with threaded replies, attachments and an agent
+// workflow (#1327).
+
+model Ticket {
+  id            String    @id @default(cuid())
+  userId        String
+  /// One of the categories in support.constants.ts.
+  category      String
+  subject       String
+  description   String
+  /// "open" | "waiting" | "resolved" | "closed"
+  status        String    @default("open")
+  /// Admin id of the agent the ticket is assigned to.
+  assigneeId    String?
+  lastMessageAt DateTime  @default(now())
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages      TicketMessage[]
+  attachments   TicketAttachment[]
+  statusChanges TicketStatusChange[]
+
+  @@index([userId, createdAt])
+  @@index([status, lastMessageAt])
+  @@index([assigneeId, status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String    @id @default(cuid())
+  ticketId   String
+  /// "user" | "agent"
+  authorType String
+  /// User id for user messages, admin id for agent messages.
+  authorId   String
+  body       String
+  /// Set once the user has been emailed about this message, so each agent
+  /// reply produces at most one notification.
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_messages")
+}
+
+model TicketAttachment {
+  id          String    @id @default(cuid())
+  ticketId    String
+  fileName    String
+  /// Declared at creation and checked against the bytes at upload.
+  contentType String
+  sizeBytes   Int
+  /// "pending" until the bytes are uploaded and validated, then "uploaded".
+  status      String    @default("pending")
+  content     Bytes?
+  sha256      String?
+  uploadedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
+}
+
+model TicketStatusChange {
+  id         String    @id @default(cuid())
+  ticketId   String
+  fromStatus String?
+  toStatus   String
+  /// "user" | "agent" | "system"
+  actorType  String
+  actorId    String?
+  createdAt  DateTime  @default(now())
+
+  ticket     Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_status_changes")
+}

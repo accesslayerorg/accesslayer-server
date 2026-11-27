@@ -1,0 +1,42 @@
+// prisma/schema/dca.prisma
+// Recurring purchase (DCA) plans and execution runs (#1322).
+
+model DcaPlan {
+  id                  String   @id @default(cuid())
+  wallet              String
+  keyId               String
+  amount              BigInt
+  frequency           String   // hourly | daily | weekly | monthly
+  nextRunAt           DateTime
+  budgetRemaining     BigInt
+  status              String   @default("active") // active | paused | cancelled | completed
+  maxSlippageBps      Int      @default(100)
+  spendingAuth        String?
+  consecutiveFailures Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  runs                DcaRun[]
+
+  @@index([wallet, status])
+  @@index([status, nextRunAt])
+  @@map("dca_plans")
+}
+
+model DcaRun {
+  id           String   @id @default(cuid())
+  planId       String
+  scheduledFor DateTime
+  status       String   // executed | skipped | failed
+  reason       String?
+  amountSpent  BigInt?
+  txHash       String?
+  txXdr        String?
+  createdAt    DateTime @default(now())
+
+  plan         DcaPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, scheduledFor])
+  @@index([planId, createdAt])
+  @@map("dca_runs")
+}

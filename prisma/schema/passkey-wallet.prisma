@@ -1,0 +1,32 @@
+// prisma/schema/passkey-wallet.prisma
+// WebAuthn passkey credentials and server-assisted embedded Stellar wallets (#1313).
+
+model PasskeyCredential {
+  id             String    @id @default(cuid())
+  userId         String
+  credentialId   String    @unique
+  publicKey      String
+  counter        Int       @default(0)
+  transports     String[]  @default([])
+  deviceType     String?
+  backedUp       Boolean   @default(false)
+  lastAssertedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("passkey_credentials")
+}
+
+model EmbeddedWallet {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  publicKey       String   @unique
+  encryptedSecret String
+  keyVersion      String   @default("v1")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([publicKey])
+  @@map("embedded_wallets")
+}

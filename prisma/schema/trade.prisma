@@ -15,10 +15,15 @@ model Trade {
   type         String   @default("single")
   createdAt    DateTime @default(now())
 
-  @@unique([ledger, txHash])
+  // Partitioned by timestamp month (#1333); unique/indexes include partition key.
+  @@unique([ledger, txHash, timestamp], name: "ledger_txHash")
   @@index([creatorId])
   @@index([buyer])
   @@index([ledger])
   @@index([paymentAsset])
   @@index([creatorId, paymentAsset])
+  /// Per-wallet, per-key chronological scans for realized gains (#1218).
+  @@index([buyer, creatorId, timestamp])
+  @@index([creatorId, timestamp])
+  @@index([timestamp])
 }

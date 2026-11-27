@@ -37,7 +37,8 @@ import { resolveCreatorId } from '../whitelist/whitelist.service';
 /** One tip in the history. */
 export interface TipHistoryItem {
    id: string;
-   tipper: string;
+   tipper: string | null;
+   anonymous: boolean;
    amount: string;
    message_hash: string | null;
    tipped_at: string;
@@ -116,6 +117,7 @@ export async function listTips(
       select: {
          id: true,
          tipper: true,
+         anonymous: true,
          amount: true,
          messageHash: true,
          tippedAt: true,
@@ -131,7 +133,8 @@ export async function listTips(
       key_id: resolvedKeyId,
       data: page.map(row => ({
          id: row.id,
-         tipper: row.tipper,
+         tipper: row.anonymous ? null : row.tipper,
+         anonymous: row.anonymous,
          amount: Number(row.amount).toFixed(7),
          message_hash: row.messageHash,
          tipped_at: row.tippedAt.toISOString(),

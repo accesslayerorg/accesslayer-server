@@ -1,0 +1,54 @@
+// prisma/schema/qa.prisma
+// Holder Q&A sessions, questions, votes, and creator answers (#1311).
+
+model QaSession {
+  id              String       @id @default(cuid())
+  keyId           String
+  creatorWallet   String
+  title           String
+  description     String?
+  startsAt        DateTime
+  durationMinutes Int
+  minBalance      Decimal      @default(1) @db.Decimal(36, 7)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  questions       QaQuestion[]
+
+  @@index([keyId, startsAt])
+  @@map("qa_sessions")
+}
+
+model QaQuestion {
+  id           String    @id @default(cuid())
+  sessionId    String
+  authorWallet String
+  body         String
+  voteCount    Int       @default(0)
+  answered     Boolean   @default(false)
+  answer       String?
+  answeredAt   DateTime?
+  answeredBy   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  session      QaSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  votes        QaVote[]
+
+  @@index([sessionId, voteCount(sort: Desc)])
+  @@index([sessionId, authorWallet, answered])
+  @@map("qa_questions")
+}
+
+model QaVote {
+  id            String     @id @default(cuid())
+  questionId    String
+  walletAddress String
+  createdAt     DateTime   @default(now())
+
+  question      QaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, walletAddress])
+  @@index([questionId])
+  @@map("qa_votes")
+}

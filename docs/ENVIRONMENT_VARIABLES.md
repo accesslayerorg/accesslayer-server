@@ -19,25 +19,26 @@ Complete reference for all server configuration environment variables.
 
 ## Application Core
 
-| Variable       | Type         | Required | Default         | Description                                              |
-| -------------- | ------------ | -------- | --------------- | -------------------------------------------------------- |
-| `PORT`         | number       | No       | `3000`          | HTTP server port                                         |
-| `MODE`         | enum         | No       | `development`   | Environment mode: `development`, `production`, or `test` |
-| `BACKEND_URL`  | string (URL) | Yes      | -               | Full URL where the backend is accessible                 |
-| `FRONTEND_URL` | string (URL) | Yes      | -               | Full URL of the frontend application for CORS            |
-| `PUBLIC_SITE_URL` | string (URL) | Yes   | -               | Public origin of the website; used for absolute URLs in `sitemap.xml` and `robots.txt` (startup fails when missing) |
-| `API_VERSION`  | string       | No       | `1.0.0`         | API version string returned in response headers          |
-| `APP_SECRET`   | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)         |
+| Variable          | Type         | Required | Default         | Description                                                                                                         |
+| ----------------- | ------------ | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PORT`            | number       | No       | `3000`          | HTTP server port                                                                                                    |
+| `MODE`            | enum         | No       | `development`   | Environment mode: `development`, `production`, or `test`                                                            |
+| `BACKEND_URL`     | string (URL) | Yes      | -               | Full URL where the backend is accessible                                                                            |
+| `FRONTEND_URL`    | string (URL) | Yes      | -               | Full URL of the frontend application for CORS                                                                       |
+| `PUBLIC_SITE_URL` | string (URL) | Yes      | -               | Public origin of the website; used for absolute URLs in `sitemap.xml` and `robots.txt` (startup fails when missing) |
+| `API_VERSION`     | string       | No       | `1.0.0`         | API version string returned in response headers                                                                     |
+| `APP_SECRET`      | string       | No       | _(default key)_ | Secret key for signing operations (min 32 chars)                                                                    |
 
 ---
 
 ## Protocol
 
-| Variable                          | Type   | Required | Default | Description                                                                                       |
-| --------------------------------- | ------ | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `REVENUE_DISTRIBUTION_CYCLE_DAYS` | number | No       | `7`     | Length of each protocol revenue distribution cycle in days (#883)                                  |
-| `REFERRAL_REWARD_BPS`             | number | No       | `500`   | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910). |
-| `ADMIN_MULTISIG_WALLETS`          | string | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
+| Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
+| -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
+| `REFERRAL_REWARD_BPS`                  | number  | No       | `500`     | Share of a referred wallet's first trade paid to the referrer, in basis points (500 = 5%). Paid once per referee (#910).                                                                                  |
+| `REFERRAL_ABUSE_FUNDER_ALLOWLIST`      | string  | No       | _(unset)_ | Comma-separated Stellar addresses of known high-volume funders (exchange or anchor hot wallets). Wallets funded by these accounts skip the shared-funding and sybil-cluster referral abuse checks (#1241). |
+| `ADMIN_MULTISIG_WALLETS`               | string  | No       | _(unset)_ | Comma-separated Stellar addresses of the 2-of-3 admin quorum for key deprecation (#882). When unset, two distinct valid signatures are still required but no allowlist is enforced (development default). |
 | Variable                               | Type    | Required | Default   | Description                                                                                                                                                                                               |
 | -------------------------------------- | ------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `REVENUE_DISTRIBUTION_CYCLE_DAYS`      | number  | No       | `7`       | Length of each protocol revenue distribution cycle in days (#883)                                                                                                                                         |
@@ -101,16 +102,16 @@ Complete reference for all server configuration environment variables.
 
 ## Stellar Network
 
-| Variable                  | Type         | Required | Default                               | Description                                   |
-| ------------------------- | ------------ | -------- | ------------------------------------- | --------------------------------------------- |
-| `STELLAR_NETWORK`         | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet` |
-| `STELLAR_HORIZON_URL`     | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                  |
-| `STELLAR_SOROBAN_RPC_URL` | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                          |
-| `SOROBAN_SUBMIT_MAX_ATTEMPTS` | number | No       | `3`     | Max submission attempts for transient failures (#899)  |
-| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number | No       | `1000`  | Exponential backoff base delay between submit attempts (#899) |
-| `SOROBAN_SUBMIT_MAX_DELAY_MS` | number | No       | `15000` | Cap for submit retry backoff delays (#899)             |
-| `SOROBAN_POLL_INTERVAL_MS`    | number | No       | `5000`  | Delay between transaction confirmation polls (#899)    |
-| `SOROBAN_POLL_TIMEOUT_MS`     | number | No       | `120000`| Total polling budget per transaction confirmation (#899) |
+| Variable                       | Type         | Required | Default                               | Description                                                   |
+| ------------------------------ | ------------ | -------- | ------------------------------------- | ------------------------------------------------------------- |
+| `STELLAR_NETWORK`              | enum         | No       | `testnet`                             | Network to connect to: `testnet` or `mainnet`                 |
+| `STELLAR_HORIZON_URL`          | string (URL) | No       | `https://horizon-testnet.stellar.org` | Stellar Horizon API endpoint                                  |
+| `STELLAR_SOROBAN_RPC_URL`      | string (URL) | No       | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint                                          |
+| `SOROBAN_SUBMIT_MAX_ATTEMPTS`  | number       | No       | `3`                                   | Max submission attempts for transient failures (#899)         |
+| `SOROBAN_SUBMIT_BASE_DELAY_MS` | number       | No       | `1000`                                | Exponential backoff base delay between submit attempts (#899) |
+| `SOROBAN_SUBMIT_MAX_DELAY_MS`  | number       | No       | `15000`                               | Cap for submit retry backoff delays (#899)                    |
+| `SOROBAN_POLL_INTERVAL_MS`     | number       | No       | `5000`                                | Delay between transaction confirmation polls (#899)           |
+| `SOROBAN_POLL_TIMEOUT_MS`      | number       | No       | `120000`                              | Total polling budget per transaction confirmation (#899)      |
 
 ---
 
@@ -125,6 +126,12 @@ Complete reference for all server configuration environment variables.
 ---
 
 ## Indexer
+
+### Backfill
+
+| Variable                     | Type   | Required | Default | Description                                                                                                 |
+| ---------------------------- | ------ | -------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| `BACKFILL_EVENT_SOURCE_URL`  | string | No       | -       | Indexer worker export endpoint used by `scripts/backfill.ts` when `--source-url` is not passed. See [backfill runbook](./indexer/BACKFILL.md) |
 
 ### Feature Flags
 
@@ -155,6 +162,9 @@ Complete reference for all server configuration environment variables.
 | `ENABLE_API_VERSION_HEADER`    | boolean | No       | `true`  | Include `X-API-Version` header in responses                        |
 | `ENABLE_SCHEMA_VERSION_HEADER` | boolean | No       | `true`  | Include `X-Schema-Version` header in responses                     |
 | `LOG_LEVEL`                    | string  | No       | `info`  | Minimum Pino log level (`debug`, `info`, `warn`, `error`, `fatal`) |
+| `SCRUB_EXTRA_FIELDS` | string | No | - | Comma-separated extra field names redacted from logs and error reports (see [PII scrubbing](./logging-pii-scrubbing.md)) |
+| `SCRUB_WALLET_HASH_SECRET` | string | No | _(random per process)_ | Key for the rotating salt that hashes wallet addresses in logs. Set it in production so hashes correlate across restarts |
+| `SCRUB_WALLET_SALT_ROTATION_DAYS` | number | No | `7` | How often the wallet-hash salt rotates; hashes do not correlate across rotations |
 
 Logs are emitted via [Pino](https://getpino.io/). In `development` mode they are pretty-printed
 via `pino-pretty`; in `test` and `production` they are newline-delimited JSON with `time`,
@@ -184,6 +194,19 @@ no need to thread it through function arguments.
 
 ## Background Jobs
 
+### Data Retention Worker
+
+| Variable                   | Type    | Required | Default | Description                                                   |
+| -------------------------- | ------- | -------- | ------- | ------------------------------------------------------------- |
+| `RETENTION_WORKER_ENABLED` | boolean | No       | `true`  | Schedule retention sweeps daily at 03:00 UTC                  |
+| `RETENTION_DRY_RUN`        | boolean | No       | `true`  | Count eligible rows without deleting; set to `false` to prune |
+
+Retention rules and per-table age limits are defined in `src/config/retention.ts`.
+The worker processes at most 1,000 rows per delete and pauses 50 ms between batches.
+In-memory nonce guards are pruned after their 24-hour TTL; Redis cache and nonce
+entries already expire via their configured TTLs. Deletion totals are exposed at
+`GET /api/v1/metrics/retention` in Prometheus text format.
+
 ### Ownership Snapshot Cleanup
 
 | Variable                                      | Type    | Required | Default                       | Description                                         |
@@ -203,6 +226,12 @@ no need to thread it through function arguments.
 ---
 
 ## Security Notes
+
+### Moderation
+
+| Variable            | Type   | Required | Default | Description                                                                                                                               |
+| ------------------- | ------ | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `MODERATOR_WALLETS` | string | No       | -       | Comma-separated wallet addresses (case-insensitive) allowed to use `GET/PATCH /admin/reports`. When unset, every wallet gets `403` there. |
 
 ### Credentials Requiring Regular Rotation
 

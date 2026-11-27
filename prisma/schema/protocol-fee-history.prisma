@@ -1,0 +1,49 @@
+// prisma/schema/protocol-fee-history.prisma
+// Protocol fee change timelock queue and historical fee configurations (#1308).
+
+enum PendingFeeChangeStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+}
+
+model FeeConfigHistory {
+  id              String   @id @default(cuid())
+  protocolFeeBps  Int
+  creatorFeeBps   Int?
+  feeTiers        Json?
+  effectiveLedger Int
+  txHash          String
+  eventIndex      Int
+  effectiveAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([effectiveLedger(sort: Desc)])
+  @@map("fee_config_history")
+}
+
+model PendingFeeChange {
+  id                 String                 @id @default(cuid())
+  changeId           String?                @unique
+  protocolFeeBps     Int
+  creatorFeeBps      Int?
+  feeTiers           Json?
+  queuedLedger       Int
+  executeAfterLedger Int
+  estimatedExecuteAt DateTime?
+  status             PendingFeeChangeStatus @default(PENDING)
+  queuedTxHash       String
+  queuedEventIndex   Int
+  resolvedTxHash     String?
+  resolvedEventIndex Int?
+  resolvedLedger     Int?
+  resolvedAt         DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([queuedTxHash, queuedEventIndex])
+  @@unique([resolvedTxHash, resolvedEventIndex])
+  @@index([status, queuedLedger(sort: Desc)])
+  @@map("pending_fee_changes")
+}

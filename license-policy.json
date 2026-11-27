@@ -1,0 +1,20 @@
+{
+   "$comment": "Production dependency license allowlist, enforced by scripts/check-licenses.mjs in CI. Add exceptions only after review; each needs a reason and an expiry date.",
+   "allowed": [
+      "0BSD",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "BlueOak-1.0.0",
+      "CC0-1.0",
+      "CC-BY-4.0",
+      "ISC",
+      "MIT",
+      "MIT-0",
+      "MPL-2.0",
+      "Python-2.0",
+      "Unlicense",
+      "Zlib"
+   ],
+   "exceptions": []
+}

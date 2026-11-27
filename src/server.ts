@@ -29,6 +29,14 @@ import {
    stopTwapComputationJob,
 } from './jobs/twap-computation.job';
 import {
+   startHealthMonitorWorker,
+   stopHealthMonitorWorker,
+} from './jobs/health-monitor.worker';
+import {
+   startLiquidationKeeper,
+   stopLiquidationKeeper,
+} from './jobs/liquidation-keeper.job';
+import {
    startFlashLoanViolationCleanupJob,
    stopFlashLoanViolationCleanupJob,
 } from './jobs/flash-loan-violation-cleanup.job';
@@ -37,21 +45,65 @@ import {
    stopStatusProbeJob,
 } from './jobs/status-probe.job';
 import {
+   startCacheWarmerWorker,
+   stopCacheWarmerWorker,
+} from './workers/cache-warmer.worker';
+import {
    startSessionActivityCleanupJob,
    stopSessionActivityCleanupJob,
 } from './jobs/session-activity-cleanup.job';
+import {
+   startRetentionWorker,
+   stopRetentionWorker,
+} from './workers/retention.worker';
+import {
+   startAccountLifecycleWorker,
+   stopAccountLifecycleWorker,
+} from './workers/account-lifecycle.worker';
+import {
+   startPartitionManagerWorker,
+   stopPartitionManagerWorker,
+} from './workers/partition-manager.worker';
 import {
    startCampaignCronJobs,
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
 import {
+   startAnnouncementPublisherWorker,
+   stopAnnouncementPublisherWorker,
+} from './jobs/announcement-publisher.worker';
+import {
+   startLpRewardAccrualJob,
+   stopLpRewardAccrualJob,
+} from './jobs/lp-reward-accrual.job';
+import {
+   startRefreshKeyMetricsJob,
+   stopRefreshKeyMetricsJob,
+} from './jobs/refresh-key-metrics.job';
+import {
+   startKeyAnalyticsLeaderboardJob,
+   stopKeyAnalyticsLeaderboardJob,
+} from './jobs/key-analytics-leaderboard.job';
+import {
+   startPushEventListeners,
+   stopPushEventListeners,
+} from './modules/push/push.service';
+import {
    startAutoInvestListener,
    stopAutoInvestListener,
 } from './modules/auto-invest/auto-invest.service';
 import { connectRedis, disconnectRedis } from './utils/redis.utils';
-import { broadcastServerClosing, closeAllConnections } from './utils/sse-fanout.utils';
+import { stopSorobanRpcPool } from './clients/soroban.client';
+import {
+   broadcastServerClosing,
+   closeAllConnections,
+} from './utils/sse-fanout.utils';
 import { buildStartupConfigSummary } from './utils/config-summary.utils';
 import { initKeyCreationMetadataSync } from './modules/keys/key-metadata-sync.service';
+import {
+   startOrderMatcherWorker,
+   stopOrderMatcherWorker,
+} from './workers/order-matcher.worker';
 import {
    attachPriceWebSocketGateway,
    closePriceWebSocketGateway,
@@ -107,10 +159,22 @@ async function startServer() {
       startGovernanceSyncJob();
       startPriceHistoryCleanupJob();
       startTwapComputationJob();
+      startHealthMonitorWorker();
+      startLiquidationKeeper();
       startFlashLoanViolationCleanupJob();
+      startOrderMatcherWorker();
       startStatusProbeJob();
+      startCacheWarmerWorker();
       startSessionActivityCleanupJob();
+      startRetentionWorker();
+      startAccountLifecycleWorker();
+      startPartitionManagerWorker();
       startCampaignCronJobs();
+      startAnnouncementPublisherWorker();
+      startLpRewardAccrualJob();
+      startRefreshKeyMetricsJob();
+      startKeyAnalyticsLeaderboardJob();
+      startPushEventListeners();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
 
@@ -152,14 +216,27 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopGovernanceSyncJob();
       stopPriceHistoryCleanupJob();
       stopTwapComputationJob();
+      stopHealthMonitorWorker();
+      stopLiquidationKeeper();
       stopFlashLoanViolationCleanupJob();
+      stopOrderMatcherWorker();
       stopStatusProbeJob();
+      stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
+      stopRetentionWorker();
+      stopAccountLifecycleWorker();
+      stopPartitionManagerWorker();
       stopCampaignCronJobs();
+      stopAnnouncementPublisherWorker();
+      stopLpRewardAccrualJob();
+      stopRefreshKeyMetricsJob();
+      stopKeyAnalyticsLeaderboardJob();
+      stopPushEventListeners();
       stopAutoInvestListener();
       await prisma.$disconnect();
       logger.info('Database connection closed');
 
+      stopSorobanRpcPool();
       await disconnectRedis().catch(() => {});
       logger.info('Redis connection closed');
 

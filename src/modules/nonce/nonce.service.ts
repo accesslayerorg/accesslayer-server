@@ -37,7 +37,7 @@ export {
 export const DEFAULT_NONCE_CACHE_TTL_SECONDS = 30;
 export const CONSUMED_NONCE_TTL_SECONDS = 86400; // 24 hours
 
-const inMemoryConsumedNonces = new Set<string>();
+const inMemoryConsumedNonces = new Map<string, number>();
 
 export function currentNonceCacheKey(wallet: string): string {
    return `nonce:current:${wallet}`;
@@ -53,6 +53,18 @@ export function consumedNonceCacheKey(wallet: string, nonce: number): string {
 export function resetNonceStateForTests(): void {
    inMemoryConsumedNonces.clear();
    resetTrackedOnChainNonces();
+}
+
+/** Remove process-local replay guards after their Redis TTL has elapsed. */
+export function pruneExpiredConsumedNonces(nowMs: number = Date.now()): number {
+   let pruned = 0;
+   for (const [key, expiresAt] of inMemoryConsumedNonces) {
+      if (expiresAt <= nowMs) {
+         inMemoryConsumedNonces.delete(key);
+         pruned += 1;
+      }
+   }
+   return pruned;
 }
 
 /**
@@ -97,8 +109,10 @@ export async function isNonceConsumed(
    nonce: number
 ): Promise<boolean> {
    const key = consumedNonceCacheKey(wallet, nonce);
-   if (inMemoryConsumedNonces.has(key)) {
-      return true;
+   const expiresAt = inMemoryConsumedNonces.get(key);
+   if (expiresAt !== undefined) {
+      if (expiresAt > Date.now()) return true;
+      inMemoryConsumedNonces.delete(key);
    }
    const cached = await cacheGetJson<ConsumedNonceRecord>(key);
    return cached !== null;
@@ -133,7 +147,11 @@ export async function consumeWalletNonce(
    }
 
    const consumedKey = consumedNonceCacheKey(wallet, nonce);
-   inMemoryConsumedNonces.add(consumedKey);
+   const consumedAt = Date.now();
+   inMemoryConsumedNonces.set(
+      consumedKey,
+      consumedAt + CONSUMED_NONCE_TTL_SECONDS * 1000
+   );
 
    await cacheSetJson(
       consumedKey,

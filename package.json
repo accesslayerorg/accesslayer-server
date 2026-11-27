@@ -28,7 +28,11 @@
       "migrate": "pnpm exec prisma migrate dev",
       "studio": "pnpm exec prisma studio",
       "validate-api": "tspec validate",
-      "bundle": "bash src/scripts/bundle-code.sh"
+      "docs:generate": "ts-node --transpile-only src/docs/generate.ts",
+      "bundle": "bash src/scripts/bundle-code.sh",
+      "loadtest:seed": "ts-node --transpile-only loadtest/seed.ts",
+      "loadtest:smoke": "k6 run --summary-export=loadtest-summary.json loadtest/smoke.js",
+      "loadtest:soak": "k6 run --summary-export=loadtest-summary.json loadtest/soak.js"
    },
    "lint-staged": {
       "*.{js,jsx,ts,tsx}": [
@@ -42,8 +46,10 @@
       "schema": "./prisma/schema"
    },
    "dependencies": {
+      "@asteasolutions/zod-to-openapi": "^7",
       "@json2csv/node": "^7.0.6",
       "@prisma/client": "^6.19.1",
+      "@simplewebauthn/server": "^13.1.2",
       "@stellar/stellar-base": "^15.0.0",
       "@types/js-yaml": "^4.0.9",
       "@types/pdfkit": "^0.17.3",
@@ -53,9 +59,13 @@
       "chalk": "^5.6.2",
       "cloudinary": "^2.8.0",
       "cors": "^2.8.5",
+      "csv-parse": "^6.1.0",
       "dotenv": "^16.5.0",
       "express": "^5.1.0",
       "express-rate-limit": "^8.2.1",
+      "dataloader": "^2.2.3",
+      "graphql": "^16.10.0",
+      "graphql-yoga": "^5.8.1",
       "google-auth-library": "^10.5.0",
       "helmet": "^8.1.0",
       "ioredis": "^6.0.0",
@@ -68,6 +78,7 @@
       "prisma": "^6.19.1",
       "puppeteer": "^24.29.1",
       "resend": "^6.4.2",
+      "sanitize-html": "^2.18.2",
       "sharp": "^0.34.1",
       "swagger-jsdoc": "^6.2.8",
       "swagger-ui-express": "^5.0.1",
@@ -79,6 +90,7 @@
       "zod-validation-error": "^3.5.2"
    },
    "devDependencies": {
+      "@seriousme/openapi-schema-validator": "^1.7.1",
       "@types/bcrypt": "^6.0.0",
       "@types/cors": "^2.8.17",
       "@types/dotenv": "^8.2.3",
@@ -90,6 +102,7 @@
       "@types/multer": "^1.4.13",
       "@types/node": "^22.15.3",
       "@types/nodemailer": "^6.4.17",
+      "@types/sanitize-html": "^2.16.2",
       "@types/supertest": "^7.2.0",
       "@types/swagger-jsdoc": "^6.0.4",
       "@types/swagger-ui-express": "^4.1.8",

@@ -1,0 +1,39 @@
+name: Chaos Nightly
+
+on:
+   schedule:
+      - cron: '0 3 * * *'
+   workflow_dispatch:
+
+jobs:
+   chaos:
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+         - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+           with:
+              version: 10.6.5
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+           with:
+              node-version: 20
+              cache: pnpm
+         - run: pnpm install --frozen-lockfile
+         - name: Start app
+           run: |
+              cp .env.example .env
+              pnpm build
+              pnpm start &
+              echo $! > app.pid
+              sleep 10
+         - name: Run chaos suite
+           run: ./chaos/run-chaos.sh
+         - name: Upload chaos artifacts
+           if: always()
+           uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+           with:
+              name: chaos-artifacts
+              path: chaos/artifacts
+         - name: Stop app
+           if: always()
+           run: kill $(cat app.pid) || true

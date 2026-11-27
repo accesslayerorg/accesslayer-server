@@ -40,6 +40,7 @@ jest.mock('../../utils/prisma.utils', () => ({
       creatorPriceSnapshot: { findMany: jest.fn() },
       circuitBreakerTrip: { findMany: jest.fn() },
       priceAlert: { findMany: jest.fn() },
+      vaultHealth: { findMany: jest.fn().mockResolvedValue([]) },
    },
 }));
 

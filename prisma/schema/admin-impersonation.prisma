@@ -1,0 +1,34 @@
+/**
+ * Read-only admin impersonation sessions (#1342).
+ *
+ * A row is created when support staff start a "view as" session for a target
+ * wallet. The impersonation JWT carries the row id as its `impersonation`
+ * claim, and every request is checked against this table so that ending a
+ * session takes effect immediately instead of waiting for token expiry.
+ */
+model ImpersonationSession {
+  id           String    @id @default(cuid())
+
+  // Admin identity from the admin JWT (adminId / sub claim)
+  adminId      String
+
+  // Target user and wallet the session reads on behalf of
+  targetUserId String
+  targetWallet String
+
+  // Mandatory justification recorded with the start event
+  reason       String
+
+  expiresAt    DateTime
+  endedAt      DateTime?
+  // "ADMIN_ENDED" | "EXPIRED"
+  endReason    String?
+
+  // Number of requests served under this session
+  requestCount Int       @default(0)
+
+  createdAt    DateTime  @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([targetWallet])
+}

@@ -1,22 +1,28 @@
 // src/modules/referrals/referrals.service.ts
-// Referral tracking and reward distribution (#910).
+// Referral tracking and reward distribution (#1198).
 //
 // Every wallet owns a referral code (`ReferralCode`). When a new wallet
 // registers with that code (`POST /referrals/register`) a `Referral` row links
 // the referee to the referrer, permanently: a wallet can be referred exactly
 // once.
 //
-// Rewards are paid once per referee, on the referred wallet's first trade. The
-// indexer calls `recordFirstTradeReferralReward` for every buy; the update that
-// stamps `firstTradeAt` is conditional on it still being null, so concurrent
-// events (or replays) for the same referee can only ever pay out once. The
-// payout is written to the `ReferralEvent` fee ledger, which is what the
-// earnings endpoint aggregates.
+// Rewards are paid on every referred trade. The indexer calls
+// `recordTradeReferralReward` for every buy/sell; the reward is calculated as:
+//   reward = trade_value * protocol_fee_bps / 10000 * REFERRAL_REWARD_BPS / 10000 * tier_multiplier
+// Tier multipliers: 1x (0-9 referrals), 1.5x (10-49), 2x (50+).
+// The payout is written to the `ReferralEvent` fee ledger.
 
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
+import {
+   ReferralAbuseDecision,
+   ReferralAbuseService,
+} from '../../services/referral-abuse.service';
+import { prefetchFundingSource } from '../../services/wallet-funding.service';
+import { loadProtocolFeeBps } from '../keys/key-fees.service';
 import {
    buildPaginatedResponse,
    PaginatedResponse,
@@ -32,6 +38,8 @@ import {
    REFERRAL_CODE_LENGTH,
    REFERRAL_CODE_MAX_ATTEMPTS,
    XLM_DECIMALS,
+   getTierMultiplier,
+   getTierName,
 } from './referrals.constants';
 import {
    ReferredCursorPayload,
@@ -40,6 +48,7 @@ import {
    ReferralEarningsBreakdownItem,
    ReferralStatus,
    ReferredWalletsQuery,
+   ReferralStats,
 } from './referrals.schemas';
 
 /** Thrown when the supplied referral code has no owner. */
@@ -212,6 +221,10 @@ export async function registerReferral(
          'Referral relationship registered'
       );
 
+      // Resolve the referee's funding source now (best effort, never throws)
+      // so a sybil cluster is visible before any of its members trade (#1241).
+      await prefetchFundingSource(referee);
+
       return {
          referralId: referral.id,
          referrerAddress: referral.referrerAddress,
@@ -318,13 +331,13 @@ export async function listReferredWallets(
 
    const earned = await sumEarnedByReferee(
       referrerAddress,
-      rows.map((row) => row.refereeAddress)
+      rows.map((row: { refereeAddress: string }) => row.refereeAddress)
    );
 
    // `refereeAddress` is unique per referral, so it doubles as the key that
    // lets the cursor builder recover the row id of the page's last item.
-   const cursorByReferee = new Map(
-      rows.map((row) => [
+   const cursorByReferee = new Map<string, string>(
+      rows.map((row: { refereeAddress: string; createdAt: Date; id: string }) => [
          row.refereeAddress,
          encodeCursor({
             joinedAt: row.createdAt.toISOString(),
@@ -333,7 +346,7 @@ export async function listReferredWallets(
       ])
    );
 
-   const items: ReferredWallet[] = rows.map((row) => ({
+   const items: ReferredWallet[] = rows.map((row: { refereeAddress: string; createdAt: Date; firstTradeAt: Date | null }) => ({
       refereeAddress: row.refereeAddress,
       joinedAt: row.createdAt.toISOString(),
       firstTradeAt: row.firstTradeAt ? row.firstTradeAt.toISOString() : null,
@@ -345,7 +358,7 @@ export async function listReferredWallets(
    return buildPaginatedResponse(
       items,
       limit,
-      (item) => cursorByReferee.get(item.refereeAddress) ?? ''
+      (item: ReferredWallet) => cursorByReferee.get(item.refereeAddress) ?? ''
    );
 }
 
@@ -390,7 +403,7 @@ export async function getReferralEarnings(
       totalEarned: roundXlm(Number(aggregate._sum.amount ?? 0)),
       rewardedReferralCount,
       referredCount,
-      breakdown: page.items.map((item) => ({
+      breakdown: page.items.map((item: ReferredWallet) => ({
          refereeAddress: item.refereeAddress,
          joinedAt: item.joinedAt,
          firstTradeAt: item.firstTradeAt,
@@ -405,7 +418,37 @@ export async function getReferralEarnings(
    };
 }
 
-export interface FirstTradeReferralInput {
+/**
+ * Returns referral statistics for a wallet: referral count, tier, total earned, and pending claim.
+ * This is used by GET /wallets/:address/referrals.
+ */
+export async function getReferralStats(
+   referrerAddress: string
+): Promise<ReferralStats> {
+   const [referralCount, aggregate] = await Promise.all([
+      prisma.referral.count({ where: { referrerAddress } }),
+      prisma.referralEvent.aggregate({
+         where: { walletAddress: referrerAddress },
+         _sum: { amount: true },
+      }),
+   ]);
+
+   const totalEarned = roundXlm(Number(aggregate._sum.amount ?? 0));
+   const tier = getTierName(referralCount);
+
+   // For now, pendingClaim is the same as totalEarned since there's no separate claim mechanism
+   // In the future, this could track unclaimed rewards separately
+   const pendingClaim = totalEarned;
+
+   return {
+      referralCount,
+      tier,
+      totalEarned,
+      pendingClaim,
+   };
+}
+
+export interface TradeReferralInput {
    /** Wallet that executed the trade. */
    refereeAddress: string;
    /** Key (creator id) that was traded. */
@@ -418,82 +461,176 @@ export interface FirstTradeReferralInput {
 }
 
 /**
- * Pays the referrer a share of a referred wallet's first trade.
+ * Pays the referrer a share of a referred wallet's trade fee.
  *
- * The `firstTradeAt` stamp is conditional on it still being null, so only the
- * first trade a referred wallet completes ever pays out — later trades and
- * indexer replays are no-ops.
+ * Reward = trade_value * protocol_fee_bps / 10000 * REFERRAL_REWARD_BPS / 10000 * tier_multiplier
+ * Tier multipliers: 1x (0-9 referrals), 1.5x (10-49), 2x (50+)
  *
- * @returns true when a reward was paid, false when the wallet was not
- *   referred or had already traded.
+ * This is called for EVERY trade by a referred wallet, not just the first trade.
+ *
+ * @returns true when a reward was paid, false when the wallet was not referred.
  */
-export async function recordFirstTradeReferralReward(
-   input: FirstTradeReferralInput
+export async function recordTradeReferralReward(
+   input: TradeReferralInput
 ): Promise<boolean> {
    const refereeAddress = input.refereeAddress.trim();
    const tradeAt = input.tradeAt ?? new Date();
-   const rewardXlm = roundXlm(
-      (input.tradeValueXlm * envConfig.REFERRAL_REWARD_BPS) / 10_000
-   );
 
-   // Claim the first trade and write its fee in one transaction. If the fee
-   // insert fails, the first-trade stamp rolls back too, allowing a replay to
-   // retry instead of permanently losing the reward.
-   const referrerAddress = await prisma.$transaction(async (tx) => {
-      const claimed = await tx.referral.updateMany({
-         where: { refereeAddress, firstTradeAt: null },
-         data: { firstTradeAt: tradeAt, firstTradeKeyId: input.keyId },
-      });
-
-      // `count === 0` means the wallet is not referred, or a previous event
-      // already claimed the reward.
-      if (claimed.count === 0) {
-         return null;
-      }
-
-      const referral = await tx.referral.findUnique({
-         where: { refereeAddress },
-         select: { referrerAddress: true },
-      });
-      if (!referral) {
-         throw new Error(
-            `Referral for wallet ${refereeAddress} disappeared while claiming its first trade`
-         );
-      }
-
-      if (rewardXlm > 0) {
-         await tx.referralEvent.create({
-            data: {
-               walletAddress: referral.referrerAddress,
-               refereeAddress,
-               keyId: input.keyId,
-               amount: rewardXlm,
-               ...(input.txHash ? { txHash: input.txHash } : {}),
-               ...(input.eventIndex !== undefined && input.eventIndex !== null
-                  ? { eventIndex: input.eventIndex }
-                  : {}),
-               createdAt: tradeAt,
-            },
-         });
-      }
-
-      return referral.referrerAddress;
+   // Find the referral to get the referrer
+   const referral = await prisma.referral.findUnique({
+      where: { refereeAddress },
+      select: { id: true, referrerAddress: true },
    });
 
-   if (!referrerAddress) {
+   // Wallet is not referred
+   if (!referral) {
       return false;
    }
 
+   const referrerAddress = referral.referrerAddress;
+
+   // Verdict from an earlier trade (#1241). A rejected referral never earns;
+   // a pending one has every reward withheld until an admin releases it.
+   const existingHold = await prisma.referralHold.findUnique({
+      where: { referralId: referral.id },
+      select: { id: true, status: true },
+   });
+   if (existingHold?.status === 'REJECTED') {
+      return false;
+   }
+
+   // Get the current referral count for the referrer to determine tier
+   const referralCount = await prisma.referral.count({
+      where: { referrerAddress },
+   });
+
+   // Get protocol fee
+   const protocolFeeBps = await loadProtocolFeeBps();
+
+   // Calculate reward: trade_value * protocol_fee_bps/10000 * REFERRAL_REWARD_BPS/10000 * tier_multiplier
+   const tierMultiplier = getTierMultiplier(referralCount);
+   const tradeFeeXlm = (input.tradeValueXlm * protocolFeeBps) / 10_000;
+   const referralRate = envConfig.REFERRAL_REWARD_BPS / 10_000;
+   const rewardXlm = roundXlm(tradeFeeXlm * referralRate * tierMultiplier);
+
+   if (rewardXlm <= 0) {
+      return false;
+   }
+
+   // Abuse detection (#1241) runs until the referral has a verdict. It may
+   // call Horizon, which must never happen inside a database transaction, and
+   // a Horizon outage throws here so the indexer retries the event instead of
+   // paying an unchecked reward.
+   let withhold = existingHold?.status === 'PENDING';
+   let verdict: Exclude<ReferralAbuseDecision, { action: 'allow' }> | null =
+      null;
+   if (!existingHold) {
+      const decision = await ReferralAbuseService.evaluate({
+         referrerAddress,
+         refereeAddress,
+      });
+      if (decision.action !== 'allow') {
+         verdict = decision;
+         withhold = true;
+      }
+   }
+
+   if (withhold) {
+      const outcome = await prisma.$transaction(async (tx) => {
+         // The first flagged trade records the verdict; concurrent trades for
+         // the same referee converge on the same row.
+         const hold =
+            existingHold ??
+            (await tx.referralHold.upsert({
+               where: { referralId: referral.id },
+               create: {
+                  referralId: referral.id,
+                  reason: verdict!.reason,
+                  status: verdict!.action === 'reject' ? 'REJECTED' : 'PENDING',
+                  details: verdict!.details as Prisma.InputJsonValue,
+                  referrerAddress,
+                  refereeAddress,
+               },
+               update: {},
+               select: { id: true, status: true },
+            }));
+
+         if (hold.status === 'REJECTED') {
+            return 'rejected' as const;
+         }
+
+         // Touching the row takes its lock, serialising this insert against a
+         // concurrent release: either the release sees this reward when it
+         // reads the withheld rows, or this update sees RELEASED and the
+         // reward is paid directly below. A reward can never be orphaned.
+         const locked = await tx.referralHold.updateMany({
+            where: { id: hold.id, status: 'PENDING' },
+            data: { updatedAt: new Date() },
+         });
+         if (locked.count === 0) {
+            return 'released' as const;
+         }
+
+         await tx.referralHoldReward.create({
+            data: {
+               holdId: hold.id,
+               keyId: input.keyId,
+               rewardXlm,
+               tierMultiplier,
+               txHash: input.txHash ?? null,
+               eventIndex: input.eventIndex ?? null,
+               tradedAt: tradeAt,
+            },
+         });
+         return 'withheld' as const;
+      });
+
+      if (outcome !== 'released') {
+         logger.warn(
+            {
+               type: 'referral_reward_withheld',
+               referrerAddress,
+               refereeAddress,
+               keyId: input.keyId,
+               rewardXlm,
+               outcome,
+               ...(verdict ? { reason: verdict.reason } : {}),
+            },
+            'Referral reward withheld by abuse detection'
+         );
+         return false;
+      }
+      // Released while this trade was in flight: pay it normally.
+   }
+
+   // Write the referral event
+   await prisma.referralEvent.create({
+      data: {
+         walletAddress: referrerAddress,
+         refereeAddress,
+         keyId: input.keyId,
+         amount: rewardXlm,
+         tierMultiplier,
+         ...(input.txHash ? { txHash: input.txHash } : {}),
+         ...(input.eventIndex !== undefined && input.eventIndex !== null
+            ? { eventIndex: input.eventIndex }
+            : {}),
+         createdAt: tradeAt,
+      },
+   });
+
    logger.info(
       {
-         type: 'referral_first_trade_reward',
+         type: 'referral_trade_reward',
          referrerAddress,
          refereeAddress,
          keyId: input.keyId,
          rewardXlm,
+         tierMultiplier,
+         referralCount,
          ...(input.txHash ? { txHash: input.txHash } : {}),
       },
-      'Referral reward paid for referred wallet first trade'
+      'Referral reward paid for referred wallet trade'
    );
 
    return true;

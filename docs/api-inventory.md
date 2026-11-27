@@ -131,9 +131,10 @@ Centralised Soroban contract interaction service (#899).
 
 Operational metrics for background work.
 
-| Method | Path              | Description                                   |
-| :----- | :---------------- | :-------------------------------------------- |
-| `GET`  | `/metrics/queues` | Return queue depth metrics for worker queues. |
+| Method | Path                 | Description                                   |
+| :----- | :------------------- | :-------------------------------------------- |
+| `GET`  | `/metrics/queues`    | Return queue depth metrics for worker queues. |
+| `GET`  | `/metrics/retention` | Prometheus retention deletion counter.        |
 
 ## Admin Module
 

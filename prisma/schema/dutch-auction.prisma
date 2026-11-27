@@ -1,0 +1,49 @@
+/// Secondary-sale Dutch auction indexed from `auction_started`,
+/// `auction_filled` and `auction_cancelled` contract events.
+/// Prices fall linearly from `startPrice` to `floorPrice` over
+/// `durationLedgers`; the live price is computed on read, never stored.
+model DutchAuction {
+  /// Auction id emitted by the contract (not generated here).
+  id              String   @id
+  seller          String
+  keyId           String
+  quantity        Int
+  remaining       Int
+  startPrice      Decimal  @db.Decimal(36, 7)
+  floorPrice      Decimal  @db.Decimal(36, 7)
+  startLedger     Int
+  durationLedgers Int
+  /// open | filled | cancelled | ended
+  status          String   @default("open")
+  /// Number of distinct fills applied; `ended` is only set while this is 0.
+  fillCount       Int      @default(0)
+  startTxHash     String
+  startEventIndex Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fills DutchAuctionFill[]
+
+  @@index([keyId, status, startLedger(sort: Desc)])
+  @@index([status, startLedger(sort: Desc)])
+  @@map("dutch_auctions")
+}
+
+/// One row per applied `auction_filled` event. The unique (txHash, eventIndex)
+/// pair is what makes replayed fill events a no-op.
+model DutchAuctionFill {
+  id         String   @id @default(cuid())
+  auctionId  String
+  buyer      String?
+  quantity   Int
+  txHash     String
+  eventIndex Int
+  ledger     Int
+  createdAt  DateTime @default(now())
+
+  auction DutchAuction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, eventIndex])
+  @@index([auctionId, ledger])
+  @@map("dutch_auction_fills")
+}

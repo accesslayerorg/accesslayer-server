@@ -460,6 +460,125 @@ endpoint returns `503`.
 
 ## Admin Endpoints
 
+### GET /admin/reports
+
+Moderator queue of key reports (#1226), newest first (`createdAt` desc, then
+`id` desc).
+
+- **Auth:** Wallet JWT for a wallet listed in `MODERATOR_WALLETS`. Other wallets
+  get `403`; missing/invalid tokens get `401`.
+- **Query Params:**
+   - `status` (optional): `open`, `reviewing`, `dismissed` or `actioned`
+   - `cursor` (optional): opaque `meta.nextCursor` value from the previous page
+   - `limit` (optional): integer `1`–`100`, default `20`
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "data": [
+         {
+            "id": "cm123...",
+            "keyId": "cm456...",
+            "reporter": "GREPORTER...",
+            "reason": "scam",
+            "details": null,
+            "status": "open",
+            "createdAt": "2026-11-20T10:00:00.000Z",
+            "updatedAt": "2026-11-20T10:00:00.000Z"
+         }
+      ],
+      "meta": { "limit": 20, "hasMore": true, "nextCursor": "eyJj...abc" }
+   }
+}
+```
+
+- **Errors:** `400` invalid `status`, `limit` or `cursor`; `401`; `403`.
+
+### PATCH /admin/reports/:id
+
+Move a key report through the moderation lifecycle (#1226).
+
+- **Auth:** Moderator wallet JWT (see `GET /admin/reports`)
+- **Body:** `{ "status": "reviewing" | "dismissed" | "actioned" }`
+- **Allowed transitions:**
+
+| From        | To                                   |
+| ----------- | ------------------------------------ |
+| `open`      | `reviewing`, `dismissed`, `actioned` |
+| `reviewing` | `dismissed`, `actioned`              |
+| `dismissed` | — (terminal)                         |
+| `actioned`  | — (terminal)                         |
+
+- **Response:** `200 OK` with the updated report (same shape as above)
+- **Errors:** `400` unknown status value (including `open`; a report cannot
+  be re-opened); `401`; `403`; `404` report not found; `409` transition not
+  allowed from the report's current status (also returned when another
+  moderator changed the status concurrently).
+
+### GET /admin/referral-holds
+
+List referrals flagged by abuse detection (#1241). A flagged referral earns
+nothing until an admin reviews it; its rewards are withheld, trade by trade,
+while the hold is `PENDING`.
+
+- **Auth:** Admin required
+- **Query:** `status` (`PENDING` | `RELEASED` | `REJECTED`, optional), `limit`,
+  `cursor` (newest first)
+- **Response:** `200 OK`
+
+```json
+{
+   "success": true,
+   "data": {
+      "items": [
+         {
+            "id": "cm123...",
+            "referralId": "cm456...",
+            "reason": "FUNDING_CLUSTER",
+            "status": "PENDING",
+            "details": {
+               "funder": "G...",
+               "refereesInWindow": 6,
+               "threshold": 5,
+               "windowHours": 24
+            },
+            "referrerAddress": "G...",
+            "refereeAddress": "G...",
+            "rewardXlm": 0.075,
+            "withheldTrades": 3,
+            "resolvedBy": null,
+            "resolvedAt": null,
+            "createdAt": "2026-11-05T12:00:01.000Z"
+         }
+      ],
+      "has_more": false,
+      "next_cursor": null
+   }
+}
+```
+
+- **Reasons:** `SELF_REFERRAL`, `LINKED_WALLETS` (one wallet funded the other)
+  and `SHARED_FUNDING_SOURCE` are rejected automatically (`REJECTED`, final).
+  `FUNDING_CLUSTER` (more than 5 referees first funded by one account within
+  24 hours) is held for review (`PENDING`).
+- **Errors:** `400` invalid `status`, `limit` or `cursor`; `401`; `403`.
+
+### PATCH /admin/referral-holds/:id
+
+Resolve a `PENDING` hold (#1241).
+
+- **Auth:** Admin required
+- **Body:** `{ "status": "RELEASED" | "REJECTED" }`
+- **Behaviour:** `RELEASED` pays every withheld reward exactly once and lets
+  later trades pay normally. `REJECTED` never pays; later trades are ignored.
+  Both are recorded in the audit log.
+- **Response:** `200 OK` with the updated hold (same shape as above)
+- **Errors:** `400` invalid id or body (including `PENDING` or extra fields);
+  `401`; `403`; `404` hold not found; `409` hold is not `PENDING` (already
+  resolved, or rejected automatically by detection).
+
 ### POST /admin/proposals
 
 Create a new multisig proposal requiring multi-sig approval.
@@ -796,6 +915,47 @@ Paginated `FeeReceived` history (`source`, `amount`, `tx_hash`, `ledger`,
 
 ## Keys Endpoints
 
+### POST /keys/:keyId/reports
+
+Report a key for moderator review (#1226). Stored with status `open`.
+
+- **Auth:** Wallet JWT (`Authorization: Bearer <token>`)
+- **Rate limit:** 5 reports per wallet per rolling hour (Redis sliding window,
+  keyed by wallet). The sixth request returns `429` with `Retry-After`.
+- **Body:**
+
+```json
+{
+   "reason": "scam",
+   "details": "Optional context, max 500 characters"
+}
+```
+
+`reason` must be one of `scam`, `impersonation`, `harassment`, `other`.
+
+- **Response:** `201 Created`
+
+```json
+{
+   "success": true,
+   "message": "Report submitted",
+   "data": {
+      "id": "cm123...",
+      "keyId": "cm456...",
+      "reporter": "GREPORTER...",
+      "reason": "scam",
+      "details": "Optional context, max 500 characters",
+      "status": "open",
+      "createdAt": "2026-11-20T10:00:00.000Z",
+      "updatedAt": "2026-11-20T10:00:00.000Z"
+   }
+}
+```
+
+- **Errors:** `400` invalid `reason`, `details` over 500 characters or unknown
+  fields; `401` missing/invalid token; `404` key not found; `409` the wallet
+  already has an `open` report for this key; `429` rate limit exceeded.
+
 ### GET /keys/:keyId/leaderboard
 
 Returns wallets ranked by the selected `LeaderboardUpdated` metric. Results
@@ -863,18 +1023,60 @@ indexed.
 
 #### GET /keys/:keyId/polls
 
-Lists all active and closed polls for a key with expiry, total votes, total
-voting weight, and per-option weight tallies.
+Returns one page of polls as `{ items, nextCursor }`, newest expiry first. Each
+item has total votes, total voting weight, per-option weight tallies, and
+`timeRemainingSeconds` (`0` once closed).
+
+Query parameters: `status` (`active`, `closed` or `all`, default `all`),
+`cursor` (the `nextCursor` from the previous page), and `limit` (1 to 100,
+default 20). A `cursor` that does not name a poll for the key returns `400`.
+Pages are cached for 30 seconds and invalidated by vote and close events.
 
 #### GET /keys/:keyId/polls/:pollId
 
 Returns poll details and per-option vote counts and weights in `optionResults`.
+Pass `?wallet=G...` to include `walletVote`, the wallet's vote for this poll.
 
 #### GET /keys/:keyId/polls/:pollId/votes/:wallet
 
 Returns whether the wallet voted and, if so, its selected option and indexed
 vote weight. Invalid Stellar wallet addresses return `400`; unknown keys or
 polls return `404`.
+
+#### GET /analytics/keys/leaderboard
+
+Ranks all keys by `metric`, which is `volume` (24h trade value, the default),
+`holders` (positive balances) or `reputation` (creator reputation score). Each
+entry has `rank`, `key_id`, `key_name`, `creator`, `metric_value` and
+`24h_change`. `24h_change` is the percent change in key price between the
+latest daily snapshot and the one a UTC day earlier, or `null` when that pair
+is missing. `limit` defaults to 20 and is capped at 100; larger values return
+`400`. Rankings are cached for 5 minutes and rebuilt by the analytics job.
+
+#### GET /admin/rescues
+
+Admin only (`403` for other roles). Returns token rescues newest first as
+`{ items, nextCursor, totals }`, with optional `token`, `cursor` and `limit`
+(1 to 100, default 20) query parameters. `totals` has per-token running totals.
+
+#### GET /transparency/rescues
+
+Public, no authentication. Returns `{ totals }`, with each token's
+`totalAmount`, `rescueCount` and `lastRescueLedger`. Recipient, admin and
+transaction hash are not included.
+
+#### GET /protocol/escape
+
+Returns `pausedSince`, `escapeEnabledAtLedger`, `active` and `currentLedger`.
+Escape opens `PROTOCOL_ESCAPE_DELAY_LEDGERS` ledgers after the pause and is
+`active` once the indexed ledger reaches that point.
+
+#### GET /wallets/:address/escape
+
+Returns the wallet's `escape` status and its `holdings`. Each holding has
+`balance`, `circulatingSupply`, `reserveBalance`, `redeemed` and
+`estimatedRecoverable` (balance / circulating supply x reserve, rounded down to
+7 decimals). Redeemed positions estimate to zero. Invalid addresses return `400`.
 
 ---
 

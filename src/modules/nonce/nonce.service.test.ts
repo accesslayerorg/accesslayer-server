@@ -30,6 +30,7 @@ import {
    isNonceConsumed,
    validateSignedActionNonce,
    resetNonceStateForTests,
+   pruneExpiredConsumedNonces,
    NonceAlreadyConsumedError,
    NonceMismatchError,
 } from './nonce.service';
@@ -170,6 +171,15 @@ describe('Nonce Service & Replay Protection (#1039)', () => {
          await consumeWalletNonce(TEST_WALLET, 0, 'action');
          expect(await isNonceConsumed(TEST_WALLET, 0)).toBe(true);
          expect(await isNonceConsumed(TEST_WALLET, 1)).toBe(false);
+      });
+
+      it('prunes process-local replay guards after the Redis TTL', async () => {
+         await consumeWalletNonce(TEST_WALLET, 0, 'action');
+
+         expect(pruneExpiredConsumedNonces(Date.now())).toBe(0);
+         expect(
+            pruneExpiredConsumedNonces(Date.now() + 24 * 60 * 60 * 1000 + 1)
+         ).toBe(1);
       });
 
       it('validateSignedActionNonce executes consumption successfully', async () => {
