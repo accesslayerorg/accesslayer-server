@@ -87,6 +87,7 @@ export class RpcPool {
    private readonly requestTimeoutMs: number;
    private probeTimer: NodeJS.Timeout | null = null;
    private submissionPin: string | null = null;
+   private refreshingCooldowns = false;
 
    constructor(options: RpcPoolOptions) {
       const endpoints = options.endpoints

@@ -14,6 +14,7 @@ import {
    sendValidationError,
    zodIssuesToDetails,
    ErrorCode,
+   ErrorCodeType,
 } from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
 import {
@@ -48,7 +49,7 @@ const answerBodySchema = z.object({
 
 function handleQaError(res: Response, error: unknown, context: string): void {
    if (error instanceof QaServiceError) {
-      sendError(res, error.statusCode, error.code as ErrorCode, error.message);
+      sendError(res, error.statusCode, error.code as ErrorCodeType, error.message);
       return;
    }
    logger.error({ error }, context);

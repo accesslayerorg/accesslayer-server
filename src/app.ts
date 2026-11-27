@@ -16,11 +16,14 @@ import statusRouter from './modules/status/status.routes';
 import keysRouter from './modules/keys/keys.routes';
 import tradesRouter from './modules/trades/trades.routes';
 import tradersRouter from './modules/traders/traders.routes';
+import graphqlRouter from './graphql/router';
 import nonceRouter from './modules/nonce/nonce.routes';
+import relayRouter from './modules/relay/relay.routes';
 import swapsRouter from './modules/swaps/swaps.routes';
 import milestonesRouter from './modules/keys/milestones.routes';
 import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
+import announcementsRouter from './modules/announcements/announcements.routes';
 import ratesRouter from './routes/rates.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
@@ -145,6 +148,8 @@ app.get('/', (_, res: Response) => {
 app.use('/v1', v1RelatedKeysRouter);
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
+// Gasless meta-transaction relay flow (#1088): POST /relay/submit, GET /relay/nonce/:wallet
+app.use('/relay', routeBodySizeLimit('default'), relayRouter);
 app.use('/internal', routeBodySizeLimit('default'), internalRouter);
 // OpenAPI spec + Swagger UI (#1224). Registered before the main router.
 app.use('/api/v1', createDocsRouter());
@@ -155,6 +160,9 @@ app.use('/v1/rates', ratesRouter);
 app.use('/api/v1/rates', ratesRouter);
 app.use('/v1', router);
 app.use('/api/v1', router);
+// Read-only GraphQL endpoint (issue #1248): POST /api/v1/graphql
+app.use('/api/v1/graphql', graphqlRouter);
+app.use('/announcements', routeBodySizeLimit('default'), announcementsRouter);
 app.use('/v1', queryCostGovernor());
 app.use('/v1/protocol', routeBodySizeLimit('default'), protocolPolRouter);
 app.use('/v1/keys', routeBodySizeLimit('default'), keyBackstopsRouter);

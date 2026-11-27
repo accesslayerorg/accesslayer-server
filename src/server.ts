@@ -69,6 +69,10 @@ import {
    stopCampaignCronJobs,
 } from './jobs/campaign-cron.job';
 import {
+   startAnnouncementPublisherWorker,
+   stopAnnouncementPublisherWorker,
+} from './jobs/announcement-publisher.worker';
+import {
    startLpRewardAccrualJob,
    stopLpRewardAccrualJob,
 } from './jobs/lp-reward-accrual.job';
@@ -76,6 +80,10 @@ import {
    startRefreshKeyMetricsJob,
    stopRefreshKeyMetricsJob,
 } from './jobs/refresh-key-metrics.job';
+import {
+   startKeyAnalyticsLeaderboardJob,
+   stopKeyAnalyticsLeaderboardJob,
+} from './jobs/key-analytics-leaderboard.job';
 import {
    startPushEventListeners,
    stopPushEventListeners,
@@ -159,14 +167,13 @@ async function startServer() {
       startCacheWarmerWorker();
       startSessionActivityCleanupJob();
       startRetentionWorker();
-<<<<<<< HEAD
       startAccountLifecycleWorker();
-=======
       startPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       startCampaignCronJobs();
+      startAnnouncementPublisherWorker();
       startLpRewardAccrualJob();
       startRefreshKeyMetricsJob();
+      startKeyAnalyticsLeaderboardJob();
       startPushEventListeners();
       initKeyCreationMetadataSync();
       startAutoInvestListener();
@@ -217,14 +224,13 @@ function createGracefulShutdownHandler(server: ReturnType<typeof app.listen>) {
       stopCacheWarmerWorker();
       stopSessionActivityCleanupJob();
       stopRetentionWorker();
-<<<<<<< HEAD
       stopAccountLifecycleWorker();
-=======
       stopPartitionManagerWorker();
->>>>>>> 5b8edbc (feat: add partitioning, rpc pool, chaos suite, and sdk)
       stopCampaignCronJobs();
+      stopAnnouncementPublisherWorker();
       stopLpRewardAccrualJob();
       stopRefreshKeyMetricsJob();
+      stopKeyAnalyticsLeaderboardJob();
       stopPushEventListeners();
       stopAutoInvestListener();
       await prisma.$disconnect();

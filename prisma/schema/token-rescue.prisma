@@ -1,0 +1,26 @@
+// prisma/schema/token-rescue.prisma
+// Tokens an admin rescued from the contract (#1271). Indexed from the
+// `rescued` contract event.
+//
+// (txHash, eventIndex) is unique, so a replayed or redelivered event stores the
+// rescue once and never fires a second large-rescue alert.
+
+model TokenRescue {
+  id         String   @id @default(cuid())
+  /// Token contract address that was moved.
+  token      String
+  /// Wallet that received the rescued tokens.
+  recipient  String
+  /// Rescued amount in the token's base units.
+  amount     BigInt
+  /// Admin wallet that executed the rescue.
+  admin      String
+  ledger     Int
+  txHash     String
+  eventIndex Int
+  indexedAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([token, ledger(sort: Desc)])
+  @@map("token_rescues")
+}

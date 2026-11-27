@@ -164,15 +164,15 @@ export class ConvictionService {
       }
 
       const latestLedgerRow = await prisma.ledgerCheckpoint.findFirst({
-         orderBy: { ledgerSequence: 'desc' },
-         select: { ledgerSequence: true },
+         orderBy: { ledger: 'desc' },
+         select: { ledger: true },
       });
 
       const lastSnapshot = snapshots[snapshots.length - 1];
       const currentLedger =
          options?.currentLedger ??
          Math.max(
-            latestLedgerRow?.ledgerSequence ?? 0,
+            latestLedgerRow?.ledger ?? 0,
             lastSnapshot?.ledger ?? proposal?.snapshotLedger ?? 0
          );
 
@@ -285,8 +285,8 @@ export class ConvictionService {
             where: { proposalId },
          }),
          prisma.ledgerCheckpoint.findFirst({
-            orderBy: { ledgerSequence: 'desc' },
-            select: { ledgerSequence: true },
+            orderBy: { ledger: 'desc' },
+            select: { ledger: true },
          }),
       ]);
 
@@ -296,7 +296,7 @@ export class ConvictionService {
 
       const currentLedger =
          options?.currentLedger ??
-         latestLedgerRow?.ledgerSequence ??
+         latestLedgerRow?.ledger ??
          executedSnap?.ledger ??
          proposal?.snapshotLedger ??
          0;

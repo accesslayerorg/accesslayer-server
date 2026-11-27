@@ -5,7 +5,7 @@
 // - Event claims use `ingested_events`, unique on (txHash, eventIndex). A
 //   violation of that constraint means another writer already owns the event.
 
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma as defaultPrisma } from '../../../utils/prisma.utils';
 import type { BackfillPlan } from './backfill-plan';
 import type { BackfillEvent } from './backfill-source';
@@ -31,7 +31,7 @@ function isPrismaError(error: unknown, code: string): boolean {
    );
 }
 
-export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): BackfillStore {
+export function createPrismaBackfillStore(db: any = defaultPrisma): BackfillStore {
    return {
       async ensureShards(plan: BackfillPlan) {
          await db.backfillJob.createMany({
@@ -51,7 +51,7 @@ export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): Bac
             where: { runKey },
             orderBy: { shardIndex: 'asc' },
          });
-         return rows.map(row => ({
+         return rows.map((row: any) => ({
             runKey: row.runKey,
             shardIndex: row.shardIndex,
             fromLedger: row.fromLedger,
@@ -129,8 +129,8 @@ export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): Bac
 
       async releaseEvent(event: BackfillEvent) {
          try {
-            await db.ingestedEvent.delete({
-               where: { txHash_eventIndex: { txHash: event.txHash, eventIndex: event.eventIndex } },
+            await db.ingestedEvent.deleteMany({
+               where: { txHash: event.txHash, eventIndex: event.eventIndex },
             });
          } catch (error) {
             if (!isPrismaError(error, RECORD_NOT_FOUND)) throw error;
@@ -141,7 +141,7 @@ export function createPrismaBackfillStore(db: PrismaClient = defaultPrisma): Bac
 
 /** Counts confirmed ingested events in a ledger range, for run verification. */
 export function countIngestedEventsInRange(
-   db: PrismaClient = defaultPrisma
+   db: any = defaultPrisma
 ): (fromLedger: number, toLedger: number) => Promise<number> {
    return (fromLedger, toLedger) =>
       db.ingestedEvent.count({

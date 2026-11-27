@@ -40,7 +40,7 @@ export async function httpPutBroadcastConsent(
          return;
       }
 
-      const wallet = req.user?.walletAddress ?? '';
+      const wallet = req.user?.wallet ?? '';
       const userId = req.user?.userId ?? wallet;
       const keyId = String(req.params.keyId ?? '');
 
@@ -172,7 +172,7 @@ export async function httpCreateBroadcast(
       sendSuccess(res, broadcast, 201);
    } catch (error) {
       if (error instanceof BroadcastMonthlyLimitError) {
-         sendError(res, 429, ErrorCode.RATE_LIMIT_EXCEEDED, error.message);
+         sendError(res, 429, ErrorCode.RATE_LIMIT, error.message);
          return;
       }
       if (error instanceof BroadcastRecipientLimitError) {

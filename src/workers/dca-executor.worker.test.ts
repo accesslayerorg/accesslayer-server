@@ -5,7 +5,6 @@ import {
    DueDcaPlan,
 } from './dca-executor.worker';
 import { dcaEventEmitter } from '../modules/dca/dca.events';
-import { prisma } from '../utils/prisma.utils';
 
 const mockTx = {
    $queryRaw: jest.fn(),

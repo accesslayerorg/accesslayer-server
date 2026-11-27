@@ -1,0 +1,44 @@
+// prisma/schema/protocol-escape.prisma
+// Protocol pause and escape-hatch redemptions (#1265).
+//
+// - ProtocolPauseEvent records each `paused` / `unpaused` event. The latest
+//   row decides whether the protocol is paused and since when.
+// - EscapeRedemption records each `escape_redeemed` event. A key position with
+//   a redemption row is excluded from recoverable-amount estimates.
+// - (txHash, eventIndex) is unique on both tables, so replays never duplicate
+//   rows.
+
+model ProtocolPauseEvent {
+  id         String   @id @default(cuid())
+  /// "paused" or "unpaused".
+  kind       String
+  ledger     Int
+  eventIndex Int
+  txHash     String
+  /// Time reported by the contract, or the indexing time when none is given.
+  occurredAt DateTime
+  indexedAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([ledger(sort: Desc), eventIndex(sort: Desc)])
+  @@map("protocol_pause_events")
+}
+
+model EscapeRedemption {
+  id         String   @id @default(cuid())
+  /// Key (CreatorProfile.id). Not a foreign key, so an event can arrive before
+  /// key registration.
+  keyId      String
+  wallet     String
+  /// Key amount redeemed through the escape hatch.
+  amount     Decimal  @db.Decimal(38, 7)
+  ledger     Int
+  eventIndex Int
+  txHash     String
+  redeemedAt DateTime
+  indexedAt  DateTime @default(now())
+
+  @@unique([txHash, eventIndex])
+  @@index([keyId, wallet])
+  @@map("escape_redemptions")
+}
