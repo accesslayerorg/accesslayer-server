@@ -1,0 +1,137 @@
+import { Address, scValToNative, xdr } from '@stellar/stellar-base';
+import {
+   getTransaction,
+   type GetTransactionResult,
+} from '../../clients/soroban.client';
+
+export interface SorobanClientLike {
+   getTransferEventsByTxHash(txHash: string): Promise<SorobanTransferEvent[]>;
+}
+
+export interface TransferMatchInput {
+   txHash: string;
+   sender: string;
+   recipient: string;
+   quantity: number;
+   keyId: string;
+}
+
+export interface VerifiedTransfer {
+   keyId: string;
+   quantity: number;
+}
+
+export interface SorobanTransferEvent {
+   from: string;
+   to: string;
+   quantity: number;
+   keyId: string;
+}
+
+export class GiftVerificationError extends Error {
+   constructor(
+      message: string,
+      public readonly code: 'NOT_FOUND' | 'MISMATCH'
+   ) {
+      super(message);
+      this.name = 'GiftVerificationError';
+   }
+}
+
+/**
+ * Verifies that an on-chain key transfer matches the claimed sender, recipient
+ * and quantity. Only transfers that match are eligible to produce a Gift record.
+ */
+export class GiftVerificationService {
+   constructor(private readonly client: SorobanClientLike) {}
+
+   /**
+    * Fetches the transaction from the Soroban client, extracts the transfer
+    * event and compares sender, recipient and quantity.
+    *
+    * @throws {GiftVerificationError} NOT_FOUND if no transfer event exists for the tx,
+    *         MISMATCH if the transfer does not match the provided fields.
+    */
+   async verify(
+      txHash: string,
+      sender: string,
+      recipient: string,
+      quantity?: number,
+      keyId?: string
+   ): Promise<VerifiedTransfer> {
+      const transfers: SorobanTransferEvent[] =
+         await this.client.getTransferEventsByTxHash(txHash);
+
+      if (!transfers || transfers.length === 0) {
+         throw new GiftVerificationError(
+            `No transfer event found for tx ${txHash}`,
+            'NOT_FOUND'
+         );
+      }
+
+      const match = transfers.find(
+         (t: SorobanTransferEvent): boolean =>
+            t.from === sender &&
+            t.to === recipient &&
+            (quantity === undefined || t.quantity === quantity) &&
+            (keyId === undefined || t.keyId === keyId)
+      );
+
+      if (!match) {
+         throw new GiftVerificationError(
+            `On-chain transfer does not match sender, recipient or quantity for tx ${txHash}`,
+            'MISMATCH'
+         );
+      }
+
+      return { keyId: match.keyId, quantity: match.quantity };
+   }
+}
+
+/**
+ * Extracts SEP-41 style `transfer` contract events (topics: symbol "transfer",
+ * from, to; data: amount) from a base64 TransactionMeta XDR. The emitting
+ * contract id is used as the key id.
+ */
+export function parseTransferEventsFromMeta(
+   resultMetaXdr: string
+): SorobanTransferEvent[] {
+   const meta = xdr.TransactionMeta.fromXDR(resultMetaXdr, 'base64');
+   const sorobanMeta =
+      meta.switch() === 3 ? meta.v3().sorobanMeta() : null;
+   if (!sorobanMeta) return [];
+
+   const out: SorobanTransferEvent[] = [];
+   for (const ev of sorobanMeta.events()) {
+      const body = ev.body().v0();
+      const topics = body.topics();
+      if (topics.length < 3) continue;
+      if (scValToNative(topics[0]) !== 'transfer') continue;
+      const contractId = ev.contractId();
+      if (!contractId) continue;
+      const amount = scValToNative(body.data());
+      out.push({
+         from: Address.fromScVal(topics[1]).toString(),
+         to: Address.fromScVal(topics[2]).toString(),
+         quantity: Number(amount),
+         keyId: Address.contract(contractId as unknown as Buffer).toString(),
+      });
+   }
+   return out;
+}
+
+/** Soroban RPC backed client: only SUCCESS transactions yield events. */
+export const sorobanGiftClient: SorobanClientLike = {
+   getTransferEventsByTxHash: async (
+      txHash: string
+   ): Promise<SorobanTransferEvent[]> => {
+      const tx: GetTransactionResult & { resultMetaXdr?: string } =
+         await getTransaction(txHash);
+      if (tx.status !== 'SUCCESS' || !tx.resultMetaXdr) return [];
+      return parseTransferEventsFromMeta(tx.resultMetaXdr);
+   },
+};
+
+export const giftVerificationService = new GiftVerificationService(
+   sorobanGiftClient
+);

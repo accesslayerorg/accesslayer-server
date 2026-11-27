@@ -5,15 +5,15 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 model OutboxEvent {
-  id            String   @id @default(cuid())
+  id           String    @id @default(cuid())
   type         String
   payload      Json
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   publishedAt  DateTime?
-  attempts     Int      @default(0)
+  attempts     Int       @default(0)
   // Dispatch priority: "critical" | "normal" | "bulk" (#1341). Critical events
   // are always fetched first; bulk events are capped per poll cycle.
-  priority     String   @default("normal")
+  priority     String    @default("normal")
 
   @@index([type])
   @@index([publishedAt])
@@ -21,13 +21,28 @@ model OutboxEvent {
 }
 
 model WalletReputation {
-  address       String   @id
-  score         Int      @default(0)
-  flags         String   @default("") // Comma-separated flag names
-  updatedAt     DateTime @updatedAt
+  address   String   @id
+  score     Int      @default(0)
+  flags     String   @default("") // Comma-separated flag names
+  updatedAt DateTime @updatedAt
 
   @@index([score(sort: Desc)])
   @@index([flags])
+}
+
+model Gift {
+  id        String    @id @default(cuid())
+  txHash    String    @unique
+  keyId     String
+  quantity  Int
+  sender    String
+  recipient String
+  message   String    @default("") @db.VarChar(140)
+  seenAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([recipient, seenAt])
+  @@index([sender])
 }
 
 generator client {
@@ -37,6 +52,6 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgres"
-   url      = env("DATABASE_URL") // You can safely ignore the error on this line.
+  provider = "postgres"
+  url      = env("DATABASE_URL") // You can safely ignore the error on this line.
 }
