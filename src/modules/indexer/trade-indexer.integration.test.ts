@@ -7,8 +7,8 @@ function makeMockDb() {
    return {
       store,
       trade: {
-         findUnique: jest.fn(async ({ where }: { where: { ledger_txHash: { ledger: number; txHash: string } } }) => {
-            const key = `${where.ledger_txHash.ledger}:${where.ledger_txHash.txHash}`;
+         findFirst: jest.fn(async ({ where }: { where: { ledger: number; txHash: string } }) => {
+            const key = `${where.ledger}:${where.txHash}`;
             return store.has(key) ? store.get(key) : null;
          }),
          create: jest.fn(async ({ data }: { data: any }) => {

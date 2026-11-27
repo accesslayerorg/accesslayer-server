@@ -1,8 +1,7 @@
 import { logger } from '../../utils/logger.utils';
-import { OutboxService } from './outbox.service';
+import { OutboxService, OUTBOX_MAX_ATTEMPTS } from './outbox.service';
 
 const BATCH_SIZE = 100;
-const MAX_ATTEMPTS = 10;
 const POLL_INTERVAL = 5000; // 5 seconds
 
 export class OutboxPublisherWorker {
@@ -67,12 +66,13 @@ export class OutboxPublisherWorker {
                   'Outbox event publish failed'
                );
 
-               // Increment attempts
-              await OutboxService.incrementAttempts(event.id);
+               await OutboxService.incrementAttempts(event.id);
 
-               // Move to dead letter if max attempts reached
-               if ((event.attempts || 0) >= MAX_ATTEMPTS) {
-                  await OutboxService.moveToDeadLetter(event.id);
+               // This failure was attempt number (attempts + 1). Dead-letter it
+               // once that reaches the limit; getUnpublished stops returning
+               // events at the limit, so this must happen on the failing pass.
+               if ((event.attempts || 0) + 1 >= OUTBOX_MAX_ATTEMPTS) {
+                  await OutboxService.moveToDeadLetter(event);
                }
             }
          }

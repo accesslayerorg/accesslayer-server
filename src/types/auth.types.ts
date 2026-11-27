@@ -10,6 +10,11 @@ export interface AdminJwtPayload extends JwtPayload {
    role?: string;
    wallet?: string;
    twoFactorStatus?: AdminTwoFactorStatus;
+   /**
+    * Epoch seconds of the admin's last second-factor verification.
+    * Used for step-up action gating (#1342).
+    */
+   mfa_at?: number;
 }
 
 export interface GoogleCredentials {

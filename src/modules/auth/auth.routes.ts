@@ -7,6 +7,7 @@ import {
 import { httpStellarChallenge } from './stellar-challenge.controller';
 import { validateBody } from '../../middlewares/validate-body.middleware';
 import { CreateUserWithPasswordSchema } from './auth.schemas';
+import passkeyRouter from './passkey.routes';
 
 const authRouter = Router();
 
@@ -18,5 +19,6 @@ authRouter.post(
    httpRegisterUserWithPassword
 );
 authRouter.post('/refresh', httpRefreshToken);
+authRouter.use('/passkey', passkeyRouter);
 
 export default authRouter;

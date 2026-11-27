@@ -20,22 +20,41 @@ jest.mock('../../utils/prisma.utils', () => {
       aggregate: jest.fn(),
       groupBy: jest.fn(),
    };
+   const referralHold = {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      updateMany: jest.fn(),
+   };
+   const referralHoldReward = { create: jest.fn() };
    const prisma = {
       referralCode: { findUnique: jest.fn(), create: jest.fn() },
       referral,
       referralEvent,
+      referralHold,
+      referralHoldReward,
       protocolConfig: {
          upsert: jest.fn().mockResolvedValue({ protocolFeeBps: 500 }),
       },
       $transaction: jest.fn((callback: (tx: unknown) => unknown) =>
-         callback({ referral, referralEvent })
+         callback({ referral, referralEvent, referralHold, referralHoldReward })
       ),
    };
 
    return { prisma };
 });
 
+// Abuse detection and funding lookups are covered by their own unit tests;
+// here they are stubbed so these tests stay about referral bookkeeping (#1241).
+jest.mock('../../services/referral-abuse.service', () => ({
+   ReferralAbuseService: { evaluate: jest.fn() },
+}));
+jest.mock('../../services/wallet-funding.service', () => ({
+   prefetchFundingSource: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { prisma } from '../../utils/prisma.utils';
+import { ReferralAbuseService } from '../../services/referral-abuse.service';
+import { prefetchFundingSource } from '../../services/wallet-funding.service';
 import { encodeCursor } from '../../utils/cursor.utils';
 import {
    AlreadyReferredError,
@@ -62,6 +81,11 @@ const eventCreate = prisma.referralEvent.create as jest.Mock;
 const eventAggregate = prisma.referralEvent.aggregate as jest.Mock;
 const eventGroupBy = prisma.referralEvent.groupBy as jest.Mock;
 const protocolConfigUpsert = prisma.protocolConfig.upsert as jest.Mock;
+const holdFindUnique = prisma.referralHold.findUnique as jest.Mock;
+const holdUpsert = prisma.referralHold.upsert as jest.Mock;
+const holdUpdateMany = prisma.referralHold.updateMany as jest.Mock;
+const holdRewardCreate = prisma.referralHoldReward.create as jest.Mock;
+const abuseEvaluate = ReferralAbuseService.evaluate as jest.Mock;
 
 const REFERRER = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const REFEREE = 'GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
@@ -187,6 +211,16 @@ describe('registerReferral', () => {
          joinedAt: '2026-09-01T10:00:00.000Z',
          status: 'PENDING',
       });
+   });
+
+   it("resolves the referee's funding source at registration so clusters are visible early (#1241)", async () => {
+      codeFindUnique.mockResolvedValue({ walletAddress: REFERRER });
+      referralFindUnique.mockResolvedValue(null);
+      referralCreate.mockResolvedValue(referralRow());
+
+      await registerReferral(REFEREE, CODE);
+
+      expect(prefetchFundingSource).toHaveBeenCalledWith(REFEREE);
    });
 
    it('normalises the submitted code so it matches the stored casing', async () => {
@@ -509,6 +543,11 @@ describe('recordTradeReferralReward', () => {
    beforeEach(() => {
       jest.clearAllMocks();
       protocolConfigUpsert.mockResolvedValue({ protocolFeeBps: 500 });
+      // No verdict yet, and detection finds nothing wrong, unless a test says so.
+      holdFindUnique.mockReset();
+      holdFindUnique.mockResolvedValue(null);
+      abuseEvaluate.mockReset();
+      abuseEvaluate.mockResolvedValue({ action: 'allow' });
    });
 
    it('records the referral reward on every trade with tier multiplier', async () => {
@@ -650,5 +689,164 @@ describe('recordTradeReferralReward', () => {
 
       expect(paid).toBe(false);
       expect(eventCreate).not.toHaveBeenCalled();
+   });
+
+   describe('abuse detection (#1241)', () => {
+      const tradeAt = new Date('2026-09-05T12:00:00.000Z');
+      const trade = {
+         refereeAddress: REFEREE,
+         keyId: 'key-1',
+         tradeValueXlm: 10,
+         txHash: 'tx-1',
+         eventIndex: 3,
+         tradeAt,
+      };
+      // 10 XLM * 500/10000 * 500/10000 * 1.0
+      const REWARD = 0.025;
+
+      beforeEach(() => {
+         referralFindUnique.mockResolvedValue(referralRow());
+         referralCount.mockResolvedValue(5);
+         eventCreate.mockResolvedValue({});
+         holdUpdateMany.mockResolvedValue({ count: 1 });
+         holdRewardCreate.mockResolvedValue({});
+      });
+
+      it('pays a normal referral unchanged and creates no hold', async () => {
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(true);
+
+         expect(abuseEvaluate).toHaveBeenCalledWith({
+            referrerAddress: REFERRER,
+            refereeAddress: REFEREE,
+         });
+         expect(eventCreate).toHaveBeenCalledTimes(1);
+         expect(holdUpsert).not.toHaveBeenCalled();
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+      });
+
+      it('withholds a flagged referral: records a PENDING hold and the reward, pays nothing', async () => {
+         abuseEvaluate.mockResolvedValue({
+            action: 'hold',
+            reason: 'FUNDING_CLUSTER',
+            details: { funder: 'GFUNDER', refereesInWindow: 6 },
+         });
+         holdUpsert.mockResolvedValue({ id: 'hold-1', status: 'PENDING' });
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(false);
+
+         expect(eventCreate).not.toHaveBeenCalled();
+         expect(holdUpsert).toHaveBeenCalledWith({
+            where: { referralId: 'ref-1' },
+            create: {
+               referralId: 'ref-1',
+               reason: 'FUNDING_CLUSTER',
+               status: 'PENDING',
+               details: { funder: 'GFUNDER', refereesInWindow: 6 },
+               referrerAddress: REFERRER,
+               refereeAddress: REFEREE,
+            },
+            update: {},
+            select: { id: true, status: true },
+         });
+         expect(holdRewardCreate).toHaveBeenCalledWith({
+            data: {
+               holdId: 'hold-1',
+               keyId: 'key-1',
+               rewardXlm: REWARD,
+               tierMultiplier: 1.0,
+               txHash: 'tx-1',
+               eventIndex: 3,
+               tradedAt: tradeAt,
+            },
+         });
+      });
+
+      it('records the reason of a rejected self-referral as a REJECTED hold and withholds nothing', async () => {
+         referralFindUnique.mockResolvedValue(
+            referralRow({ referrerAddress: REFEREE })
+         );
+         abuseEvaluate.mockResolvedValue({
+            action: 'reject',
+            reason: 'SELF_REFERRAL',
+            details: { wallet: REFEREE },
+         });
+         holdUpsert.mockResolvedValue({ id: 'hold-1', status: 'REJECTED' });
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(false);
+
+         expect(holdUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+               create: expect.objectContaining({
+                  reason: 'SELF_REFERRAL',
+                  status: 'REJECTED',
+               }),
+            })
+         );
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+         expect(eventCreate).not.toHaveBeenCalled();
+      });
+
+      it('keeps withholding every later trade while the hold is PENDING, without re-evaluating', async () => {
+         holdFindUnique.mockResolvedValue({ id: 'hold-1', status: 'PENDING' });
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(false);
+         await expect(
+            recordTradeReferralReward({ ...trade, keyId: 'key-2', eventIndex: 4 })
+         ).resolves.toBe(false);
+
+         expect(abuseEvaluate).not.toHaveBeenCalled();
+         expect(holdUpsert).not.toHaveBeenCalled();
+         expect(holdRewardCreate).toHaveBeenCalledTimes(2);
+         expect(eventCreate).not.toHaveBeenCalled();
+      });
+
+      it('never pays a referral whose hold was rejected', async () => {
+         holdFindUnique.mockResolvedValue({ id: 'hold-1', status: 'REJECTED' });
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(false);
+
+         expect(abuseEvaluate).not.toHaveBeenCalled();
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+         expect(eventCreate).not.toHaveBeenCalled();
+      });
+
+      it('pays later trades normally once the hold was released, without re-evaluating', async () => {
+         holdFindUnique.mockResolvedValue({ id: 'hold-1', status: 'RELEASED' });
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(true);
+
+         expect(abuseEvaluate).not.toHaveBeenCalled();
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+         expect(eventCreate).toHaveBeenCalledTimes(1);
+      });
+
+      it('pays directly when the hold is released while the trade is in flight', async () => {
+         holdFindUnique.mockResolvedValue({ id: 'hold-1', status: 'PENDING' });
+         holdUpdateMany.mockResolvedValue({ count: 0 }); // lock sees RELEASED
+
+         await expect(recordTradeReferralReward(trade)).resolves.toBe(true);
+
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+         expect(eventCreate).toHaveBeenCalledTimes(1);
+      });
+
+      it('propagates an evaluation failure without writing anything', async () => {
+         abuseEvaluate.mockRejectedValue(new Error('Horizon unavailable'));
+
+         await expect(recordTradeReferralReward(trade)).rejects.toThrow(
+            'Horizon unavailable'
+         );
+
+         expect(holdUpsert).not.toHaveBeenCalled();
+         expect(holdRewardCreate).not.toHaveBeenCalled();
+         expect(eventCreate).not.toHaveBeenCalled();
+      });
+
+      it('does not evaluate a trade whose reward rounds to zero', async () => {
+         await expect(
+            recordTradeReferralReward({ ...trade, tradeValueXlm: 0 })
+         ).resolves.toBe(false);
+         expect(abuseEvaluate).not.toHaveBeenCalled();
+      });
    });
 });

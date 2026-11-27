@@ -12,6 +12,11 @@ export interface AdminRequest extends Request {
    adminId?: string;
    adminToken?: string;
    adminClaims?: AdminJwtPayload;
+   /**
+    * Epoch seconds of the admin's last second-factor verification, from the
+    * `mfa_at` token claim. Used to gate step-up actions (#1342).
+    */
+   adminMfaVerifiedAt?: number;
 }
 
 function verifyAdminRequest(
@@ -47,6 +52,9 @@ function verifyAdminRequest(
       req.adminId = adminId;
       req.adminToken = token;
       req.adminClaims = payload;
+      if (typeof payload.mfa_at === 'number') {
+         req.adminMfaVerifiedAt = payload.mfa_at;
+      }
       next();
    } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

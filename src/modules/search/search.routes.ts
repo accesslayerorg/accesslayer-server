@@ -4,6 +4,7 @@ import {
    httpSearch,
    httpSearchCreators,
    httpSearchKeys,
+   httpSearchSuggest,
 } from './search.controllers';
 
 const searchRouter = Router();
@@ -25,6 +26,12 @@ searchRouter.get('/keys', httpSearchKeys);
  * Full creator results with cursor pagination.
  */
 searchRouter.get('/creators', httpSearchCreators);
+
+/**
+ * GET /api/v1/search/suggest?q=&limit=
+ * Mixed typeahead suggestions, capped at 10 results.
+ */
+searchRouter.get('/suggest', httpSearchSuggest);
 
 searchRouter.all('/', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);

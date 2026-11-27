@@ -1,0 +1,16 @@
+// prisma/schema/key-allowlist.prisma
+
+/// Early-access allowlist entry for a creator key (#1246).
+/// Admins add entries individually or in bulk via CSV import.
+model KeyAllowlistEntry {
+  id        String   @id @default(cuid())
+  creatorId String
+  address   String
+  /// Optional purchase cap for this address (null = no cap).
+  cap       Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([creatorId, address])
+  @@index([creatorId])
+}

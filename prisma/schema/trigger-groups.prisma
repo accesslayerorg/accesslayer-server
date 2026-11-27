@@ -1,0 +1,29 @@
+model TriggerGroup {
+  id            String        @id
+  wallet        String
+  keyId         String
+  totalAmount   String
+  status        String        @default("active")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  legs          TriggerLeg[]
+
+  @@index([wallet, status])
+  @@index([keyId, status])
+  @@map("trigger_groups")
+}
+
+model TriggerLeg {
+  id            String   @id
+  groupId       String
+  type          String
+  triggerPrice  String
+  status        String   @default("armed")
+  firedAt       DateTime?
+  lastCheckedAt DateTime?
+  group         TriggerGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([status])
+  @@map("trigger_legs")
+}

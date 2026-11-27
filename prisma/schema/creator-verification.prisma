@@ -1,0 +1,69 @@
+// prisma/schema/creator-verification.prisma
+// Creator verification badge applications, proof checks and reviewer
+// decisions (#1324).
+
+/// A creator's request for the verified badge. Each application has its own
+/// proof code. Rejected creators can apply again; earlier applications and
+/// their decisions are kept.
+model VerificationApplication {
+  id            String    @id @default(cuid())
+  creatorId     String
+  /// "submitted" | "in_review" | "approved" | "rejected"
+  status        String    @default("submitted")
+  /// Keyed HMAC of the normalized legal name. The name itself is not stored.
+  legalNameHash String
+  /// Code the creator places on each linked account. Unique per application.
+  proofCode     String    @unique
+  /// Reviewer (admin id) who claimed the application.
+  reviewerId    String?
+  /// Note recorded with the latest decision.
+  decisionNote  String?
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  creator       CreatorProfile         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  proofs        VerificationProof[]
+  decisions     VerificationDecision[]
+
+  @@index([status, submittedAt])
+  @@index([creatorId, createdAt])
+  @@map("verification_applications")
+}
+
+/// One linked account the creator asked us to check for the proof code.
+model VerificationProof {
+  id            String    @id @default(cuid())
+  applicationId String
+  /// Provider key from the proof provider registry, e.g. "github".
+  provider      String
+  url           String
+  /// "pending" | "passed" | "failed"
+  status        String    @default("pending")
+  failureReason String?
+  checkedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  application   VerificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("verification_proofs")
+}
+
+/// Append-only log of reviewer actions on an application.
+model VerificationDecision {
+  id            String    @id @default(cuid())
+  applicationId String
+  /// "in_review" | "approved" | "rejected"
+  status        String
+  reviewerId    String
+  note          String
+  createdAt     DateTime  @default(now())
+
+  application   VerificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@map("verification_decisions")
+}
