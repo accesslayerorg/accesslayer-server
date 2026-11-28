@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { adminGuard } from './admin-guard.middleware';
+import { adminGuard, pendingAdminGuard } from './admin-guard.middleware';
 import { logger } from '../utils/logger.utils';
 import { envConfig } from '../config';
 
@@ -55,5 +55,60 @@ describe('adminGuard — expired token logging (#733)', () => {
       adminGuard(makeReq(), makeRes(), jest.fn());
 
       expect(logger.warn).not.toHaveBeenCalled();
+   });
+});
+
+describe('adminGuard — TOTP session status (#1277)', () => {
+   beforeEach(() => jest.clearAllMocks());
+
+   it('rejects pending_2fa admin sessions with 401', () => {
+      const token = jwt.sign(
+         { sub: 'admin-2fa', role: 'admin', twoFactorStatus: 'pending_2fa' },
+         envConfig.JWT_SECRET
+      );
+      const req = makeReq(token);
+      const res = makeRes();
+      const next = jest.fn();
+
+      adminGuard(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+         expect.objectContaining({ success: false })
+      );
+      expect(next).not.toHaveBeenCalled();
+      expect(req.adminId).toBeUndefined();
+   });
+
+   it('accepts verified admin sessions', () => {
+      const token = jwt.sign(
+         { sub: 'admin-2fa', role: 'admin', twoFactorStatus: 'verified' },
+         envConfig.JWT_SECRET
+      );
+      const req = makeReq(token);
+      const res = makeRes();
+      const next = jest.fn();
+
+      adminGuard(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.adminId).toBe('admin-2fa');
+      expect(res.status).not.toHaveBeenCalled();
+   });
+
+   it('allows pending_2fa sessions on the 2FA endpoints', () => {
+      const token = jwt.sign(
+         { sub: 'admin-2fa', role: 'admin', twoFactorStatus: 'pending_2fa' },
+         envConfig.JWT_SECRET
+      );
+      const req = makeReq(token);
+      const res = makeRes();
+      const next = jest.fn();
+
+      pendingAdminGuard(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.adminId).toBe('admin-2fa');
+      expect(res.status).not.toHaveBeenCalled();
    });
 });

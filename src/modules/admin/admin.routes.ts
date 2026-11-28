@@ -59,6 +59,7 @@ import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
 import { invalidateKeyVestingCache } from '../vesting/vesting.service';
 import { treasuryRouter } from '../treasury/treasury.routes';
+import admin2faRouter from './admin-2fa.routes';
 import { adminFlagRouter } from '../flags/feature-flags.routes';
 import {
    httpDeleteDlqEntry,
@@ -142,6 +143,7 @@ function serializeTimelockAction(action: any) {
 
 const adminRouter = Router();
 
+adminRouter.use('/2fa', admin2faRouter);
 adminRouter.use(adminFlagRouter);
 
 adminRouter.patch('/creators/:id/metadata', httpUpdateCreatorMetadata);

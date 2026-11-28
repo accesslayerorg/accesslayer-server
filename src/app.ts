@@ -51,6 +51,7 @@ import { routeBodySizeLimit } from './middlewares/body-size-limit.middleware';
 import { envConfig } from './config';
 import { v1RelatedKeysRouter } from './routes/keys.routes';
 import { logger } from './utils/logger.utils';
+import admin2faRouter from './modules/admin/admin-2fa.routes';
 import { sanctionedAddressMiddleware } from './middlewares/sanctioned-address.middleware';
 import { impersonationGuard } from './middlewares/impersonation-guard.middleware';
 import {
@@ -146,6 +147,7 @@ app.get('/', (_, res: Response) => {
 
 // Routes
 app.use('/v1', v1RelatedKeysRouter);
+app.use('/v1/admin/2fa', routeBodySizeLimit('admin'), admin2faRouter);
 app.use('/status', routeBodySizeLimit('default'), statusRouter);
 app.use('/nonce', routeBodySizeLimit('default'), nonceRouter);
 // Gasless meta-transaction relay flow (#1088): POST /relay/submit, GET /relay/nonce/:wallet
