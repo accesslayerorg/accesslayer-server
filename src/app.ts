@@ -25,6 +25,7 @@ import internalRouter from './modules/admin/sequencer.routes';
 import eventsRouter from './modules/events/events.routes';
 import announcementsRouter from './modules/announcements/announcements.routes';
 import ratesRouter from './routes/rates.routes';
+import federationRouter from './routes/federation.routes';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -158,6 +159,9 @@ app.use('/api/v1', createDocsRouter());
 // (/v1/rates) and the versioned API prefix used by every other route.
 app.use('/v1/rates', ratesRouter);
 app.use('/api/v1/rates', ratesRouter);
+// Stellar federation resolution proxy (#1222).
+app.use('/v1/federation', federationRouter);
+app.use('/api/v1/federation', federationRouter);
 app.use('/v1', router);
 app.use('/api/v1', router);
 // Read-only GraphQL endpoint (issue #1248): POST /api/v1/graphql
