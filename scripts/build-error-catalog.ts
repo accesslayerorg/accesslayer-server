@@ -158,7 +158,9 @@ function main(): void {
       sourceCommit: options.sourceCommit,
       wasmHashes: hashWasmFiles(options.wasmDir, crates),
    });
-   const serialized = `${JSON.stringify(built, null, 2)}\n`;
+   // Match the repository's Prettier configuration (tabWidth: 3) so the
+   // committed catalog and the `--check` output stay byte-for-byte identical.
+   const serialized = `${JSON.stringify(built, null, 3)}\n`;
    const undocumented = listUndocumentedErrors(built);
 
    if (options.check) {
