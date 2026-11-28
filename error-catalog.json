@@ -5335,6 +5335,53 @@
                      "actionSource": "derived"
                   }
                ]
+            },
+            {
+               "version": "src-808ab30197b15a4e",
+               "wasmHash": null,
+               "sourceCommit": "1ff2a45a0761c53c8a790808715142246a8436e6",
+               "errors": [
+                  {
+                     "enum": "Error",
+                     "name": "AlreadyInitialized",
+                     "code": 1,
+                     "message": "Contract has already been initialized.",
+                     "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "Unauthorized",
+                     "code": 2,
+                     "message": "Caller is not authorized to perform this action.",
+                     "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "InvalidAmount",
+                     "code": 3,
+                     "message": "Penalty amount must be greater than zero.",
+                     "suggestedAction": "Correct the invalid input and retry.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "NotFound",
+                     "code": 4,
+                     "message": "Creator or slash record not found.",
+                     "suggestedAction": "Confirm the referenced entity exists and is set up, then retry.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "AlreadySlashed",
+                     "code": 5,
+                     "message": "Creator has already been slashed for this violation.",
+                     "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+                     "actionSource": "derived"
+                  }
+               ]
             }
          ]
       },
@@ -7073,6 +7120,53 @@
                      "name": "InvalidFee",
                      "code": 5,
                      "message": null,
+                     "suggestedAction": "Correct the invalid input and retry.",
+                     "actionSource": "derived"
+                  }
+               ]
+            },
+            {
+               "version": "src-ae59dda1d3e86863",
+               "wasmHash": null,
+               "sourceCommit": "1ff2a45a0761c53c8a790808715142246a8436e6",
+               "errors": [
+                  {
+                     "enum": "Error",
+                     "name": "AlreadyInitialized",
+                     "code": 1,
+                     "message": "Contract has already been initialized.",
+                     "suggestedAction": "Do not repeat this operation; read the current state before retrying.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "Unauthorized",
+                     "code": 2,
+                     "message": "Caller is not authorized to perform this action.",
+                     "suggestedAction": "Sign the request with an account that holds the required authorization, then retry.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "NonceUsed",
+                     "code": 3,
+                     "message": "Transaction nonce has already been used.",
+                     "suggestedAction": "Review the error and retry after correcting the request or waiting for contract state to change.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "Expired",
+                     "code": 4,
+                     "message": "Sponsored transaction has expired.",
+                     "suggestedAction": "Wait for the required time window to pass, then retry.",
+                     "actionSource": "derived"
+                  },
+                  {
+                     "enum": "Error",
+                     "name": "InvalidFee",
+                     "code": 5,
+                     "message": "Fee amount is invalid or below the required minimum.",
                      "suggestedAction": "Correct the invalid input and retry.",
                      "actionSource": "derived"
                   }
