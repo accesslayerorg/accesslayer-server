@@ -16,6 +16,10 @@ model CreatorProfile {
   /// When the creator's verification was approved (#1324). Null until approved.
   verifiedAt        DateTime?
   tradingPaused     Boolean  @default(false)
+  /// Whether purchases require a Merkle proof against whitelistRoot.
+  whitelistEnabled  Boolean  @default(false) @map("whitelist_enabled")
+  /// SHA-256 Merkle root used when whitelistEnabled is true.
+  whitelistRoot     String?  @map("whitelist_root")
   circulatingSupply Decimal  @default(0)
   /// Maximum number of keys that can exist (null = uncapped).
   supplyCap         Int?

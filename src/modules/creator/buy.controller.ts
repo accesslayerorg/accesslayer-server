@@ -2,9 +2,16 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import type { StellarSignedRequest } from '../../middlewares/stellar-signature.middleware';
 import { ErrorCode } from '../../constants/error.constants';
-import { sendError, sendSuccess, sendForbidden } from '../../utils/api-response.utils';
+import {
+   sendError,
+   sendSuccess,
+   sendForbidden,
+} from '../../utils/api-response.utils';
 import { buyGateway } from './buy.service';
-import { assertTradingActive, TradingPausedError } from '../keys/key-trading.service';
+import {
+   assertTradingActive,
+   TradingPausedError,
+} from '../keys/key-trading.service';
 import {
    assertPositionNotFrozen,
    PositionFrozenError,
@@ -21,6 +28,7 @@ import {
    LiquidityDepthUnavailableError,
 } from '../trading/liquidity-depth.service';
 import { setBuyCooldownForWallet } from '../keys/key-cooldown.service';
+import { verifyWhitelistProof } from '../../utils/merkle';
 import {
    logSlippageRejection,
    sendSlippageExceeded,
@@ -36,6 +44,9 @@ export const buySchema = z.object({
     * current bonding-curve price exceeds it.
     */
    max_price: z.number().nonnegative().optional(),
+   // Deliberately kept as unknown so malformed proofs receive the same
+   // whitelist_required 403 as missing proofs rather than a validation bypass.
+   merkle_proof: z.unknown().optional(),
 });
 
 export type BuyRequestBody = z.infer<typeof buySchema>;
@@ -50,6 +61,27 @@ export async function httpBuyCreatorKey(
 
    const walletAddress = req.walletAddress!;
    const keyId = String(req.params.id);
+
+   const key = await prisma.creatorProfile.findFirst({
+      where: { OR: [{ id: keyId }, { handle: keyId }] },
+      select: { id: true, whitelistEnabled: true, whitelistRoot: true },
+   });
+   if (key?.whitelistEnabled) {
+      const proof = parseWhitelistProof(body.merkle_proof);
+      if (
+         !key.whitelistRoot ||
+         !proof ||
+         !verifyWhitelistProof(walletAddress, proof, key.whitelistRoot)
+      ) {
+         sendError(
+            res,
+            403,
+            ErrorCode.WHITELIST_REQUIRED,
+            'A valid whitelist Merkle proof is required to buy this key'
+         );
+         return;
+      }
+   }
    try {
       await assertTradingActive(keyId);
    } catch (error) {
@@ -94,13 +126,9 @@ export async function httpBuyCreatorKey(
       throw error;
    }
    if (BigInt(body.quantity) > maxAvailable) {
-      sendError(
-         res,
-         422,
-         ErrorCode.UNPROCESSABLE_ENTITY,
-         'InsufficientDepth',
-         [{ field: 'max_available', message: maxAvailable.toString() }]
-      );
+      sendError(res, 422, ErrorCode.UNPROCESSABLE_ENTITY, 'InsufficientDepth', [
+         { field: 'max_available', message: maxAvailable.toString() },
+      ]);
       return;
    }
 
@@ -160,4 +188,27 @@ export async function httpBuyCreatorKey(
    });
    await setBuyCooldownForWallet(keyId, walletAddress);
    sendSuccess(res, result, 200);
+}
+
+function parseWhitelistProof(
+   value: unknown
+): Array<{ hash: string; side: 'left' | 'right' }> | null {
+   if (!Array.isArray(value)) return null;
+   const proof: Array<{ hash: string; side: 'left' | 'right' }> = [];
+   for (const entry of value) {
+      if (
+         !entry ||
+         typeof entry !== 'object' ||
+         typeof (entry as { hash?: unknown }).hash !== 'string' ||
+         ((entry as { side?: unknown }).side !== 'left' &&
+            (entry as { side?: unknown }).side !== 'right')
+      ) {
+         return null;
+      }
+      proof.push({
+         hash: (entry as { hash: string }).hash,
+         side: (entry as { side: 'left' | 'right' }).side,
+      });
+   }
+   return proof;
 }
